@@ -191,8 +191,26 @@ Write-Host "Android versionName: $version"
 Write-Host "Android versionCode: $androidVersionCode"
 
 New-Item -ItemType Directory -Force -Path $jniDir | Out-Null
-Copy-Item -LiteralPath $sourceSo -Destination $jniSo -Force
-Write-Host "Copied $label library: $jniSo"
+$jniItem = Get-Item -LiteralPath $jniSo -Force -ErrorAction SilentlyContinue
+$linkedSource = $null
+if ($jniItem -and $jniItem.LinkType -eq 'SymbolicLink') {
+  $linkTargets = @($jniItem.Target)
+  if ($linkTargets.Count -gt 0) {
+    $linkTarget = [string]$linkTargets[0]
+    if (-not [System.IO.Path]::IsPathRooted($linkTarget)) {
+      $linkTarget = Join-Path $jniDir $linkTarget
+    }
+    $linkedSource = [System.IO.Path]::GetFullPath($linkTarget)
+  }
+}
+
+$sourceFullPath = [System.IO.Path]::GetFullPath($sourceSo)
+if ($linkedSource -and $linkedSource.Equals($sourceFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+  Write-Host "$label library is already linked: $jniSo"
+} else {
+  Copy-Item -LiteralPath $sourceSo -Destination $jniSo -Force
+  Write-Host "Copied $label library: $jniSo"
+}
 
 $assembleTask = "assemble${gradleVariant}Release"
 $rustBuildTask = "rustBuild${gradleVariant}Release"
