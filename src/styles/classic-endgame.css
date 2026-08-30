@@ -15,10 +15,8 @@
   border-bottom: 1px solid var(--line);
 }
 
-.classic-endgame-header > div:nth-child(2) { display: grid; gap: 3px; }
-.classic-endgame-header span { color: var(--accent-gold); font-size: 0.72rem; font-weight: 900; text-transform: uppercase; }
+.classic-endgame-header > div:nth-child(2) { min-width: 0; }
 .classic-endgame-header h1 { margin: 0; font-size: 1.7rem; }
-.classic-endgame-header p { margin: 0; color: var(--text-muted); line-height: 1.45; }
 
 .classic-endgame-apples {
   display: inline-flex;
@@ -227,7 +225,6 @@
 }
 
 .classic-trophy-cabinet__header > div { display: grid; gap: 3px; }
-.classic-trophy-cabinet__header span { color: #286451; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; }
 .classic-trophy-cabinet__header h2 { margin: 0; font-size: 1.15rem; }
 .classic-trophy-cabinet__header p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
 .classic-trophy-cabinet__header > strong { flex: 0 0 auto; color: #286451; font-size: 1.2rem; }
@@ -300,7 +297,6 @@
 
 .classic-apple-exchange.is-locked .classic-apple-exchange__icon { color: #75808a; background: #edf0f2; }
 .classic-apple-exchange__header > div { display: grid; gap: 3px; min-width: 0; }
-.classic-apple-exchange__header small { color: #286451; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; }
 .classic-apple-exchange__header h2 { margin: 0; font-size: 1.15rem; }
 .classic-apple-exchange__header p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
 .classic-apple-exchange__header > strong {

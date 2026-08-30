@@ -1278,6 +1278,13 @@ assert.equal(
   undefined,
   'an invalid active id should fall back to the built-in pet',
 );
+const normalizedBuiltinLibrary = normalizePetModLibraryState({
+  schemaVersion: 1,
+  activeModId: 'official.doro',
+  mods: [{ ...libraryMods[0], manifest: { ...libraryMods[0].manifest, id: 'official.doro' } }],
+});
+assert.equal(normalizedBuiltinLibrary.activeModId, 'official.doro', 'a built-in mod id should survive normalization');
+assert.equal(normalizedBuiltinLibrary.mods.length, 0, 'a built-in mod must not be duplicated in the imported library');
 
 const schemaCheck: PartnerScheduleState['schemaVersion'] = partnerScheduleSchemaVersion;
 const stateCheck: PetState = { ...level3, partnerSchedule: migratedTogether };

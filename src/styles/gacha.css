@@ -26,6 +26,40 @@
   background: #fff0cf;
 }
 
+.gacha-machine-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.gacha-machine-tabs button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 800;
+}
+
+.gacha-machine-tabs button[aria-pressed="true"] {
+  border-color: rgba(138, 79, 8, 0.25);
+  color: #704208;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(35, 52, 74, 0.08);
+}
+
+.gacha-machine-tabs button:last-child[aria-pressed="true"] {
+  border-color: rgba(185, 43, 86, 0.28);
+  color: #9b244b;
+}
+
 .gacha-wallet {
   display: flex;
   flex-wrap: wrap;
@@ -61,6 +95,11 @@
   border-radius: 8px;
   background: #fffaf0;
   isolation: isolate;
+}
+
+.gacha-stage--heart-machine {
+  border-color: rgba(185, 43, 86, 0.2);
+  background: #fff8fa;
 }
 
 .gacha-stage--skippable {
@@ -158,6 +197,20 @@
   object-fit: contain;
 }
 
+.gacha-machine--heart {
+  background: #c83f68;
+}
+
+.gacha-machine--heart .gacha-machine__cap {
+  color: #8c2749;
+  background: #ffd0dc;
+}
+
+.gacha-machine__heart {
+  color: #c32f5d;
+  fill: #ffd6df;
+}
+
 .gacha-machine__slot {
   width: 76px;
   height: 22px;
@@ -185,6 +238,18 @@
   background: #ffd15c;
   box-shadow: 0 0 0 14px rgba(255, 209, 92, 0.2);
   animation: gacha-charge 0.55s ease-in-out infinite alternate;
+}
+
+.gacha-stage--heart-machine .gacha-animation__core {
+  border-color: #8c2749;
+  color: #b92b56;
+  background: #ffd6e0;
+  box-shadow: 0 0 0 14px rgba(201, 58, 100, 0.14);
+}
+
+.gacha-stage--heart-machine .gacha-animation__spark,
+.gacha-stage--heart-machine .gacha-result__icon {
+  color: #c32f5d;
 }
 
 .gacha-stage--burst .gacha-animation__core {
@@ -441,6 +506,11 @@
   background: #fff0cf;
 }
 
+.gacha-draw-confirm__icon--heart {
+  color: #9b244b;
+  background: #ffe4eb;
+}
+
 .gacha-draw-confirm__submit {
   color: #ffffff;
   background: #8a4f08;
@@ -535,6 +605,10 @@
   height: 38px;
   place-items: center;
   color: #a66e16;
+}
+
+.gacha-history-item__icon--heart {
+  color: #c32f5d;
 }
 
 .gacha-history-item__icon img {

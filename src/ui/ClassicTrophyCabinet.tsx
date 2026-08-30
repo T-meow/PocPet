@@ -35,7 +35,6 @@ export const ClassicTrophyCabinet = ({ pet }: ClassicTrophyCabinetProps) => {
     <section className="classic-trophy-cabinet" aria-labelledby="classic-trophy-title">
       <header className="classic-trophy-cabinet__header">
         <div>
-          <span>{t('ui.classicEndgame.trophies.kicker')}</span>
           <h2 id="classic-trophy-title">{t('ui.classicEndgame.trophies.title')}</h2>
           <p>{t('ui.classicEndgame.trophies.summary')}</p>
         </div>

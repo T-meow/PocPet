@@ -132,7 +132,7 @@ export type GachaRewardRarity = 'common' | 'uncommon' | 'rare' | 'legendary' | '
 export interface GachaResult {
   id: string;
   rewardId: string;
-  kind: 'coins' | 'item';
+  kind: 'coins' | 'item' | 'hearts';
   amount: number;
   itemId?: BuiltinItemId;
   rarity: GachaRewardRarity;
@@ -142,7 +142,7 @@ export interface GachaResult {
 }
 
 export interface GoldenAppleGachaState {
-  schemaVersion: 3;
+  schemaVersion: 4;
   tickets: number;
   totalDraws: number;
   coinsSpent: number;
@@ -157,6 +157,10 @@ export interface GoldenAppleGachaState {
   jackpotPityMisses: number;
   jackpotPityUsed: boolean;
   recentResults: GachaResult[];
+  heartGachaTotalDraws: number;
+  heartGachaApplesSpent: number;
+  heartGachaRngCounter: number;
+  recentHeartResults: GachaResult[];
 }
 
 export interface DreamProjectProgress {
@@ -469,6 +473,7 @@ export interface PetState {
   dailyLoginRewardDateKey?: string;
   yearlyStats: YearlyStats;
   pendingYearReview?: YearReview;
+  latestYearReview?: YearReview;
   lastYearReviewYear?: number;
   dailyWish: DailyWishState;
   returnWelcome?: ReturnWelcomeState;

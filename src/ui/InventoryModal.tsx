@@ -68,7 +68,6 @@ export const InventoryModal = ({
           <span className="dialog-title-icon" aria-hidden="true"><PackageOpen size={22} /></span>
           <div>
             <h2 id="inventory-title">{t('ui.inventory.modalTitle')}</h2>
-            <p>{t('ui.inventory.ownedKinds', { count: items.length })}</p>
           </div>
         </div>
         <div className="dialog-header__actions">

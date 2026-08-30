@@ -16,12 +16,10 @@ const baseTabs: readonly AchievementTabId[] = ['all', 'companion', 'growth', 'li
 const labels = {
   aria: t('ui.achievements.aria'),
   back: t('ui.achievements.back'),
-  kicker: t('ui.achievements.kicker'),
   title: t('ui.achievements.title'),
   unlocked: t('ui.achievements.unlocked'),
   claimable: t('ui.achievements.claimable'),
   claim: t('ui.achievements.claim'),
-  reviewNotice: t('ui.achievements.reviewNotice'),
   tabsAria: t('ui.achievements.tabsAria'),
   locked: t('ui.achievements.locked'),
   claimed: t('ui.achievements.claimed'),
@@ -112,9 +110,7 @@ export const AchievementsPage = ({
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
         <div className="achievements-page__title">
-          <span>{labels.kicker}</span>
           <h2>{labels.title}</h2>
-          <p>{t('ui.achievements.unlockedProgress', { unlocked: summary.unlocked, total: summary.total })}</p>
         </div>
         {summary.claimable > 0 ? (
           <button type="button" className="primary-button achievements-page__claim-all" onClick={onClaimAllRewards}>
@@ -141,8 +137,6 @@ export const AchievementsPage = ({
           <strong>{t('ui.achievements.gardenExtraDropAmount', { percent: summary.gardenExtraDropChancePercent })}</strong>
         </div>
       </div>
-
-      {summary.pendingReviewNotice ? <p className="achievements-review-note">{labels.reviewNotice}</p> : null}
 
       <div className="achievement-tabs" role="tablist" aria-label={labels.tabsAria}>
         {visibleCategories.map((category) => (

@@ -38,7 +38,7 @@ export const FeatureRow = ({
   const canClaimBoostReward = canClaimBoostCardDailyReward(pet);
   const boostCardHint = activeBoostCardId
     ? t('ui.features.boostCardsActive', { card: t(`ui.boostCards.cards.${activeBoostCardId}.name`) })
-    : t('ui.features.boostCardsHint');
+    : undefined;
   const gardenHint = gardenReminder === 'ready'
     ? t('ui.features.gardenReady')
     : gardenReminder === 'withered'
@@ -51,7 +51,7 @@ export const FeatureRow = ({
       ? t('ui.features.partnerScheduleReady')
       : pet.partnerSchedule.active
         ? t('ui.features.partnerScheduleActive')
-        : t('ui.features.partnerScheduleHint');
+        : undefined;
   const endgameUnlocked = isClassicEndgameUnlocked(pet);
   const endgameHint = isClassicEndgameComplete(pet)
     ? t('ui.features.commonDreamsComplete', { level: pet.classicEndgame.legacyLevel })
@@ -97,7 +97,7 @@ export const FeatureRow = ({
         <BadgeCheck size={20} aria-hidden="true" />
         <span>
           {t('ui.features.boostCards')}
-          <small>{boostCardHint}</small>
+          {boostCardHint ? <small>{boostCardHint}</small> : null}
         </span>
         {canClaimBoostReward && <i aria-hidden="true" />}
       </button>
@@ -125,7 +125,7 @@ export const FeatureRow = ({
         <CalendarClock size={20} aria-hidden="true" />
         <span>
           {t('ui.features.partnerSchedule')}
-          <small>{partnerScheduleHint}</small>
+          {partnerScheduleHint ? <small>{partnerScheduleHint}</small> : null}
         </span>
         {pet.partnerSchedule.pendingResult ? <i aria-hidden="true" /> : null}
       </button>

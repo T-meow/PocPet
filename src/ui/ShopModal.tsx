@@ -59,7 +59,6 @@ export const ShopModal = ({
         <header>
           <div className="shop-title-row">
             <div className="shop-title-copy">
-              <p className="eyebrow">{t('ui.shop.eyebrow')}</p>
               <h2 id="shop-title">{t('ui.shop.title')}</h2>
             </div>
             <div className="shop-resource-row">

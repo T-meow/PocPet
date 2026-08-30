@@ -157,7 +157,7 @@ const unprotectSaveFileText = (text: string) => {
   return plainText;
 };
 
-export const createSaveFileText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) => {
+export const createSaveFilePlainText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) => {
   const file: PocPetSaveFileV1 = {
     schemaVersion: saveFileSchemaVersion,
     app: appId,
@@ -172,8 +172,11 @@ export const createSaveFileText = (pet: PetState, activeMod?: PetModManifest | n
       : undefined,
   };
 
-  return protectSaveFileText(JSON.stringify(file));
+  return JSON.stringify(file);
 };
+
+export const createSaveFileText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) =>
+  protectSaveFileText(createSaveFilePlainText(pet, activeMod, now));
 
 const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number): PetState => {
   const sourceNow = Number.isFinite(savedAt) && savedAt >= 0 ? savedAt : now;

@@ -151,7 +151,6 @@ export const HomePage = ({
                 <div className="wish-panel__copy">
                   <span>{t('ui.returnWelcome.kicker')}</span>
                   <h2>{returnWelcomeView.title}</h2>
-                  <p>{returnWelcomeView.description}</p>
                   <small>{returnWelcomeView.progressText} · {returnWelcomeView.rewardText}</small>
                 </div>
                 <button
@@ -170,7 +169,6 @@ export const HomePage = ({
                 <div className="wish-panel__copy">
                   <span>{t('ui.dailyWish.kicker')}</span>
                   <h2>{dailyWishView.title}</h2>
-                  <p>{dailyWishView.description}</p>
                   <small>{dailyWishView.progressText} · {dailyWishView.rewardText}</small>
                 </div>
                 <button

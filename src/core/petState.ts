@@ -295,6 +295,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
       : now;
   const metDate = normalizePetCalendarDate(raw.metDate) ?? getLocalCalendarDate(createdAt);
   const pendingYearReview = normalizeYearReview(raw.pendingYearReview);
+  const latestYearReview = normalizeYearReview(raw.latestYearReview) ?? pendingYearReview;
   const yearlyStats = normalizeYearlyStats(raw.yearlyStats, now, currentDailyDateKey);
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame }, isNumber(raw.energy) ? raw.energy : fallback.energy);
@@ -490,6 +491,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     dailyLoginRewardDateKey: normalizeLegacyDailyDateKey(raw.dailyLoginRewardDateKey, now) || undefined,
     yearlyStats,
     pendingYearReview,
+    latestYearReview,
     lastYearReviewYear: isNumber(raw.lastYearReviewYear) ? Math.floor(raw.lastYearReviewYear) : undefined,
     dailyWish,
     returnWelcome: normalizeReturnWelcomeState(raw.returnWelcome),

@@ -109,7 +109,6 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlo
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
         <div className="garden-page__heading">
-          <span>{t('ui.garden.kicker')}</span>
           <div className="garden-page__title-row">
             <h2>{t('ui.garden.title')}</h2>
             <strong>{t('ui.garden.lifetimeHarvest', { count: pet.garden.lifetimeHarvestCount })}</strong>
@@ -203,7 +202,6 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlo
               <span className="dialog-title-icon" aria-hidden="true">{actionDialog === 'plant' ? <Sprout size={22} /> : <Wrench size={22} />}</span>
               <div>
                 <h2 id="garden-action-title">{actionDialog === 'plant' ? t('ui.garden.plantDialogTitle') : t('ui.garden.toolsDialogTitle')}</h2>
-                <p>{actionDialog === 'plant' ? t('ui.garden.plantDialogSummary') : t('ui.garden.toolsDialogSummary')}</p>
               </div>
             </div>
             <button type="button" className="icon-button" onClick={() => setActionDialog(null)} aria-label={t('ui.garden.closeDialog')} title={t('ui.garden.closeDialog')}>

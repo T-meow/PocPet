@@ -56,7 +56,6 @@
       "kicker": "背包",
       "title": "食物和道具",
       "modalTitle": "背包",
-      "ownedKinds": "持有 {count} 类道具",
       "currentStats": "当前属性",
       "statLabels": {
         "hunger": "饱腹",
@@ -78,7 +77,6 @@
       "empty": "背包是空的，商店里每天可以领取免费饼干。"
     },
     "shop": {
-      "eyebrow": "Shop",
       "title": "商店",
       "close": "关闭",
       "wallet": "{coins} 金币",
@@ -103,14 +101,11 @@
       "close": "关闭",
       "petName": "宠物名字",
       "petBirthday": "宠物生日",
-      "birthdayValue": "{month}月{day}日",
-      "birthdayUnset": "未设置",
       "birthdayMonth": "月份",
       "birthdayDay": "日期",
       "birthdayHint": "生日奖励会使用这个日期，直到重新应用 Mod。",
       "birthdayUnsetHint": "当前没有生日奖励日期，修改月份或日期后会启用。",
       "petAnniversary": "相遇纪念日",
-      "anniversaryValue": "{month}月{day}日",
       "metDateValue": "相遇于 {year}年{month}月{day}日",
       "language": "语言",
       "languageHint": "切换后会重新载入界面，存档不会丢失。",
@@ -135,6 +130,7 @@
         "libraryAria": "已安装 Mod",
         "libraryEmpty": "尚未安装 Mod。",
         "libraryLimit": "Mod 库最多安装 {count} 个 Mod，请先删除不用的 Mod。",
+        "builtinConflict": "{name} 已作为内置宠物提供，无需重复导入。",
         "currentShort": "当前",
         "activate": "设为当前",
         "delete": "删除 {name}",
@@ -159,7 +155,8 @@
       "save": {
         "sectionAria": "存档管理",
         "title": "存档",
-        "summary": "可以导出当前宠物存档；导入包含 Mod 信息的存档时仍需要单独安装对应 Mod。",
+        "summary": "导入、导出与云备份",
+        "localTitle": "本地文件存档",
         "exportText": "导出文本",
         "download": "保存到文件",
         "importFile": "导入文件",
@@ -198,43 +195,169 @@
         "recoveryFileName": "PocPet-损坏存档",
         "manage": "存档管理"
       },
+      "cloud": {
+        "title": "Toy 云存档",
+        "checking": "正在检查云存档",
+        "ready": "已找到可恢复的云存档",
+        "empty": "尚未上传云存档",
+        "unsupported": "当前无法使用云存档",
+        "unavailable": "云存档暂不可用，请检查登录和网络状态",
+        "pet": "宠物",
+        "uploadedAt": "上传时间",
+        "fallback": "当前云存档不可用，已显示上一份可用备份。",
+        "upload": "上传当前存档",
+        "uploading": "正在上传",
+        "restore": "恢复云存档",
+        "restoring": "正在读取",
+        "reminder": "云存档提醒",
+        "uploaded": "云存档已上传。",
+        "uploadFailed": "云存档上传失败，本地存档没有变化。",
+        "restoreFailed": "云存档读取失败，本地存档没有变化。",
+        "restoreFallback": "当前云存档不可用，已读取上一份可用备份；请确认后导入。",
+        "confirmTitle": "上传云存档？",
+        "confirmUpload": "将把当前宠物进度上传到 Toy 云端。",
+        "confirmOverwrite": "将用当前宠物进度覆盖现有云存档。",
+        "confirmCancel": "取消",
+        "confirmSubmit": "确认上传"
+      },
+      "author": {
+        "name": "A虚拟观众",
+        "videoTitle": "PocPet 正式开源介绍",
+        "loading": "正在读取视频信息",
+        "rewardAvailable": "打开作者主页，返回后关注可领取 {count} 张扭蛋券",
+        "rewardClaimed": "关注奖励已领取",
+        "followNotFound": "暂未检测到关注，关注作者后可以再次打开主页核验。",
+        "claimSynced": "已根据云端记录同步关注奖励领取状态。",
+        "claimed": "已验证关注，获得 {count} 张扭蛋券。",
+        "verifyFailed": "暂时无法核验关注状态。",
+        "openFailed": "无法打开作者主页。",
+        "videoFailed": "无法打开介绍视频。",
+        "rewardTitle": "感谢关注 PocPet",
+        "rewardMessage": "关注已验证，送你 {count} 张扭蛋券。"
+      },
       "freeNotice": "本软件为免费软件，不应通过付费方式获得。",
       "help": {
         "open": "打开玩法说明",
         "title": "玩法说明",
         "close": "关闭",
-        "statsTitle": "属性作用",
-        "actionsTitle": "操作作用",
-        "otherTitle": "其他机制",
-        "stats": [
-          "饱腹太低会进入饥饿状态，用食物类道具恢复。",
-          "心情影响睡眠和互动收益；心情达到 75 且健康达到 40 时，点击伙伴互动可以获得小心心。",
-          "清洁过低会增加压力，用清洁操作或护理道具恢复。",
-          "体力限制玩耍、打工和专注，睡觉或部分道具可以恢复。",
-          "健康过低会阻止番茄钟和部分行动，用照顾或药品恢复。"
+        "careTitle": "照顾伙伴",
+        "growthTitle": "日常与成长",
+        "care": [
+          "饱腹、清洁、体力或健康过低会限制行动；食物、清洁、睡眠和护理道具可恢复状态。",
+          "心情影响睡眠与互动；心情达到 75、健康达到 40 时，互动可获得小心心。",
+          "玩耍、清洁和打工会消耗状态，连续操作、天气与季节会影响结果。"
         ],
-        "actions": [
-          "玩耍提升心情，但会消耗体力和饱腹，天气和连续互动会影响结果。",
-          "清洁提升清洁度和少量健康，天气、季节和成就会带来额外变化。",
-          "打工获得金币，收益受等级、天气、季节、加成卡和成就影响。",
-          "睡觉会更快恢复体力，醒来时可能结算睡眠、梦境或自然醒奖励。",
-          "背包道具可用于喂食、送礼、护理，也可在花园里种植或强化。"
-        ],
-        "other": [
-          "日程、日常奖励、天气与每日次数在本地时间 5:00 刷新；生日、相遇纪念日、节日和月初礼物按现实日期计算，并可在事件日后的 3 天内补领。",
-          "商店出售食物、礼物、护理和花园道具，每日可领免费苏打饼干，小心心可兑换金币；好友证和挚友证会提供限时增益与每日邻居礼物。",
-          "每日愿望和回归任务完成后可领奖；离线日记和随机事件可能带来邻居礼物或扭蛋券，离线获券有 1% 概率升级为十连（10 张），并与其他日常来源共享每日 3 次获券额度。",
-          "番茄钟按专注和休息循环计时，完成专注可获得金币和心情；体力或健康过低时会暂停。",
-          "花园可解锁地块、种树、浇水、施肥、升级工具并收获，道具树耗尽收获次数后会枯萎。",
-          "伙伴达到 Lv.3 后可安排伙伴日程，每日最多完成 3 项；四类技能可成长到 Lv.10，满级后继续累计大师次数，完成当日 3 项还会获得扭蛋券。",
-          "金苹果扭蛋可使用金币或扭蛋券，扭蛋机提供一次性 10 张券初始礼物；金苹果既能照顾伙伴，也是伙伴梦想的重要材料。",
-          "成就、生日、纪念日、节日和年度回顾会提供特殊奖励；Lv.20 后可逐步完成伙伴梦想、解锁奖杯和长期纪念等级。",
-          "设置里可管理存档、语言、音频和 Mod，Mod 可替换外观文本并添加安全范围内的道具。"
-        ],
-        "authorLinkAvailable": "作者地址与反馈 · 首次点击领取 {count} 张扭蛋券",
-        "authorLinkClaimed": "作者地址与反馈 · {count} 张扭蛋券已领取"
+        "growth": [
+          "每日内容在本地时间 5:00 刷新；生日、纪念日和节日奖励可在 3 天内补领。",
+          "每日愿望、番茄钟和伙伴日程提供日常奖励；伙伴日程在 Lv.3 解锁。",
+          "花园用于种植和收获；金苹果也用于伙伴梦想，请谨慎消耗。",
+          "Lv.20 且四项日程技能均达到 Lv.6 后，可推进伙伴梦想并解锁奖杯。"
+        ]
       },
       "back": "返回"
+    },
+    "cloudReminder": {
+      "title": "该备份一下了",
+      "backup": "去备份",
+      "snooze": "7 天后提醒",
+      "close": "今天不再提示"
+    },
+    "share": {
+      "title": "分享与纪念",
+      "manage": "分享与纪念",
+      "summary": "保存纪念卡，或把 PocPet 分享给朋友",
+      "sectionAria": "分享与纪念",
+      "profileCard": "宠物档案",
+      "saveProfileCard": "保存宠物档案",
+      "profileCardSummary": "记录当前状态、资产与陪伴数据",
+      "yearCard": "保存年度回顾",
+      "yearCardSummary": "留住最近一年的陪伴记录",
+      "yearCardEmpty": "暂无年度回顾",
+      "app": "分享 PocPet",
+      "appSummary": "发送给朋友，或生成分享二维码",
+      "qrAlt": "PocPet 分享二维码",
+      "appUnavailable": "当前页面暂时无法分享",
+      "panelOpened": "分享面板已打开。",
+      "qrReady": "分享二维码已生成",
+      "appFailed": "暂时无法分享，请稍后重试。",
+      "opening": "正在打开分享…",
+      "capabilityChecking": "分享功能还没准备好，请稍后再试。",
+      "shareTimeout": "分享超时，请重试。",
+      "previewFallback": "当前为预览页面，已生成可分享链接。",
+      "linkReady": "未能打开分享面板，已生成可复制链接。",
+      "copyLink": "复制链接",
+      "linkCopied": "分享链接已复制。",
+      "copyFailed": "复制失败，请长按上方链接复制。",
+      "savedAlbum": "纪念卡已保存",
+      "savedFile": "纪念卡已保存",
+      "downloadStarted": "纪念卡已开始下载",
+      "saveCancelled": "已取消保存。",
+      "saveFailed": "纪念卡保存失败，请重试",
+      "cardGenerating": "正在生成纪念卡",
+      "saveConfirm": {
+        "title": "保存这张图片？",
+        "message": "确认后会将图片保存到本地或相册。",
+        "cancel": "再看看",
+        "confirm": "确认保存"
+      },
+      "albumPermissionHint": "保存纪念卡需要相册权限",
+      "albumTimeout": "保存超时，请重试。",
+      "albumUnsupported": "当前版本暂不支持保存到相册，请升级 B站 App 后重试。",
+      "stats": {
+        "hunger": "饱腹",
+        "mood": "心情",
+        "cleanliness": "清洁",
+        "energy": "体力",
+        "health": "健康",
+        "activeDays": "活跃天数",
+        "careActions": "累计照顾",
+        "heartsEarned": "累计心心",
+        "dailyWishes": "每日愿望",
+        "sleepCount": "睡眠次数",
+        "itemUseCount": "使用道具",
+        "achievements": "成就进度",
+        "schedule": "伙伴日程",
+        "garden": "花园收获",
+        "focus": "专注次数",
+        "gacha": "扭蛋次数",
+        "dreams": "梦想进度"
+      },
+      "assets": {
+        "coins": "金币",
+        "hearts": "小心心",
+        "goldenApples": "金苹果",
+        "tickets": "扭蛋券"
+      },
+      "activities": {
+        "gacha": "扭蛋",
+        "garden": "花园",
+        "focus": "专注",
+        "schedule": "伙伴日程"
+      },
+      "tags": {
+        "care": "最常做：{action}（{count} 次）",
+        "gameplay": "投入最多：{activity}（{count} 次）",
+        "jackpot": "终极大奖收藏 ×{count}",
+        "goldenApple": "金苹果收藏 ×{count}",
+        "collector": "背包收藏 {count} 类",
+        "wealth": "金币资产 {coins}",
+        "growing": "成长中"
+      },
+      "poster": {
+        "profileSubtitle": "此刻的伙伴档案",
+        "yearSubtitle": "这一年的陪伴",
+        "statusTitle": "当前状态",
+        "assetTitle": "收藏与资产",
+        "activityTitle": "陪伴记录",
+        "companionDays": "相伴 {days} 天",
+        "yearMessage": "这一年，一起留下了这些回忆。",
+        "yearQuote": "下一年，也继续和 {name} 一起生活吧。",
+        "gachaTitle": "本次 {count} 抽",
+        "gachaMessage": "把这次好运留作纪念",
+        "gachaFlags": "大奖 {jackpot} · 保底 {guaranteed}",
+        "footer": "来 PocPet，和伙伴一起生活",
+        "footerHint": "卡片不包含账号信息"
+      }
     },
     "pomodoro": {
       "panelAria": "番茄钟",
@@ -258,7 +381,7 @@
       "lowEnergyTitle": "体力太低，先休息一下",
       "lowHealthTitle": "健康太低，先照顾一下",
       "statsAria": "番茄钟统计",
-      "description": "清醒时陪你计时，睡觉时保持休息；完成专注可获得金币。",
+      "description": "完成专注获得金币；睡觉时继续计时。",
       "rounds": "轮次",
       "roundUnit": "轮"
     },
@@ -304,7 +427,6 @@
       "inventoryKinds": "持有 {count} 类",
       "pomodoro": "番茄钟",
       "boostCards": "增益卡",
-      "boostCardsHint": "每日收益加成",
       "boostCardsActive": "{card}生效中",
       "weatherAria": "今日天气：{weather}",
       "garden": "花园",
@@ -312,7 +434,6 @@
       "gardenReady": "有树可收获",
       "gardenWithered": "有枯树待清理",
       "partnerSchedule": "伙伴日程",
-      "partnerScheduleHint": "安排今天的活动",
       "partnerScheduleLocked": "Lv.{level} 解锁",
       "partnerScheduleReady": "有活动收获待领取",
       "partnerScheduleActive": "日程进行中",
@@ -326,18 +447,22 @@
     },
     "gacha": {
       "title": "金苹果扭蛋",
-      "subtitle": "优先使用扭蛋券；金币不会直接回本，主要收益是不可出售的道具与金苹果。",
+      "subtitle": "奖励以道具和金苹果为主。",
+      "heartSubtitle": "消耗金苹果抽取小心心，十连保底 100+。",
       "close": "关闭金苹果扭蛋",
+      "machineAria": "选择扭蛋机",
+      "machineOne": "扭蛋机 1",
+      "machineTwo": "扭蛋机 2 · 小心心",
       "walletAria": "扭蛋余额",
       "paymentAria": "选择扭蛋支付方式",
       "payCoins": "金币",
       "payTickets": "扭蛋券",
       "singleDraw": "单抽 · {cost}",
       "tenDraw": "十连 · {cost}",
-      "coinCostHint": "单抽 500 金币，十连 5,000 金币",
-      "ticketCostHint": "单抽 1 张，十连 10 张，不可混合补差",
+      "ticketCostHint": "扭蛋券不可与金币混用",
       "notEnoughCoins": "金币不足，无法完成这次扭蛋。",
       "notEnoughTickets": "扭蛋券不足，无法完成这次扭蛋。",
+      "notEnoughGoldenApples": "金苹果不足，无法完成这次扭蛋。",
       "charging": "扭蛋机正在蓄力",
       "burst": "扭蛋结果即将揭晓",
       "skip": "跳过演出",
@@ -346,20 +471,25 @@
       "starterGiftHint": "领取 {count} 张扭蛋券",
       "starterGiftClaimed": "获得扭蛋券 ×{count}",
       "coinReward": "{coins} 金币",
+      "heartReward": "{hearts} 颗小心心",
       "unknownReward": "未知道具",
       "guaranteed": "十连金苹果保证",
+      "heartGuaranteed": "十连 100+ 保证",
       "pityGuaranteed": "首次终极保底",
       "jackpot": "终极大奖",
       "probabilities": "完整概率",
       "guaranteeNote": "十连若十个基础结果都没有金苹果，第 10 个结果会替换为金苹果×1。",
+      "heartGuaranteeNote": "基础概率如上。十连若十个基础结果都低于 100 颗，第 10 个会重新抽取并替换为 100（62.5%）、233（31.25%）或 888（6.25%）颗小心心。",
       "pityProgress": "首次终极保底进度：{current}/{threshold}",
-      "pityAvailable": "本存档的一次性终极保底尚未触发。",
-      "pityUsed": "本存档的一次性终极保底已触发，计数不再累计。",
       "pityRule": "首次保底可用时，连续 {threshold} 抽未获得金苹果×100，下一抽必定获得；自然抽中会清零连续计数，但不会消耗保底资格。保底只触发一次。",
       "recentTitle": "最近结果",
       "recentEmpty": "还没有扭蛋记录。",
       "detailsAria": "扭蛋详情",
       "closeDetails": "关闭扭蛋详情",
+      "heartSingleDraw": "单抽 · {cost} 金苹果",
+      "heartTenDraw": "十连 · {cost} 金苹果",
+      "resultCardSave": "保存本次结果卡",
+      "resultCardSaving": "正在生成图片",
       "rarity": {
         "common": "普通",
         "uncommon": "优良",
@@ -369,8 +499,10 @@
       },
       "confirm": {
         "title": "确认抽取？",
-        "coins": "将进行 {count} 次扭蛋并消耗 {cost} 金币。结果生成后无法撤回。",
-        "tickets": "将进行 {count} 次扭蛋并消耗 {cost} 张扭蛋券。结果生成后无法撤回。",
+        "appleTitle": "确认消耗金苹果？",
+        "coins": "进行 {count} 抽，消耗 {cost} 金币。确认后无法撤回。",
+        "tickets": "进行 {count} 抽，消耗 {cost} 张扭蛋券。确认后无法撤回。",
+        "goldenApples": "金苹果也用于伙伴梦想。本次进行 {count} 抽，消耗 {cost} 个，剩余 {remaining} 个。确认后无法撤回。",
         "cancel": "再想想",
         "submit": "确认抽取"
       },
@@ -383,10 +515,8 @@
     },
     "classicEndgame": {
       "back": "返回首页",
-      "kicker": "终极梦想",
       "title": "伙伴梦想",
-      "summary": "实现终极梦想，获得终极加成",
-      "appleMaterialHint": "终局材料：金苹果",
+      "appleMaterialHint": "金苹果也用于伙伴梦想",
       "progress": "目标进度",
       "stageProgress": "阶段完成度",
       "fundingProgress": "目标资金进度",
@@ -427,7 +557,6 @@
         "confirm": "确认投入"
       },
       "trophies": {
-        "kicker": "Trophy Cabinet",
         "title": "奖杯展示柜",
         "summary": "奖杯随目标阶段自动解锁，每类只生效当前最高档。",
         "unlocked": "已解锁 · 效果已生效",
@@ -449,7 +578,6 @@
         }
       },
       "exchange": {
-        "kicker": "Diamond Benefit",
         "title": "金苹果兑换",
         "unlocked": "钻石杯已解锁。兑换固定获得小心心，不受其他心心增益影响。",
         "locked": "获得“钻石友谊奖杯”后开放兑换。",
@@ -496,9 +624,8 @@
     "partnerSchedule": {
       "aria": "伙伴日程",
       "back": "返回首页",
-      "kicker": "Partner Schedule",
       "title": "伙伴日程",
-      "summary": "安排伙伴完成现实时间活动，期间宠物状态暂停自然变化。",
+      "summary": "日程进行时，宠物状态暂停自然变化。",
       "skillsAria": "活动熟练度",
       "skillLevel": "熟练度 Lv.{level}",
       "skillProgress": "Lv.{level} · {xp}/{needed}",
@@ -549,9 +676,8 @@
         "standard": "标准活动",
         "long": "长活动"
       },
-      "todayKicker": "Today",
       "todayTitle": "今天的活动",
-      "dailyCount": "已完成 {count}/{limit} · 今日可选 {offers} 项",
+      "dailyCount": "今日 {count}/{limit}",
       "dailyTicketHint": "完成今日 {limit} 项日程，可获得 1 张扭蛋券",
       "dailyTicketClaimed": "今日完成奖励已领取 · 扭蛋券 +1",
       "activeAria": "进行中的活动",
@@ -648,9 +774,7 @@
       "monthlyTitle": "月初小礼物"
     },
     "yearReview": {
-      "kicker": "年度回顾",
       "title": "{year} 年回顾",
-      "message": "看看 {year} 年你们一起度过的时间。",
       "companionDays": "陪伴天数",
       "activeDays": "活跃天数",
       "careActions": "照顾次数",
@@ -658,6 +782,8 @@
       "pomodoroFocusCount": "专注次数",
       "topCareAction": "最常照顾",
       "noTopCareAction": "还没有偏好",
+      "cardSave": "保存纪念卡",
+      "cardSaving": "正在生成图片",
       "confirm": "收起回顾",
       "actions": {
         "play": "玩耍",
@@ -688,24 +814,19 @@
       "kicker": "今日愿望",
       "wishes": {
         "feed_once": {
-          "title": "一起吃点东西",
-          "description": "喂食一次，帮宠物把肚子照顾好。"
+          "title": "一起吃点东西"
         },
         "clean_once": {
-          "title": "清清爽爽",
-          "description": "清洁一次，让宠物舒服一点。"
+          "title": "清清爽爽"
         },
         "play_once": {
-          "title": "玩一小会儿",
-          "description": "陪宠物玩一次，今天也要一起开心。"
+          "title": "玩一小会儿"
         },
         "touch_once": {
-          "title": "摸摸头",
-          "description": "点击互动一次。"
+          "title": "摸摸头"
         },
         "work_once": {
-          "title": "一起打工",
-          "description": "打工一次，轻松赚点今天的零花钱。"
+          "title": "一起打工"
         }
       }
     },
@@ -715,27 +836,22 @@
       "reward": "回归补给 {coins} 金币，道具 x{count}",
       "tasks": {
         "feed_once": {
-          "title": "先吃点东西",
-          "description": "你离开了 {days} 天，先喂食一次，让宠物安心下来。"
+          "title": "先吃点东西"
         },
         "clean_once": {
-          "title": "整理一下",
-          "description": "你离开了 {days} 天，先清洁一次，把状态恢复过来。"
+          "title": "整理一下"
         },
         "touch_once": {
-          "title": "回来就好",
-          "description": "你离开了 {days} 天，摸摸宠物，让它知道你回来了。"
+          "title": "回来就好"
         },
         "sleep_once": {
-          "title": "好好休息",
-          "description": "你离开了 {days} 天，让宠物睡一觉，慢慢恢复体力。"
+          "title": "好好休息"
         }
       }
     },
     "achievements": {
       "aria": "成就",
       "back": "返回",
-      "kicker": "Achievement",
       "title": "成就",
       "unlocked": "已完成",
       "unlockedProgress": "已完成 {unlocked}/{total}",
@@ -747,7 +863,6 @@
       "gardenExtraDrop": "额外产物",
       "gardenExtraDropAmount": "+{percent}%",
       "dailyStipendClaimed": "今日已领取",
-      "reviewNotice": "旧存档或多项成就已整理完毕，可以在这里查看。",
       "tabsAria": "成就分类",
       "locked": "未完成",
       "claimed": "已领取",
@@ -791,7 +906,6 @@
     "garden": {
       "aria": "种植页面",
       "back": "返回",
-      "kicker": "Garden",
       "title": "种植园",
       "prevSlot": "上一个栏位",
       "nextSlot": "下一个栏位",
@@ -825,9 +939,7 @@
       },
       "chooseSapling": "选择树苗",
       "plantDialogTitle": "选择树苗",
-      "plantDialogSummary": "选择当前地块要种下的树苗",
       "toolsDialogTitle": "种植工具",
-      "toolsDialogSummary": "升级工具以提高日常种植效率",
       "closeDialog": "关闭",
       "plantAction": "种植",
       "buySaplings": "购买树苗和种植用品",
@@ -900,14 +1012,11 @@
       "compensationGiftCoins": "+{coins}"
     },
     "boostCards": {
-      "kicker": "Boost Card",
       "title": "增益卡",
       "close": "关闭",
       "activeCard": "当前生效：{card}",
       "noActive": "当前没有生效增益卡",
       "todayWork": "今日打工加成 {coins}/{limit}",
-      "scheduleBonus": "伙伴日程金币 +{percent}%",
-      "extraHeartChance": "额外小心心概率 {percent}% · 无上限",
       "todayGarden": "今日种植额外产物 {count}/{limit}",
       "claimed": "今日已领取",
       "claimReward": "领取邻居礼物和 {coins} 金币",
@@ -931,14 +1040,13 @@
     "rolePicker": {
       "aria": "选择宠物角色",
       "title": "选择你的伙伴",
-      "description": "选择内置 Furo 或任一已安装 Mod；也可以先导入新的 Mod。确认角色前不会创建存档。",
+      "description": "选择 Furo、Doro、已安装 Mod，或导入新 Mod。",
       "loading": "正在读取本地 Mod...",
       "builtinTitle": "内置 Furo",
-      "builtinSummary": "不使用 Mod，直接创建默认伙伴。",
       "installedTitle": "使用 {name}",
-      "installedSummary": "创建默认名字为 {pet} 的 Mod 伙伴。",
+      "installedSummary": "{pet}",
       "importTitle": "导入 Mod",
-      "importSummary": "选择 zip 文件安装到 Mod 库，安装后再选择伙伴。"
+      "importSummary": ".zip"
     }
   },
   "pet": {
@@ -1422,6 +1530,7 @@
       "dailyItem": "每日登录礼物：背包里多了一件惊喜道具。",
       "helpPageGift": "已领取玩法说明赠礼，金币 +{coins}。",
       "authorLinkGift": "感谢关注作者，扭蛋券 +{count}。",
+      "authorFollowGift": "已验证关注作者，扭蛋券 +{count}。",
       "gardenCompensation": "已领取种植园补偿，金币 +{coins}。",
       "anniversary": "今天是和 {name} 相遇的日子，纪念日礼物：金苹果 +1、亮晶晶贴纸 +1、扭蛋券 +10。",
       "monthlyGift": "新的月份开始了，月初礼物：金苹果 +1、扭蛋券 +3。",
@@ -1905,6 +2014,7 @@
     },
     "gacha": {
       "drawn": "完成了 {count} 次金苹果扭蛋，直接获得 {coins} 金币。",
+      "heartsDrawn": "消耗 {apples} 个金苹果完成了 {count} 次心心扭蛋，获得 {hearts} 颗小心心。",
       "ticketGranted": "额外获得 1 张扭蛋券。",
       "starterGiftClaimed": "领取了初始礼物，获得 {count} 张扭蛋券。"
     },

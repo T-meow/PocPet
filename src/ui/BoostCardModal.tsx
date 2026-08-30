@@ -22,7 +22,6 @@ export const BoostCardModal = ({ pet, onClose, onBuyCard, onClaimDailyReward }: 
     <DialogShell className="boost-card-modal" labelId="boost-card-title" onClose={onClose}>
         <header className="boost-card-modal__header">
           <div>
-            <span>{t('ui.boostCards.kicker')}</span>
             <h2 id="boost-card-title">{t('ui.boostCards.title')}</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('ui.boostCards.close')} title={t('ui.boostCards.close')}>
@@ -34,10 +33,6 @@ export const BoostCardModal = ({ pet, onClose, onBuyCard, onClaimDailyReward }: 
           {effects.workBonusDailyLimit > 0 && (
             <span>{t('ui.boostCards.todayWork', { coins: pet.boostCards.dailyWorkBonusCoinsUsed, limit: effects.workBonusDailyLimit })}</span>
           )}
-          {effects.partnerScheduleCoinBonusPercent > 0 && (
-            <span>{t('ui.boostCards.scheduleBonus', { percent: effects.partnerScheduleCoinBonusPercent })}</span>
-          )}
-          <span>{t('ui.boostCards.extraHeartChance', { percent: effects.extraHeartChancePercent })}</span>
           {effects.gardenExtraDropDailyLimit > 0 && (
             <span>{t('ui.boostCards.todayGarden', { count: pet.boostCards.dailyGardenExtraDrops, limit: effects.gardenExtraDropDailyLimit })}</span>
           )}

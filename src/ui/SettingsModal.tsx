@@ -1,11 +1,14 @@
 ﻿import { ArrowLeft, CircleHelp, Download, FileText, RotateCcw, Upload } from 'lucide-react';
-import { useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Check, Trash2 } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { authorLinkGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
+import { Cloud, Copy, FileImage, Play, Share2 } from 'lucide-react';
+import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
+import type { CloudSaveManifestV1 } from '../core/cloudSave';
 import { giftBoxIcon } from '../assets';
 import { languages, list, t, type LanguageCode } from '../i18n';
+import type { ToyAuthorSummary, ToyAuthorVideoSummary } from '../platform/toySdk';
+import type { ToyCloudAvailability, ToyCloudBusyAction } from './app/useToyIntegration';
 import { DialogShell } from './DialogShell';
 
 interface SettingsModalProps {
@@ -20,14 +23,28 @@ interface SettingsModalProps {
   importSaveText: string;
   hasImportBackup: boolean;
   hasOpenedHelp: boolean;
-  hasClaimedAuthorLinkGift: boolean;
+  hasClaimedAuthorFollowGift: boolean;
   hasClaimedHelpPageGift: boolean;
+  initialPage?: SettingsPage;
+  cloudAvailability: ToyCloudAvailability;
+  cloudManifest?: CloudSaveManifestV1;
+  cloudUsedFallback: boolean;
+  cloudBusy: ToyCloudBusyAction;
+  cloudReminderEnabled: boolean;
+  cloudReminderDue: boolean;
+  hasLatestYearReview: boolean;
+  shareBusy: 'profile' | 'year' | null;
+  shareDetails?: { base64?: string; url: string };
+  authorSummary: ToyAuthorSummary;
+  authorVideo: ToyAuthorVideoSummary;
+  isAuthorLoading: boolean;
   onDraftNameChange: (value: string) => void;
   onDraftBirthdayChange: (value: PetBirthday) => void;
   onLanguageChange: (value: LanguageCode) => void;
   onImportSaveTextChange: (value: string) => void;
   onOpenHelp: () => void;
-  onClaimAuthorLinkGift: () => void;
+  onOpenAuthorSpace: () => void;
+  onOpenIntroVideo: () => void;
   onClaimHelpPageGift: () => void;
   onClose: () => void;
   onSaveProfile: () => void;
@@ -39,14 +56,20 @@ interface SettingsModalProps {
   onDownloadSave: () => void;
   onImportPastedSave: () => void;
   onRestoreImportBackup: () => void;
+  onCloudUpload: () => void;
+  onCloudRestore: () => void;
+  onCloudReminderEnabledChange: (enabled: boolean) => void;
+  onSaveProfileCard: () => void;
+  onSaveYearReviewCard: () => void;
+  onShareApp: () => void;
+  onCopyShareLink: () => void;
   onModFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onImportSaveFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-type SettingsPage = 'main' | 'mod' | 'save';
+export type SettingsPage = 'main' | 'mod' | 'save' | 'share';
 
 const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
-const authorUrl = 'https://space.bilibili.com/37393114';
 
 export const SettingsModal = ({
   activeMod,
@@ -60,14 +83,28 @@ export const SettingsModal = ({
   importSaveText,
   hasImportBackup,
   hasOpenedHelp,
-  hasClaimedAuthorLinkGift,
+  hasClaimedAuthorFollowGift,
   hasClaimedHelpPageGift,
+  initialPage = 'main',
+  cloudAvailability,
+  cloudManifest,
+  cloudUsedFallback,
+  cloudBusy,
+  cloudReminderEnabled,
+  cloudReminderDue,
+  hasLatestYearReview,
+  shareBusy,
+  shareDetails,
+  authorSummary,
+  authorVideo,
+  isAuthorLoading,
   onDraftNameChange,
   onDraftBirthdayChange,
   onLanguageChange,
   onImportSaveTextChange,
   onOpenHelp,
-  onClaimAuthorLinkGift,
+  onOpenAuthorSpace,
+  onOpenIntroVideo,
   onClaimHelpPageGift,
   onClose,
   onSaveProfile,
@@ -79,18 +116,30 @@ export const SettingsModal = ({
   onDownloadSave,
   onImportPastedSave,
   onRestoreImportBackup,
+  onCloudUpload,
+  onCloudRestore,
+  onCloudReminderEnabledChange,
+  onSaveProfileCard,
+  onSaveYearReviewCard,
+  onShareApp,
+  onCopyShareLink,
   onModFileChange,
   onImportSaveFileChange,
 }: SettingsModalProps) => {
   const modFileInputRef = useRef<HTMLInputElement>(null);
   const [isHelpOpen, setHelpOpen] = useState(false);
-  const [page, setPage] = useState<SettingsPage>('main');
+  const [page, setPage] = useState<SettingsPage>(initialPage);
   const helpSections = [
-    { title: t('ui.settings.help.statsTitle'), items: list('ui.settings.help.stats') },
-    { title: t('ui.settings.help.actionsTitle'), items: list('ui.settings.help.actions') },
-    { title: t('ui.settings.help.otherTitle'), items: list('ui.settings.help.other') },
+    { title: t('ui.settings.help.careTitle'), items: list('ui.settings.help.care') },
+    { title: t('ui.settings.help.growthTitle'), items: list('ui.settings.help.growth') },
   ];
-  const pageTitle = page === 'mod' ? t('ui.settings.mod.title') : page === 'save' ? t('ui.settings.save.title') : t('ui.settings.title');
+  const pageTitle = page === 'mod'
+    ? t('ui.settings.mod.title')
+    : page === 'save'
+      ? t('ui.settings.save.title')
+      : page === 'share'
+        ? t('ui.share.title')
+        : t('ui.settings.title');
   const activeModSummary = activeMod
     ? t('ui.settings.mod.current', { name: activeMod.manifest.name, version: activeMod.manifest.version })
     : t('ui.settings.mod.currentDefault');
@@ -113,13 +162,16 @@ export const SettingsModal = ({
     onOpenHelp();
     setHelpOpen(true);
   };
-
-  const handleAuthorLinkClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    onClaimAuthorLinkGift();
-    if (!('__TAURI_INTERNALS__' in window)) return;
-    event.preventDefault();
-    void openUrl(authorUrl);
-  };
+  const cloudUploadedAt = cloudManifest
+    ? new Date(cloudManifest.uploadedAt).toLocaleString(language)
+    : undefined;
+  const cloudStatusKey = cloudAvailability === 'checking'
+    ? 'ui.settings.cloud.checking'
+    : cloudAvailability === 'available'
+      ? cloudManifest ? 'ui.settings.cloud.ready' : 'ui.settings.cloud.empty'
+      : cloudAvailability === 'unsupported'
+        ? 'ui.settings.cloud.unsupported'
+        : 'ui.settings.cloud.unavailable';
 
   return (
     <>
@@ -170,9 +222,6 @@ export const SettingsModal = ({
               <div className="field settings-birthday-field">
                 <div className="settings-birthday-heading">
                   <span>{t('ui.settings.petBirthday')}</span>
-                  <small>
-                    {draftBirthday ? t('ui.settings.birthdayValue', { month: birthdayMonth, day: birthdayDay }) : t('ui.settings.birthdayUnset')}
-                  </small>
                 </div>
                 <div className="settings-birthday-grid">
                   <label>
@@ -201,9 +250,8 @@ export const SettingsModal = ({
               <div className="settings-anniversary-field">
                 <div>
                   <span>{t('ui.settings.petAnniversary')}</span>
-                  <strong>{t('ui.settings.anniversaryValue', { month: metDate.month, day: metDate.day })}</strong>
+                  <strong>{t('ui.settings.metDateValue', { year: metDate.year, month: metDate.month, day: metDate.day })}</strong>
                 </div>
-                <small>{t('ui.settings.metDateValue', { year: metDate.year, month: metDate.month, day: metDate.day })}</small>
               </div>
 
               <label className="field settings-inline-field settings-language-field" title={t('ui.settings.languageHint')}>
@@ -224,10 +272,17 @@ export const SettingsModal = ({
                 </span>
               </button>
 
-              <button type="button" className="settings-nav-card" onClick={() => setPage('save')}>
+              <button type="button" className={`settings-nav-card${cloudReminderDue ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('save')}>
                 <span>
                   <strong>{t('ui.settings.save.manage')}</strong>
                   <small>{t('ui.settings.save.summary')}</small>
+                </span>
+              </button>
+
+              <button type="button" className="settings-nav-card" onClick={() => setPage('share')}>
+                <span>
+                  <strong>{t('ui.share.manage')}</strong>
+                  <small>{t('ui.share.summary')}</small>
                 </span>
               </button>
             </>
@@ -235,8 +290,7 @@ export const SettingsModal = ({
 
           {page === 'mod' && (
             <section className="settings-section" aria-label={t('ui.settings.mod.sectionAria')}>
-              <div>
-                <strong>{t('ui.settings.mod.title')}</strong>
+              <div className="settings-section__intro">
                 <span>{activeModSummary}</span>
               </div>
               {modMessage && <p className="settings-message">{modMessage}</p>}
@@ -290,11 +344,55 @@ export const SettingsModal = ({
 
           {page === 'save' && (
             <section className="settings-section" aria-label={t('ui.settings.save.sectionAria')}>
-              <div>
-                <strong>{t('ui.settings.save.title')}</strong>
-                <span>{t('ui.settings.save.summary')}</span>
-              </div>
               {modMessage && <p className="settings-message">{modMessage}</p>}
+              <div className="settings-cloud-panel">
+                <div className="settings-cloud-panel__heading">
+                  <span className="settings-cloud-panel__icon"><Cloud size={20} aria-hidden="true" /></span>
+                  <span>
+                    <strong>{t('ui.settings.cloud.title')}</strong>
+                    <small>{t(cloudStatusKey)}</small>
+                  </span>
+                </div>
+                {cloudManifest && (
+                  <dl className="settings-cloud-meta">
+                    <div><dt>{t('ui.settings.cloud.pet')}</dt><dd>{cloudManifest.petName} · Lv.{cloudManifest.petLevel}</dd></div>
+                    <div><dt>{t('ui.settings.cloud.uploadedAt')}</dt><dd>{cloudUploadedAt}</dd></div>
+                    {cloudManifest.activeMod && <div><dt>Mod</dt><dd>{cloudManifest.activeMod.name} v{cloudManifest.activeMod.version}</dd></div>}
+                  </dl>
+                )}
+                {cloudUsedFallback && <p className="settings-cloud-warning">{t('ui.settings.cloud.fallback')}</p>}
+                <div className="settings-cloud-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={cloudAvailability !== 'available' || cloudBusy !== null}
+                    onClick={onCloudUpload}
+                  >
+                    <Upload size={18} aria-hidden="true" />
+                    {cloudBusy === 'upload' ? t('ui.settings.cloud.uploading') : t('ui.settings.cloud.upload')}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={cloudAvailability !== 'available' || !cloudManifest || cloudBusy !== null}
+                    onClick={onCloudRestore}
+                  >
+                    <RotateCcw size={18} aria-hidden="true" />
+                    {cloudBusy === 'restore' ? t('ui.settings.cloud.restoring') : t('ui.settings.cloud.restore')}
+                  </button>
+                </div>
+                <label className="settings-toggle-row">
+                  <span>
+                    <strong>{t('ui.settings.cloud.reminder')}</strong>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={cloudReminderEnabled}
+                    onChange={(event) => onCloudReminderEnabledChange(event.target.checked)}
+                  />
+                </label>
+              </div>
+              <div className="settings-local-save-divider"><span>{t('ui.settings.save.localTitle')}</span></div>
               <div className="modal-actions">
                 <button type="button" className="primary-button" onClick={onExportSave}>
                   <FileText size={18} aria-hidden="true" />
@@ -325,6 +423,38 @@ export const SettingsModal = ({
               </button>
             </section>
           )}
+
+          {page === 'share' && (
+            <section className="settings-section settings-share-section" aria-label={t('ui.share.sectionAria')}>
+              {modMessage && <p className="settings-message">{modMessage}</p>}
+              <div className="settings-share-actions">
+                <button type="button" className="settings-share-action" disabled={shareBusy !== null} onClick={onSaveProfileCard}>
+                  <FileImage size={22} aria-hidden="true" />
+                  <span><strong>{shareBusy === 'profile' ? t('ui.share.cardGenerating') : t('ui.share.saveProfileCard')}</strong><small>{t('ui.share.profileCardSummary')}</small></span>
+                </button>
+                <button type="button" className="settings-share-action" disabled={!hasLatestYearReview || shareBusy !== null} onClick={onSaveYearReviewCard}>
+                  <FileImage size={22} aria-hidden="true" />
+                  <span><strong>{shareBusy === 'year' ? t('ui.share.cardGenerating') : t('ui.share.yearCard')}</strong><small>{hasLatestYearReview ? t('ui.share.yearCardSummary') : t('ui.share.yearCardEmpty')}</small></span>
+                </button>
+                <button type="button" className="settings-share-action" onClick={onShareApp}>
+                  <Share2 size={22} aria-hidden="true" />
+                  <span><strong>{t('ui.share.app')}</strong><small>{t('ui.share.appSummary')}</small></span>
+                </button>
+              </div>
+              {shareDetails && (
+                <div className="settings-share-qr">
+                  {shareDetails.base64 && <img src={shareDetails.base64} alt={t('ui.share.qrAlt')} />}
+                  <div className="settings-share-link-actions">
+                    <a href={shareDetails.url} target="_blank" rel="noopener noreferrer">{shareDetails.url}</a>
+                    <button type="button" className="secondary-button" onClick={onCopyShareLink}>
+                      <Copy size={16} aria-hidden="true" />
+                      {t('ui.share.copyLink')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         {page === 'main' && (
@@ -345,16 +475,32 @@ export const SettingsModal = ({
               {t('ui.settings.help.close')}
             </button>
           </header>
-          <p className="help-author-link">
-            <a href={authorUrl} target="_blank" rel="noopener noreferrer" onClick={handleAuthorLinkClick}>
-              {t(
-                hasClaimedAuthorLinkGift
-                  ? 'ui.settings.help.authorLinkClaimed'
-                  : 'ui.settings.help.authorLinkAvailable',
-                { count: authorLinkGiftTickets },
-              )}
-            </a>
-          </p>
+          <div className="help-author-cards">
+            <button type="button" className="help-author-card" onClick={onOpenAuthorSpace}>
+              {authorSummary.avatar
+                ? <img src={authorSummary.avatar} alt="" aria-hidden="true" />
+                : <span className="help-author-card__placeholder" aria-hidden="true" />}
+              <span>
+                <strong>{authorSummary.nickname || t('ui.settings.author.name')}</strong>
+                <small>{t(
+                  hasClaimedAuthorFollowGift
+                    ? 'ui.settings.author.rewardClaimed'
+                    : 'ui.settings.author.rewardAvailable',
+                  { count: authorFollowGiftTickets },
+                )}</small>
+              </span>
+            </button>
+            <button type="button" className="help-author-card help-author-card--video" onClick={onOpenIntroVideo}>
+              {authorVideo.cover
+                ? <img src={authorVideo.cover} alt="" aria-hidden="true" />
+                : <span className="help-author-card__video-icon"><Play size={22} aria-hidden="true" /></span>}
+              <span>
+                <strong>{authorVideo.title || t('ui.settings.author.videoTitle')}</strong>
+                {isAuthorLoading ? <small>{t('ui.settings.author.loading')}</small> : null}
+              </span>
+            </button>
+          </div>
+          {modMessage && <p className="settings-message" role="status">{modMessage}</p>}
           <div className="help-content">
             {helpSections.map((section) => (
               <section className="help-section" key={section.title}>

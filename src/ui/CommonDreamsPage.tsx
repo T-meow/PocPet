@@ -114,9 +114,7 @@ export const CommonDreamsPage = ({
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
         <div>
-          <span>{t('ui.classicEndgame.kicker')}</span>
           <h1 id="classic-endgame-title">{t('ui.classicEndgame.title')}</h1>
-          <p>{t('ui.classicEndgame.summary')}</p>
         </div>
         <div className="classic-endgame-apples" title={t('ui.classicEndgame.appleMaterialHint')}>
           <Apple size={20} aria-hidden="true" />

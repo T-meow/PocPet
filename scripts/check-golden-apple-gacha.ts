@@ -31,6 +31,8 @@ import {
   getGoldenAppleGachaCoinExpectedValue,
   getGoldenAppleGachaExpectedValue,
   getGoldenAppleGachaTenExpectedValue,
+  getGoldenAppleHeartGachaExpectedValue,
+  getGoldenAppleHeartGachaTenExpectedValue,
   grantDailyGachaTickets,
   getPartnerScheduleClaimPreview,
   getPartnerScheduleOfferPreview,
@@ -41,6 +43,9 @@ import {
   goldenAppleGachaPoolWeight,
   goldenAppleGachaRewards,
   goldenAppleGachaSchemaVersion,
+  goldenAppleHeartGachaGuaranteeMinimum,
+  goldenAppleHeartGachaPoolWeight,
+  goldenAppleHeartGachaRewards,
   investDreamProject,
   isClassicEndgameUnlocked,
   normalizeGoldenAppleGachaState,
@@ -52,6 +57,7 @@ import {
   startPartnerSchedule,
   upgradePet,
   useInventoryItem,
+  drawGoldenAppleHeartGacha,
   drawGoldenAppleGacha,
 } from '../src/core/pet';
 import { advanceGarden, defaultGardenState, gardenSchemaVersion, gardenTreeDefinitions, goldenAppleTreeLimit, normalizeGardenState, plantTree } from '../src/core/garden';
@@ -69,11 +75,16 @@ const near = (actual: number, expected: number, tolerance: number, label: string
 for (const localePath of ['src/i18n/zh-CN.json', 'src/i18n/en-US.json']) {
   const locale = JSON.parse(readFileSync(localePath, 'utf8')) as {
     ui?: {
-      settings?: { help?: { other?: unknown[]; authorLinkAvailable?: string; authorLinkClaimed?: string } };
+      settings?: {
+        help?: { care?: unknown[]; growth?: unknown[] };
+        author?: { rewardAvailable?: string; rewardClaimed?: string };
+      };
       classicEndgame?: { projects?: Record<string, { stages?: Record<string, string> }>; trophies?: { names?: Record<string, unknown> }; exchange?: { title?: string; confirm?: { title?: string } } };
+      gacha?: { heartSubtitle?: string; machineTwo?: string; heartGuaranteeNote?: string; confirm?: { appleTitle?: string; goldenApples?: string } };
     };
     pet?: {
-      reward?: { authorLinkGift?: string };
+      reward?: { authorLinkGift?: string; authorFollowGift?: string };
+      gacha?: { heartsDrawn?: string };
       classicEndgame?: { exchangeLocked?: string; exchangeEmpty?: string; exchangeSuccess?: string; legacyCurveRefund?: string };
       dreamTalk?: unknown[];
       dreamEvent?: Record<string, unknown[]>;
@@ -97,10 +108,18 @@ for (const localePath of ['src/i18n/zh-CN.json', 'src/i18n/en-US.json']) {
   assert(locale.pet?.classicEndgame?.exchangeEmpty, `${localePath} missing empty exchange event`);
   assert(locale.pet?.classicEndgame?.exchangeSuccess, `${localePath} missing exchange success event`);
   assert(locale.pet?.classicEndgame?.legacyCurveRefund, `${localePath} missing legacy curve refund event`);
-  assert.equal(locale.ui?.settings?.help?.other?.length, 9, `${localePath} must describe all current gameplay systems`);
-  assert(locale.ui?.settings?.help?.authorLinkAvailable, `${localePath} missing available author-link reward copy`);
-  assert(locale.ui?.settings?.help?.authorLinkClaimed, `${localePath} missing claimed author-link reward copy`);
+  assert.equal(locale.ui?.settings?.help?.care?.length, 3, `${localePath} must include the current care guide`);
+  assert.equal(locale.ui?.settings?.help?.growth?.length, 4, `${localePath} must include the current growth guide`);
+  assert(locale.ui?.settings?.author?.rewardAvailable, `${localePath} missing available author-follow reward copy`);
+  assert(locale.ui?.settings?.author?.rewardClaimed, `${localePath} missing claimed author-follow reward copy`);
   assert(locale.pet?.reward?.authorLinkGift, `${localePath} missing author-link reward event`);
+  assert(locale.pet?.reward?.authorFollowGift, `${localePath} missing author-follow reward event`);
+  assert(locale.ui?.gacha?.heartSubtitle, `${localePath} missing Heart Gacha subtitle`);
+  assert(locale.ui?.gacha?.machineTwo, `${localePath} missing Heart Gacha machine label`);
+  assert(locale.ui?.gacha?.heartGuaranteeNote, `${localePath} missing Heart Gacha guarantee copy`);
+  assert(locale.ui?.gacha?.confirm?.appleTitle, `${localePath} missing Golden Apple warning title`);
+  assert(locale.ui?.gacha?.confirm?.goldenApples, `${localePath} missing Golden Apple warning message`);
+  assert(locale.pet?.gacha?.heartsDrawn, `${localePath} missing Heart Gacha event copy`);
   assert.equal(locale.pet?.dreamTalk?.length, 10, `${localePath} must include ten dream-talk lines`);
   for (const key of ['tooShort', 'bad', 'good', 'normal']) {
     assert.equal(locale.pet?.sleepSettlement?.[key]?.length, 2, `${localePath} must include two ${key} sleep settlements`);
@@ -238,14 +257,47 @@ near(tenDrawWhiteGreenCount, 7.4830425063, 0.0000000001, 'ten draw white and gre
 assert.equal(getInventoryItem('golden_apple')?.price, 888);
 assert(!shopItems.some((item) => item.id === 'golden_apple'), 'golden apples must not enter the normal shop');
 
+assert.equal(
+  goldenAppleHeartGachaRewards.reduce((sum, reward) => sum + reward.weight, 0),
+  goldenAppleHeartGachaPoolWeight,
+  'the Heart Gacha pool must total 100%',
+);
+assert.deepEqual(
+  Object.fromEntries(goldenAppleHeartGachaRewards.map((reward) => [reward.amount, reward.weight])),
+  {
+    10: 15000,
+    20: 20000,
+    30: 20000,
+    40: 15000,
+    60: 13000,
+    88: 9000,
+    100: 5000,
+    233: 2500,
+    888: 500,
+  },
+  'the Heart Gacha must use the approved reward table',
+);
+assert.equal(goldenAppleHeartGachaGuaranteeMinimum, 100);
+near(getGoldenAppleHeartGachaExpectedValue(), 48.485, 0.0000001, 'Heart Gacha single expected value');
+near(getGoldenAppleHeartGachaTenExpectedValue(), 552.0515464331673, 0.0000001, 'Heart Gacha ten-draw expected value');
+near(getGoldenAppleHeartGachaTenExpectedValue() / 10, 55.20515464331673, 0.0000001, 'Heart Gacha ten-draw value per apple');
+
 const gachaModalSource = readFileSync('src/ui/GoldenAppleGachaModal.tsx', 'utf8');
 assert(
-  gachaModalSource.includes('{!gachaState.jackpotPityUsed ? ('),
-  'the probability dialog must render pity status only while the one-time pity remains available',
+  gachaModalSource.includes("{machine === 'apple' && !gachaState.jackpotPityUsed ? ("),
+  'the probability dialog must render machine 1 pity status only while the one-time pity remains available',
 );
 assert(
   !gachaModalSource.includes("gachaState.jackpotPityUsed ? 'ui.gacha.pityUsed'"),
   'used pity information must stay hidden instead of rendering an exhausted status',
+);
+assert(
+  gachaModalSource.includes("t('ui.gacha.confirm.goldenApples'") || gachaModalSource.includes("? 'ui.gacha.confirm.goldenApples'"),
+  'every Heart Gacha draw must use the Golden Apple warning confirmation',
+);
+assert(
+  !gachaModalSource.includes('suppressGoldenAppleUseConfirm'),
+  'Heart Gacha confirmations must not inherit the inventory warning suppression preference',
 );
 
 const fundedPet = { ...createDefaultPet(now), coins: 1_000_000 };
@@ -272,7 +324,98 @@ assert.equal(ticketDraw.pet.goldenAppleGacha.tickets, 0);
 assert.equal(ticketDraw.pet.goldenAppleGacha.ticketsSpent, 10);
 assert.equal(ticketDraw.pet.coins, ticketPet.coins + ticketDraw.results.reduce((sum, result) => sum + (result.kind === 'coins' ? result.amount : 0), 0));
 
-assert.equal(goldenAppleGachaSchemaVersion, 3);
+const heartGachaBase: PetState = {
+  ...createDefaultPet(now),
+  hearts: 7,
+  inventory: { ...createDefaultPet(now).inventory, golden_apple: 20 },
+};
+const deterministicHeartA = drawGoldenAppleHeartGacha(heartGachaBase, 10, now);
+const deterministicHeartB = drawGoldenAppleHeartGacha(heartGachaBase, 10, now);
+assert.equal(deterministicHeartA.error, undefined);
+assert.deepEqual(deterministicHeartA.results, deterministicHeartB.results, 'Heart Gacha must replay deterministically');
+assert(deterministicHeartA.results.every((result) => result.kind === 'hearts'));
+const deterministicHeartTotal = deterministicHeartA.results.reduce((sum, result) => sum + result.amount, 0);
+assert.equal(deterministicHeartA.pet.inventory.golden_apple, 10);
+assert.equal(deterministicHeartA.pet.hearts, heartGachaBase.hearts + deterministicHeartTotal);
+assert.equal(
+  deterministicHeartA.pet.achievements.counters.heartEarnedTotal,
+  heartGachaBase.achievements.counters.heartEarnedTotal + deterministicHeartTotal,
+  'Heart Gacha rewards must count toward earned-heart achievements without extra multipliers',
+);
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.heartGachaTotalDraws, 10);
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.heartGachaApplesSpent, 10);
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.heartGachaRngCounter, 10);
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.recentHeartResults.length, 10);
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.totalDraws, 0, 'Heart Gacha must not advance machine 1 draws');
+assert.equal(deterministicHeartA.pet.goldenAppleGacha.rngCounter, 0, 'Heart Gacha must use an independent RNG counter');
+
+const boostedHeartGachaPet = buyBoostCard({
+  ...createDefaultPet(now),
+  hearts: 1000,
+  inventory: { golden_apple: 1 },
+}, 'best_friend_pass', now);
+const randomBeforeHeartGacha = Math.random;
+Math.random = () => 0;
+try {
+  const boostedHeartDraw = drawGoldenAppleHeartGacha(boostedHeartGachaPet, 1, now);
+  assert.equal(
+    boostedHeartDraw.pet.hearts,
+    boostedHeartGachaPet.hearts + boostedHeartDraw.results[0].amount,
+    'Heart Gacha must ignore active Boost Card extra-heart chances',
+  );
+} finally {
+  Math.random = randomBeforeHeartGacha;
+}
+
+const insufficientHeartPet: PetState = {
+  ...createDefaultPet(now),
+  inventory: { golden_apple: 9 },
+};
+const insufficientHeartDraw = drawGoldenAppleHeartGacha(insufficientHeartPet, 10, now);
+assert.equal(insufficientHeartDraw.error, 'not_enough_golden_apples');
+assert.equal(insufficientHeartDraw.results.length, 0);
+assert.deepEqual(insufficientHeartDraw.pet, insufficientHeartPet, 'failed Heart Gacha payment must not mutate state');
+
+let guaranteedHeartDraw: ReturnType<typeof drawGoldenAppleHeartGacha> | undefined;
+for (let counter = 0; counter < 1000 && !guaranteedHeartDraw; counter += 10) {
+  const candidate: PetState = {
+    ...heartGachaBase,
+    inventory: { golden_apple: 10 },
+    goldenAppleGacha: { ...heartGachaBase.goldenAppleGacha, heartGachaRngCounter: counter },
+  };
+  const outcome = drawGoldenAppleHeartGacha(candidate, 10, now);
+  if (outcome.results.some((result) => result.guaranteed)) guaranteedHeartDraw = outcome;
+}
+assert(guaranteedHeartDraw, 'a deterministic Heart Gacha ten-draw fallback must be discoverable');
+assert(guaranteedHeartDraw.results.slice(0, 9).every((result) => result.amount < goldenAppleHeartGachaGuaranteeMinimum));
+assert.equal(guaranteedHeartDraw.results[9].guaranteed, true);
+assert(guaranteedHeartDraw.results[9].amount >= goldenAppleHeartGachaGuaranteeMinimum);
+assert.equal(guaranteedHeartDraw.results.filter((result) => result.guaranteed).length, 1);
+
+const naturalHeartPrizes = new Set<number>();
+for (let counter = 0; counter < 50000 && naturalHeartPrizes.size < 2; counter += 1) {
+  const candidate: PetState = {
+    ...heartGachaBase,
+    inventory: { golden_apple: 1 },
+    goldenAppleGacha: { ...heartGachaBase.goldenAppleGacha, heartGachaRngCounter: counter },
+  };
+  const amount = drawGoldenAppleHeartGacha(candidate, 1, now).results[0]?.amount;
+  if (amount === 233 || amount === 888) naturalHeartPrizes.add(amount);
+}
+assert.deepEqual([...naturalHeartPrizes].sort((a, b) => a - b), [233, 888], 'both Heart Gacha grand prizes must be naturally reachable');
+
+let heartHistoryPet: PetState = {
+  ...createDefaultPet(now),
+  inventory: { golden_apple: 30 },
+};
+for (let index = 0; index < 3; index += 1) {
+  heartHistoryPet = drawGoldenAppleHeartGacha(heartHistoryPet, 10, now + index).pet;
+}
+assert.equal(heartHistoryPet.goldenAppleGacha.heartGachaTotalDraws, 30);
+assert.equal(heartHistoryPet.goldenAppleGacha.recentHeartResults.length, 20);
+assert.equal(heartHistoryPet.inventory.golden_apple, undefined);
+
+assert.equal(goldenAppleGachaSchemaVersion, 4);
 assert.equal(goldenAppleGachaJackpotPityThreshold, 1000);
 const rawV1Gacha = structuredClone(createDefaultPet(now).goldenAppleGacha) as unknown as Record<string, unknown>;
 rawV1Gacha.schemaVersion = 1;
@@ -316,6 +459,40 @@ const clampedV3DailyCount = normalizeGoldenAppleGachaState({
   dailyTicketsGranted: 99,
 }, createDefaultPet(now).createdAt, now);
 assert.equal(clampedV3DailyCount.dailyTicketsGranted, 3, 'v3 daily quota usage must stay within the daily limit');
+const migratedV3HeartState = normalizeGoldenAppleGachaState({
+  ...createDefaultPet(now).goldenAppleGacha,
+  schemaVersion: 3,
+  heartGachaTotalDraws: 99,
+  heartGachaApplesSpent: 99,
+  heartGachaRngCounter: 99,
+  recentHeartResults: deterministicHeartA.results,
+}, createDefaultPet(now).createdAt, now);
+assert.equal(migratedV3HeartState.schemaVersion, goldenAppleGachaSchemaVersion);
+assert.equal(migratedV3HeartState.heartGachaTotalDraws, 0, 'v3 saves must start Heart Gacha counters at zero');
+assert.equal(migratedV3HeartState.heartGachaApplesSpent, 0);
+assert.equal(migratedV3HeartState.heartGachaRngCounter, 0);
+assert.deepEqual(migratedV3HeartState.recentHeartResults, []);
+const normalizedV4HeartState = normalizeGoldenAppleGachaState({
+  ...createDefaultPet(now).goldenAppleGacha,
+  schemaVersion: 4,
+  heartGachaTotalDraws: -5,
+  heartGachaApplesSpent: 12,
+  heartGachaRngCounter: 12,
+  recentHeartResults: [
+    { ...deterministicHeartA.results[0], kind: 'coins', amount: 9999, rarity: 'common' },
+    { ...deterministicHeartA.results[0], rewardId: 'hearts_999' },
+  ],
+}, createDefaultPet(now).createdAt, now);
+assert.equal(normalizedV4HeartState.heartGachaTotalDraws, 0);
+assert.equal(normalizedV4HeartState.heartGachaApplesSpent, 12);
+assert.equal(normalizedV4HeartState.heartGachaRngCounter, 12);
+assert.equal(normalizedV4HeartState.recentHeartResults.length, 1, 'unknown Heart Gacha rewards must be discarded');
+assert.equal(normalizedV4HeartState.recentHeartResults[0].kind, 'hearts');
+assert.equal(
+  normalizedV4HeartState.recentHeartResults[0].amount,
+  deterministicHeartA.results[0].amount,
+  'stored Heart Gacha reward metadata must be derived from the approved pool',
+);
 const normalizedUsedPity = normalizeGoldenAppleGachaState({
   ...createDefaultPet(now).goldenAppleGacha,
   totalDraws: 1000,
@@ -1102,6 +1279,8 @@ assert.equal(exactlyFundedLegacyCurve.classicEndgame.legacyCoinsInvested, 227000
 const migratedSave = normalizePet({ ...createDefaultPet(now), goldenAppleGacha: undefined, classicEndgame: undefined }, now);
 assert.equal(migratedSave.goldenAppleGacha.tickets, 0);
 assert.equal(migratedSave.goldenAppleGacha.totalDraws, 0);
+assert.equal(migratedSave.goldenAppleGacha.heartGachaTotalDraws, 0);
+assert.equal(migratedSave.goldenAppleGacha.recentHeartResults.length, 0);
 assert.equal(migratedSave.classicEndgame.legacyLevel, 0);
 
 console.log('Golden Apple Gacha and Classic endgame checks passed.');

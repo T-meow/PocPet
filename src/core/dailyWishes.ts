@@ -37,7 +37,6 @@ export type WishProgressActionKey = DailyWishActionKey | ReturnWelcomeActionKey;
 
 export interface WishTaskView {
   title: string;
-  description: string;
   progressText: string;
   rewardText: string;
   buttonLabel: string;
@@ -294,7 +293,6 @@ export const getDailyWishView = (pet: PetState): WishTaskView => {
   const claimed = Boolean(wish.claimedAt);
   return {
     title: t('ui.dailyWish.wishes.' + wish.id + '.title'),
-    description: t('ui.dailyWish.wishes.' + wish.id + '.description'),
     progressText: t('ui.wishes.progress', { progress: wish.progress, target: wish.target }),
     rewardText: t('ui.wishes.rewardCoins', { coins: rewardCoins }),
     buttonLabel: getButtonLabel(canClaim, claimed),
@@ -310,7 +308,6 @@ export const getReturnWelcomeView = (pet: PetState): WishTaskView | undefined =>
   const canClaim = Boolean(welcome.completedAt);
   return {
     title: t('ui.returnWelcome.tasks.' + welcome.taskId + '.title'),
-    description: t('ui.returnWelcome.tasks.' + welcome.taskId + '.description', { days: welcome.awayDays }),
     progressText: t('ui.wishes.progress', { progress: welcome.progress, target: welcome.target }),
     rewardText: t('ui.returnWelcome.reward', { coins: welcome.rewardCoins, count: welcome.rewardItemIds.length }),
     buttonLabel: getButtonLabel(canClaim, false),

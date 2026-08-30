@@ -56,7 +56,6 @@
       "kicker": "Inventory",
       "title": "Food and Items",
       "modalTitle": "Inventory",
-      "ownedKinds": "{count} item types owned",
       "currentStats": "Current stats",
       "statLabels": {
         "hunger": "Food",
@@ -78,7 +77,6 @@
       "empty": "Inventory is empty. You can claim 3 soda biscuits from the shop each day."
     },
     "shop": {
-      "eyebrow": "Shop",
       "title": "Shop",
       "close": "Close",
       "wallet": "{coins} coins",
@@ -103,14 +101,11 @@
       "close": "Close",
       "petName": "Pet name",
       "petBirthday": "Birthday",
-      "birthdayValue": "{month}/{day}",
-      "birthdayUnset": "Not set",
       "birthdayMonth": "Month",
       "birthdayDay": "Day",
       "birthdayHint": "Birthday rewards use this date until a mod is reapplied.",
       "birthdayUnsetHint": "No birthday reward is active. Pick a month or day to set one.",
       "petAnniversary": "Meeting anniversary",
-      "anniversaryValue": "{month}/{day}",
       "metDateValue": "Met on {month}/{day}/{year}",
       "language": "Language",
       "languageHint": "Changing language reloads the interface. Your save is kept.",
@@ -135,6 +130,7 @@
         "libraryAria": "Installed mods",
         "libraryEmpty": "No mods installed yet.",
         "libraryLimit": "The mod library can hold up to {count} mods. Delete an unused mod first.",
+        "builtinConflict": "{name} is already included as a built-in pet and does not need to be imported.",
         "currentShort": "Current",
         "activate": "Use this mod",
         "delete": "Delete {name}",
@@ -159,7 +155,8 @@
       "save": {
         "sectionAria": "Save management",
         "title": "Save",
-        "summary": "Export the current pet save. Saves that reference a mod still need that mod installed separately.",
+        "summary": "Import, export, and cloud backup",
+        "localTitle": "Local file save",
         "exportText": "Export text",
         "download": "Save to file",
         "importFile": "Import file",
@@ -198,43 +195,169 @@
         "recoveryFileName": "PocPet-damaged-save",
         "manage": "Save management"
       },
+      "cloud": {
+        "title": "Toy Cloud Save",
+        "checking": "Checking cloud save",
+        "ready": "A restorable cloud save is available",
+        "empty": "No cloud save has been uploaded",
+        "unsupported": "Cloud save is unavailable here",
+        "unavailable": "Cloud save is unavailable. Check your sign-in and connection.",
+        "pet": "Pet",
+        "uploadedAt": "Uploaded",
+        "fallback": "The current cloud save is unavailable. Showing the previous usable backup.",
+        "upload": "Upload current save",
+        "uploading": "Uploading",
+        "restore": "Restore cloud save",
+        "restoring": "Reading",
+        "reminder": "Cloud save reminders",
+        "uploaded": "Cloud save uploaded.",
+        "uploadFailed": "Cloud upload failed. The local save was not changed.",
+        "restoreFailed": "Cloud restore failed. The local save was not changed.",
+        "restoreFallback": "The current cloud save is unavailable. The previous usable backup was loaded; review it before importing.",
+        "confirmTitle": "Upload cloud save?",
+        "confirmUpload": "Upload the current pet progress to Toy Cloud.",
+        "confirmOverwrite": "Replace the existing cloud save with the current pet progress.",
+        "confirmCancel": "Cancel",
+        "confirmSubmit": "Upload"
+      },
+      "author": {
+        "name": "A虚拟观众",
+        "videoTitle": "Official PocPet open-source introduction",
+        "loading": "Loading video details",
+        "rewardAvailable": "Open the author page; follow and return to claim {count} tickets",
+        "rewardClaimed": "Follow reward claimed",
+        "followNotFound": "A follow was not detected. Follow the author and open the page again to verify.",
+        "claimSynced": "Follow reward status synced from cloud storage.",
+        "claimed": "Follow verified. You received {count} gacha tickets.",
+        "verifyFailed": "The follow state could not be verified right now.",
+        "openFailed": "Could not open the author page.",
+        "videoFailed": "Could not open the introduction video.",
+        "rewardTitle": "Thanks for following PocPet",
+        "rewardMessage": "Follow verified. Here are {count} gacha tickets."
+      },
       "freeNotice": "This app is free software and should not be obtained through paid access.",
       "help": {
         "open": "Open gameplay help",
         "title": "Gameplay Help",
         "close": "Close",
-        "statsTitle": "Stats",
-        "actionsTitle": "Actions",
-        "otherTitle": "Other systems",
-        "stats": [
-          "Very low hunger makes your pet hungry. Use food items to recover it.",
-          "Mood affects sleep and interaction rewards. Tap your companion with at least 75 mood and 40 health to earn hearts.",
-          "Low cleanliness adds stress. Use cleaning actions or care items to recover it.",
-          "Energy limits play, work, and focus. Sleep or some items can restore it.",
-          "Low health blocks Pomodoro and some actions. Use care actions or medicine to recover."
+        "careTitle": "Caring for your pet",
+        "growthTitle": "Daily life and growth",
+        "care": [
+          "Low hunger, cleanliness, energy, or health can limit actions. Food, cleaning, sleep, and care items restore these stats.",
+          "Mood affects sleep and interaction. Interact at 75 mood and 40 health to earn hearts.",
+          "Play, cleaning, and work spend stats. Repeated actions, weather, and seasons can change the result."
         ],
-        "actions": [
-          "Play raises mood, but spends energy and hunger. Weather and repeated interaction can change the result.",
-          "Clean raises cleanliness and a little health, with extra changes from weather, seasons, and achievements.",
-          "Work earns coins. Rewards can be affected by level, weather, seasons, boost cards, and achievements.",
-          "Sleep restores energy faster and may settle sleep, dreams, or natural-wake rewards.",
-          "Inventory items can feed, gift, care for your pet, or plant and boost things in the garden."
-        ],
-        "other": [
-          "Schedules, daily rewards, weather, and daily counters reset at 5:00 local time. Birthdays, meeting anniversaries, festivals, and monthly gifts follow calendar dates and can be claimed for three days after the event.",
-          "The shop sells food, gifts, care, and garden items. Claim a free soda biscuit daily and exchange hearts for coins; Friend and Best Friend Passes provide timed bonuses and a daily neighbor gift.",
-          "Daily wishes and return tasks grant rewards after completion. Offline diaries and random events may bring neighbor gifts or gacha tickets; an offline ticket has a 1% chance to become a ten-pull reward, and all daily sources share three ticket-grant slots.",
-          "Pomodoro cycles focus and breaks. Completed focus grants coins and mood, while low energy or health pauses the timer.",
-          "The garden lets you unlock slots, plant trees, water, fertilize, upgrade tools, and harvest. Item trees with no harvests left become withered.",
-          "Partner schedules unlock at Lv.3 and allow up to three completions per day. Four skills grow to Lv.10, then track master completions; finishing all three daily schedules also grants a gacha ticket.",
-          "Golden Apple Gacha accepts coins or tickets and includes a one-time starter gift of 10 tickets. Golden apples care for your partner and are also important Partner Dreams materials.",
-          "Achievements, birthdays, anniversaries, festivals, and yearly reviews grant special rewards. At Lv.20, Partner Dreams lead to trophies and long-term legacy levels.",
-          "Settings include save management, language, audio, and mods. Mods can replace visuals/text and add safe custom items."
-        ],
-        "authorLinkAvailable": "Author page and feedback · first click grants {count} gacha tickets",
-        "authorLinkClaimed": "Author page and feedback · {count} gacha tickets claimed"
+        "growth": [
+          "Daily content resets at 5:00 local time. Birthday, anniversary, and festival rewards remain claimable for three days.",
+          "Daily wishes, Pomodoro, and Partner Schedules provide daily rewards. Partner Schedules unlock at Lv.3.",
+          "Use the garden to plant and harvest. Golden Apples are also used in Partner Dreams, so spend them carefully.",
+          "At Lv.20, raising all four schedule skills to Lv.6 unlocks Partner Dreams and trophies."
+        ]
       },
       "back": "Back"
+    },
+    "cloudReminder": {
+      "title": "Time to back up",
+      "backup": "Back up now",
+      "snooze": "Remind in 7 days",
+      "close": "Hide for today"
+    },
+    "share": {
+      "title": "Share & Memories",
+      "manage": "Share & Memories",
+      "summary": "Save a memory card or share PocPet with friends",
+      "sectionAria": "Share and memories",
+      "profileCard": "Pet profile",
+      "saveProfileCard": "Save pet profile",
+      "profileCardSummary": "Capture current stats, assets, and companion data",
+      "yearCard": "Save yearly review",
+      "yearCardSummary": "Keep the latest year of memories",
+      "yearCardEmpty": "No yearly review yet",
+      "app": "Share PocPet",
+      "appSummary": "Send it to friends or create a share QR code",
+      "qrAlt": "PocPet share QR code",
+      "appUnavailable": "This page cannot be shared right now.",
+      "panelOpened": "Share panel opened.",
+      "qrReady": "Share QR code created.",
+      "appFailed": "Unable to share right now. Try again later.",
+      "opening": "Opening share…",
+      "capabilityChecking": "Sharing is not ready yet. Try again shortly.",
+      "shareTimeout": "Sharing timed out. Try again.",
+      "previewFallback": "This is a preview page. A shareable link was created.",
+      "linkReady": "The share panel did not open. A copyable link was created.",
+      "copyLink": "Copy link",
+      "linkCopied": "Share link copied.",
+      "copyFailed": "Copy failed. Press and hold the link above to copy it.",
+      "savedAlbum": "Memory card saved to the album.",
+      "savedFile": "Memory card saved.",
+      "downloadStarted": "Memory card download started.",
+      "saveCancelled": "Save cancelled.",
+      "saveFailed": "Could not save the memory card. Try again.",
+      "cardGenerating": "Creating memory card",
+      "saveConfirm": {
+        "title": "Save this image?",
+        "message": "Once confirmed, the image will be saved to your device or album.",
+        "cancel": "Keep looking",
+        "confirm": "Save image"
+      },
+      "albumPermissionHint": "Album access is needed to save the memory card",
+      "albumTimeout": "Saving timed out. Try again.",
+      "albumUnsupported": "Saving to the album is unavailable in this version. Update the Bilibili app and try again.",
+      "stats": {
+        "hunger": "Hunger",
+        "mood": "Mood",
+        "cleanliness": "Clean",
+        "energy": "Energy",
+        "health": "Health",
+        "activeDays": "Active days",
+        "careActions": "Care actions",
+        "heartsEarned": "Hearts earned",
+        "dailyWishes": "Daily wishes",
+        "sleepCount": "Times slept",
+        "itemUseCount": "Items used",
+        "achievements": "Achievements",
+        "schedule": "Schedules",
+        "garden": "Harvests",
+        "focus": "Focus sessions",
+        "gacha": "Gacha draws",
+        "dreams": "Dream progress"
+      },
+      "assets": {
+        "coins": "Coins",
+        "hearts": "Hearts",
+        "goldenApples": "Golden Apples",
+        "tickets": "Gacha Tickets"
+      },
+      "activities": {
+        "gacha": "Gacha",
+        "garden": "Garden",
+        "focus": "Focus",
+        "schedule": "Schedules"
+      },
+      "tags": {
+        "care": "Most common: {action} ({count})",
+        "gameplay": "Most time in: {activity} ({count})",
+        "jackpot": "Ultimate jackpot collection ×{count}",
+        "goldenApple": "Golden Apple collection ×{count}",
+        "collector": "{count} inventory types",
+        "wealth": "{coins} coins in assets",
+        "growing": "Still growing"
+      },
+      "poster": {
+        "profileSubtitle": "Your companion right now",
+        "yearSubtitle": "A year together",
+        "statusTitle": "Current stats",
+        "assetTitle": "Collection & assets",
+        "activityTitle": "Time together",
+        "companionDays": "Together for {days} days",
+        "yearMessage": "These are the memories you made together this year.",
+        "yearQuote": "Spend another year together with {name}.",
+        "gachaTitle": "This Time: {count} Draws",
+        "gachaMessage": "A little luck worth remembering",
+        "gachaFlags": "Jackpots {jackpot} · Guarantees {guaranteed}",
+        "footer": "Come live with a companion in PocPet",
+        "footerHint": "This card contains no account information"
+      }
     },
     "pomodoro": {
       "panelAria": "Pomodoro",
@@ -258,7 +381,7 @@
       "lowEnergyTitle": "Energy is too low. Rest first.",
       "lowHealthTitle": "Health is too low. Care first.",
       "statsAria": "Pomodoro stats",
-      "description": "Awake pets keep you company; sleeping pets keep resting. Complete focus time to earn coins.",
+      "description": "Complete focus time to earn coins; the timer continues while your pet sleeps.",
       "rounds": "Rounds",
       "roundUnit": "rounds"
     },
@@ -304,15 +427,13 @@
       "inventoryKinds": "{count} types owned",
       "pomodoro": "Pomodoro",
       "boostCards": "Boost cards",
-      "boostCardsHint": "Daily bonus perks",
       "boostCardsActive": "{card} active",
       "weatherAria": "Today's weather: {weather}",
       "garden": "Garden",
-      "gardenHint": "Grow trees",
+      "gardenHint": "Plant and harvest",
       "gardenReady": "Ready to harvest",
       "gardenWithered": "Withered tree",
       "partnerSchedule": "Partner Schedule",
-      "partnerScheduleHint": "Plan today's activities",
       "partnerScheduleLocked": "Unlocks at Lv.{level}",
       "partnerScheduleReady": "Activity rewards ready",
       "partnerScheduleActive": "Schedule in progress",
@@ -326,18 +447,22 @@
     },
     "gacha": {
       "title": "Golden Apple Gacha",
-      "subtitle": "Use gacha tickets first. Coin payouts do not cover the draw cost; most value comes from non-sellable items and Golden Apples.",
+      "subtitle": "Rewards focus on items and Golden Apples.",
+      "heartSubtitle": "Spend Golden Apples to draw Hearts. Ten draws guarantee 100+.",
       "close": "Close Golden Apple Gacha",
+      "machineAria": "Choose a gacha machine",
+      "machineOne": "Machine 1",
+      "machineTwo": "Machine 2 · Hearts",
       "walletAria": "Gacha balances",
       "paymentAria": "Choose gacha payment method",
       "payCoins": "Coins",
       "payTickets": "Tickets",
       "singleDraw": "Draw 1 · {cost}",
       "tenDraw": "Draw 10 · {cost}",
-      "coinCostHint": "One draw costs 500 coins; ten draws cost 5,000 coins",
-      "ticketCostHint": "One draw costs 1 ticket; ten cost 10; payments cannot be mixed",
+      "ticketCostHint": "Tickets cannot be combined with coins",
       "notEnoughCoins": "You do not have enough coins for this draw.",
       "notEnoughTickets": "You do not have enough gacha tickets for this draw.",
+      "notEnoughGoldenApples": "You do not have enough Golden Apples for this draw.",
       "charging": "The gacha machine is charging",
       "burst": "The results are about to appear",
       "skip": "Skip animation",
@@ -346,20 +471,25 @@
       "starterGiftHint": "Claim {count} gacha tickets",
       "starterGiftClaimed": "Gacha tickets ×{count}",
       "coinReward": "{coins} coins",
+      "heartReward": "{hearts} Hearts",
       "unknownReward": "Unknown item",
       "guaranteed": "Ten-draw apple guarantee",
+      "heartGuaranteed": "Ten-draw 100+ guarantee",
       "pityGuaranteed": "First ultimate pity",
       "jackpot": "Ultimate Jackpot",
       "probabilities": "Full probabilities",
       "guaranteeNote": "If none of ten base results contains a golden apple, the tenth is replaced with one golden apple.",
+      "heartGuaranteeNote": "The base rates are shown above. If all ten base results are below 100 Hearts, the tenth is replaced by a new draw of 100 (62.5%), 233 (31.25%), or 888 (6.25%) Hearts.",
       "pityProgress": "First ultimate pity progress: {current}/{threshold}",
-      "pityAvailable": "This save's one-time ultimate pity has not triggered yet.",
-      "pityUsed": "This save's one-time ultimate pity has triggered; the counter no longer increases.",
       "pityRule": "While the first pity is available, {threshold} consecutive draws without Golden Apples ×100 make the next draw award it. A natural jackpot resets the miss counter without using the pity. The pity can trigger only once.",
       "recentTitle": "Recent results",
       "recentEmpty": "No gacha results yet.",
       "detailsAria": "Gacha details",
       "closeDetails": "Close gacha details",
+      "heartSingleDraw": "Draw 1 · {cost} Apple",
+      "heartTenDraw": "Draw 10 · {cost} Apples",
+      "resultCardSave": "Save these results",
+      "resultCardSaving": "Creating image",
       "rarity": {
         "common": "Common",
         "uncommon": "Uncommon",
@@ -369,8 +499,10 @@
       },
       "confirm": {
         "title": "Confirm draw?",
-        "coins": "Draw {count} time(s) and spend {cost} coins. Generated results cannot be reversed.",
-        "tickets": "Draw {count} time(s) and spend {cost} gacha tickets. Generated results cannot be reversed.",
+        "appleTitle": "Spend Golden Apples?",
+        "coins": "Make {count} draw(s) for {cost} coins. This cannot be undone.",
+        "tickets": "Make {count} draw(s) for {cost} tickets. This cannot be undone.",
+        "goldenApples": "Golden Apples are also used in Partner Dreams. Make {count} draw(s), spend {cost}, and keep {remaining}. This cannot be undone.",
         "cancel": "Not yet",
         "submit": "Confirm draw"
       },
@@ -383,10 +515,8 @@
     },
     "classicEndgame": {
       "back": "Back home",
-      "kicker": "Ultimate Dreams",
       "title": "Partner Dreams",
-      "summary": "Fulfill ultimate dreams and earn ultimate bonuses.",
-      "appleMaterialHint": "Endgame material: golden apples",
+      "appleMaterialHint": "Golden Apples are also used in Partner Dreams",
       "progress": "Goal progress",
       "stageProgress": "Stage completion",
       "fundingProgress": "Goal funding",
@@ -427,7 +557,6 @@
         "confirm": "Invest"
       },
       "trophies": {
-        "kicker": "Trophy Cabinet",
         "title": "Trophy Cabinet",
         "summary": "Trophies unlock automatically with goal stages. Only the highest tier in each category applies.",
         "unlocked": "Unlocked · Effect active",
@@ -449,7 +578,6 @@
         }
       },
       "exchange": {
-        "kicker": "Diamond Benefit",
         "title": "Golden Apple Exchange",
         "unlocked": "The Diamond Trophy is unlocked. Exchanges grant a fixed number of hearts and ignore other heart bonuses.",
         "locked": "Earn the Diamond Friendship Trophy to unlock exchanges.",
@@ -496,9 +624,8 @@
     "partnerSchedule": {
       "aria": "Partner Schedule",
       "back": "Back home",
-      "kicker": "Partner Schedule",
       "title": "Partner Schedule",
-      "summary": "Schedule a real-time companion activity while natural pet stats are paused.",
+      "summary": "Natural pet stats pause while a schedule is in progress.",
       "skillsAria": "Activity proficiency",
       "skillLevel": "Proficiency Lv.{level}",
       "skillProgress": "Lv.{level} · {xp}/{needed}",
@@ -549,9 +676,8 @@
         "standard": "Standard",
         "long": "Long"
       },
-      "todayKicker": "Today",
       "todayTitle": "Today's activities",
-      "dailyCount": "Completed {count}/{limit} · {offers} choices today",
+      "dailyCount": "Today {count}/{limit}",
       "dailyTicketHint": "Complete {limit} activities today to earn 1 gacha ticket",
       "dailyTicketClaimed": "Today's completion reward claimed · Gacha ticket +1",
       "activeAria": "Active schedule",
@@ -648,9 +774,7 @@
       "monthlyTitle": "First day gift"
     },
     "yearReview": {
-      "kicker": "Year in review",
       "title": "{year} review",
-      "message": "A quick look at the time you spent together in {year}.",
       "companionDays": "Companion days",
       "activeDays": "Active days",
       "careActions": "Care actions",
@@ -658,6 +782,8 @@
       "pomodoroFocusCount": "Focus sessions",
       "topCareAction": "Most common care",
       "noTopCareAction": "No favorite yet",
+      "cardSave": "Save memory card",
+      "cardSaving": "Creating image",
       "confirm": "Close review",
       "actions": {
         "play": "Play",
@@ -688,24 +814,19 @@
       "kicker": "Daily wish",
       "wishes": {
         "feed_once": {
-          "title": "Share a bite",
-          "description": "Feed your pet once and help its belly feel better."
+          "title": "Share a bite"
         },
         "clean_once": {
-          "title": "Fresh and clean",
-          "description": "Clean once so your pet and room feel better."
+          "title": "Fresh and clean"
         },
         "play_once": {
-          "title": "Play a little",
-          "description": "Play once and add a little happiness to today."
+          "title": "Play a little"
         },
         "touch_once": {
-          "title": "A gentle pat",
-          "description": "Interact once and let your pet know you checked in."
+          "title": "A gentle pat"
         },
         "work_once": {
-          "title": "Work together",
-          "description": "Work once and earn a little spending money for today."
+          "title": "Work together"
         }
       }
     },
@@ -715,27 +836,22 @@
       "reward": "Return supplies: {coins} coins, items x{count}",
       "tasks": {
         "feed_once": {
-          "title": "Eat first",
-          "description": "You were away for {days} days. Feed once so your pet can settle down."
+          "title": "Eat first"
         },
         "clean_once": {
-          "title": "Tidy up",
-          "description": "You were away for {days} days. Clean once to recover together."
+          "title": "Tidy up"
         },
         "touch_once": {
-          "title": "You are back",
-          "description": "You were away for {days} days. Pat your pet so it knows you returned."
+          "title": "You are back"
         },
         "sleep_once": {
-          "title": "Rest well",
-          "description": "You were away for {days} days. Let your pet sleep and recover energy slowly."
+          "title": "Rest well"
         }
       }
     },
     "achievements": {
       "aria": "Achievements",
       "back": "Back",
-      "kicker": "Achievement",
       "title": "Achievements",
       "unlocked": "Completed",
       "unlockedProgress": "Completed {unlocked}/{total}",
@@ -747,7 +863,6 @@
       "gardenExtraDrop": "Bonus produce",
       "gardenExtraDropAmount": "+{percent}%",
       "dailyStipendClaimed": "Claimed today",
-      "reviewNotice": "Older save data or multiple achievements have been organized. Review them here.",
       "tabsAria": "Achievement categories",
       "locked": "Incomplete",
       "claimed": "Claimed",
@@ -791,7 +906,6 @@
     "garden": {
       "aria": "Garden page",
       "back": "Back",
-      "kicker": "Garden",
       "title": "Garden",
       "prevSlot": "Previous slot",
       "nextSlot": "Next slot",
@@ -825,9 +939,7 @@
       },
       "chooseSapling": "Choose a sapling",
       "plantDialogTitle": "Choose a sapling",
-      "plantDialogSummary": "Choose the sapling to plant in this slot",
       "toolsDialogTitle": "Garden tools",
-      "toolsDialogSummary": "Upgrade tools to improve daily garden work",
       "closeDialog": "Close",
       "plantAction": "Plant",
       "buySaplings": "Buy saplings and garden supplies",
@@ -900,14 +1012,11 @@
       "compensationGiftCoins": "+{coins}"
     },
     "boostCards": {
-      "kicker": "Boost Card",
       "title": "Boost Cards",
       "close": "Close",
       "activeCard": "Active: {card}",
       "noActive": "No active card",
       "todayWork": "Work bonus {coins}/{limit}",
-      "scheduleBonus": "Partner schedule coins +{percent}%",
-      "extraHeartChance": "Extra heart chance {percent}% · unlimited",
       "todayGarden": "Garden drops {count}/{limit}",
       "claimed": "Claimed today",
       "claimReward": "Claim a neighbor gift and {coins} coins",
@@ -931,14 +1040,13 @@
     "rolePicker": {
       "aria": "Choose pet character",
       "title": "Choose your companion",
-      "description": "Choose built-in Furo or any installed mod. You can also install another mod first. No save is created until you choose.",
+      "description": "Choose Furo, Doro, an installed mod, or import a new mod.",
       "loading": "Loading local mod...",
       "builtinTitle": "Built-in Furo",
-      "builtinSummary": "Create the default companion without a mod.",
       "installedTitle": "Use {name}",
-      "installedSummary": "Create the mod companion named {pet}.",
+      "installedSummary": "{pet}",
       "importTitle": "Import mod",
-      "importSummary": "Install a zip into the Mod Library, then choose a companion."
+      "importSummary": ".zip"
     }
   },
   "pet": {
@@ -1422,6 +1530,7 @@
       "dailyItem": "Daily login gift: a surprise item was added to the bag.",
       "helpPageGift": "Gameplay help gift claimed, coins +{coins}.",
       "authorLinkGift": "Thanks for following the author. Gacha tickets +{count}.",
+      "authorFollowGift": "Author follow verified. Gacha tickets +{count}.",
       "gardenCompensation": "Garden compensation claimed, coins +{coins}.",
       "anniversary": "Today is the day you met {name}. Anniversary gift: Golden Apple +1, Shiny Sticker +1, gacha tickets +10.",
       "monthlyGift": "A fresh month begins. Gift: Golden Apple +1 and 3 gacha tickets.",
@@ -1905,6 +2014,7 @@
     },
     "gacha": {
       "drawn": "Completed {count} Golden Apple Gacha draws and received {coins} coins directly.",
+      "heartsDrawn": "Spent {apples} Golden Apple(s) on {count} Heart Gacha draw(s) and received {hearts} Hearts.",
       "ticketGranted": "Received 1 extra gacha ticket.",
       "starterGiftClaimed": "Claimed the starter gift and received {count} gacha tickets."
     },

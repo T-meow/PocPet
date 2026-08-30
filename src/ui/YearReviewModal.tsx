@@ -1,17 +1,20 @@
-import { CalendarDays, HandHeart, PackageCheck, Sparkles, Timer, Trophy } from 'lucide-react';
+import { CalendarDays, Download, HandHeart, PackageCheck, Sparkles, Timer, Trophy } from 'lucide-react';
 import type { YearReview, YearlyCareActionKey } from '../core/pet';
 import { t } from '../i18n';
 import { formatCompactNumber } from './numberFormat';
 
 interface YearReviewModalProps {
   review: YearReview;
+  isSaving: boolean;
+  saveFeedback: string;
+  onSave: () => void;
   onClose: () => void;
 }
 
 const getCareActionLabel = (action?: YearlyCareActionKey) =>
   action ? t(`ui.yearReview.actions.${action}`) : t('ui.yearReview.noTopCareAction');
 
-export const YearReviewModal = ({ review, onClose }: YearReviewModalProps) => {
+export const YearReviewModal = ({ review, isSaving, saveFeedback, onSave, onClose }: YearReviewModalProps) => {
   const metrics = [
     {
       key: 'companionDays',
@@ -55,9 +58,7 @@ export const YearReviewModal = ({ review, onClose }: YearReviewModalProps) => {
     <div className="modal-backdrop" role="presentation">
       <section className="year-review-modal" role="dialog" aria-modal="true" aria-labelledby="year-review-title">
         <div className="year-review-modal__header">
-          <span>{t('ui.yearReview.kicker')}</span>
           <h2 id="year-review-title">{t('ui.yearReview.title', { year: review.year })}</h2>
-          <p>{t('ui.yearReview.message', { year: review.year })}</p>
         </div>
         <div className="year-review-modal__grid">
           {metrics.map((metric) => {
@@ -71,9 +72,21 @@ export const YearReviewModal = ({ review, onClose }: YearReviewModalProps) => {
             );
           })}
         </div>
-        <button type="button" className="primary-button" onClick={onClose}>
-          {t('ui.yearReview.confirm')}
-        </button>
+        <div className="year-review-modal__actions">
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSaving}
+            onClick={onSave}
+          >
+            <Download size={18} aria-hidden="true" />
+            {isSaving ? t('ui.yearReview.cardSaving') : t('ui.yearReview.cardSave')}
+          </button>
+          <button type="button" className="primary-button" onClick={onClose}>
+            {t('ui.yearReview.confirm')}
+          </button>
+        </div>
+        {saveFeedback && <p className="year-review-modal__feedback" role="status">{saveFeedback}</p>}
       </section>
     </div>
   );

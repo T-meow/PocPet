@@ -48,7 +48,6 @@ export const ClassicGoldenAppleExchange = ({ pet, onExchange }: ClassicGoldenApp
           {allPreview.unlocked ? <Heart size={22} /> : <Lock size={22} />}
         </span>
         <div>
-          <small>{t('ui.classicEndgame.exchange.kicker')}</small>
           <h2 id="classic-apple-exchange-title">{t('ui.classicEndgame.exchange.title')}</h2>
           <p>{t(allPreview.unlocked
             ? 'ui.classicEndgame.exchange.unlocked'

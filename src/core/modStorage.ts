@@ -12,6 +12,7 @@ import {
   type PetModLibraryState,
   type PetModManifest,
 } from './mod';
+import { getBuiltinPetModManifest, isBuiltinPetModId } from './builtinPetModManifests';
 
 const legacyActiveManifestStorageKey = 'pocpet.mod.active.v1';
 const libraryStorageKey = 'pocpet.mod.library.v1';
@@ -139,8 +140,11 @@ export const normalizePetModLibraryState = (value: unknown): PetModLibraryState 
       // A bad catalog entry must not hide the remaining installed mods.
     }
   });
-  const mods = Array.from(modsById.values()).slice(-petModLibraryLimit);
-  const activeModId = typeof raw.activeModId === 'string' && mods.some((mod) => mod.manifest.id === raw.activeModId)
+  const mods = Array.from(modsById.values())
+    .filter((mod) => !isBuiltinPetModId(mod.manifest.id))
+    .slice(-petModLibraryLimit);
+  const activeModId = typeof raw.activeModId === 'string'
+    && (isBuiltinPetModId(raw.activeModId) || mods.some((mod) => mod.manifest.id === raw.activeModId))
     ? raw.activeModId
     : undefined;
   return { schemaVersion: 1, activeModId, mods };
@@ -169,7 +173,7 @@ export const getPetModLibraryState = (): PetModLibraryState => {
   }
 
   const legacyManifest = readLegacyManifest();
-  if (legacyManifest && !library.mods.some((mod) => mod.manifest.id === legacyManifest.id)) {
+  if (legacyManifest && !isBuiltinPetModId(legacyManifest.id) && !library.mods.some((mod) => mod.manifest.id === legacyManifest.id)) {
     library = {
       schemaVersion: 1,
       activeModId: library.activeModId ?? legacyManifest.id,
@@ -183,7 +187,9 @@ export const getPetModLibraryState = (): PetModLibraryState => {
 
 export const getStoredPetModManifest = (): PetModManifest | null => {
   const library = getPetModLibraryState();
-  return library.mods.find((mod) => mod.manifest.id === library.activeModId)?.manifest ?? null;
+  return getBuiltinPetModManifest(library.activeModId)
+    ?? library.mods.find((mod) => mod.manifest.id === library.activeModId)?.manifest
+    ?? null;
 };
 
 const toStoredImageRecords = (mod: ParsedPetMod): StoredImageRecord[] => {
@@ -201,6 +207,9 @@ const toStoredImageRecords = (mod: ParsedPetMod): StoredImageRecord[] => {
 };
 
 export const installPetMod = async (mod: ParsedPetMod) => {
+  if (isBuiltinPetModId(mod.manifest.id)) {
+    throw new Error(t('ui.settings.mod.builtinConflict', { name: mod.manifest.name }));
+  }
   const library = getPetModLibraryState();
   const existingIndex = library.mods.findIndex((item) => item.manifest.id === mod.manifest.id);
   if (existingIndex < 0 && library.mods.length >= petModLibraryLimit) {
@@ -218,12 +227,15 @@ export const installPetMod = async (mod: ParsedPetMod) => {
 
 export const setActivePetMod = (modId?: string) => {
   const library = getPetModLibraryState();
-  const activeModId = modId && library.mods.some((mod) => mod.manifest.id === modId) ? modId : undefined;
+  const activeModId = modId && (isBuiltinPetModId(modId) || library.mods.some((mod) => mod.manifest.id === modId))
+    ? modId
+    : undefined;
   writeLibraryState({ ...library, activeModId });
   if (!activeModId) revokeObjectUrls('active');
 };
 
 export const deletePetMod = async (modId: string) => {
+  if (isBuiltinPetModId(modId)) return;
   const library = getPetModLibraryState();
   if (!library.mods.some((mod) => mod.manifest.id === modId)) return;
   const wasActive = library.activeModId === modId;
@@ -251,6 +263,12 @@ export const listInstalledPetMods = async (): Promise<InstalledPetModSummary[]> 
 };
 
 export const loadPetMod = async (modId: string): Promise<ActivePetMod | null> => {
+  if (isBuiltinPetModId(modId)) {
+    const { getBuiltinPetMod } = await import('./builtinPetMods');
+    const builtinMod = getBuiltinPetMod(modId);
+    revokeObjectUrls('active');
+    return builtinMod;
+  }
   const manifest = getPetModLibraryState().mods.find((mod) => mod.manifest.id === modId)?.manifest;
   if (!manifest) return null;
 

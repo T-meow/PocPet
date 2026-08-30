@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import {
-  authorLinkGiftRewardId,
   claimAvailableDateRewards,
-  claimAuthorLinkGift as claimAuthorLinkGiftState,
   clampCoins,
   gardenCompensationCoins,
   gardenCompensationRewardId,
@@ -34,12 +32,6 @@ interface RewardControllerOptions {
 
 export const useRewardController = ({ pet, setPet, commitPet, hasLoadedModRef, playAfterUnlock }: RewardControllerOptions) => {
   const [queue, setQueue] = useState<RewardPopupData[]>([]);
-  const authorLinkGiftClaimingRef = useRef(false);
-  const hasClaimedAuthorLinkGift = pet.claimedRewardIds.includes(authorLinkGiftRewardId);
-
-  useEffect(() => {
-    if (!hasClaimedAuthorLinkGift) authorLinkGiftClaimingRef.current = false;
-  }, [hasClaimedAuthorLinkGift]);
 
   const enqueueReward = (reward: RewardPopupData) => {
     setQueue((current) => current.some((queued) => queued.id === reward.id) ? current : [...current, reward]);
@@ -86,16 +78,6 @@ export const useRewardController = ({ pet, setPet, commitPet, hasLoadedModRef, p
     });
   };
 
-  const claimAuthorLinkReward = () => {
-    if (hasClaimedAuthorLinkGift || authorLinkGiftClaimingRef.current) return;
-    authorLinkGiftClaimingRef.current = true;
-    playAfterUnlock('notification');
-    setPet((current) => {
-      const result = claimAuthorLinkGiftState(current);
-      return result.claimed ? commitPet(result.pet) : current;
-    });
-  };
-
   const claimGardenCompensation = () => {
     playAfterUnlock('coin');
     setPet((current) => {
@@ -114,12 +96,10 @@ export const useRewardController = ({ pet, setPet, commitPet, hasLoadedModRef, p
     closeActiveReward: () => setQueue((current) => current.slice(1)),
     enqueueReward,
     availableFloatingReward: floatingRewardConfigs.find((reward) => !pet.claimedRewardIds.includes(reward.id)),
-    hasClaimedAuthorLinkGift,
     hasClaimedHelpGift: pet.claimedRewardIds.includes(helpPageGiftRewardId),
     hasClaimedGardenCompensation: pet.claimedRewardIds.includes(gardenCompensationRewardId),
     claimDateRewards,
     claimFloatingReward,
-    claimAuthorLinkGift: claimAuthorLinkReward,
     claimHelpGift,
     claimGardenCompensation,
   };

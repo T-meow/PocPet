@@ -119,23 +119,25 @@ export const ensureYearlyStatsForDate = (
   const currentYear = Number.parseInt(today.slice(0, 4), 10) || getDailyResetDate(now).getFullYear();
   let stats = normalizeYearlyStats(pet.yearlyStats, now, today);
   let pendingYearReview = pet.pendingYearReview;
+  let latestYearReview = pet.latestYearReview ?? pendingYearReview;
   let lastYearReviewYear = pet.lastYearReviewYear;
 
   if (stats.year < currentYear) {
     const review = createYearReview(stats, pet.createdAt);
     if (pet.lastYearReviewYear !== review.year && pet.pendingYearReview?.year !== review.year) {
       pendingYearReview = review;
+      latestYearReview = review;
     }
     stats = defaultYearlyStats(now, today);
   } else if (stats.year > currentYear) {
-    return { ...pet, yearlyStats: stats, pendingYearReview, lastYearReviewYear };
+    return { ...pet, yearlyStats: stats, pendingYearReview, latestYearReview, lastYearReviewYear };
   }
 
   if (!stats.activeDateKeys.includes(today)) {
     stats = { ...stats, activeDateKeys: [...stats.activeDateKeys, today].slice(-370) };
   }
 
-  return { ...pet, yearlyStats: stats, pendingYearReview, lastYearReviewYear };
+  return { ...pet, yearlyStats: stats, pendingYearReview, latestYearReview, lastYearReviewYear };
 };
 
 export const recordYearlyCareAction = (pet: PetState, action: CareActionKey, now = Date.now(), amount = 1): PetState => {
@@ -184,5 +186,10 @@ export const recordYearlyPomodoroFocus = (
 
 export const dismissYearReview = (pet: PetState): PetState =>
   pet.pendingYearReview
-    ? { ...pet, lastYearReviewYear: pet.pendingYearReview.year, pendingYearReview: undefined }
+    ? {
+        ...pet,
+        latestYearReview: pet.pendingYearReview,
+        lastYearReviewYear: pet.pendingYearReview.year,
+        pendingYearReview: undefined,
+      }
     : pet;

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Heart, Settings, Ticket, Trophy, Volume2, VolumeX } from 'lucide-react';
+import { CloudUpload, Heart, Settings, Ticket, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buyBoostCard,
+  authorFollowGiftRewardId,
   completeClassicLegacyLevel,
   completeDreamProjectStage,
   exchangeClassicGoldenApplesForHearts,
@@ -19,6 +20,7 @@ import {
   claimGoldenAppleGachaStarterGift,
   exchangeHeartForCoins,
   createDefaultPet,
+  drawGoldenAppleHeartGacha,
   drawGoldenAppleGacha,
   defaultPetBirthday,
   defaultPetName,
@@ -62,6 +64,7 @@ import {
   type BoostCardId,
   type InventoryItemDefinition,
   type GachaPaymentMethod,
+  type GachaResult,
   type GoldenAppleGachaDrawOutcome,
   type ItemId,
   type NeighborEventContext,
@@ -74,6 +77,7 @@ import {
   type PartnerScheduleCategory,
   type PomodoroDurations,
   type ShopCategory,
+  type YearReview,
 } from '../core/pet';
 import { currencyIcon, giftBoxIcon, goodEndingImage, resolveItemIcons, resolvePetActivityImages, resolvePetStatusImages } from '../assets';
 import {
@@ -103,6 +107,7 @@ import {
   type ActivePetMod,
   type InstalledPetModSummary,
 } from '../core/mod';
+import { getBuiltinPetMod } from '../core/builtinPetMods';
 import {
   clearActivePetMod,
   deletePetMod,
@@ -125,17 +130,20 @@ import { InventoryModal } from './InventoryModal';
 import { PomodoroOverlay } from './PomodoroOverlay';
 import { PartnerSchedulePage } from './PartnerSchedulePage';
 import { RolePicker } from './RolePicker';
-import { SettingsModal } from './SettingsModal';
+import { SettingsModal, type SettingsPage } from './SettingsModal';
 import { ShopModal } from './ShopModal';
 import { YearReviewModal } from './YearReviewModal';
 import { formatCompactNumber } from './numberFormat';
 import { getLanguage, setLanguage, t, type LanguageCode } from '../i18n';
 import { createSaveFileName, saveTextFile } from '../platform/saveTextFile';
+import { createShareImageFileName, saveShareImage, type SaveImageFileResult } from '../platform/saveImageFile';
+import { createGachaPoster, createPetProfilePoster, createYearReviewPoster, getToyPosterQrCode, type GachaMachine } from '../platform/sharePoster';
 import { useAppNavigation } from './app/useAppNavigation';
 import { useInventoryController } from './app/useInventoryController';
 import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
+import { useToyIntegration } from './app/useToyIntegration';
 
 const getPomodoroRemainingMs = (pet: PetState) =>
   pet.pomodoro.isRunning ? pet.pomodoro.phaseEndsAt - Date.now() : pet.pomodoro.pausedRemainingMs;
@@ -163,6 +171,11 @@ type RewardPopup = RewardPopupData;
 type RewardDisplayItem = { key: string; icon?: string; glyph?: 'heart' | 'ticket'; label: string; title?: string };
 type WishQuickAction = PetState['dailyWish']['action'] | NonNullable<PetState['returnWelcome']>['action'];
 type AchievementCgPopup = { title: string; description: string; image: string; fileName: string };
+type PendingImageSave =
+  | { kind: 'profile' }
+  | { kind: 'year'; review: YearReview }
+  | { kind: 'gacha'; machine: GachaMachine; results: GachaResult[] }
+  | { kind: 'achievement'; fileName: string; imageUrl: string };
 type PetAppProps = {
   initialPet: PetState;
   initialActiveMod: ActivePetMod | null;
@@ -306,6 +319,14 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   const [isGoldenAppleUseConfirmOpen, setGoldenAppleUseConfirmOpen] = useState(false);
   const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementTabId>('all');
   const [achievementCgPopup, setAchievementCgPopup] = useState<AchievementCgPopup | null>(null);
+  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPage>('main');
+  const [isCloudUploadConfirmOpen, setCloudUploadConfirmOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState<'profile' | 'year' | 'gacha' | null>(null);
+  const [yearCardSaveFeedback, setYearCardSaveFeedback] = useState('');
+  const [gachaCardSaveFeedback, setGachaCardSaveFeedback] = useState('');
+  const [pendingImageSave, setPendingImageSave] = useState<PendingImageSave | null>(null);
+  const shareBusyRef = useRef(false);
+  const pendingImageSaveRef = useRef<PendingImageSave | null>(null);
   const itemIconMap = useMemo(() => resolveItemIcons(activeMod), [activeMod]);
   const itemRegistry = useMemo(() => createItemRegistry(activeMod, itemIconMap), [activeMod, itemIconMap]);
   const neighbors = useMemo(
@@ -330,6 +351,14 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   const isBoostCardOpen = utilityDialog === 'boostCards';
   const isGachaOpen = utilityDialog === 'gacha';
   const isSettingsOpen = utilityDialog === 'settings';
+
+  const requestImageSave = (request: PendingImageSave) => {
+    if (shareBusyRef.current || pendingImageSaveRef.current) return;
+    if (request.kind === 'year') setYearCardSaveFeedback('');
+    if (request.kind === 'gacha') setGachaCardSaveFeedback('');
+    pendingImageSaveRef.current = request;
+    setPendingImageSave(request);
+  };
 
   useEffect(() => {
     setActiveMod(initialActiveMod);
@@ -408,15 +437,31 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     closeActiveReward,
     enqueueReward,
     availableFloatingReward,
-    hasClaimedAuthorLinkGift,
     hasClaimedHelpGift: hasClaimedHelpPageGift,
     hasClaimedGardenCompensation,
     claimDateRewards,
     claimFloatingReward: handleClaimFloatingReward,
-    claimAuthorLinkGift: handleClaimAuthorLinkGift,
     claimHelpGift: handleClaimHelpPageGift,
     claimGardenCompensation: handleClaimGardenCompensation,
   } = rewardController;
+  const toyIntegration = useToyIntegration({
+    pet,
+    petRef,
+    activeMod,
+    setPet,
+    commitPet,
+    onMessage: setModMessage,
+    onAuthorReward: (tickets) => {
+      playAfterUnlock('notification');
+      enqueueReward({
+        id: authorFollowGiftRewardId,
+        title: t('ui.settings.author.rewardTitle'),
+        message: t('ui.settings.author.rewardMessage', { count: tickets }),
+        gachaTickets: tickets,
+        items: [],
+      });
+    },
+  });
 
   useEffect(() => {
     syncBgm(currentBgmMode);
@@ -671,6 +716,16 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     return { ...outcome, pet: settled };
   };
 
+  const handleHeartGachaDraw = (count: 1 | 10): GoldenAppleGachaDrawOutcome => {
+    const outcome = drawGoldenAppleHeartGacha(petRef.current, count, Date.now());
+    if (outcome.error) return outcome;
+    const settled = commitPet(outcome.pet);
+    savePet(settled);
+    petRef.current = settled;
+    setPet(settled);
+    return { ...outcome, pet: settled };
+  };
+
   const handleClaimGachaStarterGift = () => {
     const outcome = claimGoldenAppleGachaStarterGift(petRef.current);
     if (!outcome.claimed) return false;
@@ -733,7 +788,11 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   const handleSaveAchievementCg = () => {
     if (!achievementCgPopup) return;
     playAfterUnlock('tap');
-    downloadImageFile(achievementCgPopup.fileName, achievementCgPopup.image);
+    requestImageSave({
+      kind: 'achievement',
+      fileName: achievementCgPopup.fileName,
+      imageUrl: achievementCgPopup.image,
+    });
   };
 
   const handleCloseAchievementCg = () => {
@@ -782,7 +841,9 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   };
 
   const handleOpenHelp = () => {
+    setModMessage('');
     setPet((current) => (current.hasOpenedHelp ? current : { ...current, hasOpenedHelp: true }));
+    void toyIntegration.loadAuthorContent();
   };
 
   const handleClaimDailyWish = () => {
@@ -1032,6 +1093,155 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     }
   };
 
+  const getPosterSavedMessage = (result: SaveImageFileResult) => {
+    if (result === 'album') return t('ui.share.savedAlbum');
+    if (result === 'saved') return t('ui.share.savedFile');
+    if (result === 'downloaded') return t('ui.share.downloadStarted');
+    return t('ui.share.saveCancelled');
+  };
+
+  const performSaveProfileCard = async () => {
+    if (shareBusyRef.current) return;
+    shareBusyRef.current = true;
+    setShareBusy('profile');
+    setModMessage(t('ui.share.cardGenerating'));
+    try {
+      const qrCodeDataUrl = await getToyPosterQrCode();
+      const image = await createPetProfilePoster({
+        pet: petRef.current,
+        petImageUrl: petStatusImageMap.content,
+        qrCodeDataUrl,
+      });
+      const result = await saveShareImage(createShareImageFileName(`${petRef.current.name}-profile`), image);
+      setModMessage(getPosterSavedMessage(result));
+    } catch (error) {
+      setModMessage(error instanceof Error ? error.message : t('ui.share.saveFailed'));
+      playSfx('error');
+    } finally {
+      shareBusyRef.current = false;
+      setShareBusy(null);
+    }
+  };
+
+  const performSaveYearReviewCard = async (review: YearReview) => {
+    if (shareBusyRef.current) return;
+    shareBusyRef.current = true;
+    setShareBusy('year');
+    setModMessage(t('ui.share.cardGenerating'));
+    setYearCardSaveFeedback('');
+    try {
+      const qrCodeDataUrl = await getToyPosterQrCode();
+      const image = await createYearReviewPoster({
+        petName: petRef.current.name,
+        review,
+        petImageUrl: petStatusImageMap.content,
+        qrCodeDataUrl,
+      });
+      const result = await saveShareImage(createShareImageFileName(`${petRef.current.name}-${review.year}`), image);
+      const message = getPosterSavedMessage(result);
+      setModMessage(message);
+      setYearCardSaveFeedback(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('ui.share.saveFailed');
+      setModMessage(message);
+      setYearCardSaveFeedback(message);
+      playSfx('error');
+    } finally {
+      shareBusyRef.current = false;
+      setShareBusy(null);
+    }
+  };
+
+  const performSaveGachaCard = async (machine: GachaMachine, results: readonly GachaResult[]) => {
+    if (results.length === 0 || shareBusyRef.current) return;
+    shareBusyRef.current = true;
+    setShareBusy('gacha');
+    setGachaCardSaveFeedback('');
+    try {
+      const qrCodeDataUrl = await getToyPosterQrCode();
+      const image = await createGachaPoster({
+        machine,
+        results,
+        itemIconMap,
+        petImageUrl: petStatusImageMap.content,
+        qrCodeDataUrl,
+        createdAt: results[0]?.drawnAt,
+      });
+      const result = await saveShareImage(createShareImageFileName(`PocPet-gacha-${results.length}`), image);
+      const message = getPosterSavedMessage(result);
+      setModMessage(message);
+      setGachaCardSaveFeedback(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('ui.share.saveFailed');
+      setModMessage(message);
+      setGachaCardSaveFeedback(message);
+      playSfx('error');
+    } finally {
+      shareBusyRef.current = false;
+      setShareBusy(null);
+    }
+  };
+
+  const handleSaveProfileCard = () => requestImageSave({ kind: 'profile' });
+
+  const handleSaveYearReviewCard = (review = petRef.current.latestYearReview) => {
+    if (!review) return;
+    requestImageSave({ kind: 'year', review: { ...review } });
+  };
+
+  const handleSaveGachaCard = (machine: GachaMachine, results: readonly GachaResult[]) => {
+    if (results.length === 0) return;
+    requestImageSave({ kind: 'gacha', machine, results: [...results] });
+  };
+
+  const handleCancelImageSave = () => {
+    if (!pendingImageSaveRef.current) return;
+    pendingImageSaveRef.current = null;
+    setPendingImageSave(null);
+  };
+
+  const handleConfirmImageSave = () => {
+    const request = pendingImageSaveRef.current;
+    if (!request) return;
+    pendingImageSaveRef.current = null;
+    setPendingImageSave(null);
+    if (request.kind === 'achievement') {
+      downloadImageFile(request.fileName, request.imageUrl);
+      return;
+    }
+    if (request.kind === 'profile') {
+      void performSaveProfileCard();
+      return;
+    }
+    if (request.kind === 'year') {
+      void performSaveYearReviewCard(request.review);
+      return;
+    }
+    void performSaveGachaCard(request.machine, request.results);
+  };
+
+  const handleConfirmCloudUpload = async () => {
+    setCloudUploadConfirmOpen(false);
+    try {
+      await toyIntegration.upload();
+      playAfterUnlock('notification');
+    } catch (error) {
+      setModMessage(error instanceof Error ? error.message : t('ui.settings.cloud.uploadFailed'));
+      playSfx('error');
+    }
+  };
+
+  const handleCloudRestore = async () => {
+    try {
+      const restored = await toyIntegration.restore();
+      prepareImportSaveFromText(restored.plainText);
+      if (restored.recoveredFromPrevious) setModMessage(t('ui.settings.cloud.restoreFallback'));
+    } catch (error) {
+      setModMessage(error instanceof Error ? error.message : t('ui.settings.cloud.restoreFailed'));
+      playSfx('error');
+    }
+  };
+
   const prepareImportSaveFromText = (text: string) => {
     if (importInProgressRef.current) return;
     try {
@@ -1060,11 +1270,8 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
     try {
       const importedMod = preview.activeMod;
-      const hasInstalledMod = importedMod
-        ? installedMods.some((mod) => mod.manifest.id === importedMod.id)
-        : false;
-      activeModResourcesMayHaveChanged = Boolean(importedMod && hasInstalledMod);
-      const matchingMod = importedMod && hasInstalledMod ? await loadPetMod(importedMod.id) : null;
+      const matchingMod = importedMod ? await loadPetMod(importedMod.id) : null;
+      activeModResourcesMayHaveChanged = Boolean(matchingMod);
       const imported = parseSaveFileText(sourceText, Date.now());
       const nextPet = matchingMod
         ? withPetIdentityBirthday(imported.pet, matchingMod.manifest.birthday)
@@ -1265,11 +1472,12 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           </button>
           <button
             type="button"
-            className="icon-button"
+            className={`icon-button settings-entry${toyIntegration.isCloudReminderDue ? ' settings-entry--notice' : ''}`}
             aria-label={t('ui.top.openSettings')}
             title={t('ui.top.settings')}
             onClick={() => {
               playAfterUnlock('open');
+              setSettingsInitialPage('main');
               setDraftName(pet.name);
               setDraftBirthday(pet.birthday);
               openUtilityDialog('settings');
@@ -1361,7 +1569,47 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
         />
       )}
 
-      {availableFloatingReward && (
+      {toyIntegration.isReminderPromptVisible
+        && activePage === 'home'
+        && !utilityDialog
+        && !activeRewardPopup
+        && !achievementToast && (
+        <aside className="cloud-reminder" role="status" aria-label={t('ui.cloudReminder.title')}>
+          <span className="cloud-reminder__icon" aria-hidden="true"><CloudUpload size={22} /></span>
+          <span className="cloud-reminder__copy">
+            <strong>{t('ui.cloudReminder.title')}</strong>
+          </span>
+          <div className="cloud-reminder__actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                toyIntegration.dismissReminder();
+                setSettingsInitialPage('save');
+                setDraftName(pet.name);
+                setDraftBirthday(pet.birthday);
+                openUtilityDialog('settings');
+              }}
+            >
+              {t('ui.cloudReminder.backup')}
+            </button>
+            <button type="button" className="text-button" onClick={toyIntegration.snoozeReminder}>
+              {t('ui.cloudReminder.snooze')}
+            </button>
+          </div>
+          <button
+            type="button"
+            className="cloud-reminder__close"
+            aria-label={t('ui.cloudReminder.close')}
+            title={t('ui.cloudReminder.close')}
+            onClick={toyIntegration.dismissReminder}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </aside>
+      )}
+
+      {availableFloatingReward && !toyIntegration.isReminderPromptVisible && (
         <button
           type="button"
           className="floating-reward-button"
@@ -1403,7 +1651,12 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           itemIconMap={itemIconMap}
           onClose={handleCloseGacha}
           onDraw={handleGachaDraw}
+          onHeartDraw={handleHeartGachaDraw}
           onClaimStarterGift={handleClaimGachaStarterGift}
+          isSavingResults={shareBusy !== null}
+          saveFeedback={gachaCardSaveFeedback}
+          onSaveResults={handleSaveGachaCard}
+          onClearSaveFeedback={() => setGachaCardSaveFeedback('')}
           onPlaySfx={playAfterUnlock}
         />
       )}
@@ -1441,7 +1694,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
               <p>{achievementCgPopup.description}</p>
             </div>
             <div className="achievement-cg-modal__actions">
-              <button type="button" className="primary-button" onClick={handleSaveAchievementCg}>
+              <button type="button" className="primary-button" disabled={shareBusy !== null} onClick={handleSaveAchievementCg}>
                 {t('ui.achievements.cg.save')}
               </button>
               <button type="button" className="text-button" onClick={handleCloseAchievementCg}>
@@ -1452,7 +1705,15 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
         </div>
       )}
 
-      {activeYearReview && <YearReviewModal review={activeYearReview} onClose={handleCloseYearReview} />}
+      {activeYearReview && (
+        <YearReviewModal
+          review={activeYearReview}
+          isSaving={shareBusy !== null}
+          saveFeedback={yearCardSaveFeedback}
+          onSave={() => handleSaveYearReviewCard(activeYearReview)}
+          onClose={handleCloseYearReview}
+        />
+      )}
 
       {isShopOpen && (
         <ShopModal
@@ -1477,6 +1738,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
       )}
       {isSettingsOpen && (
         <SettingsModal
+          initialPage={settingsInitialPage}
           activeMod={activeMod}
           installedMods={installedMods}
           modMessage={modMessage}
@@ -1488,14 +1750,30 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           importSaveText={importSaveText}
           hasImportBackup={hasImportBackup}
           hasOpenedHelp={pet.hasOpenedHelp}
-          hasClaimedAuthorLinkGift={hasClaimedAuthorLinkGift}
+          hasClaimedAuthorFollowGift={toyIntegration.hasClaimedAuthorFollowGift}
           hasClaimedHelpPageGift={hasClaimedHelpPageGift}
+          cloudAvailability={toyIntegration.cloudAvailability}
+          cloudManifest={toyIntegration.cloudManifest}
+          cloudUsedFallback={toyIntegration.cloudUsedFallback}
+          cloudBusy={toyIntegration.cloudBusy}
+          cloudReminderEnabled={toyIntegration.preferences.enabled}
+          cloudReminderDue={toyIntegration.isCloudReminderDue}
+          hasLatestYearReview={Boolean(pet.latestYearReview)}
+          shareBusy={shareBusy === 'profile' || shareBusy === 'year' ? shareBusy : null}
+          shareDetails={toyIntegration.shareDetails}
+          authorSummary={toyIntegration.authorSummary}
+          authorVideo={toyIntegration.authorVideo}
+          isAuthorLoading={toyIntegration.isAuthorLoading}
           onDraftNameChange={setDraftName}
           onDraftBirthdayChange={setDraftBirthday}
           onLanguageChange={handleLanguageChange}
           onImportSaveTextChange={setImportSaveText}
           onOpenHelp={handleOpenHelp}
-          onClaimAuthorLinkGift={handleClaimAuthorLinkGift}
+          onOpenAuthorSpace={() => {
+            setModMessage('');
+            void toyIntegration.openAuthorSpace();
+          }}
+          onOpenIntroVideo={() => void toyIntegration.openIntroVideo()}
           onClaimHelpPageGift={handleClaimHelpPageGift}
           onClose={() => {
             playAfterUnlock('close');
@@ -1510,6 +1788,13 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           onDownloadSave={handleDownloadSave}
           onImportPastedSave={() => prepareImportSaveFromText(importSaveText)}
           onRestoreImportBackup={handleRestoreImportBackup}
+          onCloudUpload={() => setCloudUploadConfirmOpen(true)}
+          onCloudRestore={() => void handleCloudRestore()}
+          onCloudReminderEnabledChange={toyIntegration.setReminderEnabled}
+          onSaveProfileCard={handleSaveProfileCard}
+          onSaveYearReviewCard={handleSaveYearReviewCard}
+          onShareApp={toyIntegration.shareApp}
+          onCopyShareLink={() => void toyIntegration.copyShareLink()}
           onModFileChange={handleModFileChange}
           onImportSaveFileChange={handleImportSaveFileChange}
         />
@@ -1522,6 +1807,20 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           confirmLabel={t('ui.settings.resetDialog.confirm')}
           onCancel={handleCancelReset}
           onConfirm={handleConfirmReset}
+        />
+      )}
+      {isCloudUploadConfirmOpen && (
+        <ConfirmDialog
+          title={t('ui.settings.cloud.confirmTitle')}
+          message={t(toyIntegration.cloudManifest
+            ? 'ui.settings.cloud.confirmOverwrite'
+            : 'ui.settings.cloud.confirmUpload')}
+          cancelLabel={t('ui.settings.cloud.confirmCancel')}
+          confirmLabel={t('ui.settings.cloud.confirmSubmit')}
+          confirmTone="primary"
+          disabled={toyIntegration.cloudBusy !== null}
+          onCancel={() => setCloudUploadConfirmOpen(false)}
+          onConfirm={() => void handleConfirmCloudUpload()}
         />
       )}
       {pendingImportedSave && (
@@ -1578,6 +1877,18 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           confirmLabel={t(`ui.garden.confirm.${gardenClearConfirm.kind}Confirm`)}
           onCancel={handleCancelGardenClear}
           onConfirm={handleConfirmGardenClear}
+        />
+      )}
+      {pendingImageSave && (
+        <ConfirmDialog
+          title={t('ui.share.saveConfirm.title')}
+          message={t('ui.share.saveConfirm.message')}
+          cancelLabel={t('ui.share.saveConfirm.cancel')}
+          confirmLabel={t('ui.share.saveConfirm.confirm')}
+          confirmTone="primary"
+          disabled={shareBusy !== null}
+          onCancel={handleCancelImageSave}
+          onConfirm={handleConfirmImageSave}
         />
       )}
     </main>
@@ -1682,6 +1993,16 @@ export const App = () => {
     }
   };
 
+  const handleUseBuiltinMod = (modId: string) => {
+    const mod = getBuiltinPetMod(modId);
+    if (!mod) {
+      setModMessage(t('ui.settings.mod.loadFailed'));
+      playSfx('error');
+      return;
+    }
+    startWithMod(mod);
+  };
+
   const handleUseInstalledMod = async (modId: string) => {
     try {
       const loaded = await loadPetMod(modId);
@@ -1724,6 +2045,7 @@ export const App = () => {
           isAudioEnabled={isAudioEnabled}
           isLoading
           onUseBuiltin={handleUseBuiltin}
+          onUseBuiltinMod={() => undefined}
           onUseInstalledMod={() => undefined}
           onImportMod={handleImportMod}
           onAudioToggle={handleAudioToggle}
@@ -1748,6 +2070,7 @@ export const App = () => {
         isAudioEnabled={isAudioEnabled}
         isLoading
         onUseBuiltin={handleUseBuiltin}
+        onUseBuiltinMod={() => undefined}
         onUseInstalledMod={() => undefined}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}
@@ -1762,6 +2085,7 @@ export const App = () => {
         modMessage={modMessage}
         isAudioEnabled={isAudioEnabled}
         onUseBuiltin={handleUseBuiltin}
+        onUseBuiltinMod={handleUseBuiltinMod}
         onUseInstalledMod={(modId) => void handleUseInstalledMod(modId)}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}

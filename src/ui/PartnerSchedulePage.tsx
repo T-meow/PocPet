@@ -100,7 +100,6 @@ export const PartnerSchedulePage = ({
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
         <div>
-          <span>{t('ui.partnerSchedule.kicker')}</span>
           <h2>{t('ui.partnerSchedule.title')}</h2>
           <p>{t('ui.partnerSchedule.summary')}</p>
         </div>
@@ -203,9 +202,9 @@ export const PartnerSchedulePage = ({
       ) : null}
 
       <div className="partner-schedule-section-heading">
-        <div><span>{t('ui.partnerSchedule.todayKicker')}</span><h3>{t('ui.partnerSchedule.todayTitle')}</h3></div>
+        <div><h3>{t('ui.partnerSchedule.todayTitle')}</h3></div>
         <div className="partner-schedule-section-heading__meta">
-          <small>{t('ui.partnerSchedule.dailyCount', { count: schedule.completedOfferIds.length, limit: partnerScheduleDailyCompletionLimit, offers: schedule.offers.length })}</small>
+          <small>{t('ui.partnerSchedule.dailyCount', { count: schedule.completedOfferIds.length, limit: partnerScheduleDailyCompletionLimit })}</small>
           <strong className={`partner-schedule-daily-ticket${scheduleTicketClaimed ? ' partner-schedule-daily-ticket--claimed' : ''}`}>
             <Ticket size={15} aria-hidden="true" />
             {scheduleTicketClaimed

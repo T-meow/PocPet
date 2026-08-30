@@ -394,7 +394,6 @@ h1 {
   line-height: 1.2;
 }
 
-.wish-panel__copy p,
 .wish-panel__copy small {
   color: #5b6a82;
   font-size: 0.82rem;
@@ -1571,14 +1570,6 @@ h1 {
   font-weight: 800;
 }
 
-.settings-birthday-heading small {
-  color: #64728a;
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-
 .settings-birthday-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1689,13 +1680,6 @@ h1 {
 
 .settings-anniversary-field strong {
   text-align: right;
-}
-
-.settings-anniversary-field small {
-  color: #64728a;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.35;
 }
 
 @media (max-width: 420px) {
@@ -2058,7 +2042,7 @@ h1 {
   background: #f7faff;
 }
 
-.settings-section > div:first-child {
+.settings-section__intro {
   display: grid;
   gap: 4px;
   color: #46546c;
@@ -2872,23 +2856,9 @@ h1 {
   text-align: center;
 }
 
-.year-review-modal__header span {
-  color: var(--accent-strong);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .year-review-modal__header h2 {
   margin: 0;
   font-size: 1.45rem;
-}
-
-.year-review-modal__header p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.55;
 }
 
 .year-review-modal__grid {
@@ -2996,7 +2966,6 @@ h1 {
   min-width: 0;
 }
 
-.achievements-page__title span,
 .achievements-overview__metric span,
 .achievements-overview__stipend span,
 .achievements-overview__stipend small {
@@ -3010,12 +2979,6 @@ h1 {
   color: #172034;
   font-size: 1.56rem;
   line-height: 1.1;
-}
-
-.achievements-page__title p {
-  margin-top: 4px;
-  color: #596880;
-  font-weight: 700;
 }
 
 .achievements-overview {
@@ -3437,17 +3400,9 @@ h1 {
   min-width: 0;
 }
 
-.garden-page__header span,
-.boost-card-modal__header span {
-  color: #647151;
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .garden-page__header h2,
 .boost-card-modal__header h2 {
-  margin: 2px 0 0;
+  margin: 0;
   color: #2f351f;
   font-size: 1.8rem;
 }
