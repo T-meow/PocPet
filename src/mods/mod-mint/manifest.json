@@ -1,12 +1,13 @@
 {
   "schemaVersion": 2,
   "id": "official.mint",
-  "name": "mod-mint",
+  "name": "Mint",
   "author": "FrostForge Studio",
   "version": "1.0.0",
   "defaultPetName": "mint",
   "description": "Mint pet pack.",
   "favoriteFoodIds": [
+    "emergency_biscuit",
     "strawberry_cake"
   ],
   "birthday": {
@@ -15,7 +16,7 @@
   },
   "texts": {
     "recentEvent": "mint 来到你身边了。",
-    "favoriteFood": "这是 mint 喜欢的草莓蛋糕，心情额外 +{amount}。",
+    "favoriteFood": "这是喜欢的味道，心情变得更好了",
     "status": {
       "content": "状态不错",
       "hungry": "饿了",
@@ -24,6 +25,15 @@
       "tired": "累了",
       "sick": "不舒服",
       "sleeping": "睡觉中"
+    }
+  },
+  "items": {
+    "overrides": {
+      "emergency_biscuit": {
+        "name": "咕比脆",
+        "summary": "香脆轻巧的小点心",
+        "image": "items/emergency_biscuit.png"
+      }
     }
   }
 }

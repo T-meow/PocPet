@@ -18,6 +18,7 @@
     "check:sleep-settlement": "tsx scripts/check-sleep-settlement.ts",
     "check:achievement-good-ending": "tsx scripts/check-achievement-good-ending.ts",
     "check:save-recovery": "tsx scripts/check-save-recovery.ts",
+    "check:mint-compat": "tsx scripts/check-mint-compat.ts",
     "check:toy": "tsx scripts/check-toy-sdk.ts",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",

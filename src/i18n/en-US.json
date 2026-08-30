@@ -179,6 +179,7 @@
         "saveFailed": "Failed to save the save file.",
         "imported": "Save imported.",
         "importedMissingMod": "Save imported, but it references {name} v{version}. Import the matching mod zip for the same appearance.",
+        "importedMissingModFallbackMint": "Save imported, but {name} v{version} is unavailable, so built-in Mint is being used. Import the matching mod zip for the original appearance.",
         "importFailed": "Failed to import save.",
         "readFailed": "Failed to read save file.",
         "readFileFailed": "Could not read file.",
@@ -942,6 +943,7 @@
       "toolsDialogTitle": "Garden tools",
       "closeDialog": "Close",
       "plantAction": "Plant",
+      "recycleSapling": "Recycle +{coins}",
       "buySaplings": "Buy saplings and garden supplies",
       "upgradeTool": "Upgrade",
       "toolUpgrade": "Upgrade to Lv.{level} · {coins} coins",
@@ -1040,7 +1042,7 @@
     "rolePicker": {
       "aria": "Choose pet character",
       "title": "Choose your companion",
-      "description": "Choose Furo, Doro, an installed mod, or import a new mod.",
+      "description": "Choose Furo, Doro, Mint, an installed mod, or import a new mod.",
       "loading": "Loading local mod...",
       "builtinTitle": "Built-in Furo",
       "installedTitle": "Use {name}",
@@ -2063,6 +2065,10 @@
       "claimed": {
         "coins": "Activity rewards claimed. Coins +{coins}.",
         "category": "Activity results collected. Coins +{coins}."
+      },
+      "neighborClaimed": {
+        "named": "{neighbor} made it home safely too.",
+        "generic": "The neighbor made it home safely too."
       }
     },
     "garden": {
@@ -2075,6 +2081,7 @@
       "goldenAppleTreeLimit": "The garden can contain at most {limit} golden apple trees at once.",
       "unlockSlotSuccess": "Unlocked slot {slot} for {coins} coins.",
       "plantSuccess": "Planted {tree} and used {item}.",
+      "recycleSaplingSuccess": "Recycled {item}. Coins +{coins}.",
       "cannotWater": "This tree cannot be watered now.",
       "wateredToday": "This slot was already watered today.",
       "waterSuccess": "Watered for free. Growth time shortened by {time}.",

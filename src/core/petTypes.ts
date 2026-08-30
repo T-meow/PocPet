@@ -466,6 +466,7 @@ export interface PetState {
   lastPetInteractionAt: number;
   pomodoro: PomodoroState;
   hasOpenedHelp: boolean;
+  hasSeenCommonDreamsUnlock: boolean;
   suppressGoldenAppleUseConfirm: boolean;
   claimedRewardIds: string[];
   birthday?: PetBirthday;

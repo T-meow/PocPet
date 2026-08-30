@@ -68,6 +68,12 @@ export const gardenTreeDefinitions: Record<GardenTreeId, GardenTreeDefinition> =
   golden_apple_tree: { id: 'golden_apple_tree', price: 8888, growDurationMs: 4 * dayMs, harvestCooldownMs: 48 * hourMs, maxHarvests: 9, dropPool: [] },
 };
 
+export const gardenSaplingRecycleMaxPrice = 30;
+export const getGardenSaplingRecycleCoins = (treeId: GardenTreeId) => {
+  const price = gardenTreeDefinitions[treeId]?.price ?? 0;
+  return price > 0 && price <= gardenSaplingRecycleMaxPrice ? Math.floor(price / 2) : 0;
+};
+
 export const gardenTreeMaxHarvests: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].maxHarvests])) as Record<GardenTreeId, number>;
 export const gardenTreeGrowDurationMs: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].growDurationMs])) as Record<GardenTreeId, number>;
 export const gardenTreeHarvestCooldownMs: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].harvestCooldownMs])) as Record<GardenTreeId, number>;
@@ -374,6 +380,19 @@ export const plantTree = (pet: PetState, slotIndex: number, treeId: GardenTreeId
     recentEvent: t('pet.garden.plantSuccess', { tree: t('ui.garden.trees.' + treeId + '.name'), item: getItemName(saplingItemId) }),
     lastInteractionAt: now,
   });
+};
+export const recycleGardenSapling = (pet: PetState, treeId: GardenTreeId, now = Date.now()): PetState => {
+  const current = advanceGarden(pet, now);
+  const saplingItemId = gardenTreeSaplingItemIds[treeId];
+  const coins = getGardenSaplingRecycleCoins(treeId);
+  if (!saplingItemId || coins <= 0 || getInventoryCount(current.inventory, saplingItemId) <= 0) return current;
+  return {
+    ...current,
+    coins: clampCoins(current.coins + coins),
+    inventory: removeInventoryItem(current.inventory, saplingItemId),
+    recentEvent: t('pet.garden.recycleSaplingSuccess', { item: getItemName(saplingItemId), coins }),
+    lastInteractionAt: now,
+  };
 };
 export const waterTree = (pet: PetState, slotIndex: number, now = Date.now()): PetState => {
   const current = advanceGarden(pet, now);

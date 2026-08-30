@@ -5,8 +5,6 @@ import { randomInt } from './utils';
 
 export const lowSleepMoodWarningThreshold = 25;
 
-export const petInteractionCooldownMs = 1000;
-export const petInteractionOveruseCooldownMs = 4 * 1000;
 export const petInteractionHeartMoodThreshold = 75;
 export const petInteractionHeartHealthThreshold = 40;
 export const basePlayMoodGain = 18;
@@ -78,6 +76,8 @@ export const getRandomHealthIncident = (kind: ActionIncidentKind, pet: PetState)
 };
 
 export const applyActionStreak = (pet: PetState, key: CareActionKey, now: number) => {
+  if (key === 'feed' || key === 'touch') return { pet, text: '', triggered: false };
+
   const previous = pet.actionStreak;
   const count =
     previous.key === key && now - previous.windowStartedAt <= overuseWindowMs ? Math.min(previous.count + 1, 99) : 1;

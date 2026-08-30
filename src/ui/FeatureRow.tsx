@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarClock, Dices, Flag, PackageOpen, Sprout, Timer } from 'lucide-react';
-import { canClaimBoostCardDailyReward, classicEndgameUnlockLevel, classicEndgameUnlockSkillLevel, getActiveBoostCard, isClassicEndgameComplete, isClassicEndgameUnlocked, partnerScheduleUnlockLevel, type PetState } from '../core/pet';
+import { canClaimBoostCardDailyReward, classicEndgameUnlockLevel, classicEndgameUnlockSkillLevel, getActiveBoostCard, hasClassicEndgameUnlockNotice, isClassicEndgameComplete, isClassicEndgameUnlocked, partnerScheduleUnlockLevel, type PetState } from '../core/pet';
 import { t } from '../i18n';
 import { formatPomodoroTime } from './time';
 
@@ -53,6 +53,7 @@ export const FeatureRow = ({
         ? t('ui.features.partnerScheduleActive')
         : undefined;
   const endgameUnlocked = isClassicEndgameUnlocked(pet);
+  const hasEndgameUnlockNotice = hasClassicEndgameUnlockNotice(pet);
   const endgameHint = isClassicEndgameComplete(pet)
     ? t('ui.features.commonDreamsComplete', { level: pet.classicEndgame.legacyLevel })
     : endgameUnlocked
@@ -140,7 +141,7 @@ export const FeatureRow = ({
 
       <button
         type="button"
-        className={endgameUnlocked ? 'feature-button feature-button--common-dreams feature-button--active' : 'feature-button feature-button--common-dreams'}
+        className={hasEndgameUnlockNotice ? 'feature-button feature-button--common-dreams feature-button--active' : 'feature-button feature-button--common-dreams'}
         onClick={onOpenCommonDreams}
         title={endgameHint}
       >
@@ -149,7 +150,7 @@ export const FeatureRow = ({
           {t('ui.features.commonDreams')}
           <small>{endgameHint}</small>
         </span>
-        {endgameUnlocked && <i aria-hidden="true" />}
+        {hasEndgameUnlockNotice && <i aria-hidden="true" />}
       </button>
     </div>
   );

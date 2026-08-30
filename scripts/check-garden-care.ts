@@ -7,8 +7,10 @@ import {
   gardenMinimumCareRemainingMs,
   gardenWaterReductionMaxMs,
   getGardenCarePreview,
+  getGardenSaplingRecycleCoins,
   harvestTree,
   normalizeGardenState,
+  recycleGardenSapling,
   waterTree,
 } from '../src/core/garden';
 import { createDefaultPet } from '../src/core/petState';
@@ -158,5 +160,19 @@ assert.equal(finalHarvestPet.garden.slots[0].state, 'withered');
 assert.equal(finalHarvestPet.garden.slots[0].naturalReadyAt, 0);
 assert.equal(finalHarvestPet.garden.slots[0].careReductionMs, 0);
 assert.equal(finalHarvestPet.garden.slots[0].nextReadyAt, 0);
+
+const recyclableSaplingPet = {
+  ...createDefaultPet(migrationNow),
+  coins: 100,
+  inventory: { fruit_tree_sapling: 2, money_tree_sapling: 1 },
+};
+const recycledSaplingPet = recycleGardenSapling(recyclableSaplingPet, 'fruit_tree', migrationNow);
+assert.equal(getGardenSaplingRecycleCoins('fruit_tree'), 15);
+assert.equal(recycledSaplingPet.inventory.fruit_tree_sapling, 1);
+assert.equal(recycledSaplingPet.coins, 115);
+const rejectedExpensiveRecycle = recycleGardenSapling(recycledSaplingPet, 'money_tree', migrationNow);
+assert.equal(getGardenSaplingRecycleCoins('money_tree'), 0);
+assert.equal(rejectedExpensiveRecycle.inventory.money_tree_sapling, 1, 'expensive saplings must not be recyclable');
+assert.equal(rejectedExpensiveRecycle.coins, recycledSaplingPet.coins);
 
 console.log('garden care checks passed');

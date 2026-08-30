@@ -33,7 +33,7 @@ import {
   partnerScheduleSchemaVersion,
   startPartnerSchedule,
 } from '../src/core/partnerSchedule';
-import { neighborGiftDailyLimit, resolveNeighborName, selectNeighborReference } from '../src/core/neighbors';
+import { getNeighborIdentities, neighborGiftDailyLimit, resolveNeighborName, selectNeighborReference } from '../src/core/neighbors';
 import { selectNeighborGift } from '../src/core/neighborGifts';
 import { applyTimedEvent, getRandomDailyEncounter, getRandomOfflineEvent } from '../src/core/petEvents';
 import {
@@ -888,13 +888,38 @@ const neighborIdentities = [
   { modId: 'creator.alpha', name: 'Alpha' },
   { modId: 'creator.beta', name: 'Beta' },
 ];
+assert.deepEqual(
+  getNeighborIdentities([]).map((neighbor) => neighbor.name),
+  ['Doro', 'mint'],
+  'Furo should see the other two built-in roles as neighbors',
+);
+assert.deepEqual(
+  getNeighborIdentities([], 'official.doro').map((neighbor) => neighbor.name),
+  ['Furo', 'mint'],
+  'Doro should see Furo and Mint as neighbors',
+);
+assert.deepEqual(
+  getNeighborIdentities([], 'official.mint').map((neighbor) => neighbor.name),
+  ['Doro', 'Furo'],
+  'Mint should see Furo and Doro as neighbors',
+);
+assert.deepEqual(
+  getNeighborIdentities([{ manifest: { id: 'creator.alpha', defaultPetName: 'Alpha' } }], 'creator.alpha').map((neighbor) => neighbor.name),
+  ['Doro', 'Furo', 'mint'],
+  'an active installed mod should still see all three built-in roles as neighbors',
+);
 const neighborReference = selectNeighborReference(neighborOfferId!, neighborIdentities);
 const neighborStarted = startPartnerSchedule(neighborSchedulePet!, neighborOfferId!, now, neighborReference);
 assert.deepEqual(neighborStarted.partnerSchedule.active?.neighbor, neighborReference, 'start should snapshot only the neighbor mod id');
 const neighborFinished = advancePartnerSchedule(neighborStarted, neighborStarted.partnerSchedule.active!.endsAt);
 assert.deepEqual(neighborFinished.partnerSchedule.pendingResult?.neighbor, neighborReference, 'completion should preserve the neighbor reference');
 if (neighborReference.kind === 'mod') {
-  assert.equal(resolveNeighborName(neighborReference, neighborIdentities), neighborIdentities.find((item) => item.modId === neighborReference.modId)?.name);
+  const neighborName = resolveNeighborName(neighborReference, neighborIdentities);
+  assert.equal(neighborName, neighborIdentities.find((item) => item.modId === neighborReference.modId)?.name);
+  const namedNeighborClaim = claimPartnerScheduleResult(neighborFinished, 'coins', neighborStarted.partnerSchedule.active!.endsAt, neighborName);
+  assert(namedNeighborClaim.recentEvent.includes(neighborName!), 'the claimed activity log should show the built-in or mod neighbor name');
+  const genericNeighborClaim = claimPartnerScheduleResult(neighborFinished, 'coins', neighborStarted.partnerSchedule.active!.endsAt);
+  assert(!genericNeighborClaim.recentEvent.includes('pet.partnerSchedule.neighborClaimed'), 'generic neighbor text should resolve instead of leaking its translation key');
   assert.equal(resolveNeighborName(neighborReference, [{ modId: neighborReference.modId, name: 'Updated name' }]), 'Updated name');
   assert.equal(resolveNeighborName(neighborReference, []), undefined, 'a deleted mod should fall back to the generic neighbor copy');
 }

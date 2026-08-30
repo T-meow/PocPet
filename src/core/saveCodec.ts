@@ -3,9 +3,13 @@ import { rebasePetFutureCalendarState, shiftPetRuntimeTimestamps } from './gameC
 import type { PetModManifest } from './mod';
 
 export const saveFileSchemaVersion = 1;
-const appId = 'PocPet';
+export const pocPetSaveAppId = 'PocPet' as const;
+export const mintSaveAppId = 'Pocpet-Mint' as const;
+export type PocPetSaveAppId = typeof pocPetSaveAppId | typeof mintSaveAppId;
+
+const appId = pocPetSaveAppId;
+const supportedSaveAppIds: readonly PocPetSaveAppId[] = [pocPetSaveAppId, mintSaveAppId];
 const protectedSavePrefix = 'POCPET-SAVE-v2:';
-const protectedSaveKey = `${appId}:save-file:v2`;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
@@ -27,6 +31,7 @@ export interface PocPetImportedSave {
   pet: PetState;
   activeMod?: PocPetSaveModSummary;
   exportedAt?: string;
+  sourceApp?: PocPetSaveAppId;
   source: 'envelope' | 'legacy';
 }
 
@@ -39,6 +44,9 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+const isSupportedSaveAppId = (value: unknown): value is PocPetSaveAppId =>
+  supportedSaveAppIds.some((candidate) => candidate === value);
 
 const legacyNumericFields = [
   'level',
@@ -114,8 +122,10 @@ const checksumText = (text: string) => {
   return hash.toString(16).padStart(8, '0');
 };
 
-const transformSaveBytes = (bytes: Uint8Array) => {
-  const keyBytes = textEncoder.encode(protectedSaveKey);
+const getProtectedSaveKey = (saveAppId: PocPetSaveAppId) => `${saveAppId}:save-file:v2`;
+
+const transformSaveBytes = (bytes: Uint8Array, saveAppId: PocPetSaveAppId) => {
+  const keyBytes = textEncoder.encode(getProtectedSaveKey(saveAppId));
   const output = new Uint8Array(bytes.length);
   let state = 0x6d2b79f5;
 
@@ -132,11 +142,11 @@ const transformSaveBytes = (bytes: Uint8Array) => {
 };
 
 const protectSaveFileText = (plainText: string) =>
-  `${protectedSavePrefix}${checksumText(plainText)}:${bytesToBase64Url(transformSaveBytes(textEncoder.encode(plainText)))}`;
+  `${protectedSavePrefix}${checksumText(plainText)}:${bytesToBase64Url(transformSaveBytes(textEncoder.encode(plainText), appId))}`;
 
 const unprotectSaveFileText = (text: string) => {
   const trimmed = text.trim();
-  if (!trimmed.startsWith(protectedSavePrefix)) return trimmed;
+  if (!trimmed.startsWith(protectedSavePrefix)) return { plainText: trimmed };
 
   const body = trimmed.slice(protectedSavePrefix.length);
   const separatorIndex = body.indexOf(':');
@@ -146,15 +156,19 @@ const unprotectSaveFileText = (text: string) => {
   const payload = body.slice(separatorIndex + 1);
   if (!/^[0-9a-f]{8}$/.test(expectedChecksum) || !payload) throw new Error('Save text is damaged.');
 
-  let plainText = '';
+  let protectedBytes: Uint8Array;
   try {
-    plainText = textDecoder.decode(transformSaveBytes(base64UrlToBytes(payload)));
+    protectedBytes = base64UrlToBytes(payload);
   } catch {
     throw new Error('Save text could not be decoded.');
   }
 
-  if (checksumText(plainText) !== expectedChecksum) throw new Error('Save text checksum does not match.');
-  return plainText;
+  for (const protectedApp of supportedSaveAppIds) {
+    const plainText = textDecoder.decode(transformSaveBytes(protectedBytes, protectedApp));
+    if (checksumText(plainText) === expectedChecksum) return { plainText, protectedApp };
+  }
+
+  throw new Error('Save text checksum does not match.');
 };
 
 export const createSaveFilePlainText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) => {
@@ -236,8 +250,11 @@ const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number):
 
 export const parseSaveFileText = (text: string, now = Date.now()): PocPetImportedSave => {
   let parsed: unknown;
+  let protectedApp: PocPetSaveAppId | undefined;
   try {
-    parsed = JSON.parse(unprotectSaveFileText(text));
+    const unprotected = unprotectSaveFileText(text);
+    parsed = JSON.parse(unprotected.plainText);
+    protectedApp = unprotected.protectedApp;
   } catch {
     throw new Error('Save text is not valid PocPet save data.');
   }
@@ -247,10 +264,14 @@ export const parseSaveFileText = (text: string, now = Date.now()): PocPetImporte
   }
 
   if (parsed.app !== undefined || parsed.schemaVersion !== undefined) {
-    if (parsed.app !== appId) throw new Error('This is not a PocPet save file.');
+    if (!isSupportedSaveAppId(parsed.app)) throw new Error('This is not a supported PocPet save file.');
+    const sourceApp = parsed.app;
+    if (protectedApp && protectedApp !== sourceApp) {
+      throw new Error('Save protection does not match its app identifier.');
+    }
     if (parsed.schemaVersion !== saveFileSchemaVersion) {
       if (typeof parsed.schemaVersion === 'number' && parsed.schemaVersion > saveFileSchemaVersion) {
-        throw new Error('This save file comes from a newer PocPet version. Please upgrade the app.');
+        throw new Error(`This save file comes from a newer ${sourceApp} version. Please upgrade the app.`);
       }
       throw new Error('Unsupported save file version.');
     }
@@ -262,6 +283,7 @@ export const parseSaveFileText = (text: string, now = Date.now()): PocPetImporte
       pet: resetImportedTimeBaseline(parsed.pet as unknown as PetState, now, timestamp),
       activeMod,
       exportedAt,
+      sourceApp,
       source: 'envelope',
     };
   }

@@ -13,11 +13,9 @@ import {
 import { advancePet, isPetCriticallyHungry, isPetLowEnergy } from '../src/core/petLifecycle';
 import {
   getPetInteractionEnergyCost,
-  petInteractionCooldownMs,
   petInteractionHeartHealthThreshold,
   petInteractionHeartMoodThreshold,
   petInteractionMoodPerEnergy,
-  petInteractionOveruseCooldownMs,
 } from '../src/core/petCommon';
 import { applyTimedEvent } from '../src/core/petEvents';
 import {
@@ -151,26 +149,17 @@ for (const level of [1, 20, 50, 99]) {
   closeTo(interacted.mood, expectedEnergyCost * petInteractionMoodPerEnergy, `level ${level} interaction mood follows actual energy cost`);
 }
 
-const overuseStart = atLevel(1, {
-  mood: 0,
-  lastPetInteractionAt: now - petInteractionCooldownMs,
-  actionStreak: {
-    key: 'touch',
-    count: 5,
-    windowStartedAt: now - 5_000,
-    lastAt: now - petInteractionCooldownMs,
-  },
-});
-const overusedInteraction = interactWithPet(overuseStart, now);
-assert.equal(
-  overusedInteraction.lastPetInteractionAt,
-  now + petInteractionOveruseCooldownMs - petInteractionCooldownMs,
-  'overuse cooldown anchor accounts for the normal interaction cooldown',
-);
-const stillCoolingDown = interactWithPet(overusedInteraction, now + petInteractionOveruseCooldownMs - 1);
-assert.equal(stillCoolingDown.lastPetInteractionAt, overusedInteraction.lastPetInteractionAt, 'overuse cooldown blocks until the configured duration');
-const cooldownComplete = interactWithPet(overusedInteraction, now + petInteractionOveruseCooldownMs);
-assert.equal(cooldownComplete.lastPetInteractionAt, now + petInteractionOveruseCooldownMs, 'overuse cooldown ends at the configured duration');
+const rapidInteractionStart = atLevel(1, { hearts: 0 });
+const rapidInteractionOne = interactWithPet(rapidInteractionStart, now);
+const rapidInteractionTwo = interactWithPet(rapidInteractionOne, now);
+const rapidInteractionThree = interactWithPet(rapidInteractionTwo, now);
+assert.equal(rapidInteractionThree.hearts, 3, 'rapid consecutive interactions should grant hearts without a cooldown');
+assert.equal(rapidInteractionThree.lastPetInteractionAt, now);
+
+let rapidFeed = atLevel(1, { inventory: { emergency_biscuit: 3 } });
+for (let index = 0; index < 3; index += 1) rapidFeed = useInventoryItem(rapidFeed, 'emergency_biscuit', now);
+assert.equal(rapidFeed.mood, 97, 'rapid consecutive feeding should only apply the food effect');
+assert.equal(rapidFeed.cleanliness, getPetStatCap(1), 'rapid consecutive feeding should not trigger an overuse penalty');
 
 const originalRandom = Math.random;
 Math.random = () => 0;
@@ -219,7 +208,7 @@ assert.equal(maxBatchQuantity, 99);
 assert.equal(levelTwentyUse.inventory.emergency_biscuit, undefined);
 assert.equal(levelTwentyUse.hunger, getPetStatCap(20));
 assert.equal(levelTwentyUse.mood, getPetStatCap(20) - 99, 'item effects stay fixed per item at high levels');
-assert.equal(levelTwentyUse.actionStreak.count, 1, 'one batch only advances the action streak once');
+assert.equal(levelTwentyUse.actionStreak.count, 0, 'feeding should not advance the action streak');
 assert.equal(levelTwentyUse.achievements.counters.totalItemUseCount, 99);
 assert.equal(levelTwentyUse.yearlyStats.itemUseCount, 99);
 

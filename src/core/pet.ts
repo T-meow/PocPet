@@ -153,10 +153,12 @@ export {
   getClassicGoalInvestedCoins,
   getClassicGoalProgress,
   getDreamStageEligibility,
+  hasClassicEndgameUnlockNotice,
   investClassicLegacy,
   investDreamProject,
   isClassicEndgameComplete,
   isClassicEndgameUnlocked,
+  markClassicEndgameUnlockSeen,
   normalizeClassicEndgameState,
   type ClassicGoldenAppleHeartExchangePreview,
 } from './classicEndgame';
@@ -194,6 +196,7 @@ export {
   gardenHeartFertilizerCost,
   gardenNormalFertilizerCost,
   gardenNutrientCost,
+  gardenSaplingRecycleMaxPrice,
   gardenSchemaVersion,
   gardenSlotCount,
   gardenSlotStates,
@@ -211,6 +214,7 @@ export {
   getGardenCarePreview,
   getGardenEnvironmentEffects,
   getGardenReminder,
+  getGardenSaplingRecycleCoins,
   getGardenStage,
   getGardenToolUpgradeCost,
   getGardenWaterReductionPercent,
@@ -222,6 +226,7 @@ export {
   maxGardenToolLevel,
   normalizeGardenState,
   plantTree,
+  recycleGardenSapling,
   selectGardenSlot,
   unlockGardenSlot,
   upgradeGardenTool,
@@ -321,7 +326,7 @@ export {
   startPartnerSchedule,
 } from './partnerSchedule';
 export { selectNeighborGift } from './neighborGifts';
-export { neighborGiftDailyLimit, resolveNeighborName, selectNeighborReference } from './neighbors';
+export { getNeighborIdentities, neighborGiftDailyLimit, resolveNeighborName, selectNeighborReference } from './neighbors';
 export {
   getPartnerScheduleCategoryEffects,
   getPartnerScheduleCrossSystemEffects,
@@ -349,12 +354,10 @@ export {
   basePlayMoodGain,
   getPetInteractionEnergyCost,
   lowSleepMoodWarningThreshold,
-  petInteractionCooldownMs,
   petInteractionEnergyCostRatio,
   petInteractionHeartHealthThreshold,
   petInteractionHeartMoodThreshold,
   petInteractionMoodPerEnergy,
-  petInteractionOveruseCooldownMs,
   playEnergyCost,
 } from './petCommon';
 export {

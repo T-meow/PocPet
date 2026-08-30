@@ -46,8 +46,10 @@ import {
   goldenAppleHeartGachaGuaranteeMinimum,
   goldenAppleHeartGachaPoolWeight,
   goldenAppleHeartGachaRewards,
+  hasClassicEndgameUnlockNotice,
   investDreamProject,
   isClassicEndgameUnlocked,
+  markClassicEndgameUnlockSeen,
   normalizeGoldenAppleGachaState,
   normalizePartnerScheduleState,
   partnerScheduleDefinitions,
@@ -857,6 +859,25 @@ assert.equal(isClassicEndgameUnlocked({
     skills: { ...unlockReadyPet.partnerSchedule.skills, garden: { ...unlockSkill, level: 5 } },
   },
 }), false, 'one Lv.5 skill must keep the goals locked');
+assert.equal(createDefaultPet(now).hasSeenCommonDreamsUnlock, false, 'new pets must keep the unlock notice unseen');
+const normalizedLegacyUnlockPet = normalizePet({ ...unlockReadyPet, hasSeenCommonDreamsUnlock: undefined }, now);
+assert.equal(normalizedLegacyUnlockPet.hasSeenCommonDreamsUnlock, false, 'legacy saves must receive the unlock notice once');
+const lockedPreviewPet = { ...unlockReadyPet, level: 19 };
+assert.equal(hasClassicEndgameUnlockNotice(lockedPreviewPet), false, 'locked dreams must not show an unlock notice');
+assert.strictEqual(
+  markClassicEndgameUnlockSeen(lockedPreviewPet),
+  lockedPreviewPet,
+  'opening the locked preview must not consume the future unlock notice',
+);
+assert.equal(hasClassicEndgameUnlockNotice(unlockReadyPet), true, 'newly unlocked dreams must show a notice');
+const acknowledgedUnlockPet = markClassicEndgameUnlockSeen(unlockReadyPet);
+assert.equal(acknowledgedUnlockPet.hasSeenCommonDreamsUnlock, true, 'opening unlocked dreams must acknowledge the notice');
+assert.equal(hasClassicEndgameUnlockNotice(acknowledgedUnlockPet), false, 'acknowledged unlock notices must stay cleared');
+assert.strictEqual(
+  markClassicEndgameUnlockSeen(acknowledgedUnlockPet),
+  acknowledgedUnlockPet,
+  'acknowledging the same notice twice must be idempotent',
+);
 
 const lockedFundedPet: PetState = {
   ...unlockReadyPet,

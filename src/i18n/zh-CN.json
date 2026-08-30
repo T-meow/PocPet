@@ -179,6 +179,7 @@
         "saveFailed": "保存存档文件失败。",
         "imported": "存档已导入。",
         "importedMissingMod": "存档已导入，但它引用了 {name} v{version}。如需外观一致，请导入对应 Mod zip。",
+        "importedMissingModFallbackMint": "存档已导入，但它引用的 {name} v{version} 不可用，已回退为内置 Mint。如需原外观，请导入对应 Mod zip。",
         "importFailed": "导入存档失败。",
         "readFailed": "读取存档文件失败。",
         "readFileFailed": "无法读取文件。",
@@ -942,6 +943,7 @@
       "toolsDialogTitle": "种植工具",
       "closeDialog": "关闭",
       "plantAction": "种植",
+      "recycleSapling": "回收 +{coins}",
       "buySaplings": "购买树苗和种植用品",
       "upgradeTool": "升级",
       "toolUpgrade": "升到 Lv.{level} · {coins} 金币",
@@ -1040,7 +1042,7 @@
     "rolePicker": {
       "aria": "选择宠物角色",
       "title": "选择你的伙伴",
-      "description": "选择 Furo、Doro、已安装 Mod，或导入新 Mod。",
+      "description": "选择 Furo、Doro、Mint、已安装 Mod，或导入新 Mod。",
       "loading": "正在读取本地 Mod...",
       "builtinTitle": "内置 Furo",
       "installedTitle": "使用 {name}",
@@ -2063,6 +2065,10 @@
       "claimed": {
         "coins": "领取了活动收获，金币 +{coins}。",
         "category": "带回了活动成果，金币 +{coins}。"
+      },
+      "neighborClaimed": {
+        "named": "{neighbor} 也顺利回家了。",
+        "generic": "邻居也顺利回家了。"
       }
     },
     "garden": {
@@ -2075,6 +2081,7 @@
       "goldenAppleTreeLimit": "花园里最多同时存在 {limit} 棵金苹果树。",
       "unlockSlotSuccess": "解锁了第 {slot} 个栏位，花费 {coins} 金币。",
       "plantSuccess": "种下了{tree}，消耗 {item}。",
+      "recycleSaplingSuccess": "回收了 {item}，金币 +{coins}。",
       "cannotWater": "这棵树现在不能浇水。",
       "wateredToday": "这个栏位今天已经浇过水了。",
       "waterSuccess": "免费浇水完成，成长时间缩短 {time}。",

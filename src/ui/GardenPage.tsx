@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Cloud, CloudRain, Droplets, Flower2, Leaf, Pickaxe, ShoppingBag, Sparkles, Sprout, Sun, Wind, Wrench, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Cloud, CloudRain, Droplets, Flower2, Leaf, Pickaxe, Recycle, ShoppingBag, Sparkles, Sprout, Sun, Wind, Wrench, X, type LucideIcon } from 'lucide-react';
 import { currencyIcon, giftBoxIcon, treeStageImages } from '../assets';
 import {
   gardenFertilizerItemIds,
@@ -14,6 +14,7 @@ import {
   getGardenCarePreview,
   getGardenClearCost,
   getGardenEnvironmentEffects,
+  getGardenSaplingRecycleCoins,
   getGardenStage,
   getGardenToolUpgradeCost,
   getGardenView,
@@ -37,6 +38,7 @@ interface GardenPageProps {
   onSelectSlot: (slotIndex: number) => void;
   onUnlockSlot: (slotIndex: number) => void;
   onPlantTree: (slotIndex: number, treeId: GardenTreeId) => void;
+  onRecycleSapling: (treeId: GardenTreeId) => void;
   onWater: (slotIndex: number) => void;
   onFertilize: (slotIndex: number, fertilizerId: GardenFertilizerId) => void;
   onNutrient: (slotIndex: number) => void;
@@ -79,7 +81,7 @@ const weatherIcons: Record<WeatherType, LucideIcon> = {
 
 type GardenActionDialog = 'plant' | 'tools' | null;
 
-export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlot, onPlantTree, onWater, onFertilize, onNutrient, onHarvest, onClear, onUpgradeTool, onOpenShop, compensationCoins = 0, onClaimCompensation }: GardenPageProps) => {
+export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlot, onPlantTree, onRecycleSapling, onWater, onFertilize, onNutrient, onHarvest, onClear, onUpgradeTool, onOpenShop, compensationCoins = 0, onClaimCompensation }: GardenPageProps) => {
   const [actionDialog, setActionDialog] = useState<GardenActionDialog>(null);
   const now = Date.now();
   const effectiveDateKey = getEffectiveDailyDateKey(pet, now);
@@ -216,6 +218,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlo
                   const saplingItemId = gardenTreeSaplingItemIds[treeId];
                   const count = pet.inventory[saplingItemId] ?? 0;
                   const icon = itemIconMap[saplingItemId];
+                  const recycleCoins = getGardenSaplingRecycleCoins(treeId);
                   return (
                     <article className="garden-dialog-item" key={treeId}>
                       <span className="garden-dialog-item__icon">{icon ? <img src={icon} alt="" aria-hidden="true" /> : <Leaf size={24} aria-hidden="true" />}</span>
@@ -223,17 +226,25 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onSelectSlot, onUnlockSlo
                         <strong>{t(`ui.garden.trees.${treeId}.name`)}</strong>
                         <small>{count > 0 ? t('ui.garden.saplingOwned', { count }) : t('ui.garden.needSapling', { coins: gardenTreeDefinitions[treeId].price })}</small>
                       </div>
-                      <button
-                        type="button"
-                        className="primary-button"
-                        disabled={count <= 0}
-                        onClick={() => {
-                          onPlantTree(slot.slotIndex, treeId);
-                          setActionDialog(null);
-                        }}
-                      >
-                        {t('ui.garden.plantAction')}
-                      </button>
+                      <div className="garden-dialog-item__actions">
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={count <= 0}
+                          onClick={() => {
+                            onPlantTree(slot.slotIndex, treeId);
+                            setActionDialog(null);
+                          }}
+                        >
+                          {t('ui.garden.plantAction')}
+                        </button>
+                        {recycleCoins > 0 && (
+                          <button type="button" className="secondary-button" disabled={count <= 0} onClick={() => onRecycleSapling(treeId)}>
+                            <Recycle size={16} aria-hidden="true" />
+                            {t('ui.garden.recycleSapling', { coins: recycleCoins })}
+                          </button>
+                        )}
+                      </div>
                     </article>
                   );
                 })}

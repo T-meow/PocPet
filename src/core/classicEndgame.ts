@@ -186,6 +186,12 @@ export const isClassicEndgameUnlocked = (pet: PetState) =>
     pet.partnerSchedule.skills[category].level >= classicEndgameUnlockSkillLevel,
   );
 
+export const hasClassicEndgameUnlockNotice = (pet: PetState) =>
+  isClassicEndgameUnlocked(pet) && !pet.hasSeenCommonDreamsUnlock;
+
+export const markClassicEndgameUnlockSeen = (pet: PetState): PetState =>
+  hasClassicEndgameUnlockNotice(pet) ? { ...pet, hasSeenCommonDreamsUnlock: true } : pet;
+
 export const isClassicEndgameComplete = (pet: PetState) =>
   dreamProjectCategories.every((category) => pet.classicEndgame.projects[category].completedStages >= dreamStageDefinitions.length);
 

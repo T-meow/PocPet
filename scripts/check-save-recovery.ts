@@ -4,6 +4,7 @@ import {
   createSaveFileText,
   loadStoredPetJson,
   parseSaveFileText,
+  pocPetSaveAppId,
 } from '../src/core/saveCodec';
 import {
   backupCurrentPet,
@@ -65,7 +66,7 @@ assert.throws(
 );
 assert.throws(
   () => parseSaveFileText(JSON.stringify({ app: 'AnotherApp', schemaVersion: 1, exportedAt: new Date(exportAt).toISOString(), pet: basePet }), importAt),
-  /not a PocPet/,
+  /not a supported PocPet/,
 );
 assert.throws(
   () => parseSaveFileText(JSON.stringify({
@@ -131,6 +132,7 @@ const runningPet: PetState = {
 };
 const importedRunning = parseSaveFileText(createSaveFileText(runningPet, null, exportAt), importAt);
 assert.equal(importedRunning.source, 'envelope');
+assert.equal(importedRunning.sourceApp, pocPetSaveAppId);
 assert.equal(importedRunning.exportedAt, new Date(exportAt).toISOString());
 assert.equal(importedRunning.pet.pomodoro.isRunning, false);
 assert.equal(importedRunning.pet.pomodoro.pausedRemainingMs, 15 * 60 * 1000);

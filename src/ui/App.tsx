@@ -33,6 +33,7 @@ import {
   getInventoryItem,
   getInventoryDefinitions,
   getItemDefinition,
+  getNeighborIdentities,
   getShopDefinitions,
   resolveNeighborName,
   selectNeighborReference,
@@ -44,6 +45,7 @@ import {
   isPetCriticallyHungry,
   isPetLowEnergy,
   markAchievementReviewSeen,
+  markClassicEndgameUnlockSeen,
   pausePomodoro,
   petInteractionHeartHealthThreshold,
   petInteractionHeartMoodThreshold,
@@ -107,7 +109,7 @@ import {
   type ActivePetMod,
   type InstalledPetModSummary,
 } from '../core/mod';
-import { getBuiltinPetMod } from '../core/builtinPetMods';
+import { builtinMintMod, getBuiltinPetMod } from '../core/builtinPetMods';
 import {
   clearActivePetMod,
   deletePetMod,
@@ -118,7 +120,8 @@ import {
   loadPetMod,
   setActivePetMod,
 } from '../core/modStorage';
-import { createSaveFileText, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
+import { createSaveFileText, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
+import { resolveImportedSaveMod } from '../core/saveImport';
 import { AchievementsPage, type AchievementTabId } from './AchievementsPage';
 import { BoostCardModal } from './BoostCardModal';
 import { CommonDreamsPage } from './CommonDreamsPage';
@@ -245,14 +248,6 @@ const createPetForMod = (mod: ActivePetMod | null) => {
     recentEvent: mod.manifest.texts?.recentEvent ?? fresh.recentEvent,
   };
 };
-
-const getNeighborIdentities = (
-  installedMods: readonly InstalledPetModSummary[],
-  activeModId?: string,
-): NeighborIdentity[] => installedMods
-  .filter((mod) => mod.manifest.id !== activeModId)
-  .map((mod) => ({ modId: mod.manifest.id, name: mod.manifest.defaultPetName }))
-  .sort((left, right) => left.modId.localeCompare(right.modId));
 
 const createNeighborEventContext = (
   installedMods: readonly InstalledPetModSummary[],
@@ -422,6 +417,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     selectSlot: handleSelectGardenSlot,
     unlockSlot: handleUnlockGardenSlot,
     plantTree: handlePlantTree,
+    recycleSapling: handleRecycleGardenSapling,
     waterTree: handleWaterTree,
     fertilizeTree: handleFertilizeTree,
     useNutrient: handleGardenNutrient,
@@ -738,6 +734,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
   const handleOpenCommonDreams = () => {
     playAfterUnlock('open');
+    setPet((current) => markClassicEndgameUnlockSeen(current));
     setActivePage('commonDreams');
   };
 
@@ -1269,23 +1266,23 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     let importCommitted = false;
 
     try {
-      const importedMod = preview.activeMod;
-      const matchingMod = importedMod ? await loadPetMod(importedMod.id) : null;
-      activeModResourcesMayHaveChanged = Boolean(matchingMod);
       const imported = parseSaveFileText(sourceText, Date.now());
-      const nextPet = matchingMod
-        ? withPetIdentityBirthday(imported.pet, matchingMod.manifest.birthday)
+      const importedMod = imported.activeMod;
+      const { mod: resolvedMod, missingImportedMod, usedMintFallback } = await resolveImportedSaveMod(imported, loadPetMod);
+      activeModResourcesMayHaveChanged = Boolean(resolvedMod);
+      const nextPet = resolvedMod
+        ? withPetIdentityBirthday(imported.pet, resolvedMod.manifest.birthday)
         : importedMod
           ? imported.pet
           : withBackfilledBirthday(imported.pet, defaultPetBirthday);
 
-      setActivePetMod(matchingMod?.manifest.id);
+      setActivePetMod(resolvedMod?.manifest.id);
       activeModResourcesMayHaveChanged = true;
       replacePetFromImport(nextPet, createSaveFileText(petRef.current, activeMod?.manifest));
       importCommitted = true;
 
       setHasImportBackup(true);
-      setActiveMod(matchingMod);
+      setActiveMod(resolvedMod);
       petRef.current = nextPet;
       setPet(nextPet);
       setDraftName(nextPet.name);
@@ -1294,8 +1291,13 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
       setPendingImportedSave(null);
       setPendingImportSourceText('');
       setModMessage(
-        importedMod && !matchingMod
-          ? t('ui.settings.save.importedMissingMod', { name: importedMod.name, version: importedMod.version })
+        importedMod && missingImportedMod
+          ? t(
+              usedMintFallback
+                ? 'ui.settings.save.importedMissingModFallbackMint'
+                : 'ui.settings.save.importedMissingMod',
+              { name: importedMod.name, version: importedMod.version },
+            )
           : t('ui.settings.save.imported'),
       );
     } catch (error) {
@@ -1348,8 +1350,10 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   const pendingImportExportTime = pendingImportedSave?.exportedAt
     ? new Date(pendingImportedSave.exportedAt).toLocaleString(language)
     : t('ui.settings.save.previewLegacyTime');
-  const pendingImportMod = pendingImportedSave?.activeMod
-    ? `${pendingImportedSave.activeMod.name} v${pendingImportedSave.activeMod.version}`
+  const pendingImportModSummary = pendingImportedSave?.activeMod
+    ?? (pendingImportedSave?.sourceApp === mintSaveAppId ? builtinMintMod.manifest : undefined);
+  const pendingImportMod = pendingImportModSummary
+    ? `${pendingImportModSummary.name} v${pendingImportModSummary.version}`
     : t('ui.settings.save.previewBuiltinMod');
   const pendingImportMessage = pendingImportedSave
     ? t('ui.settings.save.previewMessage', {
@@ -1507,6 +1511,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           onSelectSlot={handleSelectGardenSlot}
           onUnlockSlot={handleUnlockGardenSlot}
           onPlantTree={handlePlantTree}
+          onRecycleSapling={handleRecycleGardenSapling}
           onWater={handleWaterTree}
           onFertilize={handleFertilizeTree}
           onNutrient={handleGardenNutrient}

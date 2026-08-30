@@ -2,7 +2,7 @@ import { t } from '../i18n';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, dailyBiscuitClaimLimit, favoriteFoodIdSet, getDailyHeartExchangeInfo, getDailyShopDiscountInfo, getInventoryCount, getInventoryItem, getShopItem, giftItemIdSet, heartExchangeCoins, removeInventoryItem } from './items';
 import { applyBoostCardWorkBonus } from './boostCards';
-import { applyActionStreak, basePlayMoodGain, getRandomHealthIncident, getRandomPetInteractionCost, lowSleepMoodWarningThreshold, markInteraction, petInteractionCooldownMs, petInteractionHeartHealthThreshold, petInteractionHeartMoodThreshold, petInteractionMoodPerEnergy, petInteractionOveruseCooldownMs, playEnergyCost, withActivity } from './petCommon';
+import { applyActionStreak, basePlayMoodGain, getRandomHealthIncident, getRandomPetInteractionCost, lowSleepMoodWarningThreshold, markInteraction, petInteractionHeartHealthThreshold, petInteractionHeartMoodThreshold, petInteractionMoodPerEnergy, playEnergyCost, withActivity } from './petCommon';
 import { normalizePetBirthday } from './dateRewards';
 import { applyHeartGain, getAchievementEffects, incrementAchievementCareAction, incrementAchievementItemUse, incrementAchievementPurchase, incrementAchievementSleepStart, incrementManualWake, recordCoinBalance, recordEarnedCoins, recordEarnedHearts } from './achievements';
 import { recordWishProgress } from './dailyWishes';
@@ -564,13 +564,6 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
-  if (now - current.lastPetInteractionAt < petInteractionCooldownMs) {
-    return {
-      ...current,
-      recentEvent: t('pet.interaction.cooldown', { name: current.name }),
-    };
-  }
-
   if (current.isSleeping) {
     return {
       ...current,
@@ -596,13 +589,9 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   }
 
   const interactionCost = getRandomPetInteractionCost(current);
-  const overuse = applyActionStreak(current, 'touch', now);
-  const base = overuse.pet;
+  const base = current;
   const nextEnergy = clampPetEnergy(base, base.energy - interactionCost.energy);
   const actualEnergyCost = Math.max(0, base.energy - nextEnergy);
-  const lastPetInteractionAt = overuse.triggered
-    ? now + Math.max(0, petInteractionOveruseCooldownMs - petInteractionCooldownMs)
-    : now;
 
   if (base.mood >= petInteractionHeartMoodThreshold && base.health >= petInteractionHeartHealthThreshold) {
     const interactionHeartAmount = Math.max(1, Math.round(getPetStatScale(base)));
@@ -615,10 +604,8 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
       hunger: clampPetStat(base, base.hunger - interactionCost.hunger),
       cleanliness: clampPetStat(base, base.cleanliness - interactionCost.cleanliness),
       energy: nextEnergy,
-      lastPetInteractionAt,
-      recentEvent: overuse.triggered
-        ? `${t('pet.interaction.heart', { name: base.name, hearts: heartGain.amount })}${interactionCost.text}${overuse.text} ${t('pet.interaction.overuseCooldown', { name: base.name })}`
-        : `${t('pet.interaction.heart', { name: base.name, hearts: heartGain.amount })}${interactionCost.text}${overuse.text}`,
+      lastPetInteractionAt: now,
+      recentEvent: `${t('pet.interaction.heart', { name: base.name, hearts: heartGain.amount })}${interactionCost.text}`,
     }, 'touch', now), 'touch', now);
     return recordEarnedHearts(incrementAchievementCareAction(touched, 'touch'), heartGain.amount);
   }
@@ -632,10 +619,8 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
     hunger: clampPetStat(base, base.hunger - interactionCost.hunger),
     cleanliness: clampPetStat(base, base.cleanliness - interactionCost.cleanliness),
     energy: nextEnergy,
-    lastPetInteractionAt,
-    recentEvent: overuse.triggered
-      ? `${t('pet.interaction.touch', { name: base.name })}${interactionCost.text}${overuse.text}${lowHealthText} ${t('pet.interaction.overuseCooldown', { name: base.name })}`
-      : `${t('pet.interaction.touch', { name: base.name })}${interactionCost.text}${overuse.text}${lowHealthText}`,
+    lastPetInteractionAt: now,
+    recentEvent: `${t('pet.interaction.touch', { name: base.name })}${interactionCost.text}${lowHealthText}`,
   }, 'touch', now), 'touch', now);
   return incrementAchievementCareAction(touched, 'touch');
 };

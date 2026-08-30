@@ -360,6 +360,12 @@
   min-width: 84px;
 }
 
+.garden-dialog-item > .garden-dialog-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .garden-dialog-shop {
   justify-self: start;
 }
@@ -439,6 +445,12 @@
 
   .garden-dialog-item .primary-button {
     grid-column: 2;
+    justify-self: start;
+  }
+
+  .garden-dialog-item__actions {
+    grid-column: 2;
+    flex-wrap: wrap;
     justify-self: start;
   }
 }
