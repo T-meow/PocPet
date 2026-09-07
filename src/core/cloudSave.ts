@@ -1,4 +1,3 @@
-import type { PetModManifest } from './mod';
 import type { PetState } from './pet';
 import { createSaveFilePlainText, parseSaveFileText, type PocPetImportedSave, type PocPetSaveModSummary } from './saveCodec';
 import type { ToyCloudStorage } from '../platform/toySdk';
@@ -128,7 +127,7 @@ const loadZipText = async (base64: string) => {
 
 export const encodeCloudSave = async (
   pet: PetState,
-  activeMod?: PetModManifest | null,
+  activeMod?: PocPetSaveModSummary | null,
   now = Date.now(),
 ) => {
   const plainText = createSaveFilePlainText(pet, activeMod, now);
@@ -293,7 +292,7 @@ const selectUploadGeneration = async (storage: ToyCloudStorage, now: number): Pr
 export const uploadCloudSave = async (
   storage: ToyCloudStorage,
   pet: PetState,
-  activeMod?: PetModManifest | null,
+  activeMod?: PocPetSaveModSummary | null,
   now = Date.now(),
 ): Promise<CloudSaveManifestV1> => {
   const generation = await selectUploadGeneration(storage, now);

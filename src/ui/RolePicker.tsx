@@ -4,6 +4,7 @@ import { resolvePetStatusImages } from '../assets';
 import { builtinPetMods } from '../core/builtinPetMods';
 import type { InstalledPetModSummary } from '../core/mod';
 import { t } from '../i18n';
+import { features } from '../platform/edition';
 
 interface RolePickerProps {
   installedMods: readonly InstalledPetModSummary[];
@@ -25,7 +26,7 @@ export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoadin
       <div className="role-picker__header">
         <p className="eyebrow">{t('ui.brand.eyebrow')}</p>
         <h1>{t('ui.rolePicker.title')}</h1>
-        <p>{isLoading ? t('ui.rolePicker.loading') : t('ui.rolePicker.description')}</p>
+        {(isLoading || features.importMod) && <p>{isLoading ? t('ui.rolePicker.loading') : t('ui.rolePicker.description')}</p>}
       </div>
       {!isLoading && (
         <div className="role-picker__grid">
@@ -50,11 +51,11 @@ export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoadin
               </span>
             </button>
           ))}
-          <label className="role-card role-card--import">
+          {features.importMod && <label className="role-card role-card--import">
             <Upload size={34} aria-hidden="true" />
             <span><strong>{t('ui.rolePicker.importTitle')}</strong><small>{t('ui.rolePicker.importSummary')}</small></span>
             <input type="file" accept=".zip,application/zip" onChange={onImportMod} />
-          </label>
+          </label>}
         </div>
       )}
       {modMessage && <p className="role-picker__message">{modMessage}</p>}

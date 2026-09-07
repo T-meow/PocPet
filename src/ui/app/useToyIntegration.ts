@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { features } from '../../platform/edition';
+import { getStoredSaveIdentity } from '../../core/storage';
 import {
   getCloudReminderDecision,
   markCloudReminderShownToday,
@@ -84,7 +86,7 @@ export const useToyIntegration = ({
   onMessage,
   onAuthorReward,
 }: UseToyIntegrationOptions) => {
-  const [cloudAvailability, setCloudAvailability] = useState<ToyCloudAvailability>('checking');
+  const [cloudAvailability, setCloudAvailability] = useState<ToyCloudAvailability>(features.cloudSave ? 'checking' : 'unsupported');
   const [cloudManifest, setCloudManifest] = useState<CloudSaveManifestV1>();
   const [cloudUsedFallback, setCloudUsedFallback] = useState(false);
   const [cloudBusy, setCloudBusy] = useState<ToyCloudBusyAction>(null);
@@ -112,7 +114,7 @@ export const useToyIntegration = ({
   useEffect(() => {
     let cancelled = false;
     const sdk = getToySdk();
-    if (!sdk) {
+    if (!features.cloudSave || !sdk) {
       setCloudAvailability('unsupported');
       return;
     }
@@ -190,10 +192,10 @@ export const useToyIntegration = ({
 
   const upload = async () => {
     const sdk = getToySdk();
-    if (!sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
+    if (!features.cloudSave || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
     setCloudBusy('upload');
     try {
-      const manifest = await uploadCloudSave(sdk, petRef.current, activeModRef.current?.manifest);
+      const manifest = await uploadCloudSave(sdk, petRef.current, getStoredSaveIdentity() ?? activeModRef.current?.manifest);
       setCloudManifest(manifest);
       setCloudUsedFallback(false);
       setReminderPromptVisible(false);
@@ -206,7 +208,7 @@ export const useToyIntegration = ({
 
   const restore = async (): Promise<RestoredCloudSave> => {
     const sdk = getToySdk();
-    if (!sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
+    if (!features.cloudSave || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
     setCloudBusy('restore');
     try {
       const result = await restoreCloudSave(sdk);

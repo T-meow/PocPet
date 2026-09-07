@@ -163,7 +163,7 @@ const readLegacyManifest = () => {
   }
 };
 
-export const getPetModLibraryState = (): PetModLibraryState => {
+const readPetModLibraryState = (): PetModLibraryState => {
   let library = emptyLibraryState();
   try {
     const raw = window.localStorage.getItem(libraryStorageKey);
@@ -180,13 +180,18 @@ export const getPetModLibraryState = (): PetModLibraryState => {
       mods: [...library.mods, { manifest: legacyManifest, importedAt: Date.now() }].slice(-petModLibraryLimit),
     };
   }
+  return library;
+};
+
+export const getPetModLibraryState = (): PetModLibraryState => {
+  const library = readPetModLibraryState();
   writeLibraryState(library);
   window.localStorage.removeItem(legacyActiveManifestStorageKey);
   return library;
 };
 
 export const getStoredPetModManifest = (): PetModManifest | null => {
-  const library = getPetModLibraryState();
+  const library = readPetModLibraryState();
   return getBuiltinPetModManifest(library.activeModId)
     ?? library.mods.find((mod) => mod.manifest.id === library.activeModId)?.manifest
     ?? null;

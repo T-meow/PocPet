@@ -3,6 +3,8 @@ import type { YearReview, YearlyCareActionKey } from '../core/pet';
 import { t } from '../i18n';
 import { formatCompactNumber } from './numberFormat';
 
+import { features } from '../platform/edition';
+
 interface YearReviewModalProps {
   review: YearReview;
   isSaving: boolean;
@@ -76,7 +78,8 @@ export const YearReviewModal = ({ review, isSaving, saveFeedback, onSave, onClos
           <button
             type="button"
             className="secondary-button"
-            disabled={isSaving}
+            disabled={!features.shareCards || isSaving}
+            title={!features.shareCards ? t('ui.editionNotice.restricted') : undefined}
             onClick={onSave}
           >
             <Download size={18} aria-hidden="true" />

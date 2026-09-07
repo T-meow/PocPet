@@ -21,7 +21,8 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
+  NPM_CONFIG_REGISTRY: https://registry.npmmirror.com/
   RUST_TOOLCHAIN: stable
   ANDROID_NDK_VERSION: "27.0.12077973"
 
@@ -31,6 +32,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      revision: ${{ steps.meta.outputs.revision }}
       release_build: ${{ steps.meta.outputs.release_build }}
       full_build: ${{ steps.meta.outputs.full_build }}
       publish_release: ${{ steps.meta.outputs.publish_release }}
@@ -38,51 +40,28 @@ jobs:
       MANUAL_FULL_BUILD: ${{ inputs.full_build || 'false' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Detect version and build scope
         id: meta
         shell: bash
-        run: |
-          version=$(node -p "require('./package.json').version")
-
-          release_build=false
-          if [[ "${GITHUB_REF}" == refs/tags/v* || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            release_build=true
-          fi
-
-          full_build=false
-          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.0($|[-+]) ]]; then
-            full_build=true
-          fi
-          if [[ "${MANUAL_FULL_BUILD}" == "true" ]]; then
-            full_build=true
-          fi
-
-          publish_release=false
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            publish_release=true
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "release_build=$release_build" >> "$GITHUB_OUTPUT"
-          echo "full_build=$full_build" >> "$GITHUB_OUTPUT"
-          echo "publish_release=$publish_release" >> "$GITHUB_OUTPUT"
+        run: node scripts/check-release.mjs --metadata
 
   validate:
-    name: Frontend build check
+    name: Versions, save compatibility and both editions
+    needs: metadata
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -90,20 +69,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Validate versions and saves
+        run: |
+          npm run check:release
+          npm run check:save-recovery
+          npm run check:mint-compat
+          npm run check:offline-lifecycle
+          npm run check:toy
+
+      - name: Build both editions
+        run: |
+          npm run build
+          node scripts/check-release.mjs --dist dist
+          npm run build:toy
+          node scripts/check-release.mjs --dist dist-toy --edition bilibili
+
+      - uses: actions/upload-artifact@v4
+        if: needs.metadata.outputs.release_build == 'true'
+        with:
+          name: standard-web
+          path: dist/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: needs.metadata.outputs.release_build == 'true'
+        with:
+          name: bilibili-web
+          path: dist-toy/
+          if-no-files-found: error
 
   windows:
     name: Windows x64 portable
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -127,15 +132,15 @@ jobs:
 
   windows_x86:
     name: Windows 32-bit portable
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -161,15 +166,24 @@ jobs:
 
   android:
     name: Android arm64 APK
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true'
     runs-on: windows-latest
     steps:
+      - name: Require original arm64 signing key
+        shell: powershell
+        env:
+          SIGNING_KEY: ${{ secrets.POCPET_ANDROID_ARM64_KEYSTORE_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_KEY)) {
+            throw 'Missing POCPET_ANDROID_ARM64_KEYSTORE_BASE64. Restore the original matching keystore before building an upgrade APK.'
+          }
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -201,6 +215,8 @@ jobs:
 
       - name: Build debug-signed APK
         shell: powershell
+        env:
+          POCPET_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.POCPET_ANDROID_ARM64_KEYSTORE_BASE64 }}
         run: npm.cmd run package:android:arm64
 
       - name: Upload Android arm64 artifact
@@ -212,15 +228,24 @@ jobs:
 
   android_armv7:
     name: Android 32-bit ARMv7 APK
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
     runs-on: windows-latest
     steps:
+      - name: Require original ARMv7 signing key
+        shell: powershell
+        env:
+          SIGNING_KEY: ${{ secrets.POCPET_ANDROID_ARMV7_KEYSTORE_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_KEY)) {
+            throw 'Missing POCPET_ANDROID_ARMV7_KEYSTORE_BASE64. Restore the original matching keystore before building an upgrade APK.'
+          }
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -252,6 +277,8 @@ jobs:
 
       - name: Build 32-bit debug-signed APK
         shell: powershell
+        env:
+          POCPET_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.POCPET_ANDROID_ARMV7_KEYSTORE_BASE64 }}
         run: npm.cmd run package:android:armv7
 
       - name: Upload Android 32-bit artifact
@@ -263,15 +290,15 @@ jobs:
 
   web:
     name: Web package
-    needs: metadata
-    if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
+    needs: [metadata, validate]
+    if: needs.metadata.outputs.release_build == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -279,11 +306,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: standard-web
+          path: dist
+
+      - run: node scripts/check-release.mjs --dist dist
+
       - name: Build web zip
+        if: needs.metadata.outputs.full_build == 'true'
         shell: powershell
-        run: npm.cmd run package:web
+        run: ./scripts/package-web.ps1
 
       - name: Upload web artifact
+        if: needs.metadata.outputs.full_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: pocpet-web-${{ needs.metadata.outputs.version }}
@@ -292,15 +328,15 @@ jobs:
 
   linux:
     name: Linux bundles
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -317,7 +353,9 @@ jobs:
         run: npm ci
 
       - name: Build Linux bundles
-        run: npm run package:desktop
+        run: |
+          npm run package:desktop
+          node scripts/check-release.mjs --dist dist --binary src-tauri/target/release/app --arch x64
 
       - name: Export Linux artifacts
         shell: bash
@@ -332,9 +370,11 @@ jobs:
           cp "$appimage" "artifacts/pocket${version}-ubuntu.AppImage"
 
           deb=$(find src-tauri/target/release/bundle -type f -name '*.deb' | head -n 1 || true)
-          if [[ -n "$deb" ]]; then
-            cp "$deb" "artifacts/pocket${version}-ubuntu.deb"
+          if [[ -z "$deb" ]]; then
+            echo "No Debian package found."
+            exit 1
           fi
+          cp "$deb" "artifacts/pocket${version}-ubuntu.deb"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -345,15 +385,15 @@ jobs:
 
   macos:
     name: macOS dmg
-    needs: metadata
+    needs: [metadata, validate]
     if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -365,7 +405,9 @@ jobs:
         run: npm ci
 
       - name: Build macOS bundle
-        run: npm run package:desktop -- --no-sign
+        run: |
+          npm run package:desktop -- --no-sign
+          node scripts/check-release.mjs --dist dist --binary src-tauri/target/release/app --arch "$(node -p process.arch)"
 
       - name: Export macOS artifact
         shell: bash
@@ -404,6 +446,7 @@ jobs:
       needs.validate.result == 'success' &&
       needs.windows.result == 'success' &&
       needs.android.result == 'success' &&
+      needs.web.result == 'success' &&
       (
         needs.metadata.outputs.full_build != 'true' ||
         (
@@ -418,11 +461,21 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist-release
           merge-multiple: true
+          pattern: pocpet-*
+
+      - name: Verify complete artifact set
+        env:
+          FULL_BUILD: ${{ needs.metadata.outputs.full_build }}
+        run: node scripts/check-release-assets.mjs dist-release
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -430,3 +483,16 @@ jobs:
           name: PocPet ${{ github.ref_name }}
           files: dist-release/*
           fail_on_unmatched_files: true
+
+  pages:
+    name: Deploy matching standard edition
+    needs: [metadata, release]
+    if: needs.metadata.outputs.publish_release == 'true'
+    uses: ./.github/workflows/pages.yml
+    with:
+      version: ${{ needs.metadata.outputs.version }}
+      revision: ${{ needs.metadata.outputs.revision }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

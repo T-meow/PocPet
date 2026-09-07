@@ -1,10 +1,14 @@
-name: Deploy GitHub Pages
+name: Deploy GitHub Pages from release
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      revision:
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -16,47 +20,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build web site
+  deploy:
+    name: Deploy verified release artifact
     runs-on: ubuntu-22.04
-    env:
-      PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Enable Pages when token is configured
-        if: ${{ env.PAGES_TOKEN != '' }}
-        uses: actions/configure-pages@v6
+      - uses: actions/download-artifact@v4
         with:
-          enablement: true
-          token: ${{ env.PAGES_TOKEN }}
+          name: standard-web
+          path: dist
+
+      - name: Verify release identity
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_REVISION: ${{ inputs.revision }}
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const build = JSON.parse(readFileSync("dist/build-info.json", "utf8"));
+            assert.equal(process.env.GITHUB_REF, "refs/tags/v" + process.env.EXPECTED_VERSION);
+            assert.equal(build.version, process.env.EXPECTED_VERSION);
+            assert.equal(build.revision, process.env.EXPECTED_REVISION);
+            assert.equal(build.edition, "standard");
+          '
+
+      - uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-22.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

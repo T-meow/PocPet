@@ -2,12 +2,16 @@ param(
   [ValidateSet('aarch64', 'armv7')]
   [Alias('Target')]
   [string]$AndroidTarget = 'aarch64',
-  [switch]$RebuildRust
+  [switch]$RebuildRust,
+  [switch]$ReuseNative
 )
 
 $ErrorActionPreference = 'Stop'
 
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
+if ($ReuseNative -and ($RebuildRust -or $env:GITHUB_ACTIONS -eq 'true')) { throw 'Native reuse is only allowed as an explicit local command.' }
+& node (Join-Path $root 'scripts/check-release.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Release metadata validation failed.' }
 $packageJson = Join-Path $root 'package.json'
 if (-not (Test-Path -LiteralPath $packageJson)) {
   throw "package.json not found: $packageJson"
@@ -121,14 +125,22 @@ function Resolve-Keytool {
 }
 
 function Ensure-DebugKeystore([string]$keytool) {
+  if ($env:GITHUB_ACTIONS -eq 'true') {
+    if (-not $env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64) {
+      throw 'CI requires the original architecture-specific Android signing keystore. See docs/1.6.1-release.md.'
+    }
+    $ciKeystore = Join-Path $env:RUNNER_TEMP 'pocpet-debug.keystore'
+    [IO.File]::WriteAllBytes($ciKeystore, [Convert]::FromBase64String($env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64))
+    return $ciKeystore
+  }
+  if ($env:POCPET_ANDROID_KEYSTORE) {
+    if (-not (Test-Path -LiteralPath $env:POCPET_ANDROID_KEYSTORE)) { throw 'Configured Android keystore does not exist.' }
+    return $env:POCPET_ANDROID_KEYSTORE
+  }
   $androidHome = Join-Path $env:USERPROFILE '.android'
   $keystore = Join-Path $androidHome 'debug.keystore'
   if (Test-Path -LiteralPath $keystore) { return $keystore }
-
-  New-Item -ItemType Directory -Force -Path $androidHome | Out-Null
-  & $keytool -genkeypair -v -keystore $keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to create Android debug keystore.' }
-  return $keystore
+  throw 'Existing debug keystore not found. Restore the previously used keystore before building an update.'
 }
 
 function Get-AndroidReleaseApk([string]$apkDirectoryName, [string]$apkLabel) {
@@ -155,23 +167,36 @@ $zipalign = Resolve-BuildTool $sdk 'zipalign.exe'
 $apksigner = Resolve-BuildTool $sdk 'apksigner.bat'
 $keytool = Resolve-Keytool
 $debugKeystore = Ensure-DebugKeystore $keytool
+$certificateInfo = & $keytool '-J-Duser.language=en' '-J-Duser.country=US' -list -v -keystore $debugKeystore -storepass android -alias androiddebugkey
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read debug signing certificate.' }
+$certificateMatch = [regex]::Match(($certificateInfo -join "`n"), 'SHA256:\s*([A-Fa-f0-9:]+)')
+if (-not $certificateMatch.Success) { throw 'Signing certificate SHA-256 fingerprint was not found.' }
+$certificateSha256 = $certificateMatch.Groups[1].Value.Replace(':', '').ToUpperInvariant()
+$signingReference = Get-Content -LiteralPath (Join-Path $root 'scripts/android-signing-reference.json') -Raw | ConvertFrom-Json
+if ($env:GITHUB_ACTIONS -eq 'true' -and $certificateSha256 -ne $signingReference.$AndroidTarget) {
+  throw "Signing certificate does not match the published $($signingReference.release) $label APK. An upgrade-compatible release is blocked."
+}
+if ($env:POCPET_ANDROID_SIGNING_SHA256 -and $certificateSha256 -ne $env:POCPET_ANDROID_SIGNING_SHA256.Replace(':', '').ToUpperInvariant()) {
+  throw 'Signing certificate does not match the approved previous APK certificate.'
+}
+Write-Host "Android signing SHA-256: $certificateSha256"
 
-if ($RebuildRust -or -not (Test-Path -LiteralPath $sourceSo)) {
-  $previousSourceSoWriteTime = if (Test-Path -LiteralPath $sourceSo) { (Get-Item -LiteralPath $sourceSo).LastWriteTimeUtc } else { $null }
+if (-not $ReuseNative) {
   Write-Host "Rebuilding $label Rust library and Tauri Android assets..."
   Push-Location $root
   try {
     & npm.cmd run tauri -- android build --target $tauriTarget --apk --ci
-    if ($LASTEXITCODE -ne 0) {
-      $rebuiltSourceSo = Test-Path -LiteralPath $sourceSo
-      $currentSourceSoWriteTime = if ($rebuiltSourceSo) { (Get-Item -LiteralPath $sourceSo).LastWriteTimeUtc } else { $null }
-      $sourceSoUpdated = $rebuiltSourceSo -and ($null -eq $previousSourceSoWriteTime -or $currentSourceSoWriteTime -gt $previousSourceSoWriteTime)
-      if (-not $sourceSoUpdated) { throw "Tauri Android rebuild failed before refreshing the $label Rust library." }
-      Write-Host "Tauri Android build returned a non-zero exit code after refreshing the $label Rust library; continuing with manual APK assembly."
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Tauri Android build failed for $label." }
   } finally {
     Pop-Location
   }
+} else {
+  if (-not (Test-Path -LiteralPath $sourceSo)) { throw 'No native library exists for explicit reuse.' }
+  Push-Location $root
+  try {
+    & npm.cmd run build
+    if ($LASTEXITCODE -ne 0) { throw 'Frontend validation build failed.' }
+  } finally { Pop-Location }
 }
 
 if (-not (Test-Path -LiteralPath $sourceSo)) {
@@ -180,6 +205,9 @@ if (-not (Test-Path -LiteralPath $sourceSo)) {
 Write-Host "Using $label Rust library:"
 Write-Host $sourceSo
 Write-Host ("Rust library timestamp: " + (Get-Item -LiteralPath $sourceSo).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))
+$artifactArch = if ($AndroidTarget -eq 'aarch64') { 'arm64' } else { 'armv7' }
+& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $sourceSo --arch $artifactArch
+if ($LASTEXITCODE -ne 0) { throw 'Rust library contains stale frontend assets or the wrong architecture.' }
 
 $androidVersionCode = Convert-VersionNameToCode $version
 $tauriProperties = Join-Path $appDir 'tauri.properties'
@@ -236,6 +264,14 @@ if ($LASTEXITCODE -ne 0) { throw 'apksigner sign failed.' }
 
 & $apksigner verify --verbose $finalApk
 if ($LASTEXITCODE -ne 0) { throw 'apksigner verify failed.' }
+& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $finalApk --arch $artifactArch
+if ($LASTEXITCODE -ne 0) { throw 'APK content validation failed.' }
+$aapt = Resolve-BuildTool $sdk 'aapt.exe'
+$badging = (& $aapt dump badging $finalApk) -join "`n"
+if ($LASTEXITCODE -ne 0) { throw 'APK manifest validation failed.' }
+if ($badging -notmatch "versionCode='$androidVersionCode'" -or $badging -notmatch "versionName='$([regex]::Escape($version))'" -or $badging -notmatch "name='com.frostforge.pocpet'") {
+  throw 'APK application id or version does not match release metadata.'
+}
 
 Remove-Item -LiteralPath $alignedApk -Force
 if (Test-Path -LiteralPath "$finalApk.idsig") { Remove-Item -LiteralPath "$finalApk.idsig" -Force }

@@ -16,16 +16,31 @@ interface PetSession {
   commitPet: (next: PetState, options?: CommitOptions) => PetState;
   achievementToast: AchievementToast | null;
   setAchievementToast: Dispatch<SetStateAction<AchievementToast | null>>;
+  persistenceError: string;
 }
 
 export const usePetSession = (
   initialPet: PetState,
   isHomeRef: MutableRefObject<boolean>,
   eventContext?: NeighborEventContext,
+  initialPersistenceError = '',
 ): PetSession => {
   const [pet, setPet] = useState<PetState>(initialPet);
   const [achievementToast, setAchievementToast] = useState<AchievementToast | null>(null);
   const petRef = useRef(pet);
+  const [persistenceError, setPersistenceError] = useState(initialPersistenceError);
+  const paused = useRef(Boolean(initialPersistenceError));
+
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === 'pocpet.pet.v1' || event.key === null) {
+        paused.current = true;
+        setPersistenceError('conflict');
+      }
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
 
   const commitPet = (next: PetState, options: CommitOptions = {}) => {
     const result = evaluateAchievementUnlocks(next);
@@ -47,7 +62,12 @@ export const usePetSession = (
 
   useEffect(() => {
     petRef.current = pet;
-    savePet(pet);
+    if (paused.current) return;
+    try { savePet(pet); }
+    catch (error) {
+      paused.current = true;
+      setPersistenceError(error instanceof Error && error.message === 'storage-conflict' ? 'conflict' : 'saveError');
+    }
   }, [pet]);
 
   useEffect(() => {
@@ -72,5 +92,5 @@ export const usePetSession = (
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  return { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast };
+  return { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError };
 };

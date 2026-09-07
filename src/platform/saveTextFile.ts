@@ -1,4 +1,5 @@
-export type SaveTextFileResult = 'saved' | 'cancelled' | 'downloaded';
+import { isBilibiliAppWebView } from './edition';
+export type SaveTextFileResult = 'saved' | 'cancelled' | 'downloaded' | 'text';
 
 const invalidFileNameCharacters = /[<>:"/\\|?*\u0000-\u001f]/g;
 
@@ -27,11 +28,12 @@ const downloadTextFile = (fileName: string, text: string) => {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 export const saveTextFile = async (fileName: string, text: string): Promise<SaveTextFileResult> => {
   if (!('__TAURI_INTERNALS__' in window)) {
+    if (isBilibiliAppWebView()) return 'text';
     downloadTextFile(fileName, text);
     return 'downloaded';
   }

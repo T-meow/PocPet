@@ -1,6 +1,5 @@
-import { advancePet, normalizePet, type NeighborEventContext, type PetState } from './pet';
+import { advancePet, normalizePet, defaultPetName, type NeighborEventContext, type PetState } from './pet';
 import { rebasePetFutureCalendarState, shiftPetRuntimeTimestamps } from './gameClock';
-import type { PetModManifest } from './mod';
 
 export const saveFileSchemaVersion = 1;
 export const pocPetSaveAppId = 'PocPet' as const;
@@ -17,6 +16,7 @@ export interface PocPetSaveModSummary {
   id: string;
   name: string;
   version: string;
+  defaultPetName?: string;
 }
 
 export interface PocPetSaveFileV1 {
@@ -38,7 +38,12 @@ export interface PocPetImportedSave {
 export type StoredPetJsonLoadResult =
   | { status: 'missing' }
   | { status: 'ok'; pet: PetState }
-  | { status: 'corrupt'; raw: string };
+  | { status: 'corrupt'; raw: string; stage: SaveFailureStage; detail?: string };
+
+export type SaveFailureStage = 'parse' | 'validation' | 'migration' | 'simulation' | 'storage';
+export const repairPetName = (value: unknown, fallbackName = defaultPetName) =>
+  typeof value === 'string' && value.trim() ? value :
+    typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName : defaultPetName;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -64,7 +69,7 @@ const legacyNumericFields = [
 // keeps old raw saves importable without treating arbitrary JSON as a pet.
 export const hasLegacyPetSaveFingerprint = (value: unknown): value is Record<string, unknown> => {
   if (!isObject(value)) return false;
-  if (typeof value.name !== 'string' || typeof value.recentEvent !== 'string') return false;
+  if (typeof value.recentEvent !== 'string') return false;
   if (typeof value.isSleeping !== 'boolean') return false;
   if (!isObject(value.inventory) || !isObject(value.actionStreak) || !isObject(value.pomodoro)) return false;
   return legacyNumericFields.every((field) => isFiniteNumber(value[field]));
@@ -76,12 +81,12 @@ const readSummaryString = (value: unknown, maxLength: number) => {
   return text && text.length <= maxLength ? text : undefined;
 };
 
-const readActiveModSummary = (value: unknown): PocPetSaveModSummary | undefined => {
+export const readActiveModSummary = (value: unknown): PocPetSaveModSummary | undefined => {
   if (!isObject(value)) return undefined;
   const id = readSummaryString(value.id, 64);
   const name = readSummaryString(value.name, 48);
   const version = readSummaryString(value.version, 32);
-  return id && name && version ? { id, name, version } : undefined;
+  return id && name && version ? { id, name, version, defaultPetName: readSummaryString(value.defaultPetName, 32) } : undefined;
 };
 
 const readEnvelopeExportedAt = (value: unknown) => {
@@ -112,7 +117,7 @@ const base64UrlToBytes = (text: string) => {
   return bytes;
 };
 
-const checksumText = (text: string) => {
+export const checksumText = (text: string) => {
   const bytes = textEncoder.encode(text);
   let hash = 0x811c9dc5;
   for (let index = 0; index < bytes.length; index += 1) {
@@ -171,7 +176,7 @@ const unprotectSaveFileText = (text: string) => {
   throw new Error('Save text checksum does not match.');
 };
 
-export const createSaveFilePlainText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) => {
+export const createSaveFilePlainText = (pet: PetState, activeMod?: PocPetSaveModSummary | null, now = Date.now()) => {
   const file: PocPetSaveFileV1 = {
     schemaVersion: saveFileSchemaVersion,
     app: appId,
@@ -182,6 +187,7 @@ export const createSaveFilePlainText = (pet: PetState, activeMod?: PetModManifes
           id: activeMod.id,
           name: activeMod.name,
           version: activeMod.version,
+          defaultPetName: activeMod.defaultPetName,
         }
       : undefined,
   };
@@ -189,7 +195,7 @@ export const createSaveFilePlainText = (pet: PetState, activeMod?: PetModManifes
   return JSON.stringify(file);
 };
 
-export const createSaveFileText = (pet: PetState, activeMod?: PetModManifest | null, now = Date.now()) =>
+export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSummary | null, now = Date.now()) =>
   protectSaveFileText(createSaveFilePlainText(pet, activeMod, now));
 
 const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number): PetState => {
@@ -248,7 +254,7 @@ const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number):
   };
 };
 
-export const parseSaveFileText = (text: string, now = Date.now()): PocPetImportedSave => {
+export const parseSaveFileText = (text: string, now = Date.now(), fallbackName?: string): PocPetImportedSave => {
   let parsed: unknown;
   let protectedApp: PocPetSaveAppId | undefined;
   try {
@@ -280,7 +286,7 @@ export const parseSaveFileText = (text: string, now = Date.now()): PocPetImporte
     const activeMod = parsed.activeMod === undefined ? undefined : readActiveModSummary(parsed.activeMod);
     if (parsed.activeMod !== undefined && !activeMod) throw new Error('Save file has invalid Mod information.');
     return {
-      pet: resetImportedTimeBaseline(parsed.pet as unknown as PetState, now, timestamp),
+      pet: resetImportedTimeBaseline({ ...parsed.pet, name: repairPetName(parsed.pet.name, fallbackName ?? activeMod?.defaultPetName ?? defaultPetName) } as unknown as PetState, now, timestamp),
       activeMod,
       exportedAt,
       sourceApp,
@@ -293,7 +299,7 @@ export const parseSaveFileText = (text: string, now = Date.now()): PocPetImporte
   }
   const savedAt = isFiniteNumber(parsed.lastUpdatedAt) ? parsed.lastUpdatedAt : now;
   return {
-    pet: resetImportedTimeBaseline(parsed as unknown as PetState, now, savedAt),
+    pet: resetImportedTimeBaseline({ ...parsed, name: repairPetName(parsed.name, fallbackName) } as unknown as PetState, now, savedAt),
     source: 'legacy',
   };
 };
@@ -302,13 +308,26 @@ export const loadStoredPetJson = (
   raw: string | null,
   now = Date.now(),
   eventContext?: NeighborEventContext,
+  fallbackName = defaultPetName,
 ): StoredPetJsonLoadResult => {
   if (raw === null) return { status: 'missing' };
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!hasLegacyPetSaveFingerprint(parsed)) return { status: 'corrupt', raw };
-    return { status: 'ok', pet: advancePet(parsed as unknown as PetState, now, eventContext) };
-  } catch {
-    return { status: 'corrupt', raw };
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    return { status: 'corrupt', raw, stage: 'parse', detail: String(error) };
+  }
+  if (!hasLegacyPetSaveFingerprint(parsed)) return { status: 'corrupt', raw, stage: 'validation' };
+  let pet: PetState;
+  try {
+    pet = { ...parsed, name: repairPetName(parsed.name, fallbackName) } as unknown as PetState;
+    normalizePet(pet, now, { preserveExpiredPartnerSchedule: true });
+  } catch (error) {
+    return { status: 'corrupt', raw, stage: 'migration', detail: String(error) };
+  }
+  try {
+    return { status: 'ok', pet: advancePet(pet, now, eventContext) };
+  } catch (error) {
+    return { status: 'corrupt', raw, stage: 'simulation', detail: String(error) };
   }
 };

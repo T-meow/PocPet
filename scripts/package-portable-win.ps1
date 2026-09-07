@@ -25,6 +25,10 @@ $sourceRelative = [string]$targetConfig['Source']
 $outputSuffix = [string]$targetConfig['Suffix']
 
 $source = Join-Path $root $sourceRelative
+& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $source --arch $Target
+if ($LASTEXITCODE -ne 0) { throw 'Portable executable metadata or embedded frontend validation failed.' }
+$binaryVersion = (Get-Item -LiteralPath $source).VersionInfo.ProductVersion
+if ($binaryVersion -ne $version) { throw "Executable version mismatch: $binaryVersion (expected $version)." }
 $distIndex = Join-Path $root 'dist\index.html'
 $releaseDir = Join-Path $root 'release'
 $targetPath = Join-Path $releaseDir "pocket$version$outputSuffix.exe"

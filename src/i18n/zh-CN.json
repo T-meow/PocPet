@@ -3,6 +3,16 @@
     "comma": "，"
   },
   "ui": {
+    "backup": {
+      "upgradeBackup": "升级前备份未能写入，已暂停保存以保护原存档。可以查看并导出存档；释放存储空间后请重新载入。本页后续操作不会自动保存。",
+      "skippedFiles": "已跳过 {count} 个无法读取的备份文件，其余恢复点仍可使用。",
+      "title": "本地自动备份", "enabled": "定期备份", "interval": "间隔（天）", "now": "立即备份", "busy": "备份中", "choose": "选择自动备份文件", "authorize": "重新授权文件", "empty": "尚无自动备份", "latest": "最近备份", "fileTime": "文件更新时间", "history": "恢复点", "restore": "恢复", "export": "导出", "copy": "复制存档文本", "copied": "存档文本已复制。", "copyFallback": "请在文本框中全选并复制存档。", "failed": "备份未完成，已有恢复点已保留。", "internal": "应用内恢复点", "native": "应用数据目录中的本地文件", "saved": "已绑定本地文件", "unconfigured": "尚未绑定本地文件", "permission": "文件需要重新授权", "unsupported": "当前环境仅保存应用内恢复点", "error": "本地文件尚未更新", "storageWarning": "应用内数据可能随清理网站数据或卸载应用而消失，请另行导出备份。", "textFallback": "当前 App 可能无法下载文件，请复制下方存档文本备份。", "saveError": "当前进度未能保存。请导出存档后重新打开，避免丢失本次进度。", "conflict": "另一个页面修改了存档，本页已暂停保存。请重新打开以载入最新进度。", "reload": "重新载入", "recoveryTitle": "恢复已有进度", "recoveryMessage": "当前存档无法正常载入。请先选择恢复点或导入备份，原始内容会保留。", "recoveryMissing": "未找到主存档，但发现了可恢复的备份。", "recoveryStorage": "无法访问本地存储，请恢复浏览器权限后重试。", "retry": "重试", "original": "原始存档", "import": "导入备份文件", "startNew": "开始新进度", "newWarning": "确认开始新进度？已有每日备份和升级前副本会保留。", "stage": "故障阶段", "parse": "文件解析", "validation": "数据校验", "migration": "旧版数据迁移", "simulation": "离线结算", "storage": "本地存储", "localSummary": "本地备份、导入与恢复", "saveProfile": "保存资料"
+    },
+    "editionNotice": {
+      "title": "存档提醒",
+      "message": "由于 B 站政策原因，B 站版已关闭宠物改名和非内置 Mod 导入功能。已有的名字会暂时保留，已导入的自定义 Mod 仍可使用。图片分享功能保留，分享图中的名字使用当前 Mod 的默认名字。建议经常导出存档，多做备份。如果 App 无法下载存档文件，可以复制存档文本，或者换用网页浏览器进行导出。",
+      "backup": "去备份", "acknowledge": "知道了", "restricted": "B 站版不可用"
+    },
     "quantity": {
       "aria": "选择数量",
       "decrease": "减少数量",

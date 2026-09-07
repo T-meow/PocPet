@@ -1,8 +1,11 @@
 {
   "name": "pocpet",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "private": true,
   "type": "module",
+  "pocpetRelease": {
+    "fullBuildVersions": ["1.6.1"]
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "serve:local": "node scripts/serve-dev.mjs --port 5173",
@@ -20,6 +23,7 @@
     "check:save-recovery": "tsx scripts/check-save-recovery.ts",
     "check:mint-compat": "tsx scripts/check-mint-compat.ts",
     "check:toy": "tsx scripts/check-toy-sdk.ts",
+    "check:release": "node scripts/check-release.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
@@ -30,13 +34,13 @@
     "tauri:android:build": "tauri android build",
     "package:android:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget aarch64 -RebuildRust",
     "package:android:arm64:rebuild": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget aarch64 -RebuildRust",
-    "package:android:arm64:reuse": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget aarch64",
+    "package:android:arm64:reuse": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget aarch64 -ReuseNative",
     "package:desktop": "tauri build --ci --config scripts/tauri-bundle-config.json",
     "package:win:portable:x64": "npm.cmd run package:win:portable",
     "package:win:portable:x86": "npm.cmd run tauri -- build --no-bundle --target i686-pc-windows-msvc && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable-win.ps1 -Target x86",
     "package:android:armv7": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget armv7 -RebuildRust",
     "package:android:armv7:rebuild": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget armv7 -RebuildRust",
-    "package:android:armv7:reuse": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget armv7"
+    "package:android:armv7:reuse": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-android-arm64-debugsigned.ps1 -AndroidTarget armv7 -ReuseNative"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.7.1",
@@ -53,6 +57,7 @@
   "devDependencies": {
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2.11.3",
+    "@types/node": "^24.13.3",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "tsx": "^4.23.1"

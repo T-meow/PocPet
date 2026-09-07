@@ -147,6 +147,13 @@ import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
+import { features } from '../platform/edition';
+import { acknowledgeEditionNotice, readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
+import { useAutomaticBackup } from './app/useAutomaticBackup';
+import { assertStorageUnchanged, getStoredSaveIdentity, setStoredSaveIdentity } from '../core/storage';
+import type { BackupSnapshot } from '../platform/automaticBackup';
+import { collectRecoveryCandidates, readRecoveryCandidate, type SaveRecoveryCandidate } from '../platform/saveRecovery';
+import { SaveRecovery } from './SaveRecovery';
 
 const getPomodoroRemainingMs = (pet: PetState) =>
   pet.pomodoro.isRunning ? pet.pomodoro.phaseEndsAt - Date.now() : pet.pomodoro.pausedRemainingMs;
@@ -181,6 +188,7 @@ type PendingImageSave =
   | { kind: 'achievement'; fileName: string; imageUrl: string };
 type PetAppProps = {
   initialPet: PetState;
+  initialPersistenceError?: string;
   initialActiveMod: ActivePetMod | null;
   initialInstalledMods: readonly InstalledPetModSummary[];
   onResetToPicker: (storedMod: ActivePetMod | null, installedMods: readonly InstalledPetModSummary[]) => void;
@@ -272,18 +280,20 @@ let initialAppLoadPromise: Promise<{
 
 const loadInitialAppState = () => {
   if (!initialAppLoadPromise) {
-    getPetModLibraryState();
-    initialAppLoadPromise = Promise.all([listInstalledPetMods(), loadActivePetMod()])
+    initialAppLoadPromise = Promise.resolve().then(() => {
+      getPetModLibraryState();
+      return Promise.all([listInstalledPetMods(), loadActivePetMod()]);
+    })
       .then(([mods, mod]) => ({
         mods,
         mod,
-        petResult: loadPet(Date.now(), createNeighborEventContext(mods, mod)),
+        petResult: loadPet(Date.now(), createNeighborEventContext(mods, mod), mod?.manifest.defaultPetName),
       }));
   }
   return initialAppLoadPromise;
 };
 
-const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToPicker }: PetAppProps) => {
+const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initialInstalledMods, onResetToPicker }: PetAppProps) => {
   const {
     activePage,
     isHomeRef,
@@ -336,7 +346,9 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
       price: item.price,
     })),
   }), [itemRegistry, neighbors]);
-  const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast } = usePetSession(initialPet, isHomeRef, eventContext);
+  const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError);
+  const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
+  const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => features.cloudSave && shouldShowEditionNotice(readEditionNotice()));
   const completedFocusCountRef = useRef(pet.pomodoro.completedFocusCount);
   const lastHeartExchangeAtRef = useRef(0);
   const [isHeartExchangeCoolingDown, setHeartExchangeCoolingDown] = useState(false);
@@ -348,6 +360,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   const isSettingsOpen = utilityDialog === 'settings';
 
   const requestImageSave = (request: PendingImageSave) => {
+    if (!features.shareCards && request.kind !== 'achievement') return;
     if (shareBusyRef.current || pendingImageSaveRef.current) return;
     if (request.kind === 'year') setYearCardSaveFeedback('');
     if (request.kind === 'gacha') setGachaCardSaveFeedback('');
@@ -360,13 +373,9 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     setPet((current) => {
       if (!initialActiveMod) return withBackfilledBirthday(current, defaultPetBirthday);
       const next = withPetIdentityBirthday(current, initialActiveMod.manifest.birthday);
-      return {
-        ...next,
-        name: current.name === defaultPetName ? initialActiveMod.manifest.defaultPetName : next.name,
-      };
+      return next;
     });
     if (initialActiveMod) {
-      setDraftName((current) => (current === defaultPetName ? initialActiveMod.manifest.defaultPetName : current));
       setDraftBirthday(initialActiveMod.manifest.birthday);
       setModMessage(t('ui.settings.mod.active', { name: initialActiveMod.manifest.name, version: initialActiveMod.manifest.version }));
     } else {
@@ -833,7 +842,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
   const handleSaveProfile = () => {
     playAfterUnlock('tap');
-    setPet((current) => updatePetProfile(current, draftName, draftBirthday));
+    setPet((current) => updatePetProfile(current, features.rename ? draftName : current.name, draftBirthday));
     closeUtilityDialog();
   };
 
@@ -954,7 +963,8 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
   const handleConfirmReset = () => {
     playAfterUnlock('tap');
-    clearPet();
+    try { clearPet(); }
+    catch { setModMessage(t('ui.backup.recoveryStorage')); setResetConfirmOpen(false); return; }
     onResetToPicker(activeMod, installedMods);
     setDraftName(defaultPetName);
     setDraftBirthday(defaultPetBirthday);
@@ -964,6 +974,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   };
 
   const handleModFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!features.importMod) return;
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -1001,7 +1012,9 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
       const loaded = await loadPetMod(modId);
       if (!loaded) throw new Error(t('ui.settings.mod.loadFailed'));
       const oldDefaultName = activeMod?.manifest.defaultPetName ?? defaultPetName;
+      assertStorageUnchanged();
       setActivePetMod(modId);
+      setStoredSaveIdentity(loaded.manifest);
       setActiveMod(loaded);
       setPet((current) => {
         const shouldUseDefaultName = current.name === defaultPetName || current.name === oldDefaultName;
@@ -1023,8 +1036,10 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
   const handleClearMod = async () => {
     try {
+      assertStorageUnchanged();
       const oldDefaultName = activeMod?.manifest.defaultPetName;
       await clearActivePetMod();
+      setStoredSaveIdentity();
       setActiveMod(null);
       setPet((current) => {
         const shouldRestoreDefaultName = Boolean(oldDefaultName) && current.name === oldDefaultName;
@@ -1049,6 +1064,7 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     try {
       const wasActive = activeMod?.manifest.id === modId;
       const oldDefaultName = wasActive ? activeMod?.manifest.defaultPetName : undefined;
+      assertStorageUnchanged();
       await deletePetMod(modId);
       setInstalledMods(await listInstalledPetMods());
       if (wasActive) {
@@ -1071,23 +1087,36 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   };
 
   const handleExportSave = () => {
-    const text = createSaveFileText(petRef.current, activeMod?.manifest);
+    const text = createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest);
     setSaveText(text);
     setModMessage(t('ui.settings.save.generated'));
   };
 
   const handleDownloadSave = async () => {
-    const text = createSaveFileText(petRef.current, activeMod?.manifest);
+    const text = createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest);
     setSaveText(text);
     try {
       const result = await saveTextFile(createSaveFileName(petRef.current.name), text);
       if (result === 'saved') setModMessage(t('ui.settings.save.saved'));
       if (result === 'downloaded') setModMessage(t('ui.settings.save.downloadStarted'));
       if (result === 'cancelled') setModMessage(t('ui.settings.save.saveCancelled'));
+      if (result === 'text') setModMessage(t('ui.backup.textFallback'));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.save.saveFailed'));
       playSfx('error');
     }
+  };
+
+  const handleCopySave = async () => {
+    try { await navigator.clipboard.writeText(saveText); setModMessage(t('ui.backup.copied')); }
+    catch { setModMessage(t('ui.backup.copyFallback')); }
+  };
+  const handleExportBackup = async (snapshot: BackupSnapshot) => {
+    setSaveText(snapshot.text);
+    try {
+      const result = await saveTextFile(createSaveFileName(snapshot.petName, snapshot.savedAt), snapshot.text);
+      setModMessage(t(result === 'text' ? 'ui.backup.textFallback' : result === 'cancelled' ? 'ui.settings.save.saveCancelled' : result === 'saved' ? 'ui.settings.save.saved' : 'ui.settings.save.downloadStarted'));
+    } catch { setModMessage(t('ui.settings.save.saveFailed')); }
   };
 
   const getPosterSavedMessage = (result: SaveImageFileResult) => {
@@ -1097,19 +1126,24 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     return t('ui.share.saveCancelled');
   };
 
+  const getSharePetName = () => features.shareCustomName
+    ? petRef.current.name
+    : activeMod?.manifest.defaultPetName ?? defaultPetName;
+
   const performSaveProfileCard = async () => {
     if (shareBusyRef.current) return;
     shareBusyRef.current = true;
     setShareBusy('profile');
     setModMessage(t('ui.share.cardGenerating'));
     try {
+      const name = getSharePetName();
       const qrCodeDataUrl = await getToyPosterQrCode();
       const image = await createPetProfilePoster({
-        pet: petRef.current,
+        pet: { ...petRef.current, name },
         petImageUrl: petStatusImageMap.content,
         qrCodeDataUrl,
       });
-      const result = await saveShareImage(createShareImageFileName(`${petRef.current.name}-profile`), image);
+      const result = await saveShareImage(createShareImageFileName(`${name}-profile`), image);
       setModMessage(getPosterSavedMessage(result));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.share.saveFailed'));
@@ -1127,14 +1161,15 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     setModMessage(t('ui.share.cardGenerating'));
     setYearCardSaveFeedback('');
     try {
+      const name = getSharePetName();
       const qrCodeDataUrl = await getToyPosterQrCode();
       const image = await createYearReviewPoster({
-        petName: petRef.current.name,
+        petName: name,
         review,
         petImageUrl: petStatusImageMap.content,
         qrCodeDataUrl,
       });
-      const result = await saveShareImage(createShareImageFileName(`${petRef.current.name}-${review.year}`), image);
+      const result = await saveShareImage(createShareImageFileName(`${name}-${review.year}`), image);
       const message = getPosterSavedMessage(result);
       setModMessage(message);
       setYearCardSaveFeedback(message);
@@ -1266,9 +1301,10 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
     let importCommitted = false;
 
     try {
-      const imported = parseSaveFileText(sourceText, Date.now());
+      let imported = parseSaveFileText(sourceText, Date.now());
       const importedMod = imported.activeMod;
       const { mod: resolvedMod, missingImportedMod, usedMintFallback } = await resolveImportedSaveMod(imported, loadPetMod);
+      imported = parseSaveFileText(sourceText, Date.now(), (missingImportedMod ? importedMod?.defaultPetName : undefined) ?? resolvedMod?.manifest.defaultPetName);
       activeModResourcesMayHaveChanged = Boolean(resolvedMod);
       const nextPet = resolvedMod
         ? withPetIdentityBirthday(imported.pet, resolvedMod.manifest.birthday)
@@ -1276,9 +1312,10 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
           ? imported.pet
           : withBackfilledBirthday(imported.pet, defaultPetBirthday);
 
+      assertStorageUnchanged();
       setActivePetMod(resolvedMod?.manifest.id);
       activeModResourcesMayHaveChanged = true;
-      replacePetFromImport(nextPet, createSaveFileText(petRef.current, activeMod?.manifest));
+      replacePetFromImport(nextPet, createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest), importedMod ?? resolvedMod?.manifest ?? null);
       importCommitted = true;
 
       setHasImportBackup(true);
@@ -1435,6 +1472,17 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
   ) : undefined;
   return (
     <main className="app-shell">
+      {persistenceError && <div role="alert" className="persistence-warning">
+        <p>{t(`ui.backup.${persistenceError}`)}</p>
+        <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); openUtilityDialog('settings'); }}>{t('ui.backup.export')}</button>
+        <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.reload')}</button>
+      </div>}
+      {editionNoticeVisible && !persistenceError && !activeRewardPopup && !utilityDialog && !pendingImportedSave && !activeYearReview && !achievementCgPopup && !isResetConfirmOpen && !isCloudUploadConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImageSave && !isPartnerScheduleCancelConfirmOpen && !isGoldenAppleUseConfirmOpen && (
+        <ConfirmDialog title={t('ui.editionNotice.title')} message={t('ui.editionNotice.message')}
+          cancelLabel={t('ui.editionNotice.acknowledge')} confirmLabel={t('ui.editionNotice.backup')} confirmTone="primary"
+          onCancel={() => { acknowledgeEditionNotice(); setEditionNoticeVisible(false); }}
+          onConfirm={() => { acknowledgeEditionNotice(); setEditionNoticeVisible(false); setSettingsInitialPage('save'); openUtilityDialog('settings'); }} />
+      )}
       <header className="top-bar">
         <div>
           <p className="eyebrow">{t('ui.brand.eyebrow')}</p>
@@ -1743,6 +1791,10 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
       )}
       {isSettingsOpen && (
         <SettingsModal
+          backupController={backupController}
+          onRestoreBackup={prepareImportSaveFromText}
+          onExportBackup={(snapshot) => void handleExportBackup(snapshot)}
+          onCopySave={() => void handleCopySave()}
           initialPage={settingsInitialPage}
           activeMod={activeMod}
           installedMods={installedMods}
@@ -1903,7 +1955,9 @@ const PetApp = ({ initialPet, initialActiveMod, initialInstalledMods, onResetToP
 
 export const App = () => {
   const [initialPet, setInitialPet] = useState<PetState | null | undefined>(undefined);
-  const [startupRecovery, setStartupRecovery] = useState<Extract<PetStorageLoadResult, { status: 'corrupt' }> | null>(null);
+  const [initialPersistenceError, setInitialPersistenceError] = useState('');
+  const [startupRecovery, setStartupRecovery] = useState<Exclude<PetStorageLoadResult, { status: 'ok' }> | null>(null);
+  const [recoveryCandidates, setRecoveryCandidates] = useState<SaveRecoveryCandidate[]>([]);
   const [installedMods, setInstalledMods] = useState<readonly InstalledPetModSummary[]>([]);
   const [activeMod, setActiveMod] = useState<ActivePetMod | null>(null);
   const [modMessage, setModMessage] = useState('');
@@ -1911,52 +1965,60 @@ export const App = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const applyLoaded = async (petResult: PetStorageLoadResult, mod: ActivePetMod | null) => {
+      if (petResult.status === 'ok') {
+        if (!cancelled) {
+          setInitialPersistenceError(petResult.persistenceError ?? '');
+          setInitialPet(petResult.pet);
+        }
+        return;
+      }
+      const recovery = await collectRecoveryCandidates(mod?.manifest.defaultPetName);
+      if (cancelled) return;
+      setRecoveryCandidates(recovery.candidates);
+      if (petResult.status !== 'missing' || recovery.candidates.length || recovery.unavailable) setStartupRecovery(petResult);
+      if (recovery.unavailable) setModMessage(t('ui.backup.failed'));
+      else if (recovery.warnings.length) setModMessage(t('ui.backup.skippedFiles', { count: recovery.warnings.length }));
+      setInitialPet(null);
+    };
     void loadInitialAppState()
-      .then(({ mods, mod, petResult }) => {
+      .then(async ({ mods, mod, petResult }) => {
         if (cancelled) return;
         setInstalledMods(mods);
         setActiveMod(mod);
-        if (petResult.status === 'corrupt') {
-          setStartupRecovery(petResult);
-          setInitialPet(null);
-        } else {
-          setInitialPet(petResult.status === 'ok' ? petResult.pet : null);
-        }
+        await applyLoaded(petResult, mod);
       })
-      .catch((error) => {
+      .catch(async (error) => {
         if (cancelled) return;
         setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.loadFailed'));
-        const petResult = loadPet();
-        if (petResult.status === 'corrupt') {
-          setStartupRecovery(petResult);
-          setInitialPet(null);
-        } else {
-          setInitialPet(petResult.status === 'ok' ? petResult.pet : null);
-        }
+        await applyLoaded(loadPet(), null);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const handleRestoreStoredBackup = () => {
-    const restored = restorePetBackup(Date.now(), createNeighborEventContext(installedMods, activeMod));
-    if (!restored) {
-      setModMessage(t('ui.settings.save.recoveryRestoreFailed'));
-      playSfx('error');
-      return;
-    }
-    setStartupRecovery(null);
-    setInitialPet(restored);
-    setModMessage(t('ui.settings.save.recoveryRestored'));
+  const handleRecover = async (candidate: SaveRecoveryCandidate) => {
+    try {
+      let restored = readRecoveryCandidate(candidate);
+      const resolution = await resolveImportedSaveMod(restored, loadPetMod);
+      restored = readRecoveryCandidate(candidate, (resolution.missingImportedMod ? restored.activeMod?.defaultPetName : undefined) ?? resolution.mod?.manifest.defaultPetName);
+      const original = startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '';
+      replacePetFromImport(restored.pet, original, restored.activeMod ?? resolution.mod?.manifest ?? null);
+      setActivePetMod(resolution.mod?.manifest.id);
+      setActiveMod(resolution.mod);
+      setInitialPersistenceError('');
+      setInitialPet(restored.pet);
+      setStartupRecovery(null);
+    } catch (error) { setModMessage(error instanceof Error ? error.message : t('ui.settings.save.recoveryRestoreFailed')); }
   };
 
   const handleExportCorruptSave = async () => {
-    const raw = getPreservedCorruptPetRaw() ?? startupRecovery?.raw;
+    const raw = getPreservedCorruptPetRaw() ?? (startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '');
     if (!raw) return;
     try {
       const result = await saveTextFile(createSaveFileName(t('ui.settings.save.recoveryFileName')), raw);
-      setModMessage(t(result === 'cancelled' ? 'ui.settings.save.saveCancelled' : 'ui.settings.save.recoveryExported'));
+      setModMessage(t(result === 'text' ? 'ui.backup.textFallback' : result === 'cancelled' ? 'ui.settings.save.saveCancelled' : 'ui.settings.save.recoveryExported'));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.save.saveFailed'));
       playSfx('error');
@@ -1964,10 +2026,12 @@ export const App = () => {
   };
 
   const handleResetCorruptSave = () => {
-    clearPet();
-    setStartupRecovery(null);
-    setInitialPet(null);
-    setModMessage(t('ui.settings.save.recoveryReset'));
+    try {
+      clearPet();
+      setStartupRecovery(null);
+      setInitialPet(null);
+      setModMessage(t('ui.settings.save.recoveryReset'));
+    } catch { setModMessage(t('ui.backup.recoveryStorage')); }
   };
 
   const handleAudioToggle = () => {
@@ -1984,7 +2048,9 @@ export const App = () => {
 
   const startWithMod = (mod: ActivePetMod | null) => {
     setActivePetMod(mod?.manifest.id);
+    setStoredSaveIdentity(mod?.manifest);
     setActiveMod(mod);
+    setInitialPersistenceError('');
     setInitialPet(createPetForMod(mod));
     setModMessage(mod ? t('ui.settings.mod.active', { name: mod.manifest.name, version: mod.manifest.version }) : '');
   };
@@ -2020,6 +2086,7 @@ export const App = () => {
   };
 
   const handleImportMod = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!features.importMod) return;
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -2041,30 +2108,10 @@ export const App = () => {
   };
 
   if (startupRecovery) {
-    const hasBackup = Boolean(startupRecovery.backup);
-    return (
-      <>
-        <RolePicker
-          installedMods={installedMods}
-          modMessage={modMessage}
-          isAudioEnabled={isAudioEnabled}
-          isLoading
-          onUseBuiltin={handleUseBuiltin}
-          onUseBuiltinMod={() => undefined}
-          onUseInstalledMod={() => undefined}
-          onImportMod={handleImportMod}
-          onAudioToggle={handleAudioToggle}
-        />
-        <ConfirmDialog
-          title={t('ui.settings.save.recoveryTitle')}
-          message={t(hasBackup ? 'ui.settings.save.recoveryWithBackup' : 'ui.settings.save.recoveryWithoutBackup')}
-          cancelLabel={t(hasBackup ? 'ui.settings.save.recoveryRestore' : 'ui.settings.save.recoveryExport')}
-          confirmLabel={t('ui.settings.save.recoveryClear')}
-          onCancel={hasBackup ? handleRestoreStoredBackup : () => void handleExportCorruptSave()}
-          onConfirm={handleResetCorruptSave}
-        />
-      </>
-    );
+    return <SaveRecovery candidates={recoveryCandidates} stage={startupRecovery.status === 'missing' ? undefined : startupRecovery.stage}
+      unavailable={startupRecovery.status === 'unavailable'} raw={startupRecovery.status === 'corrupt' ? startupRecovery.raw : ''} message={modMessage}
+      onRestore={handleRecover} onExport={() => void handleExportCorruptSave()} onStartNew={handleResetCorruptSave}
+      onImport={async (text) => handleRecover({ id: 'import', text, format: 'file', savedAt: Date.now(), petName: '', level: 0 })} />;
   }
 
   if (initialPet === undefined) {
@@ -2102,6 +2149,7 @@ export const App = () => {
     <PetApp
       key={initialPet.createdAt + ':' + (activeMod?.manifest.id ?? 'builtin')}
       initialPet={initialPet}
+      initialPersistenceError={initialPersistenceError}
       initialActiveMod={activeMod}
       initialInstalledMods={installedMods}
       onResetToPicker={(storedMod, storedMods) => {

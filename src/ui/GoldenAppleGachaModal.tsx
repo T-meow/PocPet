@@ -36,6 +36,8 @@ const gachaRevealDelayMs = 1050;
 const gachaTenRevealIntervalMs = 440;
 const gachaReducedMotionRevealIntervalMs = 120;
 
+import { features } from '../platform/edition';
+
 interface GoldenAppleGachaModalProps {
   pet: PetState;
   itemIconMap: Partial<Record<string, string>>;
@@ -527,7 +529,7 @@ export const GoldenAppleGachaModal = ({
           ) : null}
           {errorText ? <p className="gacha-error" role="alert">{errorText}</p> : null}
           {phase === 'results' && results.length > 0 ? (
-            <button type="button" className="secondary-button gacha-save-results" disabled={isSavingResults} onClick={handleSaveResults}>
+            <button type="button" className="secondary-button gacha-save-results" disabled={!features.shareCards || isSavingResults} title={!features.shareCards ? t('ui.editionNotice.restricted') : undefined} onClick={handleSaveResults}>
               <Download size={17} aria-hidden="true" />
               {isSavingResults ? t('ui.gacha.resultCardSaving') : t('ui.gacha.resultCardSave')}
             </button>
