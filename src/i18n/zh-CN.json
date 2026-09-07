@@ -18,7 +18,19 @@
     },
     "editionNotice": {
       "title": "存档提醒",
-      "message": "由于 B 站政策原因，B 站版已关闭宠物改名和非内置 Mod 导入功能。已有的名字会暂时保留，已导入的自定义 Mod 仍可使用。图片分享功能保留，分享图中的名字使用当前 Mod 的默认名字。建议经常导出存档，多做备份。如果 App 无法下载存档文件，可以复制存档文本，或者换用网页浏览器进行导出。",
+      "backupTitle": "请保留本地备份",
+      "backupAdvice": "建议经常导出存档，并在应用外保留一份备份。",
+      "downloadFallback": "B 站 App 无法下载文件时，可复制存档文本，或换用网页浏览器导出。",
+      "localBackupAdvice": "卸载应用或清理数据可能同时删除自动备份，请另行导出重要进度。",
+      "policyTitle": "B 站版功能调整",
+      "policyChanges": "由于 B 站政策原因，已关闭宠物改名和新增非内置 Mod 导入。",
+      "existingData": "已有名字暂时保留，已导入的自定义 Mod 仍可使用。",
+      "sharingTitle": "图片分享继续保留",
+      "sharingAdvice": "分享图中的宠物名字，统一使用当前 Mod 的默认名字。",
+      "updatesTitle": "App 已支持自动检查更新",
+      "updateAdvice": "普通版 App 默认每天检查 GitHub 新版本，也可在「设置 → 客户端更新」手动检查。",
+      "installAdvice": "发现新版后可下载安装包，再自行安装。更新前请先备份存档。",
+      "openUpdates": "查看客户端更新",
       "backup": "去备份", "acknowledge": "知道了", "restricted": "B 站版不可用"
     },
     "quantity": {

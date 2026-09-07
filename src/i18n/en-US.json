@@ -18,7 +18,19 @@
     },
     "editionNotice": {
       "title": "Save reminder",
-      "message": "Due to Bilibili policy requirements, pet renaming and new custom Mod imports are disabled in the Bilibili edition. Existing names are retained for now, and previously imported custom Mods remain usable. Image sharing remains available, using the current Mod's default pet name in shared images. Export your save regularly and keep backups. If the app cannot download save files, copy the save text or open the game in a web browser to export it.",
+      "backupTitle": "Keep a separate save backup",
+      "backupAdvice": "Export your save regularly and keep a copy outside the app.",
+      "downloadFallback": "If the Bilibili app cannot download files, copy the save text or export it in a web browser.",
+      "localBackupAdvice": "Uninstalling the app or clearing its data can also remove automatic backups. Export important progress separately.",
+      "policyTitle": "Bilibili edition changes",
+      "policyChanges": "Due to Bilibili policies, pet renaming and new custom Mod imports are disabled.",
+      "existingData": "Existing names are retained for now. Previously imported custom Mods remain usable.",
+      "sharingTitle": "Image sharing remains available",
+      "sharingAdvice": "Shared images use the current Mod's default pet name.",
+      "updatesTitle": "The app now checks for updates",
+      "updateAdvice": "The standard app checks GitHub daily. You can also check manually in Settings > App updates.",
+      "installAdvice": "When an update is available, download the package and install it yourself. Back up your save first.",
+      "openUpdates": "View app updates",
       "backup": "Back up", "acknowledge": "Understood", "restricted": "Unavailable in the Bilibili edition"
     },
     "quantity": {

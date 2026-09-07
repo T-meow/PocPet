@@ -148,7 +148,8 @@ import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
 import { features } from '../platform/edition';
-import { acknowledgeEditionNotice, readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
+import { readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
+import { EditionNoticeDialog } from './EditionNoticeDialog';
 import { useAutomaticBackup } from './app/useAutomaticBackup';
 import { useClientUpdates } from './app/useClientUpdates';
 import { assertStorageUnchanged, getStoredSaveIdentity, setStoredSaveIdentity } from '../core/storage';
@@ -350,7 +351,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError);
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
   const updateController = useClientUpdates();
-  const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => features.cloudSave && shouldShowEditionNotice(readEditionNotice()));
+  const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => (features.cloudSave || updateController.supported) && shouldShowEditionNotice(readEditionNotice()));
   const completedFocusCountRef = useRef(pet.pomodoro.completedFocusCount);
   const lastHeartExchangeAtRef = useRef(0);
   const [isHeartExchangeCoolingDown, setHeartExchangeCoolingDown] = useState(false);
@@ -1474,7 +1475,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   ) : undefined;
   return (
     <main className="app-shell">
-      {updateController.showReminder && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
+      {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); openUtilityDialog('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
       </div>}
@@ -1484,10 +1485,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.reload')}</button>
       </div>}
       {editionNoticeVisible && !persistenceError && !activeRewardPopup && !utilityDialog && !pendingImportedSave && !activeYearReview && !achievementCgPopup && !isResetConfirmOpen && !isCloudUploadConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImageSave && !isPartnerScheduleCancelConfirmOpen && !isGoldenAppleUseConfirmOpen && (
-        <ConfirmDialog title={t('ui.editionNotice.title')} message={t('ui.editionNotice.message')}
-          cancelLabel={t('ui.editionNotice.acknowledge')} confirmLabel={t('ui.editionNotice.backup')} confirmTone="primary"
-          onCancel={() => { acknowledgeEditionNotice(); setEditionNoticeVisible(false); }}
-          onConfirm={() => { acknowledgeEditionNotice(); setEditionNoticeVisible(false); setSettingsInitialPage('save'); openUtilityDialog('settings'); }} />
+        <EditionNoticeDialog
+          onAcknowledge={() => setEditionNoticeVisible(false)}
+          onBackup={() => { setEditionNoticeVisible(false); setSettingsInitialPage('save'); openUtilityDialog('settings'); }}
+          onOpenUpdates={updateController.supported ? () => { setEditionNoticeVisible(false); setSettingsInitialPage('updates'); openUtilityDialog('settings'); } : undefined} />
       )}
       <header className="top-bar">
         <div>

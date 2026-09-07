@@ -3,7 +3,7 @@ export interface AppBuild { version: string; edition: AppEdition; revision: stri
 declare const __APP_BUILD__: AppBuild;
 
 export const appBuild: AppBuild = typeof __APP_BUILD__ === 'undefined'
-  ? { version: '1.6.1', edition: 'standard', revision: 'local' }
+  ? { version: '1.7.0', edition: 'standard', revision: 'local' }
   : __APP_BUILD__;
 
 export const getEditionFeatures = (edition: AppEdition) => ({

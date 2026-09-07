@@ -23,7 +23,7 @@ import {
 } from '../src/core/storage';
 import { getEditionFeatures } from '../src/platform/edition';
 import { isBackupDue, trimBackupSnapshots, type BackupSnapshot } from '../src/platform/automaticBackup';
-import { acknowledgeEditionNotice, readEditionNotice, localDateKey, shouldShowEditionNotice } from '../src/core/editionNotice';
+import { editionNoticeKey, recordEditionNoticeShown, readEditionNotice, localDateKey, shouldShowEditionNotice } from '../src/core/editionNotice';
 import { builtinMintManifest } from '../src/core/builtinPetModManifests';
 import { readRecoveryCandidate } from '../src/platform/saveRecovery';
 
@@ -319,15 +319,21 @@ assert.equal(candidateFor('pocpet.pet.v1.backup').activeMod, undefined, 'a backu
 
 assert.deepEqual(getEditionFeatures('bilibili'), { cloudSave: true, rename: false, importMod: false, shareCards: true, shareCustomName: false });
 assert.deepEqual(getEditionFeatures('standard'), { cloudSave: false, rename: true, importMod: true, shareCards: true, shareCustomName: true });
-assert.equal(shouldShowEditionNotice({ count: 0, lastDate: '' }, exportAt), true);
-assert.equal(shouldShowEditionNotice({ count: 1, lastDate: localDateKey(exportAt) }, exportAt), false);
-assert.equal(shouldShowEditionNotice({ count: 3, lastDate: '' }, exportAt), false);
-assert.equal(shouldShowEditionNotice({ count: 1, lastDate: localDateKey(exportAt) }, exportAt + 86400000), true);
-for (let day = 0; day < 4; day++) {
-  acknowledgeEditionNotice(exportAt + day * 86400000);
-  acknowledgeEditionNotice(exportAt + day * 86400000);
-  assert.equal(readEditionNotice().count, Math.min(day + 1, 3), 'one confirmation per date, three in total');
+assert.equal(shouldShowEditionNotice({ count: 0, lastLaunch: '' }, 'first'), true);
+assert.equal(shouldShowEditionNotice({ count: 1, lastLaunch: 'first' }, 'first'), false);
+assert.equal(shouldShowEditionNotice({ count: 3, lastLaunch: 'third' }, 'fourth'), false);
+assert.equal(shouldShowEditionNotice({ count: 1, lastLaunch: 'first' }, 'second'), true);
+localStorage.setItem('pocpet.edition-notice.1.6', JSON.stringify({ count: 3, lastDate: localDateKey(exportAt) }));
+for (let launch = 0; launch < 4; launch++) {
+  if (launch === 0) localStorage.failNextSet(editionNoticeKey);
+  recordEditionNoticeShown(`launch-${launch}`);
+  recordEditionNoticeShown(`launch-${launch}`);
+  assert.equal(readEditionNotice().count, Math.min(launch + 1, 3), 'three launches, once per launch, including launches on the same date');
 }
+const noticeBeforeImport = localStorage.getItem(editionNoticeKey);
+const noticeExport = createSaveFileText(firstPet, null, exportAt);
+replacePetFromImport(firstPet, noticeExport);
+assert.equal(localStorage.getItem(editionNoticeKey), noticeBeforeImport, 'import must not reset the version notice');
 const snapshots: BackupSnapshot[] = Array.from({ length: 9 }, (_, index) => ({
   dateKey: localDateKey(exportAt + index * 86400000), savedAt: exportAt + index * 86400000,
   petName: 'Backup', level: 3, text: 'fixture',
