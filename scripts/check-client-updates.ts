@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { compareVersions, selectClientUpdate, stableVersion } from '../src/core/clientUpdates';
+// @ts-expect-error The publication script is also exercised without a build step.
+import { createUpdateManifest } from './create-update-manifest.mjs';
+
+const version = '1.7.0';
+const names = [`pocket${version}.exe`, `pocket${version}-win32.exe`, `pocket${version}.apk`, `pocket${version}-32bit.apk`, `pocket${version}-ubuntu.AppImage`, `pocket${version}-mac.dmg`];
+const release = { tag_name: `v${version}`, draft: false, prerelease: false, body: 'Release notes', assets: names.map((name) => ({ name, size: 100, state: 'uploaded', browser_download_url: `https://github.com/T-meow/PocPet/releases/download/v${version}/${name}` })) };
+assert.equal(compareVersions('1.10.0', '1.9.9'), 1);
+assert.equal(compareVersions('v1.6.1', '1.6.1'), 0);
+for (const invalid of ['1.7', '1.7.0-beta', '01.7.0', '1.7.0junk']) assert.equal(stableVersion(invalid), undefined);
+const targets = [ ['windows', 'x86_64', names[0]], ['windows', 'x86', names[1]], ['android', 'aarch64', names[2]], ['android', 'arm', names[3]], ['linux', 'x86_64', names[4]] ];
+for (const [platform, arch, expected] of targets) assert.equal(selectClientUpdate(release, '1.6.1', { platform, arch })?.asset?.name, expected);
+const mac = { platform: 'macos', arch: 'aarch64' };
+assert.equal(selectClientUpdate(release, '1.6.1', mac)?.asset, undefined);
+const manifest = createUpdateManifest(version, 'test', release.assets, 'arm64');
+assert.equal(selectClientUpdate(release, '1.6.1', mac, manifest)?.asset?.name, names[5]);
+assert.equal(selectClientUpdate(release, '1.6.1', { ...mac, arch: 'x86_64' }, manifest)?.asset, undefined);
+assert.throws(() => createUpdateManifest(version, 'test', release.assets, undefined));
+assert.throws(() => selectClientUpdate(release, '1.6.1', mac, { ...manifest, version: '1.8.0' }));
+assert.throws(() => selectClientUpdate(release, '1.6.1', mac, { ...manifest, edition: 'bilibili' }));
+assert.throws(() => selectClientUpdate(release, '1.6.1', mac, { ...manifest, platforms: { 'macos-aarch64': { asset: names[2], size: 100 } } }));
+assert.throws(() => selectClientUpdate(release, '1.6.1', mac, { ...manifest, platforms: { 'macos-aarch64': { asset: names[5], size: 101 } } }));
+assert.equal(selectClientUpdate({ ...release, draft: true }, '1.6.1', mac), null);
+assert.equal(selectClientUpdate({ ...release, prerelease: true }, '1.6.1', mac), null);
+assert.equal(selectClientUpdate(release, version, mac), null);
+assert.equal(selectClientUpdate(release, '2.0.0', mac), null);
+assert.equal(selectClientUpdate(null, '1.6.1', mac), null);
+const windows = { platform: 'windows', arch: 'x86_64' };
+assert.equal(selectClientUpdate({ ...release, assets: [] }, '1.6.1', windows)?.asset, undefined);
+assert.equal(selectClientUpdate({ ...release, assets: [{ ...release.assets[0], browser_download_url: 'https://example.com/fake.exe' }] }, '1.6.1', windows)?.asset, undefined);
+console.log('Client update checks passed: versions, platforms, legacy releases, publication manifest and invalid assets.');

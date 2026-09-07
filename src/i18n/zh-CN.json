@@ -3,7 +3,15 @@
     "comma": "，"
   },
   "ui": {
+    "updates": {
+      "title": "客户端更新", "installed": "当前版本", "automatic": "自动检查（每天一次）", "check": "检查更新", "releasePage": "GitHub 发布页",
+      "idle": "尚未检查更新。", "checking": "正在检查更新…", "available": "发现新版本 v{version}", "current": "当前已是最新正式版本。",
+      "noPackage": "发现 v{version}，暂未找到适用于此设备的安装包，请查看发布页。", "network": "无法连接 GitHub，请稍后重试。", "rateLimit": "GitHub 请求次数受限，请稍后重试。", "invalid": "更新信息不完整，暂时无法确认安装包。", "platform": "无法识别客户端平台，请前往发布页。", "openFailed": "无法打开浏览器，请稍后重试。",
+      "lastChecked": "最近检查：{time}", "noNotes": "此版本未提供更新说明。", "backupHint": "更新前建议导出存档。安装时保留原有应用数据。", "androidMigration": "从 1.5.0 等旧测试签名 APK 迁移时，需先导出存档，再卸载重装并导入。后续固定签名版本可覆盖升级。",
+      "backup": "去备份存档", "download": "下载安装包", "later": "明天提醒", "ignore": "忽略此版本", "ignored": "已忽略此版本"
+    },
     "backup": {
+      "exportTitle": "导出存档", "importTitle": "导入与恢复",
       "upgradeBackup": "升级前备份未能写入，已暂停保存以保护原存档。可以查看并导出存档；释放存储空间后请重新载入。本页后续操作不会自动保存。",
       "skippedFiles": "已跳过 {count} 个无法读取的备份文件，其余恢复点仍可使用。",
       "title": "本地自动备份", "enabled": "定期备份", "interval": "间隔（天）", "now": "立即备份", "busy": "备份中", "choose": "选择自动备份文件", "authorize": "重新授权文件", "empty": "尚无自动备份", "latest": "最近备份", "fileTime": "文件更新时间", "history": "恢复点", "restore": "恢复", "export": "导出", "copy": "复制存档文本", "copied": "存档文本已复制。", "copyFallback": "请在文本框中全选并复制存档。", "failed": "备份未完成，已有恢复点已保留。", "internal": "应用内恢复点", "native": "应用数据目录中的本地文件", "saved": "已绑定本地文件", "unconfigured": "尚未绑定本地文件", "permission": "文件需要重新授权", "unsupported": "当前环境仅保存应用内恢复点", "error": "本地文件尚未更新", "storageWarning": "应用内数据可能随清理网站数据或卸载应用而消失，请另行导出备份。", "textFallback": "当前 App 可能无法下载文件，请复制下方存档文本备份。", "saveError": "当前进度未能保存。请导出存档后重新打开，避免丢失本次进度。", "conflict": "另一个页面修改了存档，本页已暂停保存。请重新打开以载入最新进度。", "reload": "重新载入", "recoveryTitle": "恢复已有进度", "recoveryMessage": "当前存档无法正常载入。请先选择恢复点或导入备份，原始内容会保留。", "recoveryMissing": "未找到主存档，但发现了可恢复的备份。", "recoveryStorage": "无法访问本地存储，请恢复浏览器权限后重试。", "retry": "重试", "original": "原始存档", "import": "导入备份文件", "startNew": "开始新进度", "newWarning": "确认开始新进度？已有每日备份和升级前副本会保留。", "stage": "故障阶段", "parse": "文件解析", "validation": "数据校验", "migration": "旧版数据迁移", "simulation": "离线结算", "storage": "本地存储", "localSummary": "本地备份、导入与恢复", "saveProfile": "保存资料"

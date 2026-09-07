@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { features } from '../../platform/edition';
+import { features, isNativeApp } from '../../platform/edition';
 import { getStoredSaveIdentity } from '../../core/storage';
 import {
   getCloudReminderDecision,
@@ -114,7 +114,7 @@ export const useToyIntegration = ({
   useEffect(() => {
     let cancelled = false;
     const sdk = getToySdk();
-    if (!features.cloudSave || !sdk) {
+    if (!features.cloudSave || isNativeApp() || !sdk) {
       setCloudAvailability('unsupported');
       return;
     }
@@ -192,7 +192,7 @@ export const useToyIntegration = ({
 
   const upload = async () => {
     const sdk = getToySdk();
-    if (!features.cloudSave || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
+    if (!features.cloudSave || isNativeApp() || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
     setCloudBusy('upload');
     try {
       const manifest = await uploadCloudSave(sdk, petRef.current, getStoredSaveIdentity() ?? activeModRef.current?.manifest);
@@ -208,7 +208,7 @@ export const useToyIntegration = ({
 
   const restore = async (): Promise<RestoredCloudSave> => {
     const sdk = getToySdk();
-    if (!features.cloudSave || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
+    if (!features.cloudSave || isNativeApp() || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
     setCloudBusy('restore');
     try {
       const result = await restoreCloudSave(sdk);

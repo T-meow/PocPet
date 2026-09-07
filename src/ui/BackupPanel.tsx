@@ -25,10 +25,10 @@ export const BackupPanel = ({ controller, onRestore, onExport }: {
     <p>{t(`ui.backup.${state.fileStatus}`)}{state.fileSavedAt ? ` · ${formatTime(state.fileSavedAt)}` : ''}</p>
     {state.error && <p role="status" className="settings-cloud-warning">{t('ui.backup.failed')}</p>}
     {Boolean(state.warnings?.length) && <p role="status" className="settings-cloud-warning">{t('ui.backup.skippedFiles', { count: state.warnings!.length })}</p>}
-    <div className="modal-actions">
-      <button type="button" className="primary-button" disabled={busy} onClick={() => void controller.backup()}><Save size={18} />{t(busy ? 'ui.backup.busy' : 'ui.backup.now')}</button>
-      {canChooseBackupFile() && <button type="button" className="secondary-button" disabled={busy} onClick={() => void controller.chooseFile()}><FolderOpen size={18} />{t('ui.backup.choose')}</button>}
-      {state.fileStatus === 'permission' && <button type="button" className="secondary-button" disabled={busy} onClick={() => void controller.authorizeFile()}>{t('ui.backup.authorize')}</button>}
+    <div className="save-actions">
+      <button type="button" className="primary-button save-action" disabled={busy} onClick={() => void controller.backup()}><Save size={18} />{t(busy ? 'ui.backup.busy' : 'ui.backup.now')}</button>
+      {canChooseBackupFile() && <button type="button" className="secondary-button save-action" disabled={busy} onClick={() => void controller.chooseFile()}><FolderOpen size={18} />{t('ui.backup.choose')}</button>}
+      {state.fileStatus === 'permission' && <button type="button" className="secondary-button save-action" disabled={busy} onClick={() => void controller.authorizeFile()}><RotateCcw size={18} />{t('ui.backup.authorize')}</button>}
     </div>
     {state.snapshots.length > 0 && <ul className="backup-history" aria-label={t('ui.backup.history')}>
       {state.snapshots.map((snapshot) => <li key={snapshot.dateKey}>

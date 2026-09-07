@@ -127,7 +127,7 @@ function Resolve-Keytool {
 function Ensure-DebugKeystore([string]$keytool) {
   if ($env:GITHUB_ACTIONS -eq 'true') {
     if (-not $env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64) {
-      throw 'CI requires the original architecture-specific Android signing keystore. See docs/1.6.1-release.md.'
+      throw 'CI requires the fixed Android test signing keystore. See docs/1.6.1-release.md.'
     }
     $ciKeystore = Join-Path $env:RUNNER_TEMP 'pocpet-debug.keystore'
     [IO.File]::WriteAllBytes($ciKeystore, [Convert]::FromBase64String($env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64))
@@ -174,7 +174,7 @@ if (-not $certificateMatch.Success) { throw 'Signing certificate SHA-256 fingerp
 $certificateSha256 = $certificateMatch.Groups[1].Value.Replace(':', '').ToUpperInvariant()
 $signingReference = Get-Content -LiteralPath (Join-Path $root 'scripts/android-signing-reference.json') -Raw | ConvertFrom-Json
 if ($env:GITHUB_ACTIONS -eq 'true' -and $certificateSha256 -ne $signingReference.$AndroidTarget) {
-  throw "Signing certificate does not match the published $($signingReference.release) $label APK. An upgrade-compatible release is blocked."
+  throw "Signing certificate does not match the fixed $($signingReference.release) $label signing baseline. Build blocked."
 }
 if ($env:POCPET_ANDROID_SIGNING_SHA256 -and $certificateSha256 -ne $env:POCPET_ANDROID_SIGNING_SHA256.Replace(':', '').ToUpperInvariant()) {
   throw 'Signing certificate does not match the approved previous APK certificate.'

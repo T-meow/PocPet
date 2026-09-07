@@ -1,6 +1,6 @@
 ﻿import { ArrowLeft, CircleHelp, Download, FileText, RotateCcw, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, RefreshCw, Trash2 } from 'lucide-react';
 import { Cloud, Copy, FileImage, Play, Share2 } from 'lucide-react';
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
@@ -10,12 +10,15 @@ import { languages, list, t, type LanguageCode } from '../i18n';
 import type { ToyAuthorSummary, ToyAuthorVideoSummary } from '../platform/toySdk';
 import type { ToyCloudAvailability, ToyCloudBusyAction } from './app/useToyIntegration';
 import { DialogShell } from './DialogShell';
-import { appBuild, features } from '../platform/edition';
+import { appBuild, features, isNativeApp } from '../platform/edition';
 import { BackupPanel } from './BackupPanel';
 import type { AutomaticBackupController } from './app/useAutomaticBackup';
 import type { BackupSnapshot } from '../platform/automaticBackup';
+import { ClientUpdatePanel } from './ClientUpdatePanel';
+import type { ClientUpdateController } from './app/useClientUpdates';
 
 interface SettingsModalProps {
+  updateController: ClientUpdateController;
   backupController: AutomaticBackupController;
   onRestoreBackup: (text: string) => void;
   onExportBackup: (snapshot: BackupSnapshot) => void;
@@ -75,11 +78,12 @@ interface SettingsModalProps {
   onImportSaveFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-export type SettingsPage = 'main' | 'mod' | 'save' | 'share';
+export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates';
 
 const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export const SettingsModal = ({
+  updateController,
   backupController, onRestoreBackup, onExportBackup, onCopySave,
   activeMod,
   installedMods,
@@ -136,6 +140,8 @@ export const SettingsModal = ({
   onImportSaveFileChange,
 }: SettingsModalProps) => {
   const modFileInputRef = useRef<HTMLInputElement>(null);
+  const saveFileInputRef = useRef<HTMLInputElement>(null);
+  const cloudVisible = features.cloudSave && !isNativeApp() && cloudAvailability === 'available';
   const [isHelpOpen, setHelpOpen] = useState(false);
   const [page, setPage] = useState<SettingsPage>(initialPage);
   const helpSections = [
@@ -148,7 +154,7 @@ export const SettingsModal = ({
       ? t('ui.settings.save.title')
       : page === 'share'
         ? t('ui.share.title')
-        : t('ui.settings.title');
+        : page === 'updates' ? t('ui.updates.title') : t('ui.settings.title');
   const activeModSummary = activeMod
     ? t('ui.settings.mod.current', { name: activeMod.manifest.name, version: activeMod.manifest.version })
     : t('ui.settings.mod.currentDefault');
@@ -281,12 +287,17 @@ export const SettingsModal = ({
                 </span>
               </button>
 
-              <button type="button" className={`settings-nav-card${cloudReminderDue ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('save')}>
+              <button type="button" className={`settings-nav-card${cloudVisible && cloudReminderDue ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('save')}>
                 <span>
                   <strong>{t('ui.settings.save.manage')}</strong>
-                  <small>{t(features.cloudSave ? 'ui.settings.save.summary' : 'ui.backup.localSummary')}</small>
+                  <small>{t(cloudVisible ? 'ui.settings.save.summary' : 'ui.backup.localSummary')}</small>
                 </span>
               </button>
+
+              {updateController.supported && <button type="button" className={`settings-nav-card${updateController.showReminder ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('updates')}>
+                <span><strong>{t('ui.updates.title')}</strong><small>{updateController.result?.update ? t('ui.updates.available', { version: updateController.result.update.version }) : `v${appBuild.version}`}</small></span>
+                <RefreshCw size={20} aria-hidden="true" />
+              </button>}
 
               <button type="button" className="settings-nav-card" onClick={() => setPage('share')}>
                 <span>
@@ -351,41 +362,45 @@ export const SettingsModal = ({
             </section>
           )}
 
+          {page === 'updates' && updateController.supported && <ClientUpdatePanel controller={updateController} onBackup={() => setPage('save')} />}
+
           {page === 'save' && (
-            <section className="settings-section" aria-label={t('ui.settings.save.sectionAria')}>
+            <section className="settings-section settings-save-section" aria-label={t('ui.settings.save.sectionAria')}>
               {modMessage && <p className="settings-message">{modMessage}</p>}
               <BackupPanel controller={backupController} onRestore={onRestoreBackup} onExport={onExportBackup} />
-              <div className="settings-local-save-divider"><span>{t('ui.settings.save.localTitle')}</span></div>
-              <div className="modal-actions">
-                <button type="button" className="primary-button" onClick={onExportSave}>
+              <h3 className="save-section-title">{t('ui.backup.exportTitle')}</h3>
+              <div className="save-actions">
+                <button type="button" className="secondary-button save-action" onClick={onExportSave}>
                   <FileText size={18} aria-hidden="true" />
                   {t('ui.settings.save.exportText')}
                 </button>
-                <button type="button" className="primary-button" onClick={onDownloadSave}>
+                <button type="button" className="primary-button save-action" onClick={onDownloadSave}>
                   <Download size={18} aria-hidden="true" />
                   {t('ui.settings.save.download')}
                 </button>
-                <label className="text-button settings-action settings-file-picker">
-                  {t('ui.settings.save.importFile')}
-                  <input className="file-input" type="file" onChange={onImportSaveFileChange} />
-                </label>
+              </div>
+              {saveText && <><textarea className="save-textarea" readOnly value={saveText} aria-label={t('ui.settings.save.exportedAria')} onFocus={(event) => event.target.select()} />
+                <button type="button" className="secondary-button save-action" onClick={onCopySave}><Copy size={18} />{t('ui.backup.copy')}</button></>}
+              <h3 className="save-section-title save-section-title--divided">{t('ui.backup.importTitle')}</h3>
+              <div className="save-actions">
+                <button type="button" className="secondary-button save-action" onClick={() => saveFileInputRef.current?.click()}><Upload size={18} />{t('ui.settings.save.importFile')}</button>
+                <input ref={saveFileInputRef} className="file-input" type="file" onChange={onImportSaveFileChange} />
                 {hasImportBackup && (
-                  <button type="button" className="text-button settings-action" onClick={onRestoreImportBackup}>
+                  <button type="button" className="secondary-button save-action" onClick={onRestoreImportBackup}>
                     <RotateCcw size={18} aria-hidden="true" />
                     {t('ui.settings.save.restoreImportBackup')}
                   </button>
                 )}
               </div>
-              {saveText && <><textarea className="save-textarea" readOnly value={saveText} aria-label={t('ui.settings.save.exportedAria')} onFocus={(event) => event.target.select()} />
-                <button type="button" className="secondary-button" onClick={onCopySave}><Copy size={18} />{t('ui.backup.copy')}</button></>}
               <label className="field">
                 <span>{t('ui.settings.save.pasteText')}</span>
                 <textarea className="save-textarea" value={importSaveText} onChange={(event) => onImportSaveTextChange(event.target.value)} />
               </label>
-              <button type="button" className="primary-button" disabled={!importSaveText.trim()} onClick={onImportPastedSave}>
+              <button type="button" className="primary-button save-action" disabled={!importSaveText.trim()} onClick={onImportPastedSave}>
+                <Upload size={18} aria-hidden="true" />
                 {t('ui.settings.save.importPasted')}
               </button>
-              {features.cloudSave && <div className="settings-cloud-panel">
+              {cloudVisible && <div className="settings-cloud-panel">
                 <div className="settings-cloud-panel__heading">
                   <span className="settings-cloud-panel__icon"><Cloud size={20} aria-hidden="true" /></span>
                   <span>
@@ -401,10 +416,10 @@ export const SettingsModal = ({
                   </dl>
                 )}
                 {cloudUsedFallback && <p className="settings-cloud-warning">{t('ui.settings.cloud.fallback')}</p>}
-                <div className="settings-cloud-actions">
+                <div className="save-actions">
                   <button
                     type="button"
-                    className="primary-button"
+                    className="primary-button save-action"
                     disabled={cloudAvailability !== 'available' || cloudBusy !== null}
                     onClick={onCloudUpload}
                   >
@@ -413,7 +428,7 @@ export const SettingsModal = ({
                   </button>
                   <button
                     type="button"
-                    className="secondary-button"
+                    className="secondary-button save-action"
                     disabled={cloudAvailability !== 'available' || !cloudManifest || cloudBusy !== null}
                     onClick={onCloudRestore}
                   >

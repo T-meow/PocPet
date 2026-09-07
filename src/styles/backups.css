@@ -19,3 +19,32 @@
 .save-recovery .modal-actions { flex-wrap: wrap; margin: 12px 0; }
 .save-recovery > button, .save-recovery > label { margin: 8px 0; }
 .save-recovery .settings-file-picker { display: flex; align-items: center; gap: 8px; }
+
+.settings-section.settings-save-section { padding: 0; border: 0; background: transparent; gap: 12px; }
+.settings-save-section .backup-panel { display: grid; gap: 12px; margin: 0 0 4px; padding-bottom: 20px; }
+.settings-save-section .backup-panel h3, .settings-save-section .backup-panel p { margin: 0; }
+.settings-save-section .backup-history { margin: 0; }
+.settings-save-section .backup-history .icon-button { border: 1px solid #bdd7fb; border-radius: 8px; background: #eaf3ff; color: #225eaa; box-shadow: none; }
+.save-section-title { margin: 0; font-size: 17px; line-height: 1.4; }
+.save-section-title--divided { border-top: 1px solid #d6dee0; margin-top: 8px; padding-top: 20px; }
+.save-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.save-action { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.35; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.save-action svg { flex: 0 0 18px; }
+.settings-save-section .save-textarea { min-height: 112px; }
+.settings-save-section .settings-cloud-panel { margin: 8px 0 0; padding: 20px 0 0; border-bottom: 0; }
+.client-update-panel { display: grid; gap: 14px; min-width: 0; }
+.client-update-panel p { margin: 0; font-size: 14px; line-height: 1.6; }
+.client-update-panel small, .client-update-target { color: #586572; font-size: 12px; overflow-wrap: anywhere; }
+.client-update-version { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.client-update-version strong { font-size: 22px; }
+.client-update-status { color: #24684a; }
+.client-update-release { display: grid; gap: 12px; border-top: 1px solid #d6dee0; padding-top: 18px; }
+.client-update-release h3 { margin: 0; font-size: 18px; }
+.client-update-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; }
+.client-update-banner { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px; background: #eaf5ef; border-bottom: 1px solid #c4ded0; }
+.client-update-banner .text-button { min-width: 0; text-align: left; color: #24563c; font-size: 14px; }
+.client-update-banner .icon-button { flex: 0 0 36px; width: 36px; height: 36px; }
+.update-checking-icon { animation: update-spin 1s linear infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .update-checking-icon { animation: none; } }
+@media (max-width: 380px) { .save-actions { grid-template-columns: minmax(0, 1fr); } }

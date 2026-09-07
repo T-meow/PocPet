@@ -150,6 +150,7 @@ import { useToyIntegration } from './app/useToyIntegration';
 import { features } from '../platform/edition';
 import { acknowledgeEditionNotice, readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
 import { useAutomaticBackup } from './app/useAutomaticBackup';
+import { useClientUpdates } from './app/useClientUpdates';
 import { assertStorageUnchanged, getStoredSaveIdentity, setStoredSaveIdentity } from '../core/storage';
 import type { BackupSnapshot } from '../platform/automaticBackup';
 import { collectRecoveryCandidates, readRecoveryCandidate, type SaveRecoveryCandidate } from '../platform/saveRecovery';
@@ -348,6 +349,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   }), [itemRegistry, neighbors]);
   const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError);
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
+  const updateController = useClientUpdates();
   const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => features.cloudSave && shouldShowEditionNotice(readEditionNotice()));
   const completedFocusCountRef = useRef(pet.pomodoro.completedFocusCount);
   const lastHeartExchangeAtRef = useRef(0);
@@ -1472,6 +1474,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   ) : undefined;
   return (
     <main className="app-shell">
+      {updateController.showReminder && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
+        <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); openUtilityDialog('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
+        <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
+      </div>}
       {persistenceError && <div role="alert" className="persistence-warning">
         <p>{t(`ui.backup.${persistenceError}`)}</p>
         <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); openUtilityDialog('settings'); }}>{t('ui.backup.export')}</button>
@@ -1791,6 +1797,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       )}
       {isSettingsOpen && (
         <SettingsModal
+          updateController={updateController}
           backupController={backupController}
           onRestoreBackup={prepareImportSaveFromText}
           onExportBackup={(snapshot) => void handleExportBackup(snapshot)}
