@@ -22,7 +22,7 @@ export const giftItemIds: readonly ItemId[] = ['small_bouquet', 'shiny_sticker',
 export const giftItemIdSet = new Set<ItemId>(giftItemIds);
 
 export const shopItems: readonly ShopItem[] = [
-  ...kitchenMaterials.map((material): ShopItem => ({ id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price, effect: {}, usable: false, tags: ['kitchen_material'], summary: activityText('厨房食材，用于研究和制作料理。', 'An ingredient for researching and cooking recipes.') })),
+  ...kitchenMaterials.map((material): ShopItem => ({ id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price, effect: {}, usable: false, tags: ['kitchen_material'], summary: activityText('厨房食材，用于制作料理。', 'An ingredient for cooking recipes.') })),
   {
     id: 'emergency_biscuit',
     name: t('pet.shop.items.emergency_biscuit.name'),

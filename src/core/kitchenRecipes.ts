@@ -47,7 +47,3 @@ export const dishName = (id: string) => {
   const dish = getDish(id);
   return dish ? recipeName(dish.recipe) + (dish.recipe.fruitVariant ? activityText(dish.banana ? ' · 香蕉' : ' · 苹果', dish.banana ? ' · Banana' : ' · Apple') : '') : id;
 };
-export const findRecipeCombination = (ingredients: string[], method: CookingMethod) => {
-  const key = [...ingredients].sort().join(',');
-  return allDishes.find(({ recipe, banana }) => recipe.method === method && getRecipeIngredients(recipe, banana).sort().join(',') === key);
-};

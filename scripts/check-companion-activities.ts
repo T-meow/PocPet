@@ -4,7 +4,7 @@ import { buyItem, getItemPurchaseQuote, useInventoryItem } from '../src/core/pet
 import { createBuiltinItemRegistry, getDailyShopDiscountInfo, getInventoryDefinitions, getShopDefinitions, inventoryItems } from '../src/core/items';
 import { achievementDefinitions, evaluateAchievementUnlocks } from '../src/core/achievements';
 import { buyKitchenEquipment, claimKitchenStarter, craftRecipe, getCraftLimit, getKitchenHeartReward, normalizeKitchenState, recordDishTaste } from '../src/core/kitchen';
-import { allDishes, findRecipeCombination, getRecipe, getRecipeIngredientEntries, getRecipeIngredients, recipes } from '../src/core/kitchenRecipes';
+import { allDishes, getRecipe, getRecipeIngredientEntries, getRecipeIngredients, recipes } from '../src/core/kitchenRecipes';
 import { acknowledgeMiniGameResult, actMiniGame, bubbleHoldMs, bubbleSessionMs, buyBubbleWand, catchFlightMs, getCatchPetX, getMiniGameBaseHearts, normalizeMiniGameState, pauseMiniGame, resumeMiniGame, startMiniGame, unlockBallGame, type MiniGameAction } from '../src/core/miniGames';
 import { getMiniGameFeedback } from '../src/ui/play/miniGameFeedback';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActions, isCookingComplete } from '../src/ui/kitchen/cookingProcess';
@@ -37,9 +37,6 @@ assert.equal(craftRecipe(cooked, 'egg_rice', false, 1, 'first', now), cooked);
 assert.equal(craftRecipe(starter, 'egg_rice', false, 2, 'too-many', now), starter);
 for (const quantity of [0, -1, 1.5, NaN, Infinity, 100]) assert.equal(craftRecipe(starter, 'egg_rice', false, quantity, 'bad', now), starter);
 assert.equal(craftRecipe(starter, 'milk_cookies', false, 1, 'locked', now), starter);
-assert.equal(findRecipeCombination(['rice', 'apple'], 'mix'), undefined);
-assert.equal(findRecipeCombination(['egg', 'rice'], 'pan')?.recipe.id, 'egg_rice');
-assert.equal(findRecipeCombination(['banana', 'egg', 'flour'], 'pan')?.id, 'dish_fruit_pancake_banana');
 const batchBase = { ...stocked(), level: 50 };
 const batch = craftRecipe(batchBase, 'egg_rice', false, 5, 'batch', now);
 let separate = batchBase;
@@ -88,7 +85,6 @@ const insufficientCakePet = { ...cakePet, inventory: { emergency_biscuit: 19, st
 assert.equal(getCraftLimit(insufficientCakePet, 'biscuit_layer_cake'), 0);
 assert.equal(craftRecipe(insufficientCakePet, 'biscuit_layer_cake', false, 1, 'insufficient-cake', now), insufficientCakePet);
 assert.equal(getCraftLimit({ ...cakePet, inventory: { emergency_biscuit: 40, strawberry_milk: 3, egg: 2 } }, 'biscuit_layer_cake'), 1, 'all ingredient amounts limit batch size');
-assert.equal(findRecipeCombination(['emergency_biscuit', 'strawberry_milk', 'egg'], 'oven')?.recipe.id, 'biscuit_layer_cake');
 assert.equal(craftRecipe({ ...starter, isSleeping: true }, 'egg_rice', false, 1, 'asleep', now).hearts, starter.hearts);
 for (const [method, action] of [['mix', 'stir'], ['pan', 'flip'], ['blender', 'blend'], ['oven', 'bake']] as const) {
   assert.deepEqual(getCookingActions(method), ['add', action, 'serve']);
