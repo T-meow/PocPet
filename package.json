@@ -1,6 +1,6 @@
 {
   "name": "pocpet",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "pocpetRelease": {
@@ -12,6 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "build:toy": "tsc --noEmit && vite build --mode toy",
     "check:date-rewards": "tsx scripts/check-date-rewards.ts",
+    "check:companion-activities": "tsx scripts/check-companion-activities.ts",
     "check:garden-care": "tsx scripts/check-garden-care.ts",
     "check:stat-scaling-batch": "tsx scripts/check-stat-scaling-batch.ts",
     "check:gacha": "tsx scripts/check-golden-apple-gacha.ts",

@@ -16,6 +16,9 @@ import uiClose from '../assets/audio/ui/ui_close.mp3';
 import uiCoin from '../assets/audio/ui/ui_coin.mp3';
 import uiError from '../assets/audio/ui/ui_error.mp3';
 import uiOpen from '../assets/audio/ui/ui_open.mp3';
+import kitchenStir from '../assets/audio/kitchen/kitchen_stir.mp3';
+import kitchenSizzle from '../assets/audio/kitchen/kitchen_sizzle.mp3';
+import kitchenBlend from '../assets/audio/kitchen/kitchen_blend.mp3';
 
 export type BgmMode = 'room' | 'sleep' | 'shop';
 
@@ -34,7 +37,24 @@ export type SfxId =
   | 'action_eat'
   | 'action_bath'
   | 'action_blanket'
-  | 'action_work_play_medicine';
+  | 'action_work_play_medicine'
+  | 'game_flip'
+  | 'game_match'
+  | 'game_throw'
+  | 'game_catch'
+  | 'game_miss'
+  | 'game_blow'
+  | 'game_bubble'
+  | 'game_pop'
+  | 'game_finish'
+  | 'kitchen_add'
+  | 'kitchen_stir'
+  | 'kitchen_flip'
+  | 'kitchen_blend'
+  | 'kitchen_bake'
+  | 'kitchen_simmer'
+  | 'kitchen_serve'
+  | 'kitchen_finish';
 
 const audioEnabledStorageKey = 'pocpet.audio.enabled';
 const bgmVolume = 0.18;
@@ -62,6 +82,23 @@ const sfxSources: Record<SfxId, string> = {
   action_bath: actionBath,
   action_blanket: actionBlanket,
   action_work_play_medicine: actionWorkPlayMedicine,
+  game_flip: uiTap,
+  game_match: petHeart,
+  game_throw: actionWorkPlayMedicine,
+  game_catch: itemPurchase,
+  game_miss: uiClose,
+  game_blow: actionBath,
+  game_bubble: uiOpen,
+  game_pop: uiTap,
+  game_finish: notification,
+  kitchen_add: uiTap,
+  kitchen_stir: kitchenStir,
+  kitchen_flip: kitchenSizzle,
+  kitchen_blend: kitchenBlend,
+  kitchen_bake: kitchenSizzle,
+  kitchen_simmer: kitchenStir,
+  kitchen_serve: itemPurchase,
+  kitchen_finish: notification,
 };
 
 const canUseAudio = () => typeof window !== 'undefined' && typeof Audio !== 'undefined';

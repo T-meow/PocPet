@@ -204,7 +204,12 @@
         "importBackupMissing": "没有可恢复的导入前备份。",
         "generated": "存档文本已生成。",
         "saved": "存档已保存到所选文件。",
-        "downloadStarted": "存档下载已开始。",
+        "downloadStarted": "已请求下载，请在浏览器下载记录中确认文件。",
+        "saveToPhone": "保存到手机",
+        "shareFile": "系统文件分享",
+        "fileShared": "存档文件已交给系统，请在接收应用中确认保存。",
+        "phoneSaveFailed": "未能分享存档文件，请尝试直接下载，或复制存档文本。",
+        "phoneDownloadRequested": "已请求下载。若手机未出现文件，请尝试系统文件分享，或复制存档文本。",
         "saveCancelled": "已取消保存存档。",
         "saveFailed": "保存存档文件失败。",
         "imported": "存档已导入。",
@@ -660,6 +665,7 @@
       "skillsAria": "活动熟练度",
       "skillLevel": "熟练度 Lv.{level}",
       "skillProgress": "Lv.{level} · {xp}/{needed}",
+      "kitchenHearts": "当前制作心心 +{percent}% · 每级增加 10%",
       "passives": {
         "level2": "Lv.2：该分类日程体力消耗 -10%",
         "level4": "Lv.4：饱腹与心情消耗 -10%",
@@ -2041,6 +2047,42 @@
         "hidden_full_catalogue": {
           "title": "任务达人",
           "description": "完成至少 80% 的普通成就即可解锁。"
+        },
+        "kitchen_first": {
+          "title": "第一口热乎",
+          "description": "成功制作第一份料理。"
+        },
+        "kitchen_three": {
+          "title": "三味入门",
+          "description": "做出 3 种不同的基础配方。"
+        },
+        "kitchen_eight": {
+          "title": "八味手册",
+          "description": "做出食谱本中前 8 道入门料理。"
+        },
+        "kitchen_thirty": {
+          "title": "熟悉灶台",
+          "description": "累计制作 30 份料理。"
+        },
+        "kitchen_methods": {
+          "title": "做法多样",
+          "description": "用拌制、平底锅、搅拌机和烤箱各制作一次。"
+        },
+        "kitchen_tastes": {
+          "title": "家常三味",
+          "description": "给伙伴实际喂食 3 种不同的自制料理。"
+        },
+        "play_matching": {
+          "title": "翻开小默契",
+          "description": "完成一局记忆翻牌，辅助模式同样计数。"
+        },
+        "play_catch": {
+          "title": "球又飞过来啦",
+          "description": "完成一局十轮接球，不要求全接住。"
+        },
+        "play_bubbles": {
+          "title": "泡泡里的时光",
+          "description": "完成一次吹泡泡，共同度过一小段放松时光。"
         }
       }
     },

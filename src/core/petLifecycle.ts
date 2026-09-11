@@ -117,7 +117,7 @@ export const advancePomodoro = (
 ): PetState => {
   const persistedDailyFocusDate = normalizeLegacyDailyDateKey(pet.pomodoro.dailyFocusDate, now);
   const persistedDailyFocusCount = clampCount(pet.pomodoro.dailyCompletedFocusCount);
-  let next = normalizePet(pet, now);
+  let next = normalizePet(pet, now, { preserveMiniGameSession: true });
   let pomodoro = next.pomodoro;
   if (!pomodoro.isRunning) return next;
   if (persistedDailyFocusDate) {
@@ -477,7 +477,7 @@ const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetStat
 export const advancePet = (pet: PetState, now = Date.now(), eventContext?: NeighborEventContext): PetState => {
   const clockReconciled = reconcilePetClock(pet, now);
   const useHistoricalDateKeys = clockReconciled.rolledBackByMs === 0;
-  const normalized = normalizePet(clockReconciled.pet, now, { preserveExpiredPartnerSchedule: true });
+  const normalized = normalizePet(clockReconciled.pet, now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
   const simulationStartedAt = Math.min(normalized.lastUpdatedAt, now);
   const normalizedForSimulation = useHistoricalDateKeys && clockReconciled.pet.pomodoro?.isRunning
     ? {

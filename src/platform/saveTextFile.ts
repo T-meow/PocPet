@@ -1,5 +1,14 @@
+import { t } from '../i18n';
 import { isBilibiliAppWebView } from './edition';
-export type SaveTextFileResult = 'saved' | 'cancelled' | 'downloaded' | 'text';
+
+export type SaveTextFileResult = 'saved' | 'cancelled' | 'downloaded' | 'shared';
+
+export const saveFileResultMessage = (result: SaveTextFileResult) => t({
+  saved: 'ui.settings.save.saved',
+  downloaded: isBilibiliAppWebView() ? 'ui.settings.save.phoneDownloadRequested' : 'ui.settings.save.downloadStarted',
+  cancelled: 'ui.settings.save.saveCancelled',
+  shared: 'ui.settings.save.fileShared',
+}[result]);
 
 const invalidFileNameCharacters = /[<>:"/\\|?*\u0000-\u001f]/g;
 
@@ -25,15 +34,43 @@ const downloadTextFile = (fileName: string, text: string) => {
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  try {
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+};
+
+const getShareableTextFile = (fileName: string, text: string) => {
+  if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return;
+  // Android share targets may reject an unknown extension even for plain text.
+  for (const name of [fileName, `${fileName}.txt`]) {
+    try {
+      const file = new File([text], name, { type: 'text/plain' });
+      if (navigator.canShare({ files: [file] })) return file;
+    } catch { /* Try the portable text extension or leave download available. */ }
+  }
+};
+
+export const canShareTextFile = (fileName: string, text: string) => Boolean(getShareableTextFile(fileName, text));
+
+export const shareTextFile = async (fileName: string, text: string): Promise<SaveTextFileResult> => {
+  const file = getShareableTextFile(fileName, text);
+  if (!file) throw new Error('File sharing is unavailable.');
+  try {
+    // Keep this call in the original click event, before any asynchronous work.
+    await navigator.share({ files: [file] });
+    return 'shared';
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return 'cancelled';
+    throw error;
+  }
 };
 
 export const saveTextFile = async (fileName: string, text: string): Promise<SaveTextFileResult> => {
   if (!('__TAURI_INTERNALS__' in window)) {
-    if (isBilibiliAppWebView()) return 'text';
     downloadTextFile(fileName, text);
     return 'downloaded';
   }

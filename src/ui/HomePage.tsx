@@ -18,7 +18,7 @@ import { PartnerScheduleDock } from './PartnerScheduleDock';
 import { PetDisplay } from './PetDisplay';
 import { StatusBar } from './StatusBar';
 
-interface HomePageProps {
+export interface HomePageProps {
   pet: PetState;
   neighbors: readonly NeighborIdentity[];
   inventoryKindCount: number;

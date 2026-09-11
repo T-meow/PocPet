@@ -26,6 +26,10 @@ import { isBackupDue, trimBackupSnapshots, type BackupSnapshot } from '../src/pl
 import { editionNoticeKey, recordEditionNoticeShown, readEditionNotice, localDateKey, shouldShowEditionNotice } from '../src/core/editionNotice';
 import { builtinMintManifest } from '../src/core/builtinPetModManifests';
 import { readRecoveryCandidate } from '../src/platform/saveRecovery';
+import { normalizePet } from '../src/core/petState';
+import { claimKitchenStarter, craftRecipe } from '../src/core/kitchen';
+import { acknowledgeMiniGameResult, resumeMiniGame, startMiniGame } from '../src/core/miniGames';
+import { advancePartnerSchedule, claimPartnerScheduleResult, normalizePartnerScheduleState, partnerScheduleDefinitions } from '../src/core/partnerSchedule';
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();
@@ -127,6 +131,95 @@ const legacy101Save = {
 const importedLegacy = parseSaveFileText(JSON.stringify(legacy101Save), importAt);
 assert.equal(importedLegacy.source, 'legacy');
 assert.equal(importedLegacy.pet.name, 'Legacy');
+
+// Upgrade the pre-kitchen shape directly; do not run the current exporter first.
+const preActivitiesPet = { ...basePet, name: 'Before activities', level: 20, coins: 9876, hearts: 5432, inventory: { bento: 2, toy_ball: 3, strawberry_milk: 4, golden_apple: 5, 'creator.snack': 7 } };
+const { kitchen: _kitchen, miniGames: _games, companionMemories: _memories, ...legacyActivitiesRaw } = preActivitiesPet;
+legacyActivitiesRaw.partnerSchedule = { ...legacyActivitiesRaw.partnerSchedule, schemaVersion: 5 } as unknown as PetState['partnerSchedule'];
+const oldEnvelope = (pet: unknown, at = exportAt) => JSON.stringify({ app: pocPetSaveAppId, schemaVersion: 1, exportedAt: new Date(at).toISOString(), pet });
+const loadValid = (pet: unknown, at = exportAt) => {
+  // Pick coin-only offline events so unrelated random hearts/gifts cannot mask duplicate game rewards.
+  const result = loadStoredPetJson(JSON.stringify(pet), at, { neighbors: [], giftCandidates: [], random: () => 0 });
+  assert.equal(result.status, 'ok', result.status === 'corrupt' ? result.detail : undefined);
+  if (result.status !== 'ok') throw new Error('Upgrade failed');
+  return result.pet;
+};
+for (const loaded of [loadValid(legacyActivitiesRaw), parseSaveFileText(JSON.stringify(legacyActivitiesRaw), importAt).pet, parseSaveFileText(oldEnvelope(legacyActivitiesRaw), importAt).pet]) {
+  assert.equal(loaded.level, 20);
+  assert.equal(loaded.coins, 9876);
+  assert.equal(loaded.hearts, 5432);
+  assert.deepEqual(loaded.inventory, preActivitiesPet.inventory, 'old inventory and unknown Mod items survive');
+  assert.deepEqual(loaded.kitchen.equipment, ['mix', 'pan']);
+  assert.deepEqual(loaded.kitchen.made, {});
+  assert.equal(loaded.kitchen.starterClaimed, false);
+  assert.ok(loaded.miniGames.unlocked.includes('catch'), 'existing toy balls remain usable for catch');
+  assert.equal(loaded.partnerSchedule.schemaVersion, 6);
+  const starter = claimKitchenStarter(loaded);
+  assert.equal(starter.inventory.rice, 1);
+  assert.equal(claimKitchenStarter(starter), starter, 'upgrade does not allow repeated starter claims');
+}
+for (const badList of [null, {}, { includes: 1 }, 'blender,bubbles', 42]) {
+  const loaded = loadValid({ ...preActivitiesPet, kitchen: { equipment: badList }, miniGames: { unlocked: badList } });
+  assert.deepEqual(loaded.kitchen.equipment, ['mix', 'pan']);
+  assert.deepEqual(loaded.miniGames.unlocked, ['matching', 'catch']);
+  assert.equal(loaded.coins, preActivitiesPet.coins, 'a malformed optional list cannot discard the whole pet');
+}
+const kitchenHistory: PetState = {
+  ...preActivitiesPet,
+  inventory: { ...preActivitiesPet.inventory, dish_milk_cookies: 5, dish_biscuit_cup: 3, dish_biscuit_layer_cake: 2, rice: 10, egg: 10 },
+  kitchen: { ...basePet.kitchen, starterClaimed: true, equipment: ['mix', 'pan', 'blender', 'oven'], made: { egg_rice: 3, milk_cookies: 5 }, firstMadeAt: { egg_rice: exportAt - 60000 }, tasted: { 'official.mint': { dish_milk_cookies: exportAt - 30000 } }, recentOperationIds: ['old-cook'], lastCraft: { id: 'old-cook', dishId: 'dish_egg_rice', quantity: 3, hearts: 120, at: exportAt - 60000 } },
+  companionMemories: { schemaVersion: 1, entries: [{ id: 'old-memory', actorId: 'official.mint', kind: 'first_taste', subject: 'dish_milk_cookies', at: exportAt - 30000, mentionedAt: 0 }] },
+};
+for (const loaded of [loadValid(kitchenHistory), parseSaveFileText(oldEnvelope(kitchenHistory), importAt).pet, parseSaveFileText(createSaveFileText(kitchenHistory, builtinMintManifest, exportAt), importAt).pet]) {
+  assert.deepEqual(loaded.kitchen, kitchenHistory.kitchen, 'old recipe IDs, completion rewards, first-made and tasted dates survive');
+  assert.deepEqual(loaded.inventory, kitchenHistory.inventory, 'renaming strawberry desserts must not remove their old inventory IDs');
+  assert.deepEqual(loaded.companionMemories, kitchenHistory.companionMemories);
+  assert.equal(claimKitchenStarter(loaded), loaded);
+  assert.equal(craftRecipe(loaded, 'egg_rice', false, 3, 'old-cook', importAt), loaded, 'a loaded cooking result cannot award twice');
+}
+for (const game of ['matching', 'catch', 'bubbles'] as const) {
+  const ready = { ...preActivitiesPet, miniGames: { ...basePet.miniGames, unlocked: ['matching', 'catch', 'bubbles'] as const } } as PetState;
+  const started = startMiniGame(ready, game, 'gentle', 'official.mint', `old-${game}`, exportAt);
+  const oldGame = { ...started, miniGames: { ...started.miniGames, active: { ...started.miniGames.active!, elapsedMs: 12000, baseHearts: 696 } } };
+  for (const loaded of [loadValid(oldGame, importAt), parseSaveFileText(oldEnvelope(oldGame), importAt).pet]) {
+    assert.equal(loaded.miniGames.active?.paused, true);
+    assert.equal(loaded.miniGames.active?.actorId, 'official.mint');
+    assert.equal(loaded.miniGames.active?.elapsedMs, 12000, 'time away never counts as active game time');
+    assert.deepEqual(loaded.miniGames.active?.deck, oldGame.miniGames.active.deck);
+    assert.equal(loaded.miniGames.active?.baseHearts, game === 'catch' ? 39 : 13, 'unfinished old games use the approved level curve');
+    assert.equal(loaded.hearts, started.hearts, 'loading cannot award an unfinished game');
+    assert.equal(loaded.inventory.toy_ball, started.inventory.toy_ball);
+    assert.equal(resumeMiniGame(loaded, 'official.mint', importAt).inventory.toy_ball, started.inventory.toy_ball, 'the already-paid ball is not charged on resume');
+  }
+}
+const completedGame: PetState = { ...preActivitiesPet, miniGames: { ...basePet.miniGames, lastResult: { id: 'old-result', actorId: 'official.mint', game: 'matching', mode: 'gentle', hearts: 2312, baseHearts: 2312, rewardLevel: 99, score: 6, elapsedMs: 14000, at: exportAt, pending: true } } };
+const completedGameLoaded = parseSaveFileText(oldEnvelope(completedGame), importAt).pet;
+assert.deepEqual(completedGameLoaded.miniGames.lastResult, { ...completedGame.miniGames.lastResult, mood: undefined }, 'completed rewards keep their historical amount without inventing a missing mood reward');
+assert.equal(acknowledgeMiniGameResult(completedGameLoaded, 'old-result').hearts, completedGameLoaded.hearts);
+
+for (const definition of partnerScheduleDefinitions) {
+  const oldMinutes = { short: 45, standard: 120, long: 240 }[definition.size];
+  const elapsedMinutes = 10;
+  const schedule = normalizePartnerScheduleState(undefined, preActivitiesPet, exportAt);
+  const active = { offerId: schedule.offers[0].id, templateId: definition.id, category: definition.category, size: definition.size, startedAt: exportAt - elapsedMinutes * 60000, endsAt: exportAt + (oldMinutes - elapsedMinutes) * 60000, coinReward: 77, skillXp: 10, trophyRewardMultiplier: 1, grantsMasterCompletion: false };
+  const raw = { ...legacyActivitiesRaw, partnerSchedule: { ...schedule, schemaVersion: 5, active } };
+  const newRemaining = (definition.durationMinutes - elapsedMinutes) * 60000;
+  const loaded = loadValid(raw);
+  assert.equal(loaded.partnerSchedule.active?.endsAt, exportAt + newRemaining);
+  const imported = parseSaveFileText(oldEnvelope(raw), importAt).pet;
+  assert.equal(imported.partnerSchedule.active?.endsAt, importAt + newRemaining, 'import shifts an old schedule after shortening it once');
+  assert.equal(normalizePet(imported, importAt).partnerSchedule.active?.endsAt, importAt + newRemaining);
+  const reimported = parseSaveFileText(createSaveFileText(imported, null, importAt), importAt + 3600000).pet;
+  assert.equal(reimported.partnerSchedule.active?.endsAt, importAt + 3600000 + newRemaining);
+  const pending = advancePartnerSchedule(imported, importAt + newRemaining);
+  assert.equal(pending.partnerSchedule.pendingResult?.coinReward, 77);
+  const claimed = claimPartnerScheduleResult(pending, 'coins', importAt + newRemaining);
+  assert.equal(claimed.coins, pending.coins + 77);
+  assert.equal(claimPartnerScheduleResult(claimed, 'coins', importAt + newRemaining).coins, claimed.coins);
+  const offline = loadValid(raw, active.endsAt + 60000);
+  assert.equal(offline.partnerSchedule.pendingResult?.completedAt, active.endsAt, 'already expired legacy schedules keep their original completion time');
+}
+console.log('Upgrade compatibility: pre-kitchen raw/envelope saves, malformed optional lists, old dessert IDs, game history and all 12 schedule imports passed.');
 
 const runningPet: PetState = {
   ...basePet,
@@ -248,6 +341,10 @@ assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1')!).name, 'Second');
 
 localStorage.clear();
 const originalUpgradeRaw = JSON.stringify(firstPet);
+const previousUpgradeKey = 'pocpet.pet.v1.pre-upgrade.1.7.2';
+const previousUpgradeRaw = JSON.stringify({ ...firstPet, name: 'Before 1.7.2' });
+assert.notEqual(upgradeStorageKey, previousUpgradeKey, 'this release needs its own upgrade backup');
+localStorage.setItem(previousUpgradeKey, previousUpgradeRaw);
 localStorage.setItem('pocpet.pet.v1', originalUpgradeRaw);
 localStorage.failNextSet(upgradeStorageKey);
 const readOnlyLoad = loadPet(importAt);
@@ -263,6 +360,8 @@ assert.equal(localStorage.getItem('pocpet.pet.v1'), originalUpgradeRaw);
 const writableLoad = loadPet(importAt);
 assert.ok(writableLoad.status === 'ok' && !writableLoad.persistenceError, 'reload retries the upgrade backup after storage recovers');
 assert.equal(localStorage.getItem(upgradeStorageKey), originalUpgradeRaw);
+assert.equal(localStorage.getItem(previousUpgradeKey), previousUpgradeRaw, 'upgrading preserves the earlier release backup byte for byte');
+assert.ok(getStoredRecoveryCopies().some((copy) => copy.key === previousUpgradeKey));
 localStorage.setItem('pocpet.pet.v1.pre-upgrade.1.5.0', originalUpgradeRaw);
 assert.ok(getStoredRecoveryCopies().some((copy) => copy.key === 'pocpet.pet.v1.pre-upgrade.1.5.0'), 'a version bump must not hide earlier pre-upgrade copies');
 savePet(secondPet);

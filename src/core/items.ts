@@ -3,6 +3,7 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import type { ActivePetMod, PetModCustomItem, PetModItemOverride } from './mod';
 import type { BuiltinItemId, Inventory, InventoryItemDefinition, ItemDefinition, ItemId, ItemRegistry, PetState, ShopCategory, ShopItem } from './petTypes';
 import { hashString } from './utils';
+import { activityText, allDishes, dishName, kitchenMaterials } from './kitchenRecipes';
 
 export const dailyBiscuitClaimLimit = 3;
 
@@ -21,6 +22,7 @@ export const giftItemIds: readonly ItemId[] = ['small_bouquet', 'shiny_sticker',
 export const giftItemIdSet = new Set<ItemId>(giftItemIds);
 
 export const shopItems: readonly ShopItem[] = [
+  ...kitchenMaterials.map((material): ShopItem => ({ id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price, effect: {}, usable: false, tags: ['kitchen_material'], summary: activityText('厨房食材，用于研究和制作料理。', 'An ingredient for researching and cooking recipes.') })),
   {
     id: 'emergency_biscuit',
     name: t('pet.shop.items.emergency_biscuit.name'),
@@ -288,6 +290,7 @@ export const shopItems: readonly ShopItem[] = [
 ] as const;
 
 export const specialItems: readonly ShopItem[] = [
+  ...allDishes.map(({ recipe, id }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: recipe.effect, tags: ['homemade'], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
   {
     id: 'birthday_cake',
     name: t('pet.shop.items.birthday_cake.name'),

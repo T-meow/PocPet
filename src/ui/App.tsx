@@ -53,7 +53,6 @@ import {
   pomodoroMinHealthThreshold,
   recordPetInteraction,
   updatePetProfile,
-  shopCategories,
   startPomodoro,
   startPartnerSchedule,
   updatePomodoroSettings,
@@ -78,7 +77,6 @@ import {
   type PartnerScheduleRewardChoice,
   type PartnerScheduleCategory,
   type PomodoroDurations,
-  type ShopCategory,
   type YearReview,
 } from '../core/pet';
 import { currencyIcon, giftBoxIcon, goodEndingImage, resolveItemIcons, resolvePetActivityImages, resolvePetStatusImages } from '../assets';
@@ -128,8 +126,17 @@ import { CommonDreamsPage } from './CommonDreamsPage';
 import { ConfirmDialog } from './ConfirmDialog';
 import { GardenPage } from './GardenPage';
 import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
-import { HomePage } from './HomePage';
+import { HomePageV2 as HomePage } from './HomePageV2';
+import { KitchenModal } from './KitchenModal';
+import { PlayModal } from './PlayModal';
+import { DialogShell } from './DialogShell';
+import { CompanionMemories } from './CompanionMemories';
+import { useCompanionActivities } from './app/useCompanionActivities';
+import { claimKitchenStarter } from '../core/kitchen';
+import { pauseMiniGame, resumeMiniGame } from '../core/miniGames';
+import { activityText as L } from '../core/kitchenRecipes';
 import { InventoryModal } from './InventoryModal';
+import { getStorageReturnTarget, type ItemBrowseCategory } from './itemBrowse';
 import { PomodoroOverlay } from './PomodoroOverlay';
 import { PartnerSchedulePage } from './PartnerSchedulePage';
 import { RolePicker } from './RolePicker';
@@ -138,7 +145,7 @@ import { ShopModal } from './ShopModal';
 import { YearReviewModal } from './YearReviewModal';
 import { formatCompactNumber } from './numberFormat';
 import { getLanguage, setLanguage, t, type LanguageCode } from '../i18n';
-import { createSaveFileName, saveTextFile } from '../platform/saveTextFile';
+import { createSaveFileName, saveTextFile, shareTextFile, saveFileResultMessage } from '../platform/saveTextFile';
 import { createShareImageFileName, saveShareImage, type SaveImageFileResult } from '../platform/saveImageFile';
 import { createGachaPoster, createPetProfilePoster, createYearReviewPoster, getToyPosterQrCode, type GachaMachine } from '../platform/sharePoster';
 import { useAppNavigation } from './app/useAppNavigation';
@@ -307,13 +314,15 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [isPomodoroOpen, setPomodoroOpen] = useState(false);
   const [isAudioEnabled, setAudioEnabledState] = useState(() => getAudioEnabled());
   const [language, setLanguageState] = useState<LanguageCode>(() => getLanguage());
-  const [activeShopCategory, setActiveShopCategory] = useState(shopCategories[0].id);
+  const activityReturnRef = useRef<'kitchen' | 'play' | null>(null);
   const [draftName, setDraftName] = useState(initialPet.name);
   const [draftBirthday, setDraftBirthday] = useState<PetBirthday | undefined>(initialPet.birthday);
   const [activeMod, setActiveMod] = useState<ActivePetMod | null>(initialActiveMod);
   const [installedMods, setInstalledMods] = useState<readonly InstalledPetModSummary[]>(initialInstalledMods);
   const [modMessage, setModMessage] = useState('');
   const [saveText, setSaveText] = useState('');
+  const [saveFileName, setSaveFileName] = useState('pocpet-save.pocpet');
+  const [isSharingSaveFile, setSharingSaveFile] = useState(false);
   const [importSaveText, setImportSaveText] = useState('');
   const [pendingImportedSave, setPendingImportedSave] = useState<PocPetImportedSave | null>(null);
   const [pendingImportSourceText, setPendingImportSourceText] = useState('');
@@ -349,6 +358,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     })),
   }), [itemRegistry, neighbors]);
   const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError);
+  const actorId = activeMod?.manifest.id ?? 'official.furo';
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
   const updateController = useClientUpdates();
   const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => (features.cloudSave || updateController.supported) && shouldShowEditionNotice(readEditionNotice()));
@@ -389,15 +399,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const petStatusImageMap = useMemo(() => resolvePetStatusImages(activeMod), [activeMod]);
   const petActivityImageMap = useMemo(() => resolvePetActivityImages(activeMod), [activeMod]);
+  const activityHappyPortrait = (activeMod ? activeMod.petImageUrls.happy : petActivityImageMap.happy) ?? petStatusImageMap.content;
+  const activityWorkingPortrait = (activeMod ? activeMod.petImageUrls.work_food : petActivityImageMap.work_food) ?? petStatusImageMap.content;
   const displayInventoryItems = useMemo(() => getInventoryDefinitions(itemRegistry, pet.inventory), [itemRegistry, pet.inventory]);
-  const inventoryController = useInventoryController(displayInventoryItems);
+  const inventoryController = useInventoryController();
   const displayShopItems = useMemo(() => getShopDefinitions(itemRegistry), [itemRegistry]);
   const getStatusLabel = (status: PetStatus) => getModStatusText(activeMod, status) ?? t(`pet.status.${status}`);
   const ownedItems = displayInventoryItems;
-  const visibleShopItems = useMemo(
-    () => displayShopItems.filter((item) => item.kind === activeShopCategory),
-    [activeShopCategory, displayShopItems],
-  );
   const isLowEnergy = isPetLowEnergy(pet);
   const isCriticallyHungry = isPetCriticallyHungry(pet);
   const nextUpgradeCost = getNextUpgradeHeartCost(pet);
@@ -452,6 +460,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     claimHelpGift: handleClaimHelpPageGift,
     claimGardenCompensation: handleClaimGardenCompensation,
   } = rewardController;
+  const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPet, commitPet);
+  const openKitchen = () => { activityReturnRef.current = null; setActivePage('home'); activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); };
+  const openPlay = () => {
+    setActivePage('home');
+    activities.update((current) => resumeMiniGame(current, actorId, Date.now()));
+    openUtilityDialog('play');
+  };
   const toyIntegration = useToyIntegration({
     pet,
     petRef,
@@ -560,6 +575,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       const displayItem = getDisplayItem(displayInventoryItems, itemId);
       const item = getItemDefinition(itemRegistry, itemId);
       const next = useInventoryItem(currentWithPreference, itemId, Date.now(), {
+        actorId: activeMod?.manifest.id ?? 'official.furo',
         favoriteFoodIds: getModFavoriteFoodIds(activeMod),
         favoriteText: (amount) => formatFavoriteFoodText(activeMod, amount),
         itemName: displayItem?.displayName,
@@ -576,19 +592,23 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     setPet((current) => commitPet(interactWithPet(current)));
   };
 
-  const handleOpenShop = (category?: ShopCategory) => {
+  const handleOpenShop = (category?: ItemBrowseCategory) => {
+    activityReturnRef.current = getStorageReturnTarget(utilityDialog, activityReturnRef.current);
     playAfterUnlock('open');
-    if (category) setActiveShopCategory(category);
+    inventoryController.prepareOpen(category);
     setPet((current) => recordPetInteraction(current));
     openUtilityDialog('shop');
   };
 
   const handleCloseShop = () => {
     playAfterUnlock('close');
-    closeUtilityDialog();
+    const returnTo = activityReturnRef.current;
+    activityReturnRef.current = null;
+    if (returnTo) openUtilityDialog(returnTo); else closeUtilityDialog();
   };
 
   const handleOpenInventory = () => {
+    activityReturnRef.current = getStorageReturnTarget(utilityDialog, activityReturnRef.current);
     playAfterUnlock('open');
     inventoryController.prepareOpen();
     setPet((current) => recordPetInteraction(current));
@@ -596,8 +616,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const handleCloseInventory = () => {
-    playAfterUnlock('close');
-    closeUtilityDialog();
+    handleCloseShop();
   };
 
   const handleOpenGarden = () => {
@@ -867,12 +886,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const completeFeedWishAction = () => {
-    const foodItem = displayInventoryItems.find((item) => item.kind === 'food' && item.id !== 'golden_apple' && getInventoryCount(petRef.current, item.id) > 0);
+    const foodItem = displayInventoryItems.find((item) => item.usable && item.kind === 'food' && item.id !== 'golden_apple' && getInventoryCount(petRef.current, item.id) > 0);
     if (!foodItem) {
-      playAfterUnlock('open');
-      setActiveShopCategory('food');
-      setPet((current) => recordPetInteraction(current));
-      openUtilityDialog('shop');
+      handleOpenShop('food');
       return;
     }
 
@@ -882,6 +898,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       const displayItem = getDisplayItem(displayInventoryItems, foodItem.id);
       const item = getItemDefinition(itemRegistry, foodItem.id);
       const next = useInventoryItem(current, foodItem.id, Date.now(), {
+        actorId: activeMod?.manifest.id ?? 'official.furo',
         favoriteFoodIds: getModFavoriteFoodIds(activeMod),
         favoriteText: (amount) => formatFavoriteFoodText(activeMod, amount),
         itemName: displayItem?.displayName,
@@ -1092,18 +1109,17 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleExportSave = () => {
     const text = createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest);
     setSaveText(text);
+    setSaveFileName(createSaveFileName(petRef.current.name));
     setModMessage(t('ui.settings.save.generated'));
   };
 
   const handleDownloadSave = async () => {
     const text = createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest);
     setSaveText(text);
+    const fileName = createSaveFileName(petRef.current.name);
+    setSaveFileName(fileName);
     try {
-      const result = await saveTextFile(createSaveFileName(petRef.current.name), text);
-      if (result === 'saved') setModMessage(t('ui.settings.save.saved'));
-      if (result === 'downloaded') setModMessage(t('ui.settings.save.downloadStarted'));
-      if (result === 'cancelled') setModMessage(t('ui.settings.save.saveCancelled'));
-      if (result === 'text') setModMessage(t('ui.backup.textFallback'));
+      setModMessage(saveFileResultMessage(await saveTextFile(fileName, text)));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.save.saveFailed'));
       playSfx('error');
@@ -1114,11 +1130,19 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     try { await navigator.clipboard.writeText(saveText); setModMessage(t('ui.backup.copied')); }
     catch { setModMessage(t('ui.backup.copyFallback')); }
   };
+  const handleShareSaveFile = async () => {
+    if (!saveText || isSharingSaveFile) return;
+    setSharingSaveFile(true);
+    try { setModMessage(saveFileResultMessage(await shareTextFile(saveFileName, saveText))); }
+    catch { setModMessage(t('ui.settings.save.phoneSaveFailed')); }
+    finally { setSharingSaveFile(false); }
+  };
   const handleExportBackup = async (snapshot: BackupSnapshot) => {
     setSaveText(snapshot.text);
+    const fileName = createSaveFileName(snapshot.petName, snapshot.savedAt);
+    setSaveFileName(fileName);
     try {
-      const result = await saveTextFile(createSaveFileName(snapshot.petName, snapshot.savedAt), snapshot.text);
-      setModMessage(t(result === 'text' ? 'ui.backup.textFallback' : result === 'cancelled' ? 'ui.settings.save.saveCancelled' : result === 'saved' ? 'ui.settings.save.saved' : 'ui.settings.save.downloadStarted'));
+      setModMessage(saveFileResultMessage(await saveTextFile(fileName, snapshot.text)));
     } catch { setModMessage(t('ui.settings.save.saveFailed')); }
   };
 
@@ -1474,7 +1498,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     />
   ) : undefined;
   return (
-    <main className="app-shell">
+    <main className={`app-shell${activePage === 'home' ? ' app-shell--home-v2' : ''}`}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); openUtilityDialog('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
@@ -1493,7 +1517,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       <header className="top-bar">
         <div>
           <p className="eyebrow">{t('ui.brand.eyebrow')}</p>
-          <h1>{pet.name}</h1>
+          <h1>Pocket <span className="home-brand-flower" aria-hidden="true">✿</span></h1>
         </div>
         <div className="top-actions">
           <button
@@ -1510,15 +1534,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             <Heart size={20} aria-hidden="true" />
             <strong>{pet.hearts}</strong>
           </div>
-          <button
-            type="button"
-            className={`icon-button achievement-entry${hasAchievementNotice ? ' achievement-entry--notice' : ''}`}
-            aria-label={t('ui.top.openAchievements')}
-            title={t('ui.achievements.title')}
-            onClick={handleOpenAchievements}
-          >
-            <Trophy size={22} aria-hidden="true" />
-          </button>
+          <button className="home-ticket-pill" onClick={handleOpenGacha} aria-label={L(`扭蛋券 ${pet.goldenAppleGacha.tickets} 张`, `${pet.goldenAppleGacha.tickets} gacha tickets`)}><Ticket size={17} />{pet.goldenAppleGacha.tickets}</button>
           <button
             type="button"
             className="icon-button audio-button"
@@ -1599,6 +1615,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         />
       ) : (
         <HomePage
+          actorId={actorId}
+          adventure={{ status: 'locked' }}
+          hasAchievementNotice={hasAchievementNotice}
+          onOpenShop={() => handleOpenShop()}
+          onOpenAchievements={handleOpenAchievements}
+          onOpenKitchen={openKitchen}
+          onOpenPlay={openPlay}
+          onOpenMemories={() => openUtilityDialog('memories')}
           pet={pet}
           neighbors={neighbors}
           inventoryKindCount={ownedItems.length}
@@ -1681,7 +1705,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         </button>
       )}
 
-      {achievementToast && activePage === 'home' && (
+      {achievementToast && activePage === 'home' && !utilityDialog && (
         <button type="button" className="achievement-toast" onClick={handleOpenAchievements}>
           <span className="achievement-toast__icon" aria-hidden="true"><Trophy size={22} /></span>
           <span className="achievement-toast__copy">
@@ -1690,18 +1714,21 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           </span>
         </button>
       )}
+      {utilityDialog === 'kitchen' && <KitchenModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} />}
+      {utilityDialog === 'play' && <PlayModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} happyPortrait={activityHappyPortrait} ballImage={itemIconMap.toy_ball} onClose={() => { activities.update(pauseMiniGame); closeUtilityDialog(); }} onShop={() => handleOpenShop('item')} onQuickPlay={() => handleAction('play')} update={activities.update} onAct={activities.act} />}
+      {utilityDialog === 'memories' && <DialogShell className="activity-modal memory-modal" labelId="memories-title" onClose={closeUtilityDialog}><header className="activity-header"><h2 id="memories-title">{L('我们的纪念册', 'Our little album')}</h2><button className="icon-button" onClick={closeUtilityDialog} aria-label={L('关闭', 'Close')}><X /></button></header><div className="activity-body"><CompanionMemories pet={pet} actorId={actorId} /></div></DialogShell>}
       {isInventoryOpen && (
         <InventoryModal
           items={ownedItems}
-          inventory={pet.inventory}
           pet={pet}
           itemIconMap={itemIconMap}
-          activeCategory={inventoryController.activeCategory}
+          browse={inventoryController.browse}
           isPetBusy={Boolean(pet.partnerSchedule.active)}
-          onCategoryChange={inventoryController.setActiveCategory}
+          onBrowseChange={inventoryController.setBrowse}
           onClose={handleCloseInventory}
-          onOpenShop={handleOpenShop}
+          onOpenShop={() => handleOpenShop()}
           onOpenGarden={handleOpenGarden}
+          onOpenKitchen={openKitchen}
           onUseItem={handleUseItem}
         />
       )}
@@ -1778,11 +1805,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       {isShopOpen && (
         <ShopModal
           pet={pet}
-          visibleItems={visibleShopItems}
-          activeCategory={activeShopCategory}
+          items={displayShopItems}
+          browse={inventoryController.browse}
           itemIconMap={itemIconMap}
           onClose={handleCloseShop}
-          onSelectCategory={setActiveShopCategory}
+          onBrowseChange={inventoryController.setBrowse}
+          onOpenInventory={handleOpenInventory}
           onBuyItem={handleBuyItem}
           onExchangeHeart={handleExchangeHeart}
           isHeartExchangeCoolingDown={isHeartExchangeCoolingDown}
@@ -1798,6 +1826,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       )}
       {isSettingsOpen && (
         <SettingsModal
+          onShareSaveFile={handleShareSaveFile}
+          isSharingSaveFile={isSharingSaveFile}
           updateController={updateController}
           backupController={backupController}
           onRestoreBackup={prepareImportSaveFromText}
@@ -2025,8 +2055,7 @@ export const App = () => {
     const raw = getPreservedCorruptPetRaw() ?? (startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '');
     if (!raw) return;
     try {
-      const result = await saveTextFile(createSaveFileName(t('ui.settings.save.recoveryFileName')), raw);
-      setModMessage(t(result === 'text' ? 'ui.backup.textFallback' : result === 'cancelled' ? 'ui.settings.save.saveCancelled' : 'ui.settings.save.recoveryExported'));
+      setModMessage(saveFileResultMessage(await saveTextFile(createSaveFileName(t('ui.settings.save.recoveryFileName')), raw)));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.save.saveFailed'));
       playSfx('error');

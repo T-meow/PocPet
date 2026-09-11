@@ -6,8 +6,9 @@ import { addInventoryItem, getInventoryItem, shopItems } from './items';
 import { clampCoins, clampCount } from './petStats';
 import type { AchievementCounters, AchievementId, AchievementState, CareActionKey, GardenTreeId, ItemId, PartnerScheduleCategory, PartnerScheduleRewardChoice, PartnerScheduleSize, PetState, YearlyCareActionKey, YearlyStats } from './petTypes';
 import { isNumber } from './utils';
+import { recipes } from './kitchenRecipes';
 
-export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden';
+export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden' | 'kitchen' | 'play';
 export type AchievementRarity = 'normal' | 'rare' | 'hidden';
 
 export interface AchievementReward {
@@ -100,7 +101,8 @@ const gentleCareKeys: readonly YearlyCareActionKey[] = ['feed', 'clean', 'play',
 const workPlayKeys: readonly YearlyCareActionKey[] = ['work', 'play'];
 const achievementGardenTreeIds: readonly GardenTreeId[] = ['fruit_tree', 'care_tree', 'gift_tree', 'money_tree', 'golden_apple_tree'];
 const achievementPartnerScheduleCategories: readonly PartnerScheduleCategory[] = ['study', 'cooking', 'garden', 'exercise'];
-const usableShopItems = shopItems.filter((item) => item.usable !== false);
+const legacyShopIds = new Set(['emergency_biscuit', 'bento', 'orange', 'apple', 'banana', 'watermelon', 'nutri_meal', 'pig_trotter', 'strawberry_cake', 'ad_milk', 'strawberry_milk', 'small_bouquet', 'shiny_sticker', 'soft_cloud_doll', 'ribbon_bell', 'toy_ball', 'picture_book', 'shampoo', 'wet_wipes', 'medicine', 'vitamin_tablet', 'blanket', 'energy_drink']);
+const usableShopItems = shopItems.filter((item) => legacyShopIds.has(item.id));
 const shopItemIds: readonly ItemId[] = usableShopItems.map((item) => item.id);
 const shopFoodItemIds: readonly ItemId[] = usableShopItems.filter((item) => item.kind === 'food').map((item) => item.id);
 const manualUnlockAchievementIds = new Set<AchievementId>(['hidden_good_ending_year_1']);
@@ -456,6 +458,13 @@ const getUnlockedNormalAchievementCount = (pet: PetState) =>
 
 const achievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'title' | 'description'>[] = [
   ...baseAchievementDefinitionConfigs,
+  { id: 'kitchen_first', category: 'kitchen', rarity: 'normal', target: 1, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 50, hearts: 5 } },
+  { id: 'kitchen_three', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 100, hearts: 10 } },
+  { id: 'kitchen_eight', category: 'kitchen', rarity: 'rare', target: 8, progress: (pet) => recipes.slice(0, 8).filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length, reward: { coins: 200, hearts: 20 } },
+  { id: 'kitchen_thirty', category: 'kitchen', rarity: 'normal', target: 30, progress: (pet) => Object.values(pet.kitchen.made).reduce((sum, amount) => sum + (amount ?? 0), 0), reward: { coins: 200, hearts: 10 } },
+  { id: 'kitchen_methods', category: 'kitchen', rarity: 'normal', target: 4, progress: (pet) => new Set(recipes.filter((recipe) => pet.kitchen.made[recipe.id]).map((recipe) => recipe.method)).size, reward: { coins: 150, hearts: 10 } },
+  { id: 'kitchen_tastes', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => new Set(Object.values(pet.kitchen.tasted).flatMap((tastes) => Object.keys(tastes).map((id) => id.replace(/_banana$/, '')))).size, reward: { coins: 100, hearts: 10 } },
+  ...(['matching', 'catch', 'bubbles'] as const).map((game): Omit<AchievementDefinition, 'title' | 'description'> => ({ id: `play_${game}`, category: 'play', rarity: 'normal', target: 1, progress: (pet) => (pet.miniGames.records[`${game}:normal`]?.completed ?? 0) + (pet.miniGames.records[`${game}:gentle`]?.completed ?? 0), reward: { coins: 30, hearts: 5 } })),
   {
     id: 'hidden_full_catalogue',
     category: 'hidden',

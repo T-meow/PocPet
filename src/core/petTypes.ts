@@ -1,6 +1,10 @@
+import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionMemoryState } from './companionActivityTypes';
+
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
 export type BuiltinItemId =
+  | DishId
+  | KitchenMaterialId
   | 'emergency_biscuit'
   | 'bento'
   | 'orange'
@@ -364,7 +368,7 @@ export interface PartnerScheduleResult {
 }
 
 export interface PartnerScheduleState {
-  schemaVersion: 5;
+  schemaVersion: 6;
   boardDateKey: string;
   boardOfferCount: number;
   offers: PartnerScheduleOffer[];
@@ -486,6 +490,9 @@ export interface PetState {
   goldenAppleGacha: GoldenAppleGachaState;
   classicEndgame: ClassicEndgameState;
   timeGuard: TimeGuardState;
+  kitchen: KitchenState;
+  miniGames: MiniGameState;
+  companionMemories: CompanionMemoryState;
 }
 
 export type PetAction = 'play' | 'clean' | 'sleep' | 'work';
@@ -531,6 +538,7 @@ export type InventoryItemDefinition = ItemDefinition & {
 };
 
 export interface UseInventoryItemOptions {
+  actorId?: string;
   favoriteFoodIds?: readonly ItemId[];
   favoriteText?: (amount: number) => string | undefined;
   itemName?: string;

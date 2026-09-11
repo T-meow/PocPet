@@ -16,6 +16,7 @@ import type { AutomaticBackupController } from './app/useAutomaticBackup';
 import type { BackupSnapshot } from '../platform/automaticBackup';
 import { ClientUpdatePanel } from './ClientUpdatePanel';
 import type { ClientUpdateController } from './app/useClientUpdates';
+import { canShareTextFile } from '../platform/saveTextFile';
 
 interface SettingsModalProps {
   updateController: ClientUpdateController;
@@ -23,6 +24,8 @@ interface SettingsModalProps {
   onRestoreBackup: (text: string) => void;
   onExportBackup: (snapshot: BackupSnapshot) => void;
   onCopySave: () => void;
+  onShareSaveFile: () => void;
+  isSharingSaveFile: boolean;
   activeMod: ActivePetMod | null;
   installedMods: readonly InstalledPetModSummary[];
   modMessage: string;
@@ -85,6 +88,7 @@ const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
 export const SettingsModal = ({
   updateController,
   backupController, onRestoreBackup, onExportBackup, onCopySave,
+  onShareSaveFile, isSharingSaveFile,
   activeMod,
   installedMods,
   modMessage,
@@ -376,11 +380,16 @@ export const SettingsModal = ({
                 </button>
                 <button type="button" className="primary-button save-action" onClick={onDownloadSave}>
                   <Download size={18} aria-hidden="true" />
-                  {t('ui.settings.save.download')}
+                  {t(appBuild.edition === 'bilibili' && !isNativeApp() ? 'ui.settings.save.saveToPhone' : 'ui.settings.save.download')}
                 </button>
               </div>
               {saveText && <><textarea className="save-textarea" readOnly value={saveText} aria-label={t('ui.settings.save.exportedAria')} onFocus={(event) => event.target.select()} />
-                <button type="button" className="secondary-button save-action" onClick={onCopySave}><Copy size={18} />{t('ui.backup.copy')}</button></>}
+                <div className="save-actions">
+                  <button type="button" className="secondary-button save-action" onClick={onCopySave}><Copy size={18} />{t('ui.backup.copy')}</button>
+                  {!isNativeApp() && canShareTextFile('pocpet-save.pocpet', saveText) && <button type="button" className="secondary-button save-action" disabled={isSharingSaveFile} onClick={onShareSaveFile}>
+                    <Share2 size={18} />{t('ui.settings.save.shareFile')}
+                  </button>}
+                </div></>}
               <h3 className="save-section-title save-section-title--divided">{t('ui.backup.importTitle')}</h3>
               <div className="save-actions">
                 <button type="button" className="secondary-button save-action" onClick={() => saveFileInputRef.current?.click()}><Upload size={18} />{t('ui.settings.save.importFile')}</button>

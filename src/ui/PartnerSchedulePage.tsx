@@ -32,6 +32,7 @@ import {
   type PetState,
 } from '../core/pet';
 import { t } from '../i18n';
+import { getKitchenHeartReward } from '../core/kitchen';
 import { getPartnerScheduleDisplaySummary, getPartnerScheduleDisplayTitle } from './partnerScheduleText';
 
 const categoryIcons: Record<PartnerScheduleCategory, LucideIcon> = {
@@ -134,6 +135,7 @@ export const PartnerSchedulePage = ({
                     ? t(`ui.partnerSchedule.passives.level${nextPassiveLevel}`)
                     : t('ui.partnerSchedule.mastery.unlocked')}
               </small>
+              {category === 'cooking' && <small className="partner-schedule-skill__milestone">{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet).skillBonusPercent })}</small>}
               <i aria-hidden="true"><b style={{ width: `${percent}%` }} /></i>
               {isMaster ? (
                 <small className="partner-schedule-skill__milestone">

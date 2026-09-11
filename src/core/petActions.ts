@@ -17,6 +17,8 @@ import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
 import { getClassicTrophyEffects } from './classicTrophies';
 import { randomInt } from './utils';
 import { isPartnerSchedulePetBusy } from './partnerSchedule';
+import { recordDishTaste } from './kitchen';
+import { unlockBallGame } from './miniGames';
 
 const clearLowCleanlinessSleepConfirm = (pet: PetState): PetState =>
   pet.lowCleanlinessSleepConfirmCount > 0 ? { ...pet, lowCleanlinessSleepConfirmCount: 0 } : pet;
@@ -554,7 +556,9 @@ export const useInventoryItem = (
 
   const withAchievementUse = incrementAchievementItemUse(incrementAchievementCareAction(usedItemPet, overuseKey, quantity), itemId, quantity);
   const withWakeRecord = wokePet ? incrementManualWake(withAchievementUse) : withAchievementUse;
-  const withHeartRecord = giftHeartAmount > 0 ? recordEarnedHearts(withWakeRecord, giftHeartAmount) : withWakeRecord;
+  let withHeartRecord = giftHeartAmount > 0 ? recordEarnedHearts(withWakeRecord, giftHeartAmount) : withWakeRecord;
+  if (itemId === 'toy_ball') withHeartRecord = unlockBallGame(withHeartRecord);
+  withHeartRecord = recordDishTaste(withHeartRecord, itemId, options.actorId ?? 'official.furo', now);
   const wishAction = item.kind === 'food' ? 'feed' : itemId === 'shampoo' || itemId === 'wet_wipes' ? 'clean' : undefined;
   return wishAction ? recordWishProgress(withHeartRecord, wishAction, now) : withHeartRecord;
 };

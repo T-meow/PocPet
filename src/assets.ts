@@ -1,4 +1,5 @@
 import coin from './assets/icon/coin.png';
+import { kitchenItemIcons } from './companionActivityAssets';
 import goodEndingCg1 from './assets/CG1.png';
 import iconAdMilk from './assets/icon/icon_ADmilk.png';
 import iconBeltedBell from './assets/icon/icon_belted_bell.png';
@@ -65,6 +66,7 @@ export const goodEndingImage = goodEndingCg1;
 export const treeStageImages = [tree1, tree2, tree3, tree4, tree5] as const;
 
 export const itemIcons: Record<BuiltinItemId, string> = {
+  ...kitchenItemIcons,
   emergency_biscuit: itemEmergencyBiscuit,
   bento: itemBento,
   orange: itemOrange,

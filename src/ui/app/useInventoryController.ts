@@ -1,16 +1,10 @@
-import { useRef, useState } from 'react';
-import { shopCategories, type InventoryItemDefinition, type ShopCategory } from '../../core/pet';
+import { useState } from 'react';
+import { createItemBrowseState, type ItemBrowseCategory } from '../itemBrowse';
 
-export const useInventoryController = (items: readonly InventoryItemDefinition[]) => {
-  const [activeCategory, setActiveCategory] = useState<ShopCategory>('food');
-  const hasOpenedRef = useRef(false);
-
-  const prepareOpen = () => {
-    if (hasOpenedRef.current) return;
-    const firstNonEmpty = shopCategories.find((category) => items.some((item) => item.kind === category.id));
-    if (firstNonEmpty) setActiveCategory(firstNonEmpty.id);
-    hasOpenedRef.current = true;
+export const useInventoryController = () => {
+  const [browse, setBrowse] = useState(createItemBrowseState);
+  const prepareOpen = (category?: ItemBrowseCategory) => {
+    if (category) setBrowse((current) => ({ ...current, category, query: '', selectedId: undefined, quantity: 1 }));
   };
-
-  return { activeCategory, setActiveCategory, prepareOpen };
+  return { browse, setBrowse, prepareOpen };
 };

@@ -1,5 +1,8 @@
 import { t } from '../i18n';
 import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
+import { defaultKitchenState, normalizeKitchenState } from './kitchen';
+import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
+import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
 import { defaultPetBirthday, getLocalCalendarDate, normalizePetBirthday, normalizePetCalendarDate } from './dateRewards';
@@ -112,6 +115,9 @@ export const createDefaultPet = (now = Date.now()): PetState => ({
   coins: 30,
   hearts: 0,
   inventory: { emergency_biscuit: 1, golden_apple: 1 },
+  kitchen: defaultKitchenState(),
+  miniGames: defaultMiniGameState(),
+  companionMemories: defaultCompanionMemories(),
   lastDailyRewardAt: now,
   lastDailyEncounterAt: now,
   dailyEncounterDateKey: getDailyResetDateKey(now),
@@ -232,6 +238,7 @@ const normalizeClaimedDateRewardKeys = (raw: Record<string, unknown>) => {
 
 interface NormalizePetOptions {
   preserveExpiredPartnerSchedule?: boolean;
+  preserveMiniGameSession?: boolean;
 }
 
 export const normalizePet = (value: unknown, now = Date.now(), options: NormalizePetOptions = {}): PetState => {
@@ -317,6 +324,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const hasAchievementState = Boolean(raw.achievements && typeof raw.achievements === 'object' && !Array.isArray(raw.achievements));
   const baseCoins = clampCoins(isNumber(raw.coins) ? raw.coins : fallback.coins);
   const garden = normalizeGardenState(raw.garden, now, currentDailyDateKey);
+  const kitchen = normalizeKitchenState(raw.kitchen);
   const achievements = normalizeAchievementState(
     raw.achievements,
     now,
@@ -390,6 +398,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const partnerScheduleClaimCountsByCategory = { ...countersWithMigration.partnerScheduleClaimCountsByCategory };
   partnerScheduleCategories.forEach((category) => {
     const skill = partnerSchedule.skills[category];
+    if (category === 'cooking' && Object.keys(kitchen.made).length > 0) return;
     if (skill.level > 1 || skill.xp > 0) {
       partnerScheduleClaimCountsByCategory[category] = Math.max(partnerScheduleClaimCountsByCategory[category] ?? 0, 1);
     }
@@ -432,6 +441,9 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     coins: normalizedCoins,
     hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts),
     inventory: normalizedInventory,
+    kitchen,
+    miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: options.preserveMiniGameSession, level }),
+    companionMemories: normalizeCompanionMemories(raw.companionMemories),
     lastDailyRewardAt: isNumber(raw.lastDailyRewardAt) ? raw.lastDailyRewardAt : now,
     lastDailyEncounterAt: isNumber(raw.lastDailyEncounterAt)
       ? raw.lastDailyEncounterAt

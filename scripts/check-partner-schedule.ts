@@ -94,7 +94,7 @@ const level8 = createReadyPet(8);
 assert(level8.partnerSchedule.offers.some((offer) => getPartnerScheduleDefinition(offer.templateId)?.size === 'long'), 'Lv8 should receive a long offer');
 assert.deepEqual(
   ['short', 'standard', 'long'].map((size) => partnerScheduleDefinitions.find((item) => item.size === size)?.durationMinutes),
-  [45, 120, 240],
+  [20, 60, 120],
   'activity durations should use the unified real-time values',
 );
 assert.deepEqual(
@@ -229,6 +229,32 @@ assert.equal(fullBoardPet.partnerSchedule.completedOfferIds.length, 3, 'all thre
 const started = startPartnerSchedule(level3, offer.id, now);
 assert(started.partnerSchedule.active, 'schedule should start');
 assert.equal(started.partnerSchedule.active.endsAt - started.partnerSchedule.active.startedAt, definition.durationMinutes * minuteMs);
+for (const entry of partnerScheduleDefinitions) {
+  const oldMinutes = { short: 45, standard: 120, long: 240 }[entry.size];
+  for (const [level, multiplier] of [[1, 1], [5, .95], [9, .9]]) {
+    const pet = withCategorySkill(level8, entry.category, skill(level));
+    const preview = getPartnerScheduleOfferPreview(pet, entry, now);
+    const newDuration = Math.round(entry.durationMinutes * minuteMs * multiplier);
+    assert.equal(preview.durationMs, newDuration);
+    assert.ok(newDuration <= oldMinutes * minuteMs * multiplier / 2, 'every category and skill tier takes at most half the previous time');
+    const legacyActive = { ...started.partnerSchedule.active, templateId: entry.id, category: entry.category, size: entry.size, startedAt: now - 5 * minuteMs, endsAt: now - 5 * minuteMs + Math.round(oldMinutes * minuteMs * multiplier) };
+    const migrated = normalizePartnerScheduleState({ ...pet.partnerSchedule, schemaVersion: 5, active: legacyActive }, pet, now);
+    assert.equal(migrated.active?.endsAt, legacyActive.startedAt + newDuration);
+    assert.equal(migrated.active?.coinReward, legacyActive.coinReward);
+    assert.equal(migrated.active?.skillXp, legacyActive.skillXp);
+    assert.deepEqual(migrated.skills, pet.partnerSchedule.skills);
+    assert.deepEqual(migrated.offers, pet.partnerSchedule.offers);
+    assert.deepEqual(normalizePartnerScheduleState(migrated, pet, now), migrated, 'the v6 duration migration runs exactly once');
+    const finishedMigration = normalizePartnerScheduleState({ ...pet.partnerSchedule, schemaVersion: 5, active: legacyActive }, pet, legacyActive.startedAt + newDuration);
+    assert.equal(finishedMigration.active, undefined);
+    assert.equal(finishedMigration.pendingResult?.completedAt, legacyActive.startedAt + newDuration, 'elapsed time can make the shortened schedule claimable immediately');
+    const claimed = claimPartnerScheduleResult({ ...pet, partnerSchedule: finishedMigration }, 'coins', legacyActive.startedAt + newDuration);
+    assert.equal(claimed.partnerSchedule.pendingResult, undefined);
+    assert.equal(claimPartnerScheduleResult(claimed, 'coins', legacyActive.startedAt + newDuration).coins, claimed.coins, 'a migrated schedule cannot reward twice');
+    const alreadyExpired = normalizePartnerScheduleState({ ...pet.partnerSchedule, schemaVersion: 5, active: legacyActive }, pet, legacyActive.endsAt + minuteMs);
+    assert.equal(alreadyExpired.pendingResult?.completedAt, legacyActive.endsAt, 'already completed old schedules keep their actual completion time');
+  }
+}
 assert.equal(started.lastEnergyRecoveryAt, now, 'schedule start should reset the energy recovery baseline');
 
 const startStats = {
@@ -580,11 +606,11 @@ assert.equal(masterBonusClaimed.partnerSchedule.skills[masterBonusResult.categor
 assert.equal(masterBonusClaimed.partnerSchedule.completedOfferIds.length, 1);
 assert.equal(masterBonusClaimed.achievements.counters.partnerScheduleClaimCount, 1);
 
-const normalAchievementCount = achievementDefinitions.filter((achievement) => achievement.rarity === 'normal').length;
-const normalAchievementIds = achievementDefinitions.filter((achievement) => achievement.rarity === 'normal').map((achievement) => achievement.id);
+const normalAchievementIds = achievementDefinitions.filter((achievement) => achievement.rarity === 'normal' && achievement.category !== 'kitchen' && achievement.category !== 'play').map((achievement) => achievement.id);
+const normalAchievementCount = normalAchievementIds.length;
 const taskMaster = achievementDefinitions.find((achievement) => achievement.id === 'hidden_full_catalogue');
 const expectedTaskMasterTarget = Math.ceil(normalAchievementCount * taskMasterCompletionRatio);
-assert.equal(taskMaster?.target, expectedTaskMasterTarget, 'Task Master should require 80% of normal achievements');
+assert.equal(taskMaster?.target, expectedTaskMasterTarget, 'Task Master keeps the original normal-achievement pool when new activities are added');
 assert.equal(expectedTaskMasterTarget, 40, 'the current 50 normal achievements should produce a target of 40');
 const taskMasterBase = createReadyPet(1, now);
 const taskMasterStateWithCount = (count: number): PetState => ({
@@ -819,7 +845,8 @@ const migratedIndependent = normalizeLegacy({
   focusProgressMs: 0,
 });
 assert.equal(migratedIndependent.schemaVersion, partnerScheduleSchemaVersion);
-assert.equal(migratedIndependent.active?.endsAt, legacyIndependentEnd, 'v1 independent activity should preserve its end time');
+assert.equal(migratedIndependent.active, undefined);
+assert.equal(migratedIndependent.pendingResult?.completedAt, now - 7 * minuteMs, 'v1 independent time already spent counts toward the shortened duration');
 
 const migratedTogether = normalizeLegacy({
   ...legacyCommon,

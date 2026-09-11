@@ -321,7 +321,9 @@ export const loadStoredPetJson = (
   let pet: PetState;
   try {
     pet = { ...parsed, name: repairPetName(parsed.name, fallbackName) } as unknown as PetState;
-    normalizePet(pet, now, { preserveExpiredPartnerSchedule: true });
+    const normalized = normalizePet(pet, now, { preserveExpiredPartnerSchedule: true });
+    // Loading a save pauses games, while preserving raw calendar fields for offline settlement.
+    pet = { ...pet, miniGames: normalized.miniGames };
   } catch (error) {
     return { status: 'corrupt', raw, stage: 'migration', detail: String(error) };
   }

@@ -31,7 +31,7 @@ import type {
 } from './petTypes';
 import { hashString, isNumber } from './utils';
 
-export const partnerScheduleSchemaVersion = 5;
+export const partnerScheduleSchemaVersion = 6;
 export const partnerScheduleUnlockLevel = 3;
 export const partnerScheduleMaxSkillLevel = 10;
 export const partnerScheduleNeighborChancePercent = 30;
@@ -64,7 +64,7 @@ const categoryActivities: Record<PartnerScheduleCategory, RecentActivity> = {
 const sizeRules: Record<PartnerScheduleSize, Omit<PartnerScheduleDefinition, 'id' | 'category' | 'activity'>> = {
   short: {
     size: 'short',
-    durationMinutes: 45,
+    durationMinutes: 20,
     energyCost: 12,
     hungerCost: 4,
     moodCost: 2,
@@ -72,7 +72,7 @@ const sizeRules: Record<PartnerScheduleSize, Omit<PartnerScheduleDefinition, 'id
   },
   standard: {
     size: 'standard',
-    durationMinutes: 120,
+    durationMinutes: 60,
     energyCost: 30,
     hungerCost: 10,
     moodCost: 5,
@@ -80,7 +80,7 @@ const sizeRules: Record<PartnerScheduleSize, Omit<PartnerScheduleDefinition, 'id
   },
   long: {
     size: 'long',
-    durationMinutes: 240,
+    durationMinutes: 120,
     energyCost: 55,
     hungerCost: 18,
     moodCost: 8,
@@ -243,7 +243,7 @@ const getNormalizedCoinReward = (rawReward: unknown, level: number, size: Partne
 const getNormalizedTrophyRewardMultiplier = (value: unknown) =>
   isNumber(value) && validTrophyRewardMultipliers.has(value) ? value : 1;
 
-const normalizeActive = (value: unknown, level: number, now: number, allowNeighbor = false): ActivePartnerSchedule | undefined => {
+const normalizeActive = (value: unknown, level: number, now: number, allowNeighbor = false, shortenLegacyDuration = false): ActivePartnerSchedule | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const raw = value as Record<string, unknown>;
   const definition = typeof raw.templateId === 'string' ? definitionMap.get(raw.templateId) : undefined;
@@ -269,6 +269,11 @@ const normalizeActive = (value: unknown, level: number, now: number, allowNeighb
       savedStartedAt,
       Math.min(savedStartedAt + maxScheduleDurationMs, isNumber(raw.endsAt) ? Math.floor(raw.endsAt) : fallbackEndsAt),
     );
+    if (shortenLegacyDuration && isNumber(raw.endsAt) && endsAt > now) {
+      // Keep time already spent; schema v6 makes this a one-time migration.
+      const oldMinutes = { short: 45, standard: 120, long: 240 }[definition.size];
+      endsAt = savedStartedAt + Math.round((endsAt - savedStartedAt) * definition.durationMinutes / oldMinutes);
+    }
   }
 
   return {
@@ -352,7 +357,7 @@ export const normalizePartnerScheduleState = (
     ? Array.from(new Set(raw.completedOfferIds.filter((id): id is string => typeof id === 'string').map((id) => id.slice(0, 128)))).slice(0, partnerScheduleDailyCompletionLimit)
     : [];
   let pendingResult = normalizeResult(raw.pendingResult, pet.level, now, sourceSchemaVersion >= partnerScheduleNeighborSchemaVersion);
-  let active = pendingResult ? undefined : normalizeActive(raw.active, pet.level, now, sourceSchemaVersion >= partnerScheduleNeighborSchemaVersion);
+  let active = pendingResult ? undefined : normalizeActive(raw.active, pet.level, now, sourceSchemaVersion >= partnerScheduleNeighborSchemaVersion, sourceSchemaVersion < 6);
   if (settleExpired && active && active.endsAt <= now) {
     pendingResult = {
       offerId: active.offerId,
@@ -601,7 +606,7 @@ const partnerScheduleSkillXpNeededByLevel = [40, 60, 90, 130, 180, 260, 360, 480
 export const getPartnerScheduleSkillXpNeeded = (level: number) =>
   level >= partnerScheduleMaxSkillLevel ? 0 : partnerScheduleSkillXpNeededByLevel[Math.max(1, Math.floor(level)) - 1] ?? 0;
 
-const addSkillXp = (skill: PartnerScheduleSkill, amount: number): PartnerScheduleSkill => {
+export const addSkillXp = (skill: PartnerScheduleSkill, amount: number): PartnerScheduleSkill => {
   let level = skill.level;
   let xp = skill.xp + Math.max(0, amount);
   while (level < partnerScheduleMaxSkillLevel) {

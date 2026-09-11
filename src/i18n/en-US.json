@@ -204,7 +204,12 @@
         "importBackupMissing": "No pre-import backup is available.",
         "generated": "Save text generated.",
         "saved": "Save exported to the selected file.",
-        "downloadStarted": "Save download started.",
+        "downloadStarted": "Download requested. Check your browser's downloads for the file.",
+        "saveToPhone": "Save to phone",
+        "shareFile": "Share file to device",
+        "fileShared": "The file was handed to the system. Confirm it is saved in the receiving app.",
+        "phoneSaveFailed": "Could not share the save file. Try downloading it directly or copy the save text.",
+        "phoneDownloadRequested": "Download requested. If no file appears, try sharing the file to your device or copying the save text.",
         "saveCancelled": "Save export cancelled.",
         "saveFailed": "Failed to save the save file.",
         "imported": "Save imported.",
@@ -660,6 +665,7 @@
       "skillsAria": "Activity proficiency",
       "skillLevel": "Proficiency Lv.{level}",
       "skillProgress": "Lv.{level} · {xp}/{needed}",
+      "kitchenHearts": "Cooking hearts +{percent}% · +10% per level",
       "passives": {
         "level2": "Lv.2: Energy cost -10% for this category",
         "level4": "Lv.4: Hunger and mood costs -10%",
@@ -2041,6 +2047,42 @@
         "hidden_full_catalogue": {
           "title": "Task Master",
           "description": "Complete at least 80% of normal achievements to unlock."
+        },
+        "kitchen_first": {
+          "title": "A warm first bite",
+          "description": "Make your first homemade dish."
+        },
+        "kitchen_three": {
+          "title": "Three little flavors",
+          "description": "Make 3 different base recipes."
+        },
+        "kitchen_eight": {
+          "title": "Eight flavors",
+          "description": "Make the first 8 introductory recipes in the cookbook."
+        },
+        "kitchen_thirty": {
+          "title": "At home in the kitchen",
+          "description": "Make 30 servings in total."
+        },
+        "kitchen_methods": {
+          "title": "A little of everything",
+          "description": "Make a recipe by mixing, pan, blender, and oven."
+        },
+        "kitchen_tastes": {
+          "title": "Three shared dishes",
+          "description": "Feed your companion 3 different homemade recipes."
+        },
+        "play_matching": {
+          "title": "A little shared memory",
+          "description": "Finish a matching game, with or without assistance."
+        },
+        "play_catch": {
+          "title": "Here comes the ball",
+          "description": "Finish ten rounds of catch. Missing is okay."
+        },
+        "play_bubbles": {
+          "title": "A moment in a bubble",
+          "description": "Complete a bubble session and share a little calm time."
         }
       }
     },

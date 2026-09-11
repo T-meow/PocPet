@@ -183,6 +183,7 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number): PetS
   return {
     ...pet,
     lastUpdatedAt: shiftTimestamp(pet.lastUpdatedAt, offsetMs),
+    miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: { ...pet.miniGames.active, paused: true, lastTickAt: 0, throwAt: 0, blowingAt: 0 } } : pet.miniGames,
     recentActivityUntil: shiftTimestamp(pet.recentActivityUntil, offsetMs),
     lastEnergyRecoveryAt: shiftTimestamp(pet.lastEnergyRecoveryAt, offsetMs),
     sleepStartedAt: shiftTimestamp(pet.sleepStartedAt, offsetMs),

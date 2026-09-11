@@ -74,6 +74,9 @@ jobs:
           npm run check:release
           npm run check:save-recovery
           npm run check:mint-compat
+          npm run check:companion-activities
+          npm run check:partner-schedule
+          npm run check:stat-scaling-batch
           npm run check:offline-lifecycle
           npm run check:toy
           npm run check:updates
