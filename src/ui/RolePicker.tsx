@@ -21,7 +21,7 @@ interface RolePickerProps {
 const defaultRolePetImage = resolvePetStatusImages(null).content;
 
 export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoading = false, onUseBuiltin, onUseBuiltinMod, onUseInstalledMod, onImportMod, onAudioToggle }: RolePickerProps) => (
-  <main className="app-shell app-shell--role-picker">
+  <main className="app-shell app-shell--role-picker ui-v2-app">
     <section className="role-picker" aria-label={t('ui.rolePicker.aria')}>
       <div className="role-picker__header">
         <p className="eyebrow">{t('ui.brand.eyebrow')}</p>

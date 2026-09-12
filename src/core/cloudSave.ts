@@ -1,11 +1,13 @@
 import type { PetState } from './pet';
-import { createSaveFilePlainText, parseSaveFileText, type PocPetImportedSave, type PocPetSaveModSummary } from './saveCodec';
+import { createSaveFilePlainText, decodeSaveSnapshot, parseSaveFileText, UnsupportedSaveVersionError, type PocPetImportedSave, type PocPetSaveModSummary } from './saveCodec';
+import { t } from '../i18n';
 import type { ToyCloudStorage } from '../platform/toySdk';
 
 export const cloudSaveSchemaVersion = 1 as const;
-export const cloudSaveChunkSize = 960;
+export const cloudSaveChunkSize = 1024;
 export const cloudSaveMaxChunksPerGeneration = 60;
 export const cloudSaveMaxEncodedLength = cloudSaveChunkSize * cloudSaveMaxChunksPerGeneration;
+export const cloudSaveMaxPlainBytes = 512 * 1024;
 export const cloudSaveActiveKey = 'pocpet-save-active-v1';
 export const authorFollowGiftCloudKey = 'pocpet-author-follow-gift-v2';
 export type CloudSaveGeneration = 'a' | 'b';
@@ -17,6 +19,7 @@ export interface CloudSaveManifestV1 {
   chunkCount: number;
   encodedLength: number;
   checksum: string;
+  contentChecksum?: string;
   uploadedAt: string;
   petName: string;
   petLevel: number;
@@ -67,6 +70,7 @@ const readManifest = (text: string | undefined, expectedGeneration: CloudSaveGen
     const value: unknown = JSON.parse(text);
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
     const raw = value as Record<string, unknown>;
+    if (typeof raw.schemaVersion === 'number' && raw.schemaVersion > cloudSaveSchemaVersion) throw new UnsupportedSaveVersionError(t('ui.settings.cloud.newerVersion'));
     if (
       raw.schemaVersion !== cloudSaveSchemaVersion
       || raw.generation !== expectedGeneration
@@ -96,6 +100,7 @@ const readManifest = (text: string | undefined, expectedGeneration: CloudSaveGen
       chunkCount: raw.chunkCount,
       encodedLength: raw.encodedLength,
       checksum: raw.checksum,
+      contentChecksum: typeof raw.contentChecksum === 'string' && /^[0-9a-f]{8}$/.test(raw.contentChecksum) ? raw.contentChecksum : undefined,
       uploadedAt: new Date(raw.uploadedAt).toISOString(),
       petName: raw.petName.slice(0, 32),
       petLevel: Math.max(1, Math.floor(raw.petLevel)),
@@ -110,7 +115,8 @@ const readManifest = (text: string | undefined, expectedGeneration: CloudSaveGen
           }
         : undefined,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof UnsupportedSaveVersionError) throw error;
     return undefined;
   }
 };
@@ -121,9 +127,17 @@ const loadZipText = async (base64: string) => {
   const files = Object.values(zip.files).filter((file) => !file.dir);
   if (files.length !== 1 || files[0].name !== 'save.json') throw new Error('Cloud save archive has invalid contents.');
   const text = await files[0].async('string');
-  if (new TextEncoder().encode(text).length > 512 * 1024) throw new Error('Cloud save expands beyond the safety limit.');
+  if (new TextEncoder().encode(text).length > cloudSaveMaxPlainBytes) throw new Error('Cloud save expands beyond the safety limit.');
   return text;
 };
+
+const canonicalValue = (value: unknown): unknown => Array.isArray(value) ? value.map(canonicalValue)
+  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => [key, canonicalValue(entry)])) : value;
+const cloudContentText = (plainText: string) => {
+  const { exportedAt: _exportedAt, ...snapshot } = JSON.parse(plainText);
+  return JSON.stringify(canonicalValue(snapshot));
+};
+export const getCloudContentChecksum = (plainText: string) => checksumText(cloudContentText(plainText));
 
 export const encodeCloudSave = async (
   pet: PetState,
@@ -131,6 +145,8 @@ export const encodeCloudSave = async (
   now = Date.now(),
 ) => {
   const plainText = createSaveFilePlainText(pet, activeMod, now);
+  if (new TextEncoder().encode(plainText).length > cloudSaveMaxPlainBytes) throw new Error(t('ui.settings.cloud.tooLarge'));
+  decodeSaveSnapshot(plainText);
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   zip.file('save.json', plainText);
@@ -140,13 +156,14 @@ export const encodeCloudSave = async (
     compressionOptions: { level: 9 },
   });
   if (encoded.length > cloudSaveMaxEncodedLength) {
-    throw new Error(`Cloud save is too large (${encoded.length}/${cloudSaveMaxEncodedLength} characters).`);
+    throw new Error(t('ui.settings.cloud.tooLarge'));
   }
   return {
     encoded,
     chunks: Array.from({ length: Math.ceil(encoded.length / cloudSaveChunkSize) }, (_, index) =>
       encoded.slice(index * cloudSaveChunkSize, (index + 1) * cloudSaveChunkSize)),
     checksum: checksumText(encoded),
+    contentChecksum: getCloudContentChecksum(plainText),
     plainText,
   };
 };
@@ -176,6 +193,7 @@ const readGeneration = async (
     plainText = await loadZipText(encoded);
     imported = parseSaveFileText(plainText, now);
   } catch (error) {
+    if (error instanceof UnsupportedSaveVersionError) throw error;
     const message = error instanceof Error ? error.message : 'Cloud save payload could not be decoded.';
     throw new InvalidCloudSaveGenerationError(message);
   }
@@ -231,6 +249,7 @@ export const restoreCloudSave = async (storage: ToyCloudStorage, now = Date.now(
       );
       return { ...result, recoveredFromPrevious: index > 0 || status.usedFallbackManifest };
     } catch (error) {
+      if (!(error instanceof InvalidCloudSaveGenerationError)) throw error;
       firstError ??= error;
     }
   }
@@ -271,16 +290,13 @@ const selectUploadGeneration = async (storage: ToyCloudStorage, now: number): Pr
     b: readManifest(stored[manifestKey('b')], 'b'),
   };
 
-  if (requested) {
-    return await isGenerationUsable(storage, requested, manifests[requested], now)
-      ? otherGeneration(requested)
-      : requested;
-  }
-
+  // Validate both copies before choosing a write target: an inactive copy may
+  // contain progress from a newer client after its final activation was interrupted.
   const usable: CloudSaveGeneration[] = [];
   for (const generation of ['a', 'b'] as const) {
     if (await isGenerationUsable(storage, generation, manifests[generation], now)) usable.push(generation);
   }
+  if (requested) return usable.includes(requested) ? otherGeneration(requested) : requested;
   if (usable.length === 1) return otherGeneration(usable[0]);
   if (usable.length === 2) {
     const newest = Date.parse(manifests.a!.uploadedAt) >= Date.parse(manifests.b!.uploadedAt) ? 'a' : 'b';
@@ -294,9 +310,18 @@ export const uploadCloudSave = async (
   pet: PetState,
   activeMod?: PocPetSaveModSummary | null,
   now = Date.now(),
-): Promise<CloudSaveManifestV1> => {
-  const generation = await selectUploadGeneration(storage, now);
+): Promise<CloudSaveManifestV1 & { unchanged?: boolean }> => {
   const payload = await encodeCloudSave(pet, activeMod, now);
+  const generation = await selectUploadGeneration(storage, now);
+  const status = await getCloudSaveStatus(storage);
+  if (status.activeGeneration && status.manifest?.contentChecksum === payload.contentChecksum) {
+    try {
+      const existing = await readGeneration(storage, status.activeGeneration, status.manifest, now);
+      if (cloudContentText(existing.plainText) === cloudContentText(payload.plainText)) return { ...status.manifest, unchanged: true };
+    } catch (error) {
+      if (!(error instanceof InvalidCloudSaveGenerationError)) throw error;
+    }
+  }
   const manifest: CloudSaveManifestV1 = {
     schemaVersion: cloudSaveSchemaVersion,
     generation,
@@ -304,6 +329,7 @@ export const uploadCloudSave = async (
     chunkCount: payload.chunks.length,
     encodedLength: payload.encoded.length,
     checksum: payload.checksum,
+    contentChecksum: payload.contentChecksum,
     uploadedAt: new Date(now).toISOString(),
     petName: pet.name.slice(0, 32),
     petLevel: pet.level,
@@ -311,8 +337,12 @@ export const uploadCloudSave = async (
       ? { id: activeMod.id, name: activeMod.name, version: activeMod.version }
       : undefined,
   };
+  const manifestText = JSON.stringify(manifest);
+  if (new TextEncoder().encode(manifestText).length > 1024) throw new Error(t('ui.settings.cloud.tooLarge'));
   await writeInBatches(storage, payload.chunks.map((chunk, index) => [chunkKey(generation, index), chunk]));
-  await storage.setCloudStorage({ [manifestKey(generation)]: JSON.stringify(manifest) });
+  await storage.setCloudStorage({ [manifestKey(generation)]: manifestText });
+  const writtenManifest = await storage.getCloudStorage([manifestKey(generation)]);
+  if (writtenManifest[manifestKey(generation)] !== manifestText) throw new InvalidCloudSaveGenerationError('Cloud save manifest failed read-back verification.');
   await readGeneration(storage, generation, manifest, now);
   await storage.setCloudStorage({ [cloudSaveActiveKey]: generation });
 

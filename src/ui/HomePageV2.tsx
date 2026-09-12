@@ -1,12 +1,14 @@
-import { ArrowUpRight, Bath, BookHeart, BriefcaseBusiness, CalendarDays, ChefHat, Gamepad2, Gift, LockKeyhole, Moon, PackageOpen, ShoppingBag, Smile, Sparkles, Sprout, Ticket, Timer, Trophy } from 'lucide-react';
-import { getDailyWishView, getEnergyRecoveryInfo, getPetEnergyCap, getPetStatCap, getReturnWelcomeView, partnerScheduleUnlockLevel } from '../core/pet';
+import { ArrowUpRight, Bath, BriefcaseBusiness, CalendarDays, ChefHat, Gamepad2, Gift, LockKeyhole, Moon, PackageOpen, ShoppingBag, Smile, Sparkles, Sprout, Ticket, Timer, Trophy } from 'lucide-react';
+import { canClaimBoostCardDailyReward, getDailyWishView, getReturnWelcomeView, partnerScheduleUnlockLevel } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
-import { getCompanionWish, memoryText } from '../core/companionMemories';
+import { getCompanionWish } from '../core/companionMemories';
 import { gameName, miniGameUnlockLevel } from '../core/miniGames';
 import { AdventureEntry, type AdventureEntryState } from './AdventureEntry';
 import { t } from '../i18n';
 import { PetDisplay } from './PetDisplay';
 import { PartnerScheduleDock } from './PartnerScheduleDock';
+import { CompanionStatus } from './CompanionStatus';
+import { MemoryCover } from './MemoryCover';
 import type { HomePageProps } from './HomePage';
 
 interface Props extends HomePageProps {
@@ -18,6 +20,10 @@ interface Props extends HomePageProps {
   onOpenMemories: () => void;
   onOpenShop: () => void;
   onOpenAchievements: () => void;
+  onOpenNotices?: () => void;
+  onOpenAppearance?: () => void;
+  memoryImage?: string;
+  memoryArtUnlocked?: boolean;
 }
 export const HomePageV2 = (props: Props) => {
   const { pet, actorId, neighbors, onInteract, canUpgrade, nextUpgradeCost, onUpgrade, pomodoroOverlay, petStatusImages, petActivityImages, getStatusLabel, onOpenInventory, onOpenPlay, onOpenKitchen, onOpenGarden, onOpenPartnerSchedule, onOpenPomodoro, onDailyWish, onReturnWelcome, onAction, onOpenMemories } = props;
@@ -25,18 +31,8 @@ export const HomePageV2 = (props: Props) => {
   const wish = getDailyWishView(pet);
   const welcome = getReturnWelcomeView(pet);
   const companionWish = getCompanionWish(pet, actorId);
-  const today = !wish.claimed || Boolean(welcome) || Boolean(pet.partnerSchedule.pendingResult) || Boolean(companionWish);
-  const energy = getEnergyRecoveryInfo(pet);
-  const statCap = getPetStatCap(pet);
-  const stats = [
-    { key: 'hunger', label: t('ui.stats.hunger'), value: pet.hunger, max: statCap, icon: '🍙' },
-    { key: 'mood', label: t('ui.stats.mood'), value: pet.mood, max: statCap, icon: '☀️' },
-    { key: 'cleanliness', label: t('ui.stats.cleanliness'), value: pet.cleanliness, max: statCap, icon: '💧' },
-    { key: 'energy', label: t('ui.stats.energy'), value: pet.energy, max: getPetEnergyCap(pet), icon: '⚡' },
-    { key: 'health', label: t('ui.stats.health'), value: pet.health, max: statCap, icon: '🌿' },
-  ];
-  const memories = pet.companionMemories.entries.filter((entry) => entry.actorId === actorId);
-  const latestMemory = memories[memories.length - 1];
+  const friendGiftReady = canClaimBoostCardDailyReward(pet);
+  const today = !wish.claimed || Boolean(welcome) || Boolean(pet.partnerSchedule.pendingResult) || Boolean(props.gardenReminder) || friendGiftReady;
   const activeGame = pet.miniGames.active?.actorId === actorId ? pet.miniGames.active : undefined;
   const playLocked = pet.level < miniGameUnlockLevel;
   const quickPlayBlocked = busy || props.isLowEnergy || props.isCriticallyHungry;
@@ -49,8 +45,8 @@ export const HomePageV2 = (props: Props) => {
       : props.isCriticallyHungry ? t('ui.actionDock.lowHunger')
         : props.isLowEnergy ? t('ui.actionDock.lowEnergy') : L('赚一点零花钱', 'A little pocket money');
   return <div className="home-v2"><div className="home-v2-title"><div><p>OUR LITTLE HOME</p><h2>{L(`${pet.name} 的小窝`, `${pet.name}’s little home`)}</h2></div><span>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} together`)}</span></div>
-    <div className="home-v2-grid"><section className="home-companion-card"><div className="home-room"><div className="home-room-window" aria-hidden="true"><i /><i /><i /><i /></div><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} /></div><div className="home-event" aria-live="polite"><span>✦</span><p>{pet.recentEvent}</p></div>
-      <details className="home-stats"><summary><div className="home-stat-strip">{stats.map((stat) => <div className={`home-stat home-stat--${stat.key}`} key={stat.key}><span>{stat.icon} {stat.label}</span><strong>{Math.round(stat.value)}<small>/{Math.round(stat.max)}</small></strong><i><b style={{ width: `${Math.max(0, Math.min(100, stat.value / stat.max * 100))}%` }} /></i></div>)}</div><small>{L('点开查看状态与恢复时间', 'See status and recovery details')}</small></summary><p>{energy.isFull ? L('体力已充足', 'Energy is full') : energy.isPaused ? L('体力恢复暂时停下了', 'Energy recovery is paused') : L(`下一点体力约 ${Math.ceil(energy.remainingMs / 1000)} 秒后恢复`, `Next energy point in about ${Math.ceil(energy.remainingMs / 1000)} seconds`)} · {L('状态会随着陪伴自然变化，慢慢照顾就好。', 'Your companion’s needs change naturally. Take care at your own pace.')}</p></details>
+    <div className="home-v2-grid"><section className="home-companion-card"><div className="home-room"><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} onOpenAppearance={props.onOpenAppearance} /></div><button className="home-event" onClick={props.onOpenNotices} aria-label={L('查看完整消息', 'Read full message')}><span>✦</span><p>{pet.recentEvent}</p><span>›</span></button>
+      <CompanionStatus pet={pet} />
       <nav className="home-care-bar" aria-label={L('日常照顾', 'Daily care')}>
         <button onClick={onOpenInventory}><PackageOpen size={20} />{L('背包 / 喂食', 'Bag / Feed')}</button>
         <button disabled={quickPlayBlocked} title={quickPlayHint} onClick={() => onAction('play')}><Smile size={20} />{L('玩耍', 'Play')}</button>
@@ -72,6 +68,11 @@ export const HomePageV2 = (props: Props) => {
             <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : L('翻牌、接球，或吹一会儿泡泡', 'Cards, catch, or a few bubbles')}</small>
           </button>
         </div>
+        <nav className="home-tools" aria-label={L('常用工具', 'Everyday essentials')}>
+          <button data-tone="peach" onClick={props.onOpenShop}><ShoppingBag size={20} /><span>{L('商店', 'Shop')}</span></button>
+          <button data-tone="rose" onClick={props.onOpenBoostCards}><Ticket size={20} /><span>{L('朋友卡', 'Friend cards')}</span></button>
+          <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span></button>
+        </nav>
         <div className="home-quick-grid">
           <button className="home-quick garden" onClick={onOpenGarden}><Sprout /><strong>{L('花园', 'Garden')}</strong><small>{props.gardenReminder === 'ready' ? L('有果实可以收获啦', 'Ready to harvest') : props.gardenReminder === 'withered' ? L('有植物需要照顾', 'A plant needs care') : L('照顾小小绿意', 'A little greenery')}</small></button>
           <button className="home-quick schedule" disabled={pet.level < partnerScheduleUnlockLevel} onClick={onOpenPartnerSchedule}>
@@ -81,12 +82,8 @@ export const HomePageV2 = (props: Props) => {
           <button className="home-quick work" disabled={workBlocked} title={workHint} onClick={() => onAction('work')}><BriefcaseBusiness /><strong>{L('打工', 'Work')}</strong><small>{workHint}</small></button>
         </div>
         <AdventureEntry entry={props.adventure} />
+        {companionWish && <p className="home-companion-wish"><span>💭</span>{companionWish}</p>}
       </section>
-      <nav className="home-tools" aria-label={L('常用工具', 'Everyday essentials')}>
-        <button data-tone="peach" onClick={props.onOpenShop}><ShoppingBag size={20} /><span>{L('商店', 'Shop')}</span></button>
-        <button data-tone="rose" onClick={props.onOpenBoostCards}><Ticket size={20} /><span>{L('搭子卡', 'Companion passes')}</span></button>
-        <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span></button>
-      </nav>
       <section className="home-records">
         <div className="home-section-title"><h3>{L('慢慢积攒的故事', 'Little stories, collected')}</h3></div>
         <nav className="home-record-grid" aria-label={L('记录与成长', 'Memories and growth')}>
@@ -94,19 +91,19 @@ export const HomePageV2 = (props: Props) => {
             <Trophy size={20} /><strong>{L('成就', 'Achievements')}</strong><small className={props.hasAchievementNotice ? 'home-notice-text' : undefined}>{props.hasAchievementNotice ? L('有奖励待领取', 'Rewards to claim') : L('每一步都算数', 'Every little step')}</small>
           </button>
           <button data-tone="sky" onClick={props.onOpenCommonDreams}><Sparkles size={20} /><strong>{L('伙伴梦想', 'Dreams')}</strong><small>{L('一起期待的未来', 'A future together')}</small></button>
-          <button data-tone="mint" onClick={onOpenMemories} title={latestMemory ? memoryText(latestMemory) : undefined}>
-            <BookHeart size={20} /><strong>{L('纪念册', 'Album')}</strong><small>{memories.length ? L(`${memories.length} 段共同回忆`, `${memories.length} shared memories`) : L('收藏我们的日常', 'Our days, remembered')}</small>
-          </button>
         </nav>
       </section>
       <p className="home-quiet-note">{L('把普通的每一天，过成喜欢的样子。', 'A little life, made brighter together.')}</p>
+      <MemoryCover days={Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} image={props.memoryImage ?? petStatusImages?.content ?? ''} unlocked={Boolean(props.memoryArtUnlocked)} onOpen={onOpenMemories} />
     </aside>
     {today && <section className="home-today">
       <div className="home-section-title"><h3>{L('今日小事', 'Little things today')}</h3><small>{L('什么时候都可以', 'Whenever you feel like it')}</small></div>
       {!wish.claimed && <button className="home-todo" disabled={busy && !wish.canClaim} onClick={onDailyWish}><span>💌</span><div><strong>{wish.title}</strong><small>{wish.progressText} · {wish.rewardText}</small></div><b>›</b></button>}
       {welcome && <button className="home-todo" disabled={busy && !welcome.canClaim} onClick={onReturnWelcome}><span>🌼</span><div><strong>{welcome.title}</strong><small>{welcome.progressText} · {welcome.rewardText}</small></div><b>›</b></button>}
       {pet.partnerSchedule.pendingResult && <button className="home-todo" onClick={onOpenPartnerSchedule}><span>🧺</span><div><strong>{L('伙伴带着收获回来啦', 'Your companion is back')}</strong><small>{L('看看这次日程的小收获', 'See what they brought back')}</small></div><b>›</b></button>}
-      {companionWish && <p className="home-companion-wish"><span>💭</span>{companionWish}</p>}
+      {friendGiftReady && <button className="home-todo" onClick={props.onOpenBoostCards}><span>🎁</span><div><strong>{L('邻居的小礼物', 'A little gift from next door')}</strong><small>{L('朋友卡今日礼物和金币待领取', 'Your daily friend card gift and coins are ready')}</small></div><b>›</b></button>}
+      {props.gardenReminder === 'ready' && <button className="home-todo" onClick={onOpenGarden}><span>🌱</span><div><strong>{L('花园有好消息', 'Good news from the garden')}</strong><small>{L('有果实可以收获啦', 'Ready to harvest')}</small></div><b>›</b></button>}
+      {props.gardenReminder === 'withered' && <button className="home-todo" onClick={onOpenGarden}><span>🌿</span><div><strong>{L('小花园需要照顾', 'A little garden care')}</strong><small>{L('看看枯萎的植物，安排下一次种植', 'Check a wilted plant and plan your next planting')}</small></div><b>›</b></button>}
     </section>}
     </div>
   </div>;

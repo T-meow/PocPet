@@ -65,8 +65,12 @@ export const saveShareImage = async (
     if (hasAppOnlyAbility) throw new Error(t('ui.share.albumUnsupported'));
   }
 
+  const isPng = /^data:image\/png[;,]/i.test(dataUrl);
+  const extension = isPng ? 'png' : 'jpg';
+  const imageFileName = fileName.replace(/\.(?:png|jpe?g)$/i, '') + `.${extension}`;
+
   if (!('__TAURI_INTERNALS__' in window)) {
-    downloadImage(fileName, dataUrl);
+    downloadImage(imageFileName, dataUrl);
     return 'downloaded';
   }
 
@@ -75,8 +79,8 @@ export const saveShareImage = async (
     import('@tauri-apps/plugin-fs'),
   ]);
   const destination = await save({
-    defaultPath: fileName,
-    filters: [{ name: 'JPEG Image', extensions: ['jpg', 'jpeg'] }],
+    defaultPath: imageFileName,
+    filters: [{ name: isPng ? 'PNG Image' : 'JPEG Image', extensions: isPng ? ['png'] : ['jpg', 'jpeg'] }],
   });
   if (!destination) return 'cancelled';
   await writeFile(destination, dataUrlToBytes(dataUrl));

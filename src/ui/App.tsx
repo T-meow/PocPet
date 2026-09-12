@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { CloudUpload, Heart, Settings, Ticket, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { Bell, Flower2, Palette, ShoppingBag, CloudUpload, Heart, Settings, Ticket, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buyBoostCard,
   authorFollowGiftRewardId,
@@ -26,6 +26,7 @@ import {
   defaultPetName,
   dismissYearReview,
   getAchievementSummary,
+  getAchievementViews,
   gardenCompensationCoins,
   gardenCompensationRewardId,
   getNextUpgradeHeartCost,
@@ -130,7 +131,6 @@ import { HomePageV2 as HomePage } from './HomePageV2';
 import { KitchenModal } from './KitchenModal';
 import { PlayModal } from './PlayModal';
 import { DialogShell } from './DialogShell';
-import { CompanionMemories } from './CompanionMemories';
 import { useCompanionActivities } from './app/useCompanionActivities';
 import { claimKitchenStarter } from '../core/kitchen';
 import { pauseMiniGame, resumeMiniGame } from '../core/miniGames';
@@ -163,6 +163,10 @@ import { assertStorageUnchanged, getStoredSaveIdentity, setStoredSaveIdentity } 
 import type { BackupSnapshot } from '../platform/automaticBackup';
 import { collectRecoveryCandidates, readRecoveryCandidate, type SaveRecoveryCandidate } from '../platform/saveRecovery';
 import { SaveRecovery } from './SaveRecovery';
+import { useAppearance } from './app/useAppearance';
+import { NoticeCenter, useNotices } from './NoticeCenter';
+import { MemoryAlbum } from './MemoryAlbum';
+import { isAlbumArtworkUnlocked } from './albumData';
 
 const getPomodoroRemainingMs = (pet: PetState) =>
   pet.pomodoro.isRunning ? pet.pomodoro.phaseEndsAt - Date.now() : pet.pomodoro.pausedRemainingMs;
@@ -189,12 +193,13 @@ type SoundOutcome = 'success' | 'blocked' | 'heart' | 'low_state';
 type RewardPopup = RewardPopupData;
 type RewardDisplayItem = { key: string; icon?: string; glyph?: 'heart' | 'ticket'; label: string; title?: string };
 type WishQuickAction = PetState['dailyWish']['action'] | NonNullable<PetState['returnWelcome']>['action'];
-type AchievementCgPopup = { title: string; description: string; image: string; fileName: string };
+type AchievementCgPopup = { cgId: string; title: string; description: string; image: string; fileName: string };
 type PendingImageSave =
   | { kind: 'profile' }
   | { kind: 'year'; review: YearReview }
   | { kind: 'gacha'; machine: GachaMachine; results: GachaResult[] }
-  | { kind: 'achievement'; fileName: string; imageUrl: string };
+  | { kind: 'album'; fileName: string; imageUrl: string }
+  | { kind: 'achievement'; cgId: string; fileName: string; imageUrl: string };
 type PetAppProps = {
   initialPet: PetState;
   initialPersistenceError?: string;
@@ -273,7 +278,7 @@ const createNeighborEventContext = (
   const registry = createItemRegistry(activeMod);
   return {
     neighbors: getNeighborIdentities(installedMods, activeMod?.manifest.id),
-    giftCandidates: getShopDefinitions(registry).map((item) => ({
+      giftCandidates: getShopDefinitions(registry).filter((item) => !item.purchaseContents).map((item) => ({
       itemId: item.id,
       displayName: item.displayName,
       price: item.price,
@@ -303,6 +308,8 @@ const loadInitialAppState = () => {
 };
 
 const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initialInstalledMods, onResetToPicker }: PetAppProps) => {
+  const appearanceController = useAppearance();
+  const notices = useNotices();
   const {
     activePage,
     isHomeRef,
@@ -357,11 +364,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       price: item.price,
     })),
   }), [itemRegistry, neighbors]);
-  const { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError);
+  const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
   const actorId = activeMod?.manifest.id ?? 'official.furo';
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
   const updateController = useClientUpdates();
-  const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => (features.cloudSave || updateController.supported) && shouldShowEditionNotice(readEditionNotice()));
+  const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => shouldShowEditionNotice(readEditionNotice()));
   const completedFocusCountRef = useRef(pet.pomodoro.completedFocusCount);
   const lastHeartExchangeAtRef = useRef(0);
   const [isHeartExchangeCoolingDown, setHeartExchangeCoolingDown] = useState(false);
@@ -370,7 +377,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const isShopOpen = utilityDialog === 'shop';
   const isBoostCardOpen = utilityDialog === 'boostCards';
   const isGachaOpen = utilityDialog === 'gacha';
-  const isSettingsOpen = utilityDialog === 'settings';
+  const isSettingsOpen = activePage === 'settings';
+  const openSettings = (page: SettingsPage = 'main') => { playAfterUnlock('open'); setDraftName(pet.name); setDraftBirthday(pet.birthday); setSettingsInitialPage(page); setActivePage('settings'); };
 
   const requestImageSave = (request: PendingImageSave) => {
     if (!features.shareCards && request.kind !== 'achievement') return;
@@ -400,6 +408,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const petStatusImageMap = useMemo(() => resolvePetStatusImages(activeMod), [activeMod]);
   const petActivityImageMap = useMemo(() => resolvePetActivityImages(activeMod), [activeMod]);
   const activityHappyPortrait = (activeMod ? activeMod.petImageUrls.happy : petActivityImageMap.happy) ?? petStatusImageMap.content;
+  const memoryAchievement = getAchievementViews(pet).find((entry) => isAlbumArtworkUnlocked(pet, entry));
+  const memoryCgId = memoryAchievement?.reward.cgId;
+  const memoryArt = memoryCgId ? activeMod?.cgImageUrls[memoryCgId as keyof typeof activeMod.cgImageUrls] ?? achievementCgImages[memoryCgId] : undefined;
   const activityWorkingPortrait = (activeMod ? activeMod.petImageUrls.work_food : petActivityImageMap.work_food) ?? petStatusImageMap.content;
   const displayInventoryItems = useMemo(() => getInventoryDefinitions(itemRegistry, pet.inventory), [itemRegistry, pet.inventory]);
   const inventoryController = useInventoryController();
@@ -429,12 +440,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     void unlockAudio().then(() => playSfx(id));
   };
 
-  const gardenController = useGardenController({ petRef, setPet, commitPet, playAfterUnlock });
-  const rewardController = useRewardController({ pet, setPet, commitPet, hasLoadedModRef, playAfterUnlock });
+  const gardenController = useGardenController({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock });
+  const rewardController = useRewardController({ pet, setPet: setPetWithEventFeedback, commitPet, hasLoadedModRef, playAfterUnlock });
   const {
     clearConfirm: gardenClearConfirm,
     resetClearConfirm: resetGardenClearConfirm,
-    selectSlot: handleSelectGardenSlot,
     unlockSlot: handleUnlockGardenSlot,
     plantTree: handlePlantTree,
     recycleSapling: handleRecycleGardenSapling,
@@ -460,7 +470,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     claimHelpGift: handleClaimHelpPageGift,
     claimGardenCompensation: handleClaimGardenCompensation,
   } = rewardController;
-  const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPet, commitPet);
+  const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPetWithEventFeedback, commitPet);
   const openKitchen = () => { activityReturnRef.current = null; setActivePage('home'); activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); };
   const openPlay = () => {
     setActivePage('home');
@@ -471,7 +481,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     pet,
     petRef,
     activeMod,
-    setPet,
+    setPet: setPetWithEventFeedback,
     commitPet,
     onMessage: setModMessage,
     onAuthorReward: (tickets) => {
@@ -521,7 +531,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleAction = (action: PetAction) => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const next = applyPetAction(current, action);
       const actionSucceeded = next.recentEvent !== current.recentEvent || next.recentActivity !== current.recentActivity;
       playSfx(actionSucceeded ? getActionSfx(action) : 'error');
@@ -531,7 +541,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleBuyItem = (itemId: ItemId, quantity: number) => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const beforeCount = getInventoryCount(current, itemId);
       const beforeCoins = current.coins;
       const item = getItemDefinition(itemRegistry, itemId);
@@ -555,7 +565,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     window.setTimeout(() => setHeartExchangeCoolingDown(false), heartExchangeCooldownMs);
     playAfterUnlock('tap');
 
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const beforeCoins = current.coins;
       const beforeHearts = current.hearts;
       const next = exchangeHeartForCoins(current, now);
@@ -567,7 +577,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const useItemNow = (itemId: ItemId, quantity = 1, suppressGoldenAppleConfirm = false) => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const currentWithPreference = suppressGoldenAppleConfirm
         ? { ...current, suppressGoldenAppleUseConfirm: true }
         : current;
@@ -589,7 +599,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleInteract = () => {
     const outcome = getPetInteractionOutcome(petRef.current);
     playAfterUnlock(outcome === 'heart' ? 'pet_heart' : outcome === 'low_state' ? 'pet_low_state' : 'pet_touch');
-    setPet((current) => commitPet(interactWithPet(current)));
+    setPetWithFeedback((current) => commitPet(interactWithPet(current)));
   };
 
   const handleOpenShop = (category?: ItemBrowseCategory) => {
@@ -610,7 +620,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleOpenInventory = () => {
     activityReturnRef.current = getStorageReturnTarget(utilityDialog, activityReturnRef.current);
     playAfterUnlock('open');
-    inventoryController.prepareOpen();
+    inventoryController.prepareOpen('item');
     setPet((current) => recordPetInteraction(current));
     openUtilityDialog('inventory');
   };
@@ -655,13 +665,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     const next = startPartnerSchedule(petRef.current, offerId, Date.now(), neighbor);
     const didStart = next.partnerSchedule.active?.offerId === offerId;
     playSfx(didStart ? 'action_work_play_medicine' : 'error');
-    setPet(commitPet(next));
+    setPetWithFeedback(commitPet(next));
     if (didStart) setActivePage('home');
   };
 
   const handleClaimPartnerSchedule = (choice: PartnerScheduleRewardChoice) => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const hadResult = Boolean(current.partnerSchedule.pendingResult);
       const neighborName = resolveNeighborName(current.partnerSchedule.pendingResult?.neighbor, neighbors);
       const next = claimPartnerScheduleResult(current, choice, Date.now(), neighborName);
@@ -687,7 +697,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleConfirmPartnerScheduleCancel = () => {
     setPartnerScheduleCancelConfirmOpen(false);
     playAfterUnlock('close');
-    setPet((current) => commitPet(cancelPartnerSchedule(current)));
+    setPetWithFeedback((current) => commitPet(cancelPartnerSchedule(current)));
   };
 
   const handleOpenBoostCards = () => {
@@ -706,7 +716,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleClaimBoostCardReward = () => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const result = claimBoostCardDailyReward(current, eventContext);
       playSfx(result.coins > 0 ? 'coin' : 'error');
       if (result.coins > 0) {
@@ -736,8 +746,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleGachaDraw = (payment: GachaPaymentMethod, count: 1 | 10): GoldenAppleGachaDrawOutcome => {
     const outcome = drawGoldenAppleGacha(petRef.current, payment, count, Date.now());
     if (outcome.error) return outcome;
-    const settled = commitPet(outcome.pet);
-    savePet(settled);
+    const settled = savePet(commitPet(outcome.pet));
     petRef.current = settled;
     setPet(settled);
     return { ...outcome, pet: settled };
@@ -746,8 +755,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleHeartGachaDraw = (count: 1 | 10): GoldenAppleGachaDrawOutcome => {
     const outcome = drawGoldenAppleHeartGacha(petRef.current, count, Date.now());
     if (outcome.error) return outcome;
-    const settled = commitPet(outcome.pet);
-    savePet(settled);
+    const settled = savePet(commitPet(outcome.pet));
     petRef.current = settled;
     setPet(settled);
     return { ...outcome, pet: settled };
@@ -756,10 +764,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleClaimGachaStarterGift = () => {
     const outcome = claimGoldenAppleGachaStarterGift(petRef.current);
     if (!outcome.claimed) return false;
-    const settled = commitPet(outcome.pet);
-    savePet(settled);
+    const settled = savePet(commitPet(outcome.pet));
     petRef.current = settled;
-    setPet(settled);
+    setPetWithFeedback(settled);
     return true;
   };
 
@@ -776,7 +783,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const commitEndgameAction = (updater: (current: PetState) => PetState) => {
     playAfterUnlock('tap');
-    setPet((current) => commitPet(updater(current)));
+    setPetWithFeedback((current) => commitPet(updater(current)));
   };
 
   const handleOpenAchievements = () => {
@@ -794,30 +801,31 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleClaimAchievementReward = (id: AchievementId) => {
     playAfterUnlock('coin');
-    setPet((current) => commitPet(claimAchievementReward(current, id)));
+    setPetWithFeedback((current) => commitPet(claimAchievementReward(current, id)));
   };
 
   const handleClaimAllAchievementRewards = () => {
     playAfterUnlock('coin');
-    setPet((current) => commitPet(claimAllAchievementRewards(current).pet));
+    setPetWithFeedback((current) => commitPet(claimAllAchievementRewards(current).pet));
   };
 
   const handleOpenAchievementCg = (achievement: AchievementView) => {
     const cgId = achievement.reward.cgId;
     const image = cgId ? activeMod?.cgImageUrls[cgId as keyof typeof activeMod.cgImageUrls] ?? achievementCgImages[cgId] : undefined;
-    if (!achievement.unlocked || !image) {
+    if (!cgId || !isAlbumArtworkUnlocked(petRef.current, achievement) || !image) {
       playAfterUnlock('error');
       return;
     }
     playAfterUnlock('open');
-    setAchievementCgPopup({ title: achievement.title, description: achievement.description, image, fileName: `${achievement.id}.png` });
+    setAchievementCgPopup({ cgId, title: achievement.title, description: achievement.description, image, fileName: `${achievement.id}.png` });
   };
 
   const handleSaveAchievementCg = () => {
-    if (!achievementCgPopup) return;
+    if (!achievementCgPopup || !petRef.current.achievements.unlockedCgIds.includes(achievementCgPopup.cgId)) return;
     playAfterUnlock('tap');
     requestImageSave({
       kind: 'achievement',
+      cgId: achievementCgPopup.cgId,
       fileName: achievementCgPopup.fileName,
       imageUrl: achievementCgPopup.image,
     });
@@ -854,7 +862,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleUpgrade = () => {
     playAfterUnlock(canUpgrade ? 'pet_heart' : 'error');
-    setPet((current) => commitPet(upgradePet(current)));
+    setPetWithFeedback((current) => commitPet(upgradePet(current)));
   };
 
   const handlePomodoroSettingChange = (key: PomodoroSettingKey, value: number) => {
@@ -864,8 +872,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleSaveProfile = () => {
     playAfterUnlock('tap');
-    setPet((current) => updatePetProfile(current, features.rename ? draftName : current.name, draftBirthday));
-    closeUtilityDialog();
+    setPetWithFeedback((current) => updatePetProfile(current, features.rename ? draftName : current.name, draftBirthday));
   };
 
   const handleOpenHelp = () => {
@@ -876,7 +883,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleClaimDailyWish = () => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const beforeClaimedAt = current.dailyWish.claimedAt;
       const next = claimDailyWishReward(current);
       const didClaim = next.dailyWish.claimedAt !== beforeClaimedAt;
@@ -893,7 +900,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     }
 
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const beforeCount = getInventoryCount(current, foodItem.id);
       const displayItem = getDisplayItem(displayInventoryItems, foodItem.id);
       const item = getItemDefinition(itemRegistry, foodItem.id);
@@ -941,7 +948,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleClaimReturnWelcome = () => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const beforeClaimedAt = current.returnWelcome?.claimedAt;
       const next = claimReturnWelcomeReward(current);
       const didClaim = next.returnWelcome?.claimedAt !== beforeClaimedAt;
@@ -1196,7 +1203,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         petImageUrl: petStatusImageMap.content,
         qrCodeDataUrl,
       });
-      const result = await saveShareImage(createShareImageFileName(`${name}-${review.year}`), image);
+      const result = await saveShareImage(createShareImageFileName(`${name}-${review.year}`).replace(/\.jpg$/, '.png'), image);
       const message = getPosterSavedMessage(result);
       setModMessage(message);
       setYearCardSaveFeedback(message);
@@ -1264,7 +1271,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     if (!request) return;
     pendingImageSaveRef.current = null;
     setPendingImageSave(null);
+    if (request.kind === 'album') {
+      shareBusyRef.current = true;
+      void saveShareImage(request.fileName, request.imageUrl).then((result) => notices.notify(getPosterSavedMessage(result), result === 'cancelled' ? 'info' : 'success')).catch((error) => notices.notify(error instanceof Error ? error.message : t('ui.share.saveFailed'), 'error')).finally(() => { shareBusyRef.current = false; });
+      return;
+    }
     if (request.kind === 'achievement') {
+      if (!getAchievementViews(petRef.current).some((entry) => entry.reward.cgId === request.cgId && isAlbumArtworkUnlocked(petRef.current, entry))) return;
       downloadImageFile(request.fileName, request.imageUrl);
       return;
     }
@@ -1342,15 +1355,15 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       assertStorageUnchanged();
       setActivePetMod(resolvedMod?.manifest.id);
       activeModResourcesMayHaveChanged = true;
-      replacePetFromImport(nextPet, createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest), importedMod ?? resolvedMod?.manifest ?? null);
+      const committedPet = replacePetFromImport(nextPet, createSaveFileText(petRef.current, getStoredSaveIdentity() ?? activeMod?.manifest), importedMod ?? resolvedMod?.manifest ?? null, sourceText);
       importCommitted = true;
 
       setHasImportBackup(true);
       setActiveMod(resolvedMod);
-      petRef.current = nextPet;
-      setPet(nextPet);
-      setDraftName(nextPet.name);
-      setDraftBirthday(nextPet.birthday);
+      petRef.current = committedPet;
+      setPet(committedPet);
+      setDraftName(committedPet.name);
+      setDraftBirthday(committedPet.birthday);
       setImportSaveText('');
       setPendingImportedSave(null);
       setPendingImportSourceText('');
@@ -1425,6 +1438,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         level: pendingImportedSave.pet.level,
         exportedAt: pendingImportExportTime,
         mod: pendingImportMod,
+        format: t(pendingImportedSave.requiresMigration ? 'ui.settings.save.formatLegacy' : 'ui.settings.save.formatV2'),
+        migration: pendingImportedSave.requiresMigration ? t('ui.settings.save.previewMigration') : [
+          t('ui.settings.save.previewCurrent'),
+          t(pendingImportedSave.pet.saveMetadata.compensation === 'pending' ? 'ui.settings.save.migrationPending' : pendingImportedSave.pet.saveMetadata.origin === 'legacy' ? 'ui.settings.save.migrationComplete' : 'ui.settings.save.newProgress'),
+          Object.keys(pendingImportedSave.pet.saveMetadata.pendingItems).length ? t('pet.reward.saveMigrationPending') : '',
+        ].filter(Boolean).join(' '),
       })
     : '';
   const activeYearReview = !activeRewardPopup && !achievementCgPopup && !utilityDialog && !isResetConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImportedSave ? pet.pendingYearReview : undefined;
@@ -1498,27 +1517,24 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     />
   ) : undefined;
   return (
-    <main className={`app-shell${activePage === 'home' ? ' app-shell--home-v2' : ''}`}>
+    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}`}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
-        <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); openUtilityDialog('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
+        <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); setActivePage('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
       </div>}
       {persistenceError && <div role="alert" className="persistence-warning">
         <p>{t(`ui.backup.${persistenceError}`)}</p>
-        <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); openUtilityDialog('settings'); }}>{t('ui.backup.export')}</button>
+        <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); setActivePage('settings'); }}>{t('ui.backup.export')}</button>
         <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.reload')}</button>
       </div>}
       {editionNoticeVisible && !persistenceError && !activeRewardPopup && !utilityDialog && !pendingImportedSave && !activeYearReview && !achievementCgPopup && !isResetConfirmOpen && !isCloudUploadConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImageSave && !isPartnerScheduleCancelConfirmOpen && !isGoldenAppleUseConfirmOpen && (
         <EditionNoticeDialog
           onAcknowledge={() => setEditionNoticeVisible(false)}
-          onBackup={() => { setEditionNoticeVisible(false); setSettingsInitialPage('save'); openUtilityDialog('settings'); }}
-          onOpenUpdates={updateController.supported ? () => { setEditionNoticeVisible(false); setSettingsInitialPage('updates'); openUtilityDialog('settings'); } : undefined} />
+          onBackup={() => { setEditionNoticeVisible(false); setSettingsInitialPage('save'); setActivePage('settings'); }}
+          onOpenUpdates={updateController.supported ? () => { setEditionNoticeVisible(false); setSettingsInitialPage('updates'); setActivePage('settings'); } : undefined} />
       )}
-      <header className="top-bar">
-        <div>
-          <p className="eyebrow">{t('ui.brand.eyebrow')}</p>
-          <h1>Pocket <span className="home-brand-flower" aria-hidden="true">✿</span></h1>
-        </div>
+      <header className="top-bar v2-top-bar">
+        <button className="v2-brand" onClick={() => setActivePage('home')} aria-label={L('返回小窝', 'Back home')}><span><Flower2 size={27} /></span><div><strong>Pocket</strong><small>A LITTLE LIFE, TOGETHER</small></div></button>
         <div className="top-actions">
           <button
             type="button"
@@ -1528,13 +1544,16 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             title={t('ui.shop.wallet', { coins: pet.coins })}
           >
             <img src={currencyIcon} alt="" aria-hidden="true" />
-            <strong>{pet.coins}</strong>
+            <strong>{formatCompactNumber(pet.coins)}</strong>
           </button>
           <div className="heart-pill" aria-label={t('ui.top.heartsAria', { hearts: pet.hearts })} title={t('ui.top.heartsAria', { hearts: pet.hearts })}>
             <Heart size={20} aria-hidden="true" />
-            <strong>{pet.hearts}</strong>
+            <strong>{formatCompactNumber(pet.hearts)}</strong>
           </div>
           <button className="home-ticket-pill" onClick={handleOpenGacha} aria-label={L(`扭蛋券 ${pet.goldenAppleGacha.tickets} 张`, `${pet.goldenAppleGacha.tickets} gacha tickets`)}><Ticket size={17} />{pet.goldenAppleGacha.tickets}</button>
+          <button className="top-shop-button" onClick={() => handleOpenShop()}><ShoppingBag size={18} /><span>{L('商店', 'Shop')}</span></button>
+          <button className="icon-button" onClick={() => notices.setHistoryOpen(true)} aria-label={L('通知记录', 'Notification history')}><Bell size={20} /></button>
+          <button className="icon-button" onClick={() => openSettings('appearance')} aria-label={L('外观与环境', 'Appearance & environment')}><Palette size={20} /></button>
           <button
             type="button"
             className="icon-button audio-button"
@@ -1555,7 +1574,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
               setSettingsInitialPage('main');
               setDraftName(pet.name);
               setDraftBirthday(pet.birthday);
-              openUtilityDialog('settings');
+              setActivePage('settings');
             }}
           >
             <Settings size={22} aria-hidden="true" />
@@ -1579,7 +1598,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           pet={pet}
           itemIconMap={itemIconMap}
           onBack={handleCloseGarden}
-          onSelectSlot={handleSelectGardenSlot}
           onUnlockSlot={handleUnlockGardenSlot}
           onPlantTree={handlePlantTree}
           onRecycleSapling={handleRecycleGardenSapling}
@@ -1613,7 +1631,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onCompleteLegacy={() => commitEndgameAction((current) => completeClassicLegacyLevel(current))}
           onExchangeGoldenApples={(apples: number) => commitEndgameAction((current) => exchangeClassicGoldenApplesForHearts(current, apples))}
         />
-      ) : (
+      ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
           adventure={{ status: 'locked' }}
@@ -1622,7 +1640,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenAchievements={handleOpenAchievements}
           onOpenKitchen={openKitchen}
           onOpenPlay={openPlay}
-          onOpenMemories={() => openUtilityDialog('memories')}
+          onOpenMemories={() => setActivePage('memories')}
+          onOpenNotices={() => notices.setHistoryOpen(true)}
+          onOpenAppearance={() => openSettings('appearance')}
+          memoryImage={memoryArt ?? activityHappyPortrait}
+          memoryArtUnlocked={Boolean(memoryArt)}
           pet={pet}
           neighbors={neighbors}
           inventoryKindCount={ownedItems.length}
@@ -1672,7 +1694,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
                 setSettingsInitialPage('save');
                 setDraftName(pet.name);
                 setDraftBirthday(pet.birthday);
-                openUtilityDialog('settings');
+                setActivePage('settings');
               }}
             >
               {t('ui.cloudReminder.backup')}
@@ -1716,7 +1738,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       )}
       {utilityDialog === 'kitchen' && <KitchenModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} />}
       {utilityDialog === 'play' && <PlayModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} happyPortrait={activityHappyPortrait} ballImage={itemIconMap.toy_ball} onClose={() => { activities.update(pauseMiniGame); closeUtilityDialog(); }} onShop={() => handleOpenShop('item')} onQuickPlay={() => handleAction('play')} update={activities.update} onAct={activities.act} />}
-      {utilityDialog === 'memories' && <DialogShell className="activity-modal memory-modal" labelId="memories-title" onClose={closeUtilityDialog}><header className="activity-header"><h2 id="memories-title">{L('我们的纪念册', 'Our little album')}</h2><button className="icon-button" onClick={closeUtilityDialog} aria-label={L('关闭', 'Close')}><X /></button></header><div className="activity-body"><CompanionMemories pet={pet} actorId={actorId} /></div></DialogShell>}
+      {activePage === 'memories' && <MemoryAlbum pet={{ ...pet, name: getSharePetName() }} actorId={actorId} portrait={activityHappyPortrait} art={memoryArt} onBack={() => setActivePage('home')} onOpenArt={() => { if (memoryAchievement) handleOpenAchievementCg(memoryAchievement); }} onSave={(imageUrl) => requestImageSave({ kind: 'album', fileName: createShareImageFileName(`${getSharePetName()}-memories`).replace(/\.jpg$/, '.png'), imageUrl })} onError={(message) => notices.notify(message, 'error')} />}
+      <NoticeCenter controller={notices} recentEvent={pet.recentEvent} />
       {isInventoryOpen && (
         <InventoryModal
           items={ownedItems}
@@ -1748,8 +1771,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         />
       )}
       {activeRewardPopup && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="reward-modal" role="dialog" aria-modal="true" aria-labelledby="reward-title">
+          <DialogShell className="reward-modal" labelId="reward-title" onClose={closeActiveReward} closeOnEscape={false}>
             <img className="reward-modal__gift" src={giftBoxIcon} alt="" aria-hidden="true" />
             <div className="reward-modal__copy">
               <span>{t('ui.rewards.kicker')}</span>
@@ -1767,13 +1789,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             >
               {t('ui.rewards.confirm')}
             </button>
-          </section>
-        </div>
+          </DialogShell>
       )}
 
       {achievementCgPopup && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="achievement-cg-modal" role="dialog" aria-modal="true" aria-labelledby="achievement-cg-title">
+          <DialogShell className="achievement-cg-modal" labelId="achievement-cg-title" onClose={handleCloseAchievementCg} closeOnEscape={false}>
             <img className="achievement-cg-modal__image" src={achievementCgPopup.image} alt={achievementCgPopup.title} />
             <div className="achievement-cg-modal__copy">
               <span>{t('ui.achievements.cg.kicker')}</span>
@@ -1788,8 +1808,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
                 {t('ui.achievements.cg.close')}
               </button>
             </div>
-          </section>
-        </div>
+          </DialogShell>
       )}
 
       {activeYearReview && (
@@ -1826,6 +1845,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       )}
       {isSettingsOpen && (
         <SettingsModal
+          pet={pet}
+          portrait={activityHappyPortrait}
+          appearance={appearanceController.appearance}
+          onAppearanceChange={appearanceController.setAppearance}
+          isAudioEnabled={isAudioEnabled}
+          onAudioToggle={handleAudioToggle}
           onShareSaveFile={handleShareSaveFile}
           isSharingSaveFile={isSharingSaveFile}
           updateController={updateController}
@@ -1834,6 +1859,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onExportBackup={(snapshot) => void handleExportBackup(snapshot)}
           onCopySave={() => void handleCopySave()}
           initialPage={settingsInitialPage}
+          onPageChange={setSettingsInitialPage}
           activeMod={activeMod}
           installedMods={installedMods}
           modMessage={modMessage}
@@ -1872,7 +1898,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onClaimHelpPageGift={handleClaimHelpPageGift}
           onClose={() => {
             playAfterUnlock('close');
-            closeUtilityDialog();
+            setActivePage('home');
           }}
           onSaveProfile={handleSaveProfile}
           onReset={handleReset}
@@ -2042,11 +2068,11 @@ export const App = () => {
       const resolution = await resolveImportedSaveMod(restored, loadPetMod);
       restored = readRecoveryCandidate(candidate, (resolution.missingImportedMod ? restored.activeMod?.defaultPetName : undefined) ?? resolution.mod?.manifest.defaultPetName);
       const original = startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '';
-      replacePetFromImport(restored.pet, original, restored.activeMod ?? resolution.mod?.manifest ?? null);
+      const committedPet = replacePetFromImport(restored.pet, original, restored.activeMod ?? resolution.mod?.manifest ?? null, candidate.text);
       setActivePetMod(resolution.mod?.manifest.id);
       setActiveMod(resolution.mod);
       setInitialPersistenceError('');
-      setInitialPet(restored.pet);
+      setInitialPet(committedPet);
       setStartupRecovery(null);
     } catch (error) { setModMessage(error instanceof Error ? error.message : t('ui.settings.save.recoveryRestoreFailed')); }
   };

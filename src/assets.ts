@@ -11,6 +11,7 @@ import iconShinyStickers from './assets/icon/icon_shiny_stickers.png';
 import itemBento from './assets/icon/item_bento.png';
 import itemBlanket from './assets/icon/item_blanket.png';
 import itemEmergencyBiscuit from './assets/icon/item_emergency_biscuit.png';
+import sodaBiscuitBox from './assets/soda-biscuit-box.svg';
 import itemEnergyDrink from './assets/icon/item_energy_drink.png';
 import itemGiftBox from './assets/icon/item_gift_box1.png';
 import itemGoldenApple from './assets/icon/item_golden_apple.png';
@@ -68,6 +69,7 @@ export const treeStageImages = [tree1, tree2, tree3, tree4, tree5] as const;
 export const itemIcons: Record<BuiltinItemId, string> = {
   ...kitchenItemIcons,
   emergency_biscuit: itemEmergencyBiscuit,
+  soda_biscuit_box: sodaBiscuitBox,
   bento: itemBento,
   orange: itemOrange,
   apple: itemApple,

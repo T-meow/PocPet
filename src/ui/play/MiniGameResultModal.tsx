@@ -2,7 +2,8 @@ import { Heart, RotateCcw, Smile, X } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import type { MiniGameResult } from '../../core/companionActivityTypes';
 import { activityText as L } from '../../core/kitchenRecipes';
-import { gameName } from '../../core/miniGames';
+import { gameName, getMiniGameSkillCategory } from '../../core/miniGames';
+import { formatPracticeSkillXp } from '../../core/partnerSchedule';
 import { DialogShell } from '../DialogShell';
 
 interface Props {
@@ -19,6 +20,7 @@ export const MiniGameResultModal = ({ result, portrait, canReplay, onClose, onBa
     : result.game === 'catch' ? L(`最佳连续接住 ${result.score} 次`, `Best streak: ${result.score} catches`)
       : L(`一起吹了 ${result.score} 个泡泡`, `${result.score} bubbles together`);
   const bonus = result.baseHearts === undefined ? 0 : Math.max(0, result.hearts - result.baseHearts);
+  const skillCategory = getMiniGameSkillCategory(result.game);
   return <DialogShell className="activity-modal play-reward-modal" labelId="play-reward-title" onClose={onClose}>
     <button className="icon-button play-reward-close" onClick={onClose} aria-label={L('关闭并回到小窝', 'Close and return home')}><X /></button>
     <div className="play-reward-art" aria-hidden="true">
@@ -31,6 +33,7 @@ export const MiniGameResultModal = ({ result, portrait, canReplay, onClose, onBa
       <div className="play-reward-hearts"><Heart size={28} fill="currentColor" /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></div>
       {result.rewardLevel !== undefined && <p className="play-reward-breakdown">{L(`Lv.${result.rewardLevel} 基础 ${result.baseHearts ?? result.hearts} 心`, `Lv.${result.rewardLevel} base: ${result.baseHearts ?? result.hearts} hearts`)}{bonus > 0 && L(` + 加成 ${bonus} 心`, ` + ${bonus} bonus hearts`)}</p>}
       {result.mood !== undefined && <p className="play-reward-mood"><Smile size={17} />{result.mood > 0 ? L(`心情 +${Number(result.mood.toFixed(1))}`, `Mood +${Number(result.mood.toFixed(1))}`) : L('心情已经满满的啦', 'Already full of good spirits')}</p>}
+      {skillCategory && (result.skillXp ?? 0) > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp(skillCategory, result.skillXp)}</p>}
       <p className="play-reward-score">{score}</p>
       <p className="activity-muted">{L('收获已经放进小窝，随时可以休息。', 'Your rewards are already saved. Rest whenever you like.')}</p>
       <div className="play-reward-actions">

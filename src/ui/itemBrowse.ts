@@ -1,7 +1,8 @@
-import { allDishes, getRecipeIngredients, activityText as L } from '../core/kitchenRecipes';
+import { allDishes, getRecipeIngredients, getRecipeIngredientEntries, activityText as L } from '../core/kitchenRecipes';
 import { batchActionUnlockLevel, getDailyBiscuitClaimInfo, maxBatchQuantity } from '../core/pet';
 import type { InventoryItemDefinition, PetState, ShopCategory } from '../core/pet';
 import { t } from '../i18n';
+import { getInventoryItem, getPurchaseCapacity } from '../core/items';
 
 export type ItemBrowseCategory = ShopCategory | 'all' | 'ingredients';
 export type ItemStorageMode = 'shop' | 'bag';
@@ -9,7 +10,7 @@ export interface ItemBrowseState { category: ItemBrowseCategory; query: string; 
 export const createItemBrowseState = (): ItemBrowseState => ({ category: 'all', query: '', quantity: 1 });
 export const getStorageReturnTarget = (dialog: string | null, previous: 'kitchen' | 'play' | null) => dialog === 'kitchen' || dialog === 'play' ? dialog : dialog === 'shop' || dialog === 'inventory' ? previous : null;
 const recipeIngredientIds = new Set<string>(allDishes.flatMap(({ recipe, banana }) => getRecipeIngredients(recipe, banana)));
-export const isKitchenIngredient = (item: InventoryItemDefinition) => recipeIngredientIds.has(item.id) || item.tags.includes('kitchen_material');
+export const isKitchenIngredient = (item: InventoryItemDefinition) => recipeIngredientIds.has(item.id) || item.tags.includes('kitchen_material') || Boolean(item.purchaseContents?.some((content) => recipeIngredientIds.has(content.itemId)));
 export const isDedicatedKitchenMaterial = (item: InventoryItemDefinition) => item.tags.includes('kitchen_material') && !item.usable;
 export const getItemBrowseCategories = () => [
   { id: 'all' as const, label: L('全部', 'All') },
@@ -34,7 +35,21 @@ export const filterBrowseItems = (items: readonly InventoryItemDefinition[], cat
     return matchesItemBrowseCategory(item, category) && (!search || `${item.displayName} ${item.displaySummary}`.toLocaleLowerCase().includes(search));
   });
 };
-export const getItemBrowseTone = (item: InventoryItemDefinition) => isKitchenIngredient(item) ? 'mint' : ({ food: 'peach', item: 'lilac', care: 'sky', garden: 'mint' } as const)[item.kind];
+export const sortBagItems = (items: readonly InventoryItemDefinition[], definitions: readonly InventoryItemDefinition[]) => {
+  const prices = new Map(definitions.map((item) => [item.id, item.price]));
+  // Homemade dishes have no shop price; rank their value by ingredient cost.
+  const dishValues = new Map<string, number>(allDishes.map(({ recipe, banana, id }) => [id,
+    getRecipeIngredientEntries(recipe, banana).reduce((sum, ingredient) => sum + (prices.get(ingredient.id) ?? getInventoryItem(ingredient.id)?.price ?? 0) * ingredient.quantity, 0),
+  ]));
+  return [...items].sort((a, b) => {
+    const aValue = dishValues.get(a.id);
+    const bValue = dishValues.get(b.id);
+    if (aValue === undefined) return bValue === undefined ? 0 : 1;
+    return bValue === undefined ? -1 : bValue - aValue;
+  });
+};
+export const getCategoryBrowseTone = (category: ItemBrowseCategory) => ({ all: 'sky', food: 'gold', ingredients: 'peach', item: 'lilac', care: 'sky', garden: 'mint' } as const)[category];
+export const getItemBrowseTone = (item: InventoryItemDefinition) => getCategoryBrowseTone(isDedicatedKitchenMaterial(item) ? 'ingredients' : item.kind);
 export const getItemBrowseLimit = (pet: PetState, item: InventoryItemDefinition, mode: ItemStorageMode, now = Date.now()) => {
   const batchLimit = pet.level >= batchActionUnlockLevel ? maxBatchQuantity : 1;
   if (mode === 'shop') {
@@ -43,7 +58,7 @@ export const getItemBrowseLimit = (pet: PetState, item: InventoryItemDefinition,
       const claim = getDailyBiscuitClaimInfo(pet, now);
       return Math.min(batchLimit, Math.max(0, claim.limit - claim.claimed));
     }
-    return batchLimit;
+    return Math.min(batchLimit, getPurchaseCapacity(pet, item));
   }
   if (!item.usable || item.kind === 'garden') return 0;
   const single = item.id === 'golden_apple' || item.id === 'birthday_cake';

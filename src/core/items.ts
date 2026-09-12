@@ -4,6 +4,7 @@ import type { ActivePetMod, PetModCustomItem, PetModItemOverride } from './mod';
 import type { BuiltinItemId, Inventory, InventoryItemDefinition, ItemDefinition, ItemId, ItemRegistry, PetState, ShopCategory, ShopItem } from './petTypes';
 import { hashString } from './utils';
 import { activityText, allDishes, dishName, kitchenMaterials } from './kitchenRecipes';
+import { inventoryItemLimit } from './saveMetadata';
 
 export const dailyBiscuitClaimLimit = 3;
 
@@ -38,6 +39,11 @@ export const shopItems: readonly ShopItem[] = [
     price: 24,
     effect: { hunger: 30 },
     summary: t('pet.shop.items.bento.summary'),
+  },
+  {
+    id: 'soda_biscuit_box', name: t('pet.shop.items.soda_biscuit_box.name'), kind: 'food', price: 500,
+    effect: {}, usable: false, tags: ['bundle'], purchaseContents: [{ itemId: 'emergency_biscuit', amount: 40 }],
+    summary: t('pet.shop.items.soda_biscuit_box.summary'),
   },
   {
     id: 'orange',
@@ -425,6 +431,14 @@ export const getShopDefinitions = (registry: ItemRegistry): readonly InventoryIt
 export const isKnownUsableItem = (registry: ItemRegistry, id: ItemId | string) => Boolean(registry.get(id)?.usable);
 
 export const getInventoryCount = (inventory: Inventory, id: ItemId | string) => inventory[id] ?? 0;
+
+export const getPurchaseCapacity = (pet: Pick<PetState, 'inventory'>, item: Pick<ItemDefinition, 'purchaseContents'>) =>
+  item.purchaseContents?.length
+    ? Math.min(...item.purchaseContents.map(({ itemId, amount }) => Math.max(0, Math.floor((inventoryItemLimit - getInventoryCount(pet.inventory, itemId)) / amount))))
+    : Infinity;
+
+export const deliverPurchasedItems = (inventory: Inventory, item: Pick<ItemDefinition, 'id' | 'purchaseContents'>, quantity: number) =>
+  (item.purchaseContents ?? [{ itemId: item.id, amount: 1 }]).reduce((next, content) => addInventoryItem(next, content.itemId, content.amount * quantity), inventory);
 
 export const addInventoryItem = (inventory: Inventory, id: ItemId | string, amount: number): Inventory => ({
   ...inventory,

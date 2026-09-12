@@ -1,4 +1,6 @@
-import { ArrowLeft, CheckCircle2, Gift, Images, Lock, Sparkles, Sprout, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { activityText as L } from '../core/kitchenRecipes';
+import { ArrowLeft, CheckCircle2, Gift, Images, Lock, Search, Sparkles, Sprout, Trophy } from 'lucide-react';
 import { getAchievementSummary, getAchievementViews, type AchievementCategory, type AchievementId, type AchievementView, type ItemId, type PetState } from '../core/pet';
 import { t } from '../i18n';
 
@@ -96,12 +98,13 @@ export const AchievementsPage = ({
   onClaimAllRewards,
   onOpenCg,
 }: AchievementsPageProps) => {
+  const [query, setQuery] = useState('');
   const summary = getAchievementSummary(pet);
   const allAchievements = getAchievementViews(pet);
   const hasUnlockedHiddenAchievement = allAchievements.some((achievement) => achievement.rarity === 'hidden' && achievement.unlocked);
   const visibleCategories = hasUnlockedHiddenAchievement ? [...baseTabs, 'hidden' as const] : baseTabs;
   const safeActiveCategory = activeCategory === 'hidden' && !hasUnlockedHiddenAchievement ? 'all' : activeCategory;
-  const achievements = sortAchievements(allAchievements.filter((achievement) => achievementMatchesTab(achievement, safeActiveCategory)));
+  const achievements = sortAchievements(allAchievements.filter((achievement) => achievementMatchesTab(achievement, safeActiveCategory) && (!query.trim() || `${achievement.title} ${achievement.description}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))));
 
   return (
     <section className="achievements-page" aria-label={labels.aria}>
@@ -153,6 +156,8 @@ export const AchievementsPage = ({
         ))}
       </div>
 
+      <label className="v2-search"><Search size={18} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={L('寻找一点成长', 'Find a little growth')} aria-label={L('搜索成就', 'Search achievements')} /></label>
+      {!achievements.length && <p className="v2-empty">{L('还没有符合的记录，试试其他关键词。', 'No matches. Try another search.')}</p>}
       <div className="achievement-list">
         {achievements.map((achievement) => {
           const percent = achievement.target > 0 ? Math.min(100, (achievement.progressValue / achievement.target) * 100) : 0;

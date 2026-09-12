@@ -23,16 +23,17 @@ export type GardenClearConfirm = { slotIndex: number; kind: 'clear' | 'remove'; 
 interface GardenControllerOptions {
   petRef: MutableRefObject<PetState>;
   setPet: Dispatch<SetStateAction<PetState>>;
+  setPetWithFeedback: Dispatch<SetStateAction<PetState>>;
   commitPet: (next: PetState) => PetState;
   playAfterUnlock: (id: SfxId) => void;
 }
 
-export const useGardenController = ({ petRef, setPet, commitPet, playAfterUnlock }: GardenControllerOptions) => {
+export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock }: GardenControllerOptions) => {
   const [clearConfirm, setClearConfirm] = useState<GardenClearConfirm | null>(null);
 
   const commitAction = (action: (current: PetState) => PetState, successSfx: SfxId = 'coin') => {
     playAfterUnlock('tap');
-    setPet((current) => {
+    setPetWithFeedback((current) => {
       const previousEvent = current.recentEvent;
       const next = action(current);
       playSfx(next.recentEvent === previousEvent ? 'error' : successSfx);

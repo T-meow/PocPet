@@ -194,6 +194,7 @@ export const CommonDreamsPage = ({
                   </div>
                 </header>
                 <p>{t(`ui.classicEndgame.projects.${category}.summary`)}</p>
+                <ol className="dream-stage-trail">{dreamStageDefinitions.map((stage) => <li key={stage.stage} data-complete={stage.stage < definition.stage} aria-current={stage.stage === definition.stage ? 'step' : undefined}><span>{stage.stage < definition.stage ? '✓' : stage.stage}</span><small>{t(`ui.classicEndgame.projects.${category}.stages.${stage.stage}`)}</small></li>)}</ol>
                 <div className="classic-dream__requirements">
                   <span data-met={eligibility.skillLevel >= definition.skillLevel}>{t('ui.classicEndgame.requirementSkill', { current: eligibility.skillLevel, target: definition.skillLevel })}</span>
                   <span data-met={eligibility.scheduleCount >= definition.scheduleCount}>{t('ui.classicEndgame.requirementSchedule', { current: eligibility.scheduleCount, target: definition.scheduleCount })}</span>

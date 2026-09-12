@@ -3,6 +3,7 @@ import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
 import { defaultKitchenState, normalizeKitchenState } from './kitchen';
 import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
+import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
 import { defaultPetBirthday, getLocalCalendarDate, normalizePetBirthday, normalizePetCalendarDate } from './dateRewards';
@@ -96,7 +97,8 @@ export const recentActivities = new Set<RecentActivity>([
 export const isRecentActivity = (value: unknown): value is RecentActivity =>
   typeof value === 'string' && recentActivities.has(value as RecentActivity);
 
-export const createDefaultPet = (now = Date.now()): PetState => ({
+export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = createNewSaveMetadata(now)): PetState => ({
+  saveMetadata,
   name: defaultPetName,
   level: 1,
   hunger: 78,
@@ -242,10 +244,9 @@ interface NormalizePetOptions {
 }
 
 export const normalizePet = (value: unknown, now = Date.now(), options: NormalizePetOptions = {}): PetState => {
-  const fallback = createDefaultPet(now);
-  if (!value || typeof value !== 'object') return fallback;
-
+  if (!value || typeof value !== 'object') return createDefaultPet(now);
   const raw = value as Record<string, unknown>;
+  const fallback = createDefaultPet(now, normalizeSaveMetadata(raw.saveMetadata, raw));
   const actualDailyDateKey = getDailyResetDateKey(now);
   const timeGuard = normalizeTimeGuardState(raw.timeGuard, raw, now);
   const currentDailyDateKey = timeGuard.maxDailyDateKey;
@@ -396,13 +397,21 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     currentDailyDateKey,
   );
   const partnerScheduleClaimCountsByCategory = { ...countersWithMigration.partnerScheduleClaimCountsByCategory };
-  partnerScheduleCategories.forEach((category) => {
-    const skill = partnerSchedule.skills[category];
-    if (category === 'cooking' && Object.keys(kitchen.made).length > 0) return;
-    if (skill.level > 1 || skill.xp > 0) {
-      partnerScheduleClaimCountsByCategory[category] = Math.max(partnerScheduleClaimCountsByCategory[category] ?? 0, 1);
-    }
-  });
+  const rawAchievementCounters = hasAchievementState ? (raw.achievements as Partial<AchievementState>).counters : undefined;
+  const hasRecordedScheduleClaims = isNumber(rawAchievementCounters?.partnerScheduleClaimCount)
+    && rawAchievementCounters?.partnerScheduleClaimCountsByCategory
+    && typeof rawAchievementCounters.partnerScheduleClaimCountsByCategory === 'object'
+    && !Array.isArray(rawAchievementCounters.partnerScheduleClaimCountsByCategory);
+  // Skills can now grow through everyday actions. Only infer missing legacy history.
+  if (!hasRecordedScheduleClaims) {
+    partnerScheduleCategories.forEach((category) => {
+      const skill = partnerSchedule.skills[category];
+      if (category === 'cooking' && Object.keys(kitchen.made).length > 0) return;
+      if (skill.level > 1 || skill.xp > 0) {
+        partnerScheduleClaimCountsByCategory[category] = Math.max(partnerScheduleClaimCountsByCategory[category] ?? 0, 1);
+      }
+    });
+  }
   const inferredPartnerScheduleClaimCount = partnerScheduleCategories.reduce(
     (sum, category) => sum + (partnerScheduleClaimCountsByCategory[category] ?? 0),
     0,
@@ -422,6 +431,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
 
   return {
     name: normalizedName,
+    saveMetadata: fallback.saveMetadata,
     level,
     hunger: clampStat(isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap),
     mood: clampStat(isNumber(raw.mood) ? raw.mood : fallback.mood, statCap),

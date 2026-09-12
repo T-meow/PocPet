@@ -778,7 +778,9 @@ assert.equal(achievementDefinitions.find((achievement) => achievement.id === 'sc
 
 const legacySkillState = createReadyPet(8);
 legacySkillState.partnerSchedule.skills.study = skill(1, 10);
-const backfilledSkillState = normalizePet(legacySkillState, now);
+assert.equal(normalizePet(legacySkillState, now).achievements.counters.partnerScheduleClaimCount, 0, 'explicit history must not infer schedules from practice XP');
+const { partnerScheduleClaimCount: _legacyTotal, partnerScheduleClaimCountsByCategory: _legacyCategories, ...legacyCounters } = legacySkillState.achievements.counters;
+const backfilledSkillState = normalizePet({ ...legacySkillState, achievements: { ...legacySkillState.achievements, counters: legacyCounters } }, now);
 assert.equal(backfilledSkillState.achievements.counters.partnerScheduleClaimCountsByCategory.study, 1, 'existing skill progress should conservatively backfill one category claim');
 assert.equal(backfilledSkillState.achievements.counters.partnerScheduleClaimCount, 1, 'backfilled category progress should update the total lower bound');
 

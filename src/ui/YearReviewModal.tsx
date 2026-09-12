@@ -1,7 +1,8 @@
 import { CalendarDays, Download, HandHeart, PackageCheck, Sparkles, Timer, Trophy } from 'lucide-react';
-import type { YearReview, YearlyCareActionKey } from '../core/pet';
+import type { YearReview } from '../core/pet';
 import { t } from '../i18n';
-import { formatCompactNumber } from './numberFormat';
+import { createReviewAlbumData } from './albumData';
+import { DialogShell } from './DialogShell';
 
 import { features } from '../platform/edition';
 
@@ -13,63 +14,23 @@ interface YearReviewModalProps {
   onClose: () => void;
 }
 
-const getCareActionLabel = (action?: YearlyCareActionKey) =>
-  action ? t(`ui.yearReview.actions.${action}`) : t('ui.yearReview.noTopCareAction');
-
 export const YearReviewModal = ({ review, isSaving, saveFeedback, onSave, onClose }: YearReviewModalProps) => {
-  const metrics = [
-    {
-      key: 'companionDays',
-      icon: CalendarDays,
-      label: t('ui.yearReview.companionDays'),
-      value: formatCompactNumber(review.companionDays),
-    },
-    {
-      key: 'activeDays',
-      icon: Sparkles,
-      label: t('ui.yearReview.activeDays'),
-      value: formatCompactNumber(review.activeDays),
-    },
-    {
-      key: 'careActions',
-      icon: HandHeart,
-      label: t('ui.yearReview.careActions'),
-      value: formatCompactNumber(review.careActions),
-    },
-    {
-      key: 'itemUseCount',
-      icon: PackageCheck,
-      label: t('ui.yearReview.itemUseCount'),
-      value: formatCompactNumber(review.itemUseCount),
-    },
-    {
-      key: 'pomodoroFocusCount',
-      icon: Timer,
-      label: t('ui.yearReview.pomodoroFocusCount'),
-      value: formatCompactNumber(review.pomodoroFocusCount),
-    },
-    {
-      key: 'topCareAction',
-      icon: Trophy,
-      label: t('ui.yearReview.topCareAction'),
-      value: getCareActionLabel(review.topCareAction),
-    },
-  ];
+  const sharedData = createReviewAlbumData('', review);
+  const icons = [CalendarDays, Sparkles, HandHeart, PackageCheck, Timer, Trophy];
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <section className="year-review-modal" role="dialog" aria-modal="true" aria-labelledby="year-review-title">
+      <DialogShell className="year-review-modal" labelId="year-review-title" onClose={onClose} closeOnEscape={false}>
         <div className="year-review-modal__header">
           <h2 id="year-review-title">{t('ui.yearReview.title', { year: review.year })}</h2>
         </div>
         <div className="year-review-modal__grid">
-          {metrics.map((metric) => {
-            const Icon = metric.icon;
+          {sharedData.metrics.map((data, index) => {
+            const Icon = icons[index];
             return (
-              <div className="year-review-modal__metric" key={metric.key}>
+              <div className="year-review-modal__metric" data-tone={data.tone} key={data.label}>
                 <Icon size={20} aria-hidden="true" />
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
+                <span>{data.label}</span>
+                <strong>{data.value}</strong>
               </div>
             );
           })}
@@ -90,7 +51,6 @@ export const YearReviewModal = ({ review, isSaving, saveFeedback, onSave, onClos
           </button>
         </div>
         {saveFeedback && <p className="year-review-modal__feedback" role="status">{saveFeedback}</p>}
-      </section>
-    </div>
+      </DialogShell>
   );
 };

@@ -6,6 +6,7 @@ import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset'
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, getInventoryCount, isBuiltinItemId, removeInventoryItem } from './items';
 import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
+import { grantPracticeSkillXp } from './partnerSchedule';
 import { clampCoins, clampCount } from './petStats';
 import { getSeasonForDate, type Season } from './season';
 import type { BoostCardState, BuiltinItemId, GardenCareActionId, GardenCarePreview, GardenDrop, GardenFertilizerId, GardenSlot, GardenSlotState, GardenState, GardenToolId, GardenTools, GardenTreeId, ItemId, PetState, WeatherType } from './petTypes';
@@ -402,12 +403,12 @@ export const waterTree = (pet: PetState, slotIndex: number, now = Date.now()): P
   if (slot.lastWateredDateKey === dateKey) return failGardenAction(current, 'pet.garden.wateredToday');
   const preview = getGardenCarePreview(current, slot, 'water', now);
   if (preview.actualReductionMs <= 0) return failGardenAction(current, getGardenCareBlockedEventKey(preview));
-  return incrementAchievementGardenWater({
+  return grantPracticeSkillXp(incrementAchievementGardenWater({
     ...current,
     garden: updateGardenSlot({ ...current.garden, dailyCareDateKey: dateKey, dailyWaterCount: current.garden.dailyWaterCount + 1 }, slotIndex, (target) => ({ ...target, lastWateredAt: now, lastWateredDateKey: dateKey, careReductionMs: target.careReductionMs + preview.actualReductionMs, nextReadyAt: target.nextReadyAt - preview.actualReductionMs })),
     recentEvent: t('pet.garden.waterSuccess', { time: formatGardenCareDuration(preview.actualReductionMs) }),
     lastInteractionAt: now,
-  });
+  }), 'garden');
 };
 export const fertilizeTree = (pet: PetState, slotIndex: number, fertilizerId: GardenFertilizerId, now = Date.now()): PetState => {
   const current = advanceGarden(pet, now);
@@ -419,13 +420,13 @@ export const fertilizeTree = (pet: PetState, slotIndex: number, fertilizerId: Ga
   if (getInventoryCount(current.inventory, itemId) <= 0) return failGardenAction(current, 'pet.garden.missingGardenItem', { item: getItemName(itemId) });
   const preview = getGardenCarePreview(current, slot, fertilizerId, now);
   if (preview.actualReductionMs <= 0) return failGardenAction(current, getGardenCareBlockedEventKey(preview));
-  return {
+  return grantPracticeSkillXp({
     ...current,
     inventory: removeInventoryItem(current.inventory, itemId),
     garden: updateGardenSlot({ ...current.garden, dailyCareDateKey: dateKey, dailyFertilizeCount: current.garden.dailyFertilizeCount + 1 }, slotIndex, (target) => ({ ...target, fertilizerType: getStrongestFertilizerType(target.fertilizerType, fertilizerId), lastFertilizedAt: now, lastFertilizedDateKey: dateKey, careReductionMs: target.careReductionMs + preview.actualReductionMs, nextReadyAt: target.nextReadyAt - preview.actualReductionMs })),
     recentEvent: t('pet.garden.fertilizeSuccess', { item: getItemName(itemId), time: formatGardenCareDuration(preview.actualReductionMs) }),
     lastInteractionAt: now,
-  };
+  }, 'garden');
 };
 export const useGardenNutrient = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; const dateKey = getEffectiveDailyDateKey(current, now); if (!slot || slot.state !== 'growing' || !slot.treeId) return failGardenAction(current, 'pet.garden.cannotBoost'); if (slot.lastBoostedDateKey === dateKey) return failGardenAction(current, 'pet.garden.boostedToday'); if (getInventoryCount(current.inventory, gardenNutrientItemId) <= 0) return failGardenAction(current, 'pet.garden.missingGardenItem', { item: getItemName(gardenNutrientItemId) }); return { ...current, inventory: removeInventoryItem(current.inventory, gardenNutrientItemId), garden: updateGardenSlot(current.garden, slotIndex, (target) => ({ ...target, hasNutrientBoost: true, lastBoostedAt: now, lastBoostedDateKey: dateKey })), recentEvent: t('pet.garden.nutrientSuccess', { item: getItemName(gardenNutrientItemId) }), lastInteractionAt: now }; };
 const addDropsToInventory = (inventory: PetState['inventory'], drops: readonly GardenDrop[]) => drops.reduce((next, drop) => drop.itemId ? addInventoryItem(next, drop.itemId, drop.amount) : next, inventory);
@@ -455,7 +456,7 @@ export const harvestTree = (pet: PetState, slotIndex: number, now = Date.now()):
     recentEvent: t(eventKey, { count: itemCount, coins: coinAmount }),
     lastInteractionAt: now,
   }, slot.treeId);
-  return coinAmount > 0 ? recordEarnedCoins(nextPet, coinAmount) : nextPet;
+  return grantPracticeSkillXp(coinAmount > 0 ? recordEarnedCoins(nextPet, coinAmount) : nextPet, 'garden');
 };
 export const clearWitheredTree = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; if (!slot || !slot.treeId || slot.state === 'empty') return failGardenAction(current, 'pet.garden.cannotClear'); const cost = getGardenClearCost(current.garden.tools); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const eventKey = slot.state === 'withered' ? 'pet.garden.clearSuccess' : 'pet.garden.removeSuccess'; const dateKey = getEffectiveDailyDateKey(current, now); return { ...current, coins: clampCoins(current.coins - cost), garden: updateGardenSlot(current.garden, slotIndex, () => ({ ...defaultGardenSlot(slotIndex, now, dateKey), unlocked: true })), recentEvent: t(eventKey, { coins: cost }), lastInteractionAt: now }; };
 export const upgradeGardenTool = (pet: PetState, toolId: GardenToolId, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const currentLevel = getToolLevel(current.garden.tools, toolId); if (currentLevel >= maxGardenToolLevel) return failGardenAction(current, 'pet.garden.toolMaxLevel'); const cost = getGardenToolUpgradeCost(current.garden.tools, toolId); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const nextLevel = currentLevel + 1; return { ...current, coins: clampCoins(current.coins - cost), garden: { ...current.garden, tools: setToolLevel(current.garden.tools, toolId, nextLevel) }, recentEvent: t('pet.garden.toolUpgradeSuccess', { tool: t('ui.garden.tools.' + toolId + '.name'), level: nextLevel, coins: cost }), lastInteractionAt: now }; };

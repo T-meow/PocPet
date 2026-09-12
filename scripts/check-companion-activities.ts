@@ -5,7 +5,7 @@ import { createBuiltinItemRegistry, getDailyShopDiscountInfo, getInventoryDefini
 import { achievementDefinitions, evaluateAchievementUnlocks } from '../src/core/achievements';
 import { buyKitchenEquipment, claimKitchenStarter, craftRecipe, getCraftLimit, getKitchenHeartReward, normalizeKitchenState, recordDishTaste } from '../src/core/kitchen';
 import { allDishes, getRecipe, getRecipeIngredientEntries, getRecipeIngredients, recipes } from '../src/core/kitchenRecipes';
-import { acknowledgeMiniGameResult, actMiniGame, bubbleHoldMs, bubbleSessionMs, buyBubbleWand, catchFlightMs, getCatchPetX, getMiniGameBaseHearts, normalizeMiniGameState, pauseMiniGame, resumeMiniGame, startMiniGame, unlockBallGame, type MiniGameAction } from '../src/core/miniGames';
+import { abandonMiniGame, acknowledgeMiniGameResult, actMiniGame, bubbleHoldMs, bubbleSessionMs, buyBubbleWand, catchFlightMs, getCatchPetX, getMiniGameBaseHearts, normalizeMiniGameState, pauseMiniGame, resumeMiniGame, startMiniGame, unlockBallGame, type MiniGameAction } from '../src/core/miniGames';
 import { getMiniGameFeedback } from '../src/ui/play/miniGameFeedback';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActions, isCookingComplete } from '../src/ui/kitchen/cookingProcess';
 import { createItemBrowseState, filterBrowseItems, getItemBrowseLimit, getStorageReturnTarget, resolveItemBrowseState, type ItemBrowseState } from '../src/ui/itemBrowse';
@@ -30,7 +30,9 @@ let cooked = craftRecipe(starter, 'egg_rice', false, 1, 'first', now);
 assert.equal(cooked.hearts, 3);
 assert.equal(cooked.inventory.dish_egg_rice, 1);
 assert.equal(cooked.inventory.rice ?? 0, 0);
-assert.equal(cooked.partnerSchedule.skills.cooking.xp, 5);
+assert.equal(cooked.partnerSchedule.skills.cooking.xp, 6, 'the first recipe grants one practice XP plus the existing five-point bonus');
+assert.equal(cooked.kitchen.lastCraft?.skillXp, 6);
+assert.equal(starter.partnerSchedule.skills.cooking.xp, 0, 'cooking XP does not mutate the source');
 assert.equal(cooked.achievements.counters.partnerScheduleClaimCount, 0);
 assert.equal(normalizePet(cooked, now).achievements.counters.partnerScheduleClaimCount, 0, 'kitchen XP must not backfill a schedule completion');
 assert.equal(craftRecipe(cooked, 'egg_rice', false, 1, 'first', now), cooked);
@@ -43,7 +45,23 @@ let separate = batchBase;
 for (let i = 0; i < 5; i++) separate = craftRecipe(separate, 'egg_rice', false, 1, `single-${i}`, now);
 assert.equal(batch.hearts, separate.hearts);
 assert.deepEqual(batch.inventory, separate.inventory);
-assert.equal(batch.partnerSchedule.skills.cooking.xp, 5, 'first recipe XP is not repeated per serving');
+assert.equal(batch.partnerSchedule.skills.cooking.xp, 6, 'a batch grants one practice reward and one first-recipe bonus');
+assert.equal(separate.partnerSchedule.skills.cooking.xp, 10, 'five completed cooking sessions grant five practice XP');
+const recooked = craftRecipe(batch, 'egg_rice', false, 5, 'repeat-batch', now);
+assert.equal(recooked.partnerSchedule.skills.cooking.xp, 7, 'a familiar recipe still grants one XP per batch');
+assert.equal(recooked.kitchen.lastCraft?.skillXp, 1);
+assert.equal(craftRecipe(recooked, 'egg_rice', false, 5, 'repeat-batch', now), recooked);
+const cookingReloaded = parseSaveFileText(createSaveFileText(recooked, null, now), now).pet;
+assert.equal(cookingReloaded.partnerSchedule.skills.cooking.xp, 7);
+assert.equal(craftRecipe(cookingReloaded, 'egg_rice', false, 5, 'repeat-batch', now), cookingReloaded, 'saved operation receipts prevent repeated cooking XP');
+const almostCookingMaster = structuredClone(recooked);
+almostCookingMaster.partnerSchedule.skills.cooking = { level: 9, xp: 619, masterCompletions: 0 };
+const cookingMaster = craftRecipe(almostCookingMaster, 'egg_rice', false, 1, 'cooking-master', now);
+assert.deepEqual(cookingMaster.partnerSchedule.skills.cooking, { level: 10, xp: 0, masterCompletions: 0 });
+assert.equal(cookingMaster.kitchen.lastCraft?.skillXp, 1);
+const maxedCooking = craftRecipe(cookingMaster, 'egg_rice', false, 1, 'cooking-at-max', now);
+assert.deepEqual(maxedCooking.partnerSchedule.skills.cooking, cookingMaster.partnerSchedule.skills.cooking);
+assert.equal(maxedCooking.kitchen.lastCraft?.skillXp, 0, 'a maxed skill grants no XP or mastery completions');
 for (const [level, basic, skilled, master] of [[1, 3, 4, 6], [20, 6, 8, 11], [99, 18, 25, 34]]) {
   for (const [skillLevel, expected] of [[1, basic], [5, skilled], [10, master]]) {
     const pet = stocked();
@@ -64,7 +82,7 @@ thresholdPet.level = 20;
 thresholdPet.partnerSchedule.skills.cooking = { level: 4, xp: 129, masterCompletions: 0 };
 const thresholdMade = craftRecipe(thresholdPet, 'egg_rice', false, 5, 'skill-threshold', now);
 assert.equal(thresholdMade.partnerSchedule.skills.cooking.level, 5);
-assert.equal(thresholdMade.kitchen.lastCraft?.skillLevel, 4, 'the whole batch uses the skill before first-recipe XP');
+assert.equal(thresholdMade.kitchen.lastCraft?.skillLevel, 4, 'the whole batch uses the skill before completion XP');
 assert.equal(thresholdMade.hearts, getKitchenHeartReward(thresholdPet).heartsPerServing * 5);
 const historicalCraft = { id: 'old-craft', dishId: 'dish_egg_rice' as const, quantity: 1, hearts: 40, at: now };
 assert.deepEqual(normalizeKitchenState({ lastCraft: historicalCraft }).lastCraft, historicalCraft, 'old rewards are displayed without recalculation');
@@ -101,6 +119,7 @@ for (const [method, action] of [['mix', 'stir'], ['pan', 'flip'], ['blender', 'b
     progress = finishCookingAnimation(progress, cookingTime);
     if (isCookingComplete(progress)) dish = craftRecipe(dish, 'egg_rice', false, 1, `process-${method}`, cookingTime);
     assert.equal(dish.inventory.dish_egg_rice ?? 0, index === 2 ? 1 : 0, 'no materials or food change before completion');
+    assert.equal(dish.partnerSchedule.skills.cooking.xp, index === 2 ? 6 : 0, 'cooking practice is awarded only after the final action');
   }
   assert.equal(isCookingComplete(progress), true);
   assert.equal(beginCookingStep(progress, method, cookingTime + 1), progress, 'a completed process cannot restart');
@@ -113,7 +132,7 @@ assert.equal(recordDishTaste(fed, 'dish_egg_rice', 'official.mint', now).compani
 assert.equal(useInventoryItem(starter, 'rice', now).inventory.rice, 1, 'raw materials cannot be eaten');
 const purchased = buyItem(base, 'rice', now);
 assert.equal(purchased.inventory.rice, 1);
-assert.equal(purchased.coins, 18);
+assert.equal(purchased.coins, base.coins - getItemPurchaseQuote(base, 'rice', 1, now).totalPrice, 'ingredient purchases honor the current daily discount catalogue');
 
 let catalogue = stocked();
 for (const recipe of recipes.filter((recipe) => recipe.method === 'pan' || recipe.method === 'mix')) catalogue = craftRecipe(catalogue, recipe.id, false, 1, `cook-${recipe.id}`, now);
@@ -194,6 +213,7 @@ for (const game of ['matching', 'catch', 'bubbles'] as const) {
   assert.deepEqual(loaded.pet.miniGames.active?.matched, live.miniGames.active?.matched);
   assert.deepEqual(loaded.pet.miniGames.active?.bubbles, live.miniGames.active?.bubbles);
   assert.equal(loaded.pet.hearts, live.hearts, 'loading does not award unfinished games');
+  assert.deepEqual(loaded.pet.partnerSchedule.skills, playBase.partnerSchedule.skills, 'partial play and reload grant no practice XP');
   const belowLevel = { ...live, level: 2 };
   const blockedInput = actMiniGame(belowLevel, id, { type: 'tick' }, lastInputAt + 2000);
   assert.equal(blockedInput.miniGames.active?.paused, true, `${game}: existing games stop below Lv.3`);
@@ -217,8 +237,21 @@ for (const mode of ['normal', 'gentle'] as const) {
   assert.equal(played.miniGames.active, undefined);
   assert.equal(played.miniGames.records[`matching:${mode}`]?.completed, 1);
   assert.equal(played.achievements.counters.careActionCounts.play, 1);
+  assert.equal(played.partnerSchedule.skills.study.xp, 1, 'a complete matching game grants one study XP in either mode');
+  assert.equal(played.miniGames.lastResult?.skillXp, 1);
+  assert.deepEqual(played.partnerSchedule.skills.exercise, playBase.partnerSchedule.skills.exercise);
+  assert.equal(normalizePet(played, now).achievements.counters.partnerScheduleClaimCount, 0);
   assert.equal(actMiniGame(played, `pairs-${mode}`, { type: 'finish' }, now), played);
 }
+assert.equal(playBase.partnerSchedule.skills.study.xp, 0, 'game XP does not mutate the source');
+const almostStudyMaster = structuredClone(playBase);
+almostStudyMaster.partnerSchedule.skills.study = { level: 9, xp: 619, masterCompletions: 0 };
+const studyMaster = finishMatching(almostStudyMaster, 'study-master', 'gentle');
+assert.deepEqual(studyMaster.partnerSchedule.skills.study, { level: 10, xp: 0, masterCompletions: 0 });
+assert.equal(studyMaster.miniGames.lastResult?.skillXp, 1);
+const masteredAgain = finishMatching(acknowledgeMiniGameResult(studyMaster, 'study-master'), 'study-master-again', 'normal');
+assert.deepEqual(masteredAgain.partnerSchedule.skills.study, studyMaster.partnerSchedule.skills.study);
+assert.equal(masteredAgain.miniGames.lastResult?.skillXp, undefined, 'a capped skill must not show an XP reward');
 let paused = startMiniGame(playBase, 'matching', 'normal', actor, 'paused', now);
 paused = actMiniGame(paused, 'paused', { type: 'flip', index: 0 }, now + 100);
 paused = pauseMiniGame(paused);
@@ -228,6 +261,7 @@ const resumed = resumeMiniGame(paused, actor, now + 60000);
 assert.equal(resumed.miniGames.active?.elapsedMs, 0);
 assert.deepEqual(resumed.miniGames.active?.flipped, [0]);
 assert.equal(normalizeMiniGameState(resumed.miniGames).active?.paused, true);
+assert.equal(abandonMiniGame(resumed).partnerSchedule.skills.study.xp, 0, 'abandoning a partial game grants no XP');
 assert.equal(actMiniGame({ ...resumed, isSleeping: true }, 'paused', { type: 'flip', index: 1 }, now + 60001).miniGames.active?.paused, true);
 
 const finishCatch = (pet: PetState, id: string, caught: boolean) => {
@@ -253,12 +287,25 @@ assert.equal(actMiniGame(earlyThrow, 'early', { type: 'tick' }, now + 1).miniGam
 const missed = finishCatch(ball, 'missed', false);
 assert.equal(missed.hearts, 15, 'missing all throws still rewards completion');
 assert.equal(missed.inventory.toy_ball, 2, 'ten throws cost one toy ball');
+assert.equal(missed.partnerSchedule.skills.exercise.xp, 1, 'practice rewards a complete game even without catches');
 const record = finishCatch(ball, 'record', true);
 assert.ok(record.companionMemories.entries.some((entry) => entry.kind === 'catch_record'));
 const again = finishCatch(record, 'again', false);
 assert.ok(again.companionMemories.entries.some((entry) => entry.kind === 'practice_photo'), 'the follow-up does not require another record');
 assert.equal(again.hearts, 30);
 assert.equal(again.inventory.toy_ball, 1);
+assert.equal(record.partnerSchedule.skills.exercise.xp, 1);
+assert.equal(again.partnerSchedule.skills.exercise.xp, 2, 'a new full game grants one additional XP');
+const catchImported = parseSaveFileText(createSaveFileText(record, null, now + 6000), now + 12000).pet;
+assert.equal(catchImported.partnerSchedule.skills.exercise.xp, 1);
+assert.equal(catchImported.miniGames.lastResult?.skillXp, 1, 'pending skill reward details survive saving');
+const catchAcknowledged = acknowledgeMiniGameResult(catchImported, 'record');
+assert.equal(catchAcknowledged.partnerSchedule.skills.exercise.xp, 1, 'closing results does not grant XP again');
+assert.equal(actMiniGame(catchAcknowledged, 'record', { type: 'finish' }, now + 12000), catchAcknowledged);
+const catchReloaded = parseSaveFileText(createSaveFileText(catchAcknowledged, null, now + 12000), now + 12000).pet;
+assert.equal(startMiniGame(catchReloaded, 'catch', 'gentle', actor, 'record', now + 12000), catchReloaded, 'a settled session stays blocked after its result is dismissed and saved');
+const legacyGameResult = { ...record.miniGames.lastResult!, skillXp: undefined };
+assert.equal(normalizeMiniGameState({ ...record.miniGames, lastResult: legacyGameResult }).lastResult?.skillXp, undefined, 'old results do not acquire retroactive XP');
 let bubbles = startMiniGame(buyBubbleWand(playBase), 'bubbles', 'gentle', actor, 'bubbles', now);
 assert.equal(actMiniGame(bubbles, 'bubbles', { type: 'finish' }, now).hearts, 0, 'entry alone earns nothing');
 for (let index = 0; index < 3; index++) {
@@ -275,6 +322,7 @@ for (let second = 1; second <= 6; second++) bubbles = actMiniGame(bubbles, 'bubb
 bubbles = actMiniGame(bubbles, 'bubbles', { type: 'finish' }, now + bubbleSessionMs);
 assert.equal(bubbles.hearts, 5);
 assert.equal(bubbles.miniGames.active, undefined);
+assert.deepEqual(bubbles.partnerSchedule.skills, playBase.partnerSchedule.skills, 'bubbles keep their existing rewards');
 assert.equal(buyBubbleWand(bubbles).coins, bubbles.coins);
 
 for (const [level, expected] of [[3, 5], [10, 7], [20, 13], [50, 50], [99, 150]]) {
@@ -335,7 +383,7 @@ const storageRegistry = createBuiltinItemRegistry();
 const shopDefinitions = getShopDefinitions(storageRegistry);
 const ingredients = filterBrowseItems(shopDefinitions, 'ingredients');
 const food = filterBrowseItems(shopDefinitions, 'food');
-assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'emergency_biscuit'].sort());
+assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'emergency_biscuit', 'soda_biscuit_box'].sort());
 for (const id of ['rice', 'egg', 'flour', 'carrot']) assert.ok(!food.some((item) => item.id === id), 'dedicated materials leave the food tab');
 for (const id of ['apple', 'banana', 'ad_milk', 'strawberry_milk', 'emergency_biscuit']) assert.equal(food.find((item) => item.id === id), ingredients.find((item) => item.id === id), 'both categories reference the same item');
 assert.equal(filterBrowseItems([...shopDefinitions, ...ingredients], 'all').length, shopDefinitions.length, 'All deduplicates shared ingredients');
@@ -402,8 +450,12 @@ try {
   const cookingResultHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, pet: cooked, request: { ...cookingProps.request, id: 'first' } }));
   assert.ok(cookingResultHtml.includes('一起做好啦') && cookingResultHtml.includes('料理 Lv.1 +0'));
   assert.ok(cookingResultHtml.includes('cooking-reward-hearts') && !cookingResultHtml.includes('cooking-stage'));
+  assert.ok(cookingResultHtml.includes('料理经验 +6'));
+  const recookedResultHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, pet: recooked, request: { ...cookingProps.request, id: 'repeat-batch' } }));
+  assert.ok(recookedResultHtml.includes('料理经验 +1'), 'a repeated recipe displays its actual practice reward');
   const oldCookingHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, pet: { ...cooked, kitchen: { ...cooked.kitchen, lastCraft: historicalCraft } }, request: { ...cookingProps.request, id: historicalCraft.id } }));
   assert.ok(oldCookingHtml.includes('+40') && !oldCookingHtml.includes('undefined'));
+  assert.ok(!oldCookingHtml.includes('料理经验 +'), 'old results must not display newly introduced XP');
   const playProps = { pet: playBase, actorId: actor, portrait: assets.petStatusImages.content, happyPortrait: assets.petActivityImages.happy, onClose: noop, onShop: noop, onQuickPlay: noop, update: noop, onAct: noop };
   const playHtml = renderToStaticMarkup(createElement(PlayModal, playProps));
   assert.equal((playHtml.match(/class="play-game-card /g) ?? []).length, 3);
@@ -437,7 +489,8 @@ try {
   const homeHtml = renderToStaticMarkup(createElement(HomePageV2, homeProps));
   assert.ok(homeHtml.includes('home-quick kitchen'));
   assert.ok(homeHtml.includes('home-care-bar'));
-  for (const tone of ['peach', 'rose', 'lilac', 'gold', 'sky', 'mint']) assert.ok(homeHtml.includes(`data-tone="${tone}"`));
+  for (const tone of ['peach', 'rose', 'lilac', 'gold', 'sky']) assert.ok(homeHtml.includes(`data-tone="${tone}"`));
+  assert.ok(homeHtml.includes('class="memory-cover"'), 'the album uses the paper-and-sticker cover');
   for (const level of [1, 2, 3]) {
     const html = renderToStaticMarkup(createElement(HomePageV2, { ...homeProps, pet: { ...base, level } }));
     const playEntry = html.match(/<button class="home-quick play"[^>]*>[\s\S]*?<\/button>/)?.[0];
@@ -451,9 +504,16 @@ try {
   const inventoryProps = { ...storageProps, items: getInventoryDefinitions(storageRegistry, storagePet.inventory), isPetBusy: false, onOpenShop: noop, onOpenGarden: noop, onOpenKitchen: noop, onUseItem: noop };
   const shopHtml = renderToStaticMarkup(createElement(ShopModal, shopProps));
   const inventoryHtml = renderToStaticMarkup(createElement(InventoryModal, inventoryProps));
-  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, 11);
-  assert.ok(shopHtml.includes('storage-detail') && shopHtml.includes('storage-exchange') && shopHtml.includes('购买 5 件'));
-  assert.ok(shopHtml.includes('食材') && shopHtml.includes('type="search"'));
+  const tiles = shopHtml.match(/<button class="storage-item-tile"[^>]*>/g) ?? [];
+  assert.ok(tiles.length > 1);
+  assert.equal(tiles.filter((tile) => tile.includes('data-tone=')).length, 1, 'category color is assigned only to the selected tile');
+  assert.ok(tiles.find((tile) => tile.includes('data-tone='))?.includes('aria-pressed="true"'));
+  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, 12);
+  assert.ok(shopHtml.includes('storage-detail') && !shopHtml.includes('storage-exchange') && shopHtml.includes('购买 5 件'));
+  assert.ok(shopHtml.includes('食材') && !shopHtml.includes('type="search"') && !inventoryHtml.includes('type="search"'));
+  const boxProps = { ...shopProps, browse: { ...defaultBrowse, selectedId: 'soda_biscuit_box', quantity: 3 } };
+  const boxHtml = renderToStaticMarkup(createElement(ShopModal, boxProps));
+  assert.ok(boxHtml.includes('购买 3 箱') && boxHtml.includes('到账 120 块苏打饼干') && boxHtml.includes('饼干库存'));
   assert.ok(inventoryHtml.includes('喂食 ×5') && inventoryHtml.includes('留着做菜'));
   const rawMaterialHtml = renderToStaticMarkup(createElement(InventoryModal, { ...inventoryProps, browse: { ...defaultBrowse, category: 'ingredients', selectedId: 'rice' } }));
   assert.ok(rawMaterialHtml.includes('去厨房') && !rawMaterialHtml.includes('data-use-item="rice"'));
@@ -462,7 +522,7 @@ try {
   const emptyHtml = renderToStaticMarkup(createElement(InventoryModal, { ...inventoryProps, pet: { ...storagePet, inventory: {} }, items: [] }));
   assert.ok(emptyHtml.includes('storage-empty') && !emptyHtml.includes('data-use-item='));
   const searchedHtml = renderToStaticMarkup(createElement(ShopModal, { ...shopProps, browse: { ...defaultBrowse, query: 'nothing-matches' } }));
-  assert.ok(searchedHtml.includes('没有找到符合的物品') && !searchedHtml.includes('data-buy-item='));
+  assert.ok(!searchedHtml.includes('没有找到符合的物品') && searchedHtml.includes('data-buy-item='), 'hidden search must not filter the shop by an old query');
   const claimHtml = renderToStaticMarkup(createElement(ShopModal, { ...shopProps, pet: claimedBiscuits, browse: { ...defaultBrowse, selectedId: 'emergency_biscuit', quantity: 10 } }));
   assert.ok(claimHtml.includes('data-buy-item="emergency_biscuit" disabled=""'));
   const discountHtml = renderToStaticMarkup(createElement(ShopModal, { ...shopProps, browse: { ...defaultBrowse, selectedId: discountedId, quantity: 5 } }));
@@ -475,6 +535,8 @@ try {
     const englishCooking = renderToStaticMarkup(createElement(KitchenCookingModal, cookingProps));
     assert.ok(englishCooking.includes('Add ingredients') && englishCooking.includes('Toss the pan'));
     assert.ok(englishShop.includes('Ingredients') && englishShop.includes('Buy 5'));
+    const englishBox = renderToStaticMarkup(createElement(ShopModal, boxProps));
+    assert.ok(englishBox.includes('Buy 3 boxes') && englishBox.includes('Receive 120 soda biscuits'));
     assert.ok(englishBag.includes('Feed ×5') && englishBag.includes('Cook with it'));
     assert.ok(!englishShop.includes('ui.shop.') && !englishBag.includes('ui.inventory.'));
   } finally { locale.setLanguage('zh-CN'); }

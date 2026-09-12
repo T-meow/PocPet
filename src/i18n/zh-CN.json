@@ -11,15 +11,26 @@
       "backup": "去备份存档", "download": "下载安装包", "later": "明天提醒", "ignore": "忽略此版本", "ignored": "已忽略此版本"
     },
     "backup": {
+      "version": "需要更新客户端",
       "exportTitle": "导出存档", "importTitle": "导入与恢复",
       "upgradeBackup": "升级前备份未能写入，已暂停保存以保护原存档。可以查看并导出存档；释放存储空间后请重新载入。本页后续操作不会自动保存。",
       "skippedFiles": "已跳过 {count} 个无法读取的备份文件，其余恢复点仍可使用。",
       "title": "本地自动备份", "enabled": "定期备份", "interval": "间隔（天）", "now": "立即备份", "busy": "备份中", "choose": "选择自动备份文件", "authorize": "重新授权文件", "empty": "尚无自动备份", "latest": "最近备份", "fileTime": "文件更新时间", "history": "恢复点", "restore": "恢复", "export": "导出", "copy": "复制存档文本", "copied": "存档文本已复制。", "copyFallback": "请在文本框中全选并复制存档。", "failed": "备份未完成，已有恢复点已保留。", "internal": "应用内恢复点", "native": "应用数据目录中的本地文件", "saved": "已绑定本地文件", "unconfigured": "尚未绑定本地文件", "permission": "文件需要重新授权", "unsupported": "当前环境仅保存应用内恢复点", "error": "本地文件尚未更新", "storageWarning": "应用内数据可能随清理网站数据或卸载应用而消失，请另行导出备份。", "textFallback": "当前 App 可能无法下载文件，请复制下方存档文本备份。", "saveError": "当前进度未能保存。请导出存档后重新打开，避免丢失本次进度。", "conflict": "另一个页面修改了存档，本页已暂停保存。请重新打开以载入最新进度。", "reload": "重新载入", "recoveryTitle": "恢复已有进度", "recoveryMessage": "当前存档无法正常载入。请先选择恢复点或导入备份，原始内容会保留。", "recoveryMissing": "未找到主存档，但发现了可恢复的备份。", "recoveryStorage": "无法访问本地存储，请恢复浏览器权限后重试。", "retry": "重试", "original": "原始存档", "import": "导入备份文件", "startNew": "开始新进度", "newWarning": "确认开始新进度？已有每日备份和升级前副本会保留。", "stage": "故障阶段", "parse": "文件解析", "validation": "数据校验", "migration": "旧版数据迁移", "simulation": "离线结算", "storage": "本地存储", "localSummary": "本地备份、导入与恢复", "saveProfile": "保存资料"
     },
     "editionNotice": {
-      "title": "存档提醒",
-      "backupTitle": "请保留本地备份",
-      "backupAdvice": "建议经常导出存档，并在应用外保留一份备份。",
+      "title": "1.8 更新公告",
+      "featuresTitle": "换上新的日常界面",
+      "uiAdvice": "小窝、状态圆环、花园、伙伴日程、商店与纪念册采用新版界面，朋友卡和扭蛋也有了新样式。操作结果会通过浮动消息告诉你。",
+      "kitchenTitle": "一起下厨",
+      "kitchenAdvice": "厨房新增 14 道食谱、16 种料理，支持批量制作、厨具解锁和初尝回忆。把食材变成伙伴喜欢的家常味道吧。",
+      "playTitle": "一起玩耍",
+      "playAdvice": "Lv.3 解锁翻牌、抛接球和吹泡泡。接球每局消耗一个玩具球，一起游玩可以获得心心与回忆。",
+      "backupTitle": "请转换并备份新版存档",
+      "backupAdvice": "1.8 已开始使用新版存档。建议在升级 1.9 前，进入「设置 → 存档与恢复」导出并保留一份新版存档文件。",
+      "formatTimeline": "1.9 仍兼容旧档并支持转换；2.0 将只读取新版存档。已有旧备份文件不会自动改写，请保留原文件。转换后请使用升级后的客户端继续游玩和同步。",
+      "compensationTitle": "旧档补偿与箱装饼干",
+      "compensationAdvice": "有效旧存档首次迁移成功后，自动赠送 3 箱苏打饼干（直接到账 120 块）和 10 个草莓牛奶。每份存档只发一次，新建进度不发。库存不足时，余量会在腾出空间后自动到账。",
+      "boxAdvice": "商店新增「一箱苏打饼干」，原价 500 金币，购买后直接到账 40 块，可喂食或用于做饭。",
       "downloadFallback": "B 站 App 无法下载文件时，可复制存档文本，或换用网页浏览器导出。",
       "localBackupAdvice": "卸载应用或清理数据可能同时删除自动备份，请另行导出重要进度。",
       "policyTitle": "B 站版功能调整",
@@ -31,7 +42,7 @@
       "updateAdvice": "普通版 App 默认每天检查 GitHub 新版本，也可在「设置 → 客户端更新」手动检查。",
       "installAdvice": "发现新版后可下载安装包，再自行安装。更新前请先备份存档。",
       "openUpdates": "查看客户端更新",
-      "backup": "去备份", "acknowledge": "知道了", "restricted": "B 站版不可用"
+      "backup": "去导出新版存档", "acknowledge": "知道了", "restricted": "B 站版不可用"
     },
     "quantity": {
       "aria": "选择数量",
@@ -69,7 +80,7 @@
       "settings": "设置",
       "openSettings": "打开设置",
       "openAchievements": "打开成就",
-      "openBoostCards": "打开增益卡"
+      "openBoostCards": "打开朋友卡"
     },
     "dashboard": {
       "aria": "宠物数值",
@@ -196,7 +207,16 @@
         "importPasted": "导入粘贴内容",
         "previewReady": "存档已读取，请确认预览后导入。",
         "previewTitle": "确认导入存档？",
-        "previewMessage": "宠物：{name}（Lv.{level}）；导出时间：{exportedAt}；外观：{mod}。确认后会替换当前存档，当前进度会先备份。",
+        "previewMessage": "宠物：{name}（Lv.{level}）；导出时间：{exportedAt}；外观：{mod}。格式：{format}。{migration} 确认后会替换当前存档，当前进度会先备份。",
+        "formatV2": "新版 JSON 存档（格式 v2）",
+        "formatLegacy": "旧版存档（待转换）",
+        "migrationPending": "等待成功保存后完成旧档迁移。",
+        "migrationComplete": "旧档迁移已完成，补偿领取状态已随存档保存。",
+        "newProgress": "当前为新版进度，无旧档迁移补偿。",
+        "previewMigration": "确认导入时会保留转换前原始副本，并转换为新格式；符合条件且未领过的旧档会自动获得补偿。预览不会改动存档。",
+        "previewCurrent": "已是新格式，保留现有迁移和补偿状态。",
+        "newerVersion": "此存档包含当前客户端不支持的新版数据，请升级客户端后读取。原始存档已保留，不会回退或覆盖保存。",
+        "requiresVersion": "此存档需要 PocPet {version} 或更高版本，请升级后读取。原始存档已保留。",
         "previewLegacyTime": "旧版存档（无导出时间）",
         "previewBuiltinMod": "内置宠物",
         "previewCancel": "取消",
@@ -232,6 +252,11 @@
         "manage": "存档管理"
       },
       "cloud": {
+        "capacity": "云端容量",
+        "capacityValue": "{used} / {max} KiB（{percent}%）",
+        "unchanged": "游戏数据未变化，已保留云端存档，无需重复上传。",
+        "tooLarge": "存档超过云端容量或安全大小限制，当前云档已保留。请先导出本地存档备份。",
+        "newerVersion": "云端包含更新版本的存档，请升级客户端后继续。现有云档不会回退或覆盖。",
         "title": "Toy 云存档",
         "checking": "正在检查云存档",
         "ready": "已找到可恢复的云存档",
@@ -462,7 +487,7 @@
       "inventory": "背包",
       "inventoryKinds": "持有 {count} 类",
       "pomodoro": "番茄钟",
-      "boostCards": "增益卡",
+      "boostCards": "朋友卡",
       "boostCardsActive": "{card}生效中",
       "weatherAria": "今日天气：{weather}",
       "garden": "花园",
@@ -1050,16 +1075,16 @@
       "compensationGiftCoins": "+{coins}"
     },
     "boostCards": {
-      "title": "增益卡",
+      "title": "朋友卡",
       "close": "关闭",
       "activeCard": "当前生效：{card}",
-      "noActive": "当前没有生效增益卡",
+      "noActive": "当前没有生效朋友卡",
       "todayWork": "今日打工加成 {coins}/{limit}",
       "todayGarden": "今日种植额外产物 {count}/{limit}",
       "claimed": "今日已领取",
       "claimReward": "领取邻居礼物和 {coins} 金币",
       "rewardGiftTitle": "邻居礼物已送达",
-      "rewardCoinsTitle": "增益卡每日奖励",
+      "rewardCoinsTitle": "朋友卡每日奖励",
       "remaining": "剩余 {days} 天",
       "buy": "{hearts} 心心续期 30 天",
       "blockedByBestFriend": "挚友证生效中",
@@ -1094,6 +1119,7 @@
           "name": "苏打饼干",
           "summary": "味道平淡的饼干"
         },
+        "soda_biscuit_box": { "name": "一箱苏打饼干", "summary": "购买后直接获得 40 块苏打饼干，可用于喂食和做饭。不占每天的免费领取次数。" },
         "bento": {
           "name": "家常便当",
           "summary": "米饭份量很足的盒饭"
@@ -1476,6 +1502,8 @@
       "workBonus": " 心情不错，额外赚到 {coins} 金币。"
     },
     "buy": {
+      "inventoryFull": "苏打饼干库存空间不足，腾出空间后再购买整箱吧。",
+      "bundle": "购买了 {count} 箱苏打饼干，到账 {biscuits} 块，共花费 {price} 金币。",
       "missing": "这个商品不存在。",
       "biscuitClaimedOut": "今天的苏打饼干已经领完了，明天再来吧。",
       "biscuitLimitInsufficient": "今天最多还能领取 {remaining} 份苏打饼干。",
@@ -1570,6 +1598,8 @@
       "authorLinkGift": "感谢关注作者，扭蛋券 +{count}。",
       "authorFollowGift": "已验证关注作者，扭蛋券 +{count}。",
       "gardenCompensation": "已领取种植园补偿，金币 +{coins}。",
+      "saveMigrationGift": "旧档补偿到账：苏打饼干 +{biscuits}，草莓牛奶 +{milk}。",
+      "saveMigrationPending": "库存空间不足，剩余补偿已保留，会在腾出空间后自动到账。",
       "anniversary": "今天是和 {name} 相遇的日子，纪念日礼物：金苹果 +1、亮晶晶贴纸 +1、扭蛋券 +10。",
       "monthlyGift": "新的月份开始了，月初礼物：金苹果 +1、扭蛋券 +3。",
       "catchUp": "「{name}」带着礼物等你回来。",
@@ -2180,16 +2210,16 @@
       "harvestMixedWithered": "收获了 {count} 件道具，金币 +{coins}，这棵树寿命耗尽枯萎了。"
     },
     "boostCards": {
-      "maxDuration": "这张增益卡最多只能累计 90 天。",
+      "maxDuration": "这张朋友卡最多只能累计 90 天。",
       "notEnoughHearts": "小心心不足，需要 {hearts} 个。",
       "bestFriendBlocksFriend": "挚友证生效时，不能购买好友证。",
       "buySuccess": "{card}已生效或续期。",
-      "noActiveCard": "当前没有生效增益卡。",
-      "dailyRewardClaimed": "今天已经领取过增益卡邻居礼物和金币了。",
-      "claimDailyRewardNamed": "{neighbor}送来了{item}，同时领取增益卡每日 {coins} 金币。",
-      "claimDailyRewardGeneric": "邻居送来了{item}，同时领取增益卡每日 {coins} 金币。",
-      "claimDailyRewardCoinsOnly": "今天已收到 3 件邻居礼物，本次只领取增益卡每日 {coins} 金币。",
-      "workBonus": " 增益卡 +{coins} 金币。"
+      "noActiveCard": "当前没有生效朋友卡。",
+      "dailyRewardClaimed": "今天已经领取过朋友卡邻居礼物和金币了。",
+      "claimDailyRewardNamed": "{neighbor}送来了{item}，同时领取朋友卡每日 {coins} 金币。",
+      "claimDailyRewardGeneric": "邻居送来了{item}，同时领取朋友卡每日 {coins} 金币。",
+      "claimDailyRewardCoinsOnly": "今天已收到 3 件邻居礼物，本次只领取朋友卡每日 {coins} 金币。",
+      "workBonus": " 朋友卡 +{coins} 金币。"
     }
   }
 }

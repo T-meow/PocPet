@@ -5,9 +5,11 @@ interface DialogShellProps {
   className: string;
   backdropClassName?: string;
   labelId: string;
+  descriptionId?: string;
   onClose: () => void;
   closeOnEscape?: boolean;
   role?: 'dialog' | 'alertdialog';
+  fullscreen?: boolean;
 }
 
 const focusableSelector = [
@@ -20,6 +22,7 @@ const focusableSelector = [
 ].join(',');
 
 const dialogStack: symbol[] = [];
+const dialogLayers = new Map<symbol, number>();
 let bodyOverflowBeforeDialogs: string | undefined;
 
 export const DialogShell = ({
@@ -27,9 +30,11 @@ export const DialogShell = ({
   className,
   backdropClassName,
   labelId,
+  descriptionId,
   onClose,
   closeOnEscape = true,
   role = 'dialog',
+  fullscreen = false,
 }: DialogShellProps) => {
   const dialogRef = useRef<HTMLElement>(null);
   const dialogIdRef = useRef(Symbol('dialog'));
@@ -45,6 +50,13 @@ export const DialogShell = ({
     document.body.style.overflow = 'hidden';
 
     const dialog = dialogRef.current;
+    const backdrop = dialog?.parentElement;
+    if (backdrop) {
+      const baseLayer = Number(window.getComputedStyle(backdrop).zIndex) || 20;
+      const layer = Math.max(baseLayer, ...dialogLayers.values()) + 1;
+      backdrop.style.zIndex = String(layer);
+      dialogLayers.set(dialogId, layer);
+    }
     const focusTarget = dialog?.querySelector<HTMLElement>(focusableSelector) ?? dialog;
     window.requestAnimationFrame(() => focusTarget?.focus());
 
@@ -67,7 +79,10 @@ export const DialogShell = ({
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -81,6 +96,7 @@ export const DialogShell = ({
       document.removeEventListener('keydown', handleKeyDown);
       const stackIndex = dialogStack.lastIndexOf(dialogId);
       if (stackIndex >= 0) dialogStack.splice(stackIndex, 1);
+      dialogLayers.delete(dialogId);
       if (dialogStack.length === 0) {
         document.body.style.overflow = bodyOverflowBeforeDialogs ?? '';
         bodyOverflowBeforeDialogs = undefined;
@@ -92,13 +108,14 @@ export const DialogShell = ({
   }, [closeOnEscape]);
 
   return (
-    <div className={`modal-backdrop${backdropClassName ? ` ${backdropClassName}` : ''}`} role="presentation">
+    <div className={`modal-backdrop${fullscreen ? ' modal-backdrop--fullscreen' : ''}${backdropClassName ? ` ${backdropClassName}` : ''}`} role="presentation">
       <section
         ref={dialogRef}
-        className={`dialog-shell ${className}`}
+        className={`dialog-shell ${className}${fullscreen ? ' dialog-shell--fullscreen' : ''}`}
         role={role}
         aria-modal="true"
         aria-labelledby={labelId}
+        aria-describedby={descriptionId}
         tabIndex={-1}
       >
         {children}

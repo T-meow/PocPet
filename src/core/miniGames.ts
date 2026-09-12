@@ -6,6 +6,7 @@ import { clampLevel, clampPetStat, scalePetStatDelta } from './petStats';
 import { recordYearlyCareAction } from './yearlyStats';
 import { hashString } from './utils';
 import { removeInventoryItem } from './items';
+import { grantPracticeSkillXp, partnerScheduleMaxSkillLevel, practiceSkillXp } from './partnerSchedule';
 import type { PetState, Inventory } from './petTypes';
 import type { MiniGameId, MiniGameSession, MiniGameState, PlayMode } from './companionActivityTypes';
 
@@ -16,6 +17,7 @@ export const miniGameDefinitions = [
 ];
 export const gameName = (id: MiniGameId) => { const game = miniGameDefinitions.find((entry) => entry.id === id)!; return activityText(game.name, game.en); };
 export const miniGameUnlockLevel = 3;
+export const getMiniGameSkillCategory = (game: MiniGameId) => game === 'matching' ? 'study' as const : game === 'catch' ? 'exercise' as const : undefined;
 export const getMiniGameBaseHearts = (level: number, game: MiniGameId = 'matching') => {
   const rewardLevel = clampLevel(level);
   if (rewardLevel < miniGameUnlockLevel) return 0;
@@ -29,7 +31,7 @@ export const bubbleSessionMs = 6000;
 export const getCatchPetX = (session: MiniGameSession, now: number) => 0.5 + 0.31 * Math.sin((session.elapsedMs + Math.max(0, now - session.lastTickAt)) / 2600 * Math.PI * 2);
 const gameIds: MiniGameId[] = ['matching', 'catch', 'bubbles'];
 const count = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-export const defaultMiniGameState = (): MiniGameState => ({ schemaVersion: 1, unlocked: ['matching'], records: {}, style: 'garden' });
+export const defaultMiniGameState = (): MiniGameState => ({ schemaVersion: 1, lastSettledSessionId: '', unlocked: ['matching'], records: {}, style: 'garden' });
 export const normalizeMiniGameState = (raw: unknown, inventory: Inventory = {}, used: Partial<Record<string, number>> = {}, options: { preserveSession?: boolean; level?: number } = {}): MiniGameState => {
   const value = raw && typeof raw === 'object' ? raw as Partial<MiniGameState> : {};
   const next = defaultMiniGameState();
@@ -66,11 +68,13 @@ export const normalizeMiniGameState = (raw: unknown, inventory: Inventory = {}, 
     }
   }
   const result = value.lastResult;
+  next.lastSettledSessionId = typeof value.lastSettledSessionId === 'string' ? value.lastSettledSessionId : typeof result?.id === 'string' ? result.id : '';
   if (result && typeof result.id === 'string' && typeof result.actorId === 'string' && gameIds.includes(result.game)) next.lastResult = {
     id: result.id, actorId: result.actorId, game: result.game, mode: result.mode === 'normal' ? 'normal' : 'gentle',
     hearts: count(result.hearts), baseHearts: typeof result.baseHearts === 'number' ? count(result.baseHearts) : undefined,
     rewardLevel: typeof result.rewardLevel === 'number' ? clampLevel(result.rewardLevel) : undefined,
     mood: typeof result.mood === 'number' && Number.isFinite(result.mood) ? Math.max(0, result.mood) : undefined,
+    skillXp: getMiniGameSkillCategory(result.game) && typeof result.skillXp === 'number' ? Math.min(practiceSkillXp, count(result.skillXp)) : undefined,
     score: count(result.score), elapsedMs: count(result.elapsedMs), at: count(result.at), pending: result.pending === true,
   };
   return next;
@@ -79,7 +83,7 @@ export const unlockBallGame = (pet: PetState): PetState => pet.miniGames.unlocke
 export const buyBubbleWand = (pet: PetState): PetState => pet.level < miniGameUnlockLevel || pet.coins < 30 || pet.miniGames.unlocked.includes('bubbles') ? pet : { ...pet, coins: pet.coins - 30, miniGames: { ...pet.miniGames, unlocked: [...pet.miniGames.unlocked, 'bubbles'] } };
 export const getPlayTotal = (pet: PetState) => Object.values(pet.miniGames.records).reduce((sum, record) => sum + record.completed, 0);
 export const startMiniGame = (pet: PetState, game: MiniGameId, mode: PlayMode, actorId: string, id: string, now: number): PetState => {
-  if (pet.level < miniGameUnlockLevel || !gameIds.includes(game) || (game !== 'catch' && !pet.miniGames.unlocked.includes(game)) || (game === 'catch' && (pet.inventory.toy_ball ?? 0) < 1) || !id || pet.miniGames.active || pet.miniGames.lastResult?.id === id || (pet.miniGames.lastResult?.pending && pet.miniGames.lastResult.actorId === actorId) || pet.isSleeping || pet.partnerSchedule.active) return pet;
+  if (pet.level < miniGameUnlockLevel || !gameIds.includes(game) || (game !== 'catch' && !pet.miniGames.unlocked.includes(game)) || (game === 'catch' && (pet.inventory.toy_ball ?? 0) < 1) || !id || pet.miniGames.active || (pet.miniGames.lastResult?.id === id || pet.miniGames.lastSettledSessionId === id) || (pet.miniGames.lastResult?.pending && pet.miniGames.lastResult.actorId === actorId) || pet.isSleeping || pet.partnerSchedule.active) return pet;
   const deck = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5];
   for (let index = deck.length - 1; index > 0; index--) { const other = hashString(`${id}:${index}`) % (index + 1); [deck[index], deck[other]] = [deck[other], deck[index]]; }
   const inventory = game === 'catch' ? removeInventoryItem(pet.inventory, 'toy_ball', 1) : pet.inventory;
@@ -112,14 +116,17 @@ const finishMiniGame = (pet: PetState, now: number): PetState => {
   const best = previous.completed === 0 ? score : active.game === 'matching' ? Math.min(previous.best, score) : Math.max(previous.best, score);
   const gain = applyHeartGain(pet, active.baseHearts);
   const mood = clampPetStat(pet, pet.mood + scalePetStatDelta(pet, 4));
+  const skillCategory = getMiniGameSkillCategory(active.game);
+  const skillXp = skillCategory && pet.partnerSchedule.skills[skillCategory].level < partnerScheduleMaxSkillLevel ? practiceSkillXp : undefined;
   let next: PetState = { ...pet, hearts: gain.hearts, boostCards: gain.boostCards, mood, lastInteractionAt: now, recentActivity: 'happy', recentActivityUntil: now + 3000,
     recentEvent: activityText(`一起玩了${gameName(active.game)}，收获 ${gain.amount} 颗心心。`, `Played ${gameName(active.game)} together and earned ${gain.amount} hearts.`),
-    miniGames: { ...pet.miniGames, active: undefined, lastResult: { id: active.id, game: active.game, actorId: active.actorId, mode: active.mode, hearts: gain.amount, baseHearts: active.baseHearts, rewardLevel: active.rewardLevel, mood: Math.max(0, mood - pet.mood), score, elapsedMs: active.elapsedMs, at: now, pending: true }, records: { ...pet.miniGames.records, [key]: { completed: previous.completed + 1, best, bestMs: previous.bestMs ? Math.min(previous.bestMs, active.elapsedMs) : active.elapsedMs } } } };
+    miniGames: { ...pet.miniGames, active: undefined, lastSettledSessionId: active.id, lastResult: { id: active.id, game: active.game, actorId: active.actorId, mode: active.mode, hearts: gain.amount, baseHearts: active.baseHearts, rewardLevel: active.rewardLevel, mood: Math.max(0, mood - pet.mood), skillXp, score, elapsedMs: active.elapsedMs, at: now, pending: true }, records: { ...pet.miniGames.records, [key]: { completed: previous.completed + 1, best, bestMs: previous.bestMs ? Math.min(previous.bestMs, active.elapsedMs) : active.elapsedMs } } } };
   if (active.game === 'catch') {
     const priorMemory = pet.companionMemories.entries.some((entry) => entry.actorId === active.actorId && entry.kind === 'catch_record');
     if (priorMemory) next = rememberTogether(next, active.actorId, 'practice_photo', 'together', now);
     if (active.bestStreak > previous.best) next = rememberTogether(next, active.actorId, 'catch_record', active.mode, now);
   }
+  if (skillCategory) next = grantPracticeSkillXp(next, skillCategory);
   return recordWishProgress(incrementAchievementCareAction(recordYearlyCareAction(recordEarnedHearts(next, gain.amount), 'play', now), 'play'), 'play', now);
 };
 export type MiniGameAction = { type: 'tick' | 'clear' | 'blow' | 'release' | 'finish' } | { type: 'flip' | 'pop'; index: number } | { type: 'throw'; targetX: number };

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Bell, Check, Download, Image, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Bell, Check, Download, ChefHat, Gamepad2, Gift, Palette, RefreshCw } from 'lucide-react';
 import { t } from '../i18n';
 import { appBuild, features } from '../platform/edition';
 import { recordEditionNoticeShown } from '../core/editionNotice';
@@ -12,12 +12,11 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenUpdates }: 
 }) => {
   useEffect(() => { recordEditionNoticeShown(); }, []);
   const sections = [
-    { key: 'backup', Icon: Download, paragraphs: ['backupAdvice', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
-    ...(features.cloudSave ? [
-      { key: 'policy', Icon: ShieldCheck, paragraphs: ['policyChanges', 'existingData'] },
-      { key: 'sharing', Icon: Image, paragraphs: ['sharingAdvice'] },
-    ] : []),
-    { key: 'updates', Icon: RefreshCw, paragraphs: ['updateAdvice', 'installAdvice'] },
+    { key: 'features', Icon: Palette, paragraphs: ['uiAdvice'] },
+    { key: 'kitchen', Icon: ChefHat, paragraphs: ['kitchenAdvice'] },
+    { key: 'play', Icon: Gamepad2, paragraphs: ['playAdvice'] },
+    { key: 'backup', Icon: Download, paragraphs: ['backupAdvice', 'formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
+    { key: 'compensation', Icon: Gift, paragraphs: ['compensationAdvice', 'boxAdvice'] },
   ];
   return <DialogShell className="edition-notice" labelId="edition-notice-title" onClose={onAcknowledge}>
     <header className="edition-notice__header">
@@ -29,7 +28,7 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenUpdates }: 
         <Icon size={19} aria-hidden="true" />
         <div><h3>{t(`ui.editionNotice.${key}Title`)}</h3>
           {paragraphs.map((paragraph) => <p key={paragraph}>{t(`ui.editionNotice.${paragraph}`)}</p>)}
-          {key === 'updates' && onOpenUpdates && <button type="button" className="text-button edition-notice__update-link" onClick={onOpenUpdates}><RefreshCw size={16} />{t('ui.editionNotice.openUpdates')}</button>}
+          {key === 'backup' && onOpenUpdates && <button type="button" className="text-button edition-notice__update-link" onClick={onOpenUpdates}><RefreshCw size={16} />{t('ui.editionNotice.openUpdates')}</button>}
         </div>
       </section>)}
     </div>

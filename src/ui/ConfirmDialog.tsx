@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { DialogShell } from './DialogShell';
 
 interface ConfirmDialogProps {
   title: string;
@@ -21,13 +22,14 @@ export const ConfirmDialog = ({
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) => (
-  <div className="modal-backdrop modal-backdrop--confirm" role="presentation">
-    <section
+    <DialogShell
       className="confirm-modal"
+      backdropClassName="modal-backdrop--confirm"
       role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-      aria-describedby="confirm-dialog-message"
+      labelId="confirm-dialog-title"
+      descriptionId="confirm-dialog-message"
+      onClose={onCancel}
+      closeOnEscape={false}
     >
       <div className="confirm-modal__icon" aria-hidden="true">
         <AlertTriangle size={28} />
@@ -49,6 +51,5 @@ export const ConfirmDialog = ({
           {confirmLabel}
         </button>
       </div>
-    </section>
-  </div>
+    </DialogShell>
 );

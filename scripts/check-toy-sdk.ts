@@ -13,6 +13,7 @@ import {
 import {
   authorFollowGiftCloudKey,
   cloudSaveActiveKey,
+  cloudSaveChunkSize,
   cloudSaveMaxChunksPerGeneration,
   cloudSaveOwnedKeys,
   encodeCloudSave,
@@ -102,7 +103,7 @@ for (const key of [...cloudSaveOwnedKeys, authorFollowGiftCloudKey]) {
 
 const encoded = await encodeCloudSave(basePet, null, firstUploadAt);
 assert(encoded.chunks.length > 0 && encoded.chunks.length <= cloudSaveMaxChunksPerGeneration);
-assert(encoded.chunks.every((chunk) => chunk.length <= 960));
+assert(encoded.chunks.every((chunk) => chunk.length <= cloudSaveChunkSize));
 assert.equal(parseSaveFileText(encoded.plainText, firstUploadAt).pet.name, basePet.name);
 
 const cloud = new MemoryCloudStorage();
@@ -174,8 +175,8 @@ assert.equal((await restoreCloudSave(manifestFallbackCloud, secondUploadAt)).gen
 manifestFallbackCloud.setRaw('pocpet-save-a-manifest-v1', '{also-broken');
 await assert.rejects(restoreCloudSave(manifestFallbackCloud, secondUploadAt), /valid manifest/);
 
-const oversizedPet = { ...basePet, recentEvent: randomBytes(90000).toString('base64') };
-await assert.rejects(encodeCloudSave(oversizedPet, null, firstUploadAt), /too large/);
+const oversizedPet = { ...basePet, inventory: Object.fromEntries(Array.from({ length: 1600 }, () => [`mod.${randomBytes(48).toString('hex')}`, 1])) };
+await assert.rejects(encodeCloudSave(oversizedPet, null, firstUploadAt), /容量|capacity/);
 
 const reminderDefaults = defaultCloudReminderPreferences();
 const createdAt = firstUploadAt;
@@ -351,7 +352,7 @@ assert.throws(() => createGachaCardData('apple', []), /one to ten/);
 assert.equal(sharePosterWidth, 1080);
 assert.equal(sharePosterHeight, 1440);
 const sharePosterSource = readFileSync(new URL('../src/platform/sharePoster.ts', import.meta.url), 'utf8');
-assert.equal((sharePosterSource.match(/drawSceneBackground\(context\);/g) ?? []).length, 3);
+assert.equal((sharePosterSource.match(/drawSceneBackground\(context\);/g) ?? []).length, 2, 'profile and gacha retain their scene; annual reviews use the shared album renderer');
 assert.equal(sharePosterSource.includes('#17342f'), false);
 
 let navigationRequest: Parameters<ToySdk['navigate']>[0] | undefined;

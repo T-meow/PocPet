@@ -2,7 +2,7 @@ import { t } from '../i18n';
 import { getInventoryItem, shopItems } from './items';
 import type { NeighborEventContext, NeighborGiftCandidate } from './petTypes';
 
-const defaultGiftCandidates: readonly NeighborGiftCandidate[] = shopItems.map((item) => ({
+const defaultGiftCandidates: readonly NeighborGiftCandidate[] = shopItems.filter((item) => !item.purchaseContents).map((item) => ({
   itemId: item.id,
   displayName: item.name,
   price: item.price,
@@ -22,7 +22,7 @@ export const selectNeighborGift = (
   candidates: readonly NeighborGiftCandidate[],
   random: () => number = Math.random,
 ): NeighborGiftCandidate => {
-  const available = candidates.filter((item) => item.itemId !== 'golden_apple');
+  const available = candidates.filter((item) => item.itemId !== 'golden_apple' && !getInventoryItem(item.itemId)?.purchaseContents);
   if (available.length === 0) {
     return {
       itemId: 'emergency_biscuit',

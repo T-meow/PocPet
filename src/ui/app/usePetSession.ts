@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { advancePet, evaluateAchievementUnlocks, type AchievementView, type NeighborEventContext, type PetState } from '../../core/pet';
 import { playSfx, setAudioTemporarilyMuted } from '../../core/audio';
-import { savePet } from '../../core/storage';
+import { savePet, takeStorageFeedback } from '../../core/storage';
+import { updatePetSession, type FeedbackMode, type PetSessionState } from './petSessionFeedback';
 
 export type AchievementToast = { kind: 'single'; achievement: AchievementView } | { kind: 'review' };
 
@@ -13,6 +14,8 @@ interface PetSession {
   pet: PetState;
   petRef: MutableRefObject<PetState>;
   setPet: Dispatch<SetStateAction<PetState>>;
+  setPetWithFeedback: Dispatch<SetStateAction<PetState>>;
+  setPetWithEventFeedback: Dispatch<SetStateAction<PetState>>;
   commitPet: (next: PetState, options?: CommitOptions) => PetState;
   achievementToast: AchievementToast | null;
   setAchievementToast: Dispatch<SetStateAction<AchievementToast | null>>;
@@ -24,8 +27,28 @@ export const usePetSession = (
   isHomeRef: MutableRefObject<boolean>,
   eventContext?: NeighborEventContext,
   initialPersistenceError = '',
+  onFeedback?: (text: string) => void,
 ): PetSession => {
-  const [pet, setPet] = useState<PetState>(initialPet);
+  const [session, setSession] = useState<PetSessionState>({ pet: initialPet, feedback: [] });
+  const { pet } = session;
+  const feedbackId = useRef(0);
+  const applyUpdate = useCallback((action: SetStateAction<PetState>, mode: FeedbackMode) => {
+    const id = ++feedbackId.current;
+    setSession((current) => updatePetSession(current, action, mode, id));
+  }, []);
+  const setPet = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'quiet'), [applyUpdate]);
+  const setPetWithFeedback = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'action'), [applyUpdate]);
+  const setPetWithEventFeedback = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'event'), [applyUpdate]);
+  const deliveredId = useRef(0);
+  const onFeedbackRef = useRef(onFeedback);
+  onFeedbackRef.current = onFeedback;
+  useEffect(() => {
+    for (const entry of session.feedback) {
+      if (entry.id <= deliveredId.current) continue;
+      deliveredId.current = entry.id;
+      onFeedbackRef.current?.(entry.text);
+    }
+  }, [session.feedback]);
   const [achievementToast, setAchievementToast] = useState<AchievementToast | null>(null);
   const petRef = useRef(pet);
   const [persistenceError, setPersistenceError] = useState(initialPersistenceError);
@@ -63,7 +86,14 @@ export const usePetSession = (
   useEffect(() => {
     petRef.current = pet;
     if (paused.current) return;
-    try { savePet(pet); }
+    try {
+      const saved = savePet(pet);
+      if (saved !== pet) {
+        petRef.current = saved;
+        setPet((current) => current === pet ? saved : current);
+      }
+      for (const message of takeStorageFeedback()) onFeedbackRef.current?.(message);
+    }
     catch (error) {
       paused.current = true;
       setPersistenceError(error instanceof Error && error.message === 'storage-conflict' ? 'conflict' : 'saveError');
@@ -72,7 +102,7 @@ export const usePetSession = (
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setPet((current) => commitRef.current(advancePet(current, Date.now(), eventContextRef.current)));
+      applyUpdate((current) => commitRef.current(advancePet(current, Date.now(), eventContextRef.current)), 'event');
     }, 1000);
 
     return () => window.clearInterval(timer);
@@ -83,7 +113,7 @@ export const usePetSession = (
       const isVisible = document.visibilityState === 'visible';
       setAudioTemporarilyMuted(!isVisible);
       if (isVisible) {
-        setPet((current) => commitRef.current(advancePet(current, Date.now(), eventContextRef.current)));
+        applyUpdate((current) => commitRef.current(advancePet(current, Date.now(), eventContextRef.current)), 'event');
       }
     };
 
@@ -92,5 +122,5 @@ export const usePetSession = (
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  return { pet, petRef, setPet, commitPet, achievementToast, setAchievementToast, persistenceError };
+  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError };
 };

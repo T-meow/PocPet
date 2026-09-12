@@ -5,6 +5,7 @@ import { getClassicTrophyEffects } from './classicTrophies';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem } from './items';
+import { activityText } from './kitchenRecipes';
 import { resolveDailyGachaTicket } from './goldenAppleGacha';
 import {
   getPartnerScheduleCategoryEffects,
@@ -616,6 +617,24 @@ export const addSkillXp = (skill: PartnerScheduleSkill, amount: number): Partner
     level += 1;
   }
   return { ...skill, level, xp: level >= partnerScheduleMaxSkillLevel ? 0 : xp };
+};
+
+export const practiceSkillXp = 1;
+export const formatPracticeSkillXp = (category: PartnerScheduleCategory, amount = practiceSkillXp) => {
+  const skill = t(`ui.partnerSchedule.categories.${category}`);
+  return activityText(`${skill}经验 +${amount}`, `${skill} XP +${amount}`);
+};
+export const grantPracticeSkillXp = (pet: PetState, category: PartnerScheduleCategory): PetState => {
+  const skill = pet.partnerSchedule.skills[category];
+  if (skill.level >= partnerScheduleMaxSkillLevel) return pet;
+  return {
+    ...pet,
+    partnerSchedule: {
+      ...pet.partnerSchedule,
+      skills: { ...pet.partnerSchedule.skills, [category]: addSkillXp(skill, practiceSkillXp) },
+    },
+    recentEvent: `${pet.recentEvent} ${formatPracticeSkillXp(category)}`,
+  };
 };
 
 export interface PartnerScheduleClaimPreview {

@@ -17,10 +17,11 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onR
   const [confirmNew, setConfirmNew] = useState(false);
   const [importText, setImportText] = useState('');
   const [readError, setReadError] = useState(false);
+  const readOnly = unavailable || stage === 'version';
   const perform = async (action: () => Promise<void>) => { setBusy(true); setReadError(false); try { await action(); } catch { setReadError(true); } finally { setBusy(false); } };
-  return <main className="app-shell app-shell--role-picker"><section className="save-recovery">
+  return <main className="app-shell app-shell--role-picker ui-v2-app"><section className="save-recovery">
     <h1>{t('ui.backup.recoveryTitle')}</h1>
-    <p>{t(unavailable ? 'ui.backup.recoveryStorage' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing')}</p>
+    <p>{t(stage === 'version' ? 'ui.settings.save.newerVersion' : unavailable ? 'ui.backup.recoveryStorage' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing')}</p>
     {stage && <p>{t('ui.backup.stage')}: {t(`ui.backup.${stage}`)}</p>}
     {message && <p role="status">{message}</p>}
     {readError && <p role="status">{t('ui.backup.failed')}</p>}
@@ -31,7 +32,7 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onR
       </select>
     </label>
     <div className="modal-actions">
-      <button type="button" className="primary-button" disabled={busy || !selected || unavailable} onClick={() => { const candidate = candidates.find((item) => item.id === selected); if (candidate) void perform(() => onRestore(candidate)); }}><RotateCcw size={18} />{t('ui.backup.restore')}</button>
+      <button type="button" className="primary-button" disabled={busy || !selected || readOnly} onClick={() => { const candidate = candidates.find((item) => item.id === selected); if (candidate) void perform(() => onRestore(candidate)); }}><RotateCcw size={18} />{t('ui.backup.restore')}</button>
       <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.retry')}</button>
       {raw && <button type="button" className="secondary-button" onClick={onExport}><Download size={18} />{t('ui.backup.original')}</button>}
     </div>
@@ -43,8 +44,8 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onR
       }} />
     </label>
     <textarea className="save-textarea" aria-label={t('ui.settings.save.pasteText')} value={importText} onChange={(event) => setImportText(event.target.value)} />
-    <button type="button" className="primary-button" disabled={busy || unavailable || !importText.trim()} onClick={() => void perform(() => onImport(importText))}>{t('ui.settings.save.importPasted')}</button>
-    <button type="button" className="text-button" disabled={busy || unavailable} onClick={() => setConfirmNew(true)}>{t('ui.backup.startNew')}</button>
+    <button type="button" className="primary-button" disabled={busy || readOnly || !importText.trim()} onClick={() => void perform(() => onImport(importText))}>{t('ui.settings.save.importPasted')}</button>
+    <button type="button" className="text-button" disabled={busy || readOnly} onClick={() => setConfirmNew(true)}>{t('ui.backup.startNew')}</button>
     {confirmNew && <ConfirmDialog title={t('ui.backup.startNew')} message={t('ui.backup.newWarning')} cancelLabel={t('ui.backup.recoveryTitle')} confirmLabel={t('ui.backup.startNew')} onCancel={() => setConfirmNew(false)} onConfirm={onStartNew} />}
   </section></main>;
 };

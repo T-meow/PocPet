@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { activityText as L } from '../core/kitchenRecipes';
 import {
   ArrowLeft,
   BookOpen,
@@ -79,6 +81,7 @@ export const PartnerSchedulePage = ({
   onCancel,
   onClaim,
 }: PartnerSchedulePageProps) => {
+  const [category, setCategory] = useState<PartnerScheduleCategory | 'all'>('all');
   const schedule = pet.partnerSchedule;
   const active = schedule.active;
   const pendingResult = schedule.pendingResult;
@@ -216,10 +219,11 @@ export const PartnerSchedulePage = ({
         </div>
       </div>
 
+      <nav className="schedule-category-tabs" aria-label={L('日程分类', 'Activity categories')}>{(['all', ...categories] as const).map((id) => <button key={id} data-category={id} aria-pressed={category === id} onClick={() => setCategory(id)}>{id === 'all' ? L('全部', 'All') : t(`ui.partnerSchedule.categories.${id}`)}</button>)}</nav>
       <div className="partner-schedule-list">
         {schedule.offers.map((offer) => {
           const definition = getPartnerScheduleDefinition(offer.templateId);
-          if (!definition) return null;
+          if (!definition || (category !== 'all' && definition.category !== category)) return null;
           const Icon = categoryIcons[definition.category];
           const completed = schedule.completedOfferIds.includes(offer.id);
           const startCheck = getPartnerScheduleStartCheck(pet, offer.id);
@@ -262,7 +266,7 @@ export const PartnerSchedulePage = ({
           );
         })}
       </div>
-
+      {category !== 'all' && !schedule.offers.some((offer) => getPartnerScheduleDefinition(offer.templateId)?.category === category) && <p className="v2-empty">{L('今天没有这一类安排，看看其他小日常吧。', 'No activities in this category today. Try another little adventure.')}</p>}
       <section className="partner-schedule-milestones" aria-label={t('ui.partnerSchedule.milestones.aria')}>
         <div>
           <span>{t('ui.partnerSchedule.milestones.level3Title')}</span>

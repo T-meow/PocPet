@@ -1,6 +1,6 @@
 import { applyHeartGain, recordEarnedHearts } from './achievements';
 import { addInventoryItem, removeInventoryItem } from './items';
-import { addSkillXp, partnerScheduleMaxSkillLevel } from './partnerSchedule';
+import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practiceSkillXp } from './partnerSchedule';
 import { getPetStatScale } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId } from './companionActivityTypes';
@@ -8,6 +8,9 @@ import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, 
 import { rememberTogether } from './companionMemories';
 
 export const kitchenBaseHearts = 3;
+const kitchenFirstRecipeXp = 5;
+export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
+  ? 0 : practiceSkillXp + (pet.kitchen.made[recipeId] ? 0 : kitchenFirstRecipeXp);
 export const getKitchenHeartReward = (pet: PetState) => {
   const skillLevel = Math.max(1, Math.min(partnerScheduleMaxSkillLevel, Math.floor(pet.partnerSchedule.skills.cooking.level)));
   const baseHearts = Math.max(1, Math.round(kitchenBaseHearts * getPetStatScale(pet)));
@@ -39,6 +42,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   const result = value.lastCraft;
   if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= 99 && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
     next.lastCraft = { id: result.id, dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
+    if (typeof result.skillXp === 'number' && Number.isInteger(result.skillXp) && result.skillXp >= 0 && result.skillXp <= practiceSkillXp + kitchenFirstRecipeXp) next.lastCraft.skillXp = result.skillXp;
     if (typeof result.baseHearts === 'number' && Number.isFinite(result.baseHearts) && result.baseHearts >= 0 && typeof result.skillHearts === 'number' && Number.isFinite(result.skillHearts) && result.skillHearts >= 0 && typeof result.skillLevel === 'number' && Number.isInteger(result.skillLevel) && result.skillLevel >= 1 && result.skillLevel <= partnerScheduleMaxSkillLevel) {
       Object.assign(next.lastCraft, { baseHearts: result.baseHearts, skillHearts: result.skillHearts, skillLevel: result.skillLevel });
     }
@@ -71,17 +75,19 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   next.inventory = getRecipeIngredientEntries(recipe, banana).reduce((stock, ingredient) => removeInventoryItem(stock, ingredient.id, ingredient.quantity * quantity), pet.inventory);
   next.inventory = addInventoryItem(next.inventory, dishId, quantity);
   const reward = getKitchenHeartReward(pet);
+  const skillXp = getKitchenSkillXpReward(pet, recipeId);
   let hearts = 0;
   for (let index = 0; index < quantity; index++) {
     const gain = applyHeartGain(next, reward.heartsPerServing);
     hearts += gain.amount;
     next = { ...next, hearts: gain.hearts, boostCards: gain.boostCards };
   }
-  if (first) next.partnerSchedule = { ...next.partnerSchedule, skills: { ...next.partnerSchedule.skills, cooking: addSkillXp(next.partnerSchedule.skills.cooking, 5) } };
-  next.kitchen.lastCraft = { id: operationId, dishId, quantity, hearts, baseHearts: reward.baseHearts * quantity, skillHearts: reward.skillHearts * quantity, skillLevel: reward.skillLevel, at: now };
+  if (skillXp > 0) next.partnerSchedule = { ...next.partnerSchedule, skills: { ...next.partnerSchedule.skills, cooking: addSkillXp(next.partnerSchedule.skills.cooking, skillXp) } };
+  next.kitchen.lastCraft = { id: operationId, dishId, quantity, hearts, baseHearts: reward.baseHearts * quantity, skillHearts: reward.skillHearts * quantity, skillLevel: reward.skillLevel, skillXp, at: now };
   next.recentActivity = 'work_food';
   next.recentActivityUntil = now + 3000;
   next.recentEvent = activityText(`一起做好了 ${quantity} 份${dishName(dishId)}，收获 ${hearts} 颗心心。`, `Made ${quantity} × ${dishName(dishId)} together and earned ${hearts} hearts.`);
+  if (skillXp > 0) next.recentEvent += ` ${formatPracticeSkillXp('cooking', skillXp)}`;
   return recordEarnedHearts(next, hearts);
 };
 export const buyKitchenEquipment = (pet: PetState, id: CookingMethod): PetState => {

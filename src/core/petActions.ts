@@ -19,6 +19,7 @@ import { randomInt } from './utils';
 import { isPartnerSchedulePetBusy } from './partnerSchedule';
 import { recordDishTaste } from './kitchen';
 import { unlockBallGame } from './miniGames';
+import { deliverPurchasedItems, getPurchaseCapacity } from './items';
 
 const clearLowCleanlinessSleepConfirm = (pet: PetState): PetState =>
   pet.lowCleanlinessSleepConfirmCount > 0 ? { ...pet, lowCleanlinessSleepConfirmCount: 0 } : pet;
@@ -34,7 +35,7 @@ export const normalizeBatchQuantity = (quantity: number | undefined) => {
 export const getEffectiveBatchQuantity = (pet: Pick<PetState, 'level'>, quantity: number | undefined) =>
   pet.level >= batchActionUnlockLevel ? normalizeBatchQuantity(quantity) : 1;
 
-export type ItemPurchaseQuoteReason = 'missing' | 'unavailable' | 'daily_limit' | 'coins';
+export type ItemPurchaseQuoteReason = 'missing' | 'unavailable' | 'daily_limit' | 'coins' | 'inventory_full';
 
 export interface ItemPurchaseQuote {
   quantity: number;
@@ -78,13 +79,14 @@ export const getItemPurchaseQuote = (
   const discountApplied = Boolean(discountEntry && !discountEntry.used);
   const firstItemPrice = discountApplied ? discountEntry?.price ?? item.price : item.price;
   const totalPrice = firstItemPrice + item.price * (quantity - 1);
+  const hasCapacity = quantity <= getPurchaseCapacity(pet, item);
   return {
     quantity,
     totalPrice,
     firstItemPrice,
     discountApplied,
-    canPurchase: pet.coins >= totalPrice,
-    reason: pet.coins >= totalPrice ? undefined : 'coins',
+    canPurchase: hasCapacity && pet.coins >= totalPrice,
+    reason: !hasCapacity ? 'inventory_full' : pet.coins >= totalPrice ? undefined : 'coins',
   };
 };
 
@@ -382,18 +384,20 @@ export const buyItem = (pet: PetState, itemId: ItemId, now = Date.now(), options
     : current.dailyDiscountUsedItemIds;
 
   if (!quote.canPurchase) {
-    return { ...current, recentEvent: t('pet.buy.notEnoughCoins', { item: item.name, price }) };
+    return { ...current, recentEvent: quote.reason === 'inventory_full' ? t('pet.buy.inventoryFull') : t('pet.buy.notEnoughCoins', { item: item.name, price }) };
   }
 
   return incrementAchievementPurchase({
     ...current,
     coins: current.coins - price,
-    inventory: addInventoryItem(current.inventory, itemId, quantity),
+    inventory: deliverPurchasedItems(current.inventory, item, quantity),
     dailyDiscountDate: isDiscountPurchase ? discountDateKey : current.dailyDiscountDate,
     dailyDiscountItemIds: isDiscountPurchase ? discountItemIds : current.dailyDiscountItemIds,
     dailyDiscountUsedItemIds: nextDailyDiscountUsedItemIds,
     dailyDiscountUsed: isDiscountPurchase ? true : current.dailyDiscountUsed,
-    recentEvent: isDiscountPurchase
+    recentEvent: item.purchaseContents?.length
+      ? t('pet.buy.bundle', { count: quantity, biscuits: quantity * 40, price })
+      : isDiscountPurchase
       ? t(quantity > 1 ? 'pet.buy.discountBatch' : 'pet.buy.discount', { item: item.name, count: quantity, price })
       : item.price === 0
         ? t(quantity > 1 ? 'pet.buy.freeBatch' : 'pet.buy.free', { item: item.name, count: quantity })

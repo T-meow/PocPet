@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createDefaultPet, type PetState } from '../src/core/pet';
 import {
   createSaveFileText,
+  decodeSaveSnapshot,
   loadStoredPetJson,
   parseSaveFileText,
   pocPetSaveAppId,
@@ -171,7 +172,9 @@ const kitchenHistory: PetState = {
   companionMemories: { schemaVersion: 1, entries: [{ id: 'old-memory', actorId: 'official.mint', kind: 'first_taste', subject: 'dish_milk_cookies', at: exportAt - 30000, mentionedAt: 0 }] },
 };
 for (const loaded of [loadValid(kitchenHistory), parseSaveFileText(oldEnvelope(kitchenHistory), importAt).pet, parseSaveFileText(createSaveFileText(kitchenHistory, builtinMintManifest, exportAt), importAt).pet]) {
-  assert.deepEqual(loaded.kitchen, kitchenHistory.kitchen, 'old recipe IDs, completion rewards, first-made and tasted dates survive');
+  const { lastCraft: _oldDisplay, ...expectedKitchenProgress } = kitchenHistory.kitchen;
+  const { lastCraft: _loadedDisplay, ...loadedKitchenProgress } = loaded.kitchen;
+  assert.deepEqual(loadedKitchenProgress, expectedKitchenProgress, 'old recipe IDs, completion receipts, first-made and tasted dates survive');
   assert.deepEqual(loaded.inventory, kitchenHistory.inventory, 'renaming strawberry desserts must not remove their old inventory IDs');
   assert.deepEqual(loaded.companionMemories, kitchenHistory.companionMemories);
   assert.equal(claimKitchenStarter(loaded), loaded);
@@ -275,7 +278,7 @@ const firstPet = { ...basePet, name: 'First' };
 const secondPet = { ...basePet, name: 'Second' };
 savePet(firstPet);
 savePet(secondPet);
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').name, 'First');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').pet.name, 'First');
 
 localStorage.setItem('pocpet.pet.v1', '{}');
 const damaged = loadPet(importAt);
@@ -285,12 +288,12 @@ assert.equal(getPreservedCorruptPetRaw(), '{}');
 
 const restored = restorePetBackup(importAt);
 assert.equal(restored?.name, 'First');
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1') ?? '{}').name, 'First');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1') ?? '{}').pet.name, 'First');
 assert.equal(getPreservedCorruptPetRaw(), '{}', 'restoring must preserve the damaged original');
 
 savePet(secondPet);
 assert.equal(backupCurrentPet(), true);
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').name, 'Second');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').pet.name, 'Second');
 const importBackupText = createSaveFileText(secondPet, null, exportAt);
 saveImportBackup(importBackupText);
 savePet(firstPet);
@@ -310,8 +313,8 @@ assert.equal(localStorage.getItem('pocpet.pet.v1.import-backup'), previousImport
 
 const successfulImportBackup = createSaveFileText(firstPet, null, exportAt);
 replacePetFromImport(secondPet, successfulImportBackup);
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1') ?? '{}').name, 'Second');
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').name, 'First');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1') ?? '{}').pet.name, 'Second');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1.backup') ?? '{}').pet.name, 'First');
 assert.equal(getImportBackup(), successfulImportBackup);
 
 assert.equal(loadPet(importAt).status, 'ok');
@@ -337,7 +340,7 @@ localStorage.setItem('pocpet.pet.v1', JSON.stringify(firstPet));
 assert.equal(loadPet(importAt).status, 'ok');
 localStorage.setItem('pocpet.pet.v1', JSON.stringify(secondPet));
 assert.throws(() => savePet(firstPet), /storage-conflict/, 'a stale page must not overwrite another page');
-assert.equal(JSON.parse(localStorage.getItem('pocpet.pet.v1')!).name, 'Second');
+assert.equal(decodeSaveSnapshot(localStorage.getItem('pocpet.pet.v1')!).pet.name, 'Second');
 
 localStorage.clear();
 const originalUpgradeRaw = JSON.stringify(firstPet);
@@ -423,6 +426,7 @@ assert.equal(shouldShowEditionNotice({ count: 1, lastLaunch: 'first' }, 'first')
 assert.equal(shouldShowEditionNotice({ count: 3, lastLaunch: 'third' }, 'fourth'), false);
 assert.equal(shouldShowEditionNotice({ count: 1, lastLaunch: 'first' }, 'second'), true);
 localStorage.setItem('pocpet.edition-notice.1.6', JSON.stringify({ count: 3, lastDate: localDateKey(exportAt) }));
+localStorage.setItem('pocpet.edition-notice.1.8.0', JSON.stringify({ count: 3, lastLaunch: 'old-announcement' }));
 for (let launch = 0; launch < 4; launch++) {
   if (launch === 0) localStorage.failNextSet(editionNoticeKey);
   recordEditionNoticeShown(`launch-${launch}`);

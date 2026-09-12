@@ -13,7 +13,8 @@ import {
   recycleGardenSapling,
   waterTree,
 } from '../src/core/garden';
-import { createDefaultPet } from '../src/core/petState';
+import { createDefaultPet, normalizePet } from '../src/core/petState';
+import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
 import type { GardenSlot, PetState } from '../src/core/petTypes';
 
 const secondMs = 1000;
@@ -78,6 +79,26 @@ const heartPreview = getGardenCarePreview(longRoundPet, longRoundSlot, 'heart', 
 assert.equal(normalPreview.nominalReductionMs, 10 * hourMs);
 assert.equal(heartPreview.nominalReductionMs, 18 * hourMs);
 
+const wateredPet = waterTree(longRoundPet, 0, summerNoon);
+assert.equal(wateredPet.partnerSchedule.skills.garden.xp, 1);
+assert.equal(longRoundPet.partnerSchedule.skills.garden.xp, 0, 'practice does not mutate the source');
+assert.equal(waterTree(wateredPet, 0, summerNoon).partnerSchedule.skills.garden.xp, 1, 'repeat watering grants no XP');
+const fedPet = fertilizeTree(wateredPet, 0, 'normal', summerNoon);
+assert.equal(fedPet.partnerSchedule.skills.garden.xp, 2, 'fertilizing is one separate practice');
+assert.equal(fertilizeTree(fedPet, 0, 'heart', summerNoon).partnerSchedule.skills.garden.xp, 2, 'switching fertilizer cannot repeat the reward');
+assert.equal(fertilizeTree({ ...longRoundPet, inventory: {} }, 0, 'normal', summerNoon).partnerSchedule.skills.garden.xp, 0, 'missing fertilizer grants no XP');
+assert.equal(waterTree(longRoundPet, 4, summerNoon).partnerSchedule.skills.garden.xp, 0, 'an empty slot grants no XP');
+const practiceImported = parseSaveFileText(createSaveFileText(fedPet, null, summerNoon), summerNoon).pet;
+assert.equal(practiceImported.partnerSchedule.skills.garden.xp, 2);
+assert.equal(waterTree(practiceImported, 0, summerNoon).partnerSchedule.skills.garden.xp, 2, 'saved daily limits still prevent repeat XP');
+assert.equal(normalizePet(fedPet, summerNoon).achievements.counters.partnerScheduleClaimCount, 0, 'practice does not count as a schedule');
+const almostLevelUp = structuredClone(longRoundPet);
+almostLevelUp.partnerSchedule.skills.garden.xp = 39;
+assert.deepEqual(waterTree(almostLevelUp, 0, summerNoon).partnerSchedule.skills.garden, { level: 2, xp: 0, masterCompletions: 0 });
+const gardenMaster = structuredClone(longRoundPet);
+gardenMaster.partnerSchedule.skills.garden = { level: 10, xp: 0, masterCompletions: 7 };
+assert.deepEqual(waterTree(gardenMaster, 0, summerNoon).partnerSchedule.skills.garden, gardenMaster.partnerSchedule.skills.garden, 'practice cannot add mastery completions');
+
 const cappedReductionMs = 96 * hourMs * (gardenCareReductionLimitPercent / 100);
 const cappedPet = createGrowingPet(summerNoon, 96 * hourMs, {
   careReductionMs: cappedReductionMs,
@@ -86,6 +107,7 @@ const cappedPet = createGrowingPet(summerNoon, 96 * hourMs, {
 const cappedPreview = getGardenCarePreview(cappedPet, cappedPet.garden.slots[0], 'water', summerNoon);
 assert.equal(cappedPreview.actualReductionMs, 0);
 assert.equal(cappedPreview.blockedReason, 'round_limit');
+assert.equal(waterTree(cappedPet, 0, summerNoon).partnerSchedule.skills.garden.xp, 0, 'ineffective care grants no XP');
 
 const nearReadyNow = new Date(2026, 0, 15, 12, 0, 0, 0).getTime();
 const nearReadyPet = createGrowingPet(nearReadyNow - 59 * minuteMs, hourMs, {
@@ -96,6 +118,7 @@ const floorResult = fertilizeTree(nearReadyPet, 0, 'heart', nearReadyNow);
 assert.equal(floorResult.garden.slots[0].nextReadyAt - nearReadyNow, gardenMinimumCareRemainingMs);
 assert.equal(floorResult.garden.slots[0].state, 'growing');
 assert.equal(floorResult.inventory.heart_fertilizer, nearReadyPet.inventory.heart_fertilizer - 1);
+assert.equal(floorResult.partnerSchedule.skills.garden.xp, 1, 'heart fertilizer grants one practice XP');
 assert.equal(advanceGarden(floorResult, nearReadyNow + gardenMinimumCareRemainingMs - 1).garden.slots[0].state, 'growing');
 assert.equal(advanceGarden(floorResult, nearReadyNow + gardenMinimumCareRemainingMs).garden.slots[0].state, 'ready');
 
@@ -113,6 +136,8 @@ const minimumFertilizerResult = fertilizeTree(minimumPet, 0, 'heart', nearReadyN
 assert.equal(minimumFertilizerResult.inventory.heart_fertilizer, minimumPet.inventory.heart_fertilizer);
 assert.equal(minimumFertilizerResult.garden.slots[0].lastFertilizedAt, 0);
 assert.equal(minimumFertilizerResult.garden.dailyFertilizeCount, minimumPet.garden.dailyFertilizeCount);
+assert.equal(minimumWaterResult.partnerSchedule.skills.garden.xp, 0);
+assert.equal(minimumFertilizerResult.partnerSchedule.skills.garden.xp, 0);
 
 const heartFirstPet = fertilizeTree(createGrowingPet(nearReadyNow, 96 * hourMs), 0, 'heart', nearReadyNow);
 const normalNextDayPet = fertilizeTree(heartFirstPet, 0, 'normal', nearReadyNow + dayMs);
@@ -148,6 +173,8 @@ assert.equal(harvestedPet.garden.slots[0].careReductionMs, 0);
 assert.equal(harvestedPet.garden.slots[0].fertilizerType, undefined);
 assert.equal(harvestedPet.garden.slots[0].naturalReadyAt, harvestedPet.garden.slots[0].nextReadyAt);
 assert(harvestedPet.garden.slots[0].naturalReadyAt > migrationNow);
+assert.equal(harvestedPet.partnerSchedule.skills.garden.xp, 1);
+assert.equal(harvestTree(harvestedPet, 0, migrationNow).partnerSchedule.skills.garden.xp, 1, 'a harvested round cannot award XP twice');
 
 const finalHarvestPet = harvestTree({
   ...readyPet,
@@ -160,6 +187,7 @@ assert.equal(finalHarvestPet.garden.slots[0].state, 'withered');
 assert.equal(finalHarvestPet.garden.slots[0].naturalReadyAt, 0);
 assert.equal(finalHarvestPet.garden.slots[0].careReductionMs, 0);
 assert.equal(finalHarvestPet.garden.slots[0].nextReadyAt, 0);
+assert.equal(finalHarvestPet.partnerSchedule.skills.garden.xp, 1, 'the final harvest still grants practice XP');
 
 const recyclableSaplingPet = {
   ...createDefaultPet(migrationNow),

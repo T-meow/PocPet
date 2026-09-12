@@ -4,7 +4,8 @@ import { DialogShell } from './DialogShell';
 import { CompanionMemories } from './CompanionMemories';
 import { MiniGameBoard } from './play/MiniGameBoard';
 import { activityText as L } from '../core/kitchenRecipes';
-import { abandonMiniGame, acknowledgeMiniGameResult, buyBubbleWand, gameName, getMiniGameBaseHearts, getPlayTotal, miniGameDefinitions, miniGameUnlockLevel, pauseMiniGame, resumeMiniGame, startMiniGame, type MiniGameAction } from '../core/miniGames';
+import { abandonMiniGame, acknowledgeMiniGameResult, buyBubbleWand, gameName, getMiniGameBaseHearts, getMiniGameSkillCategory, miniGameDefinitions, miniGameUnlockLevel, pauseMiniGame, resumeMiniGame, startMiniGame, type MiniGameAction } from '../core/miniGames';
+import { formatPracticeSkillXp, partnerScheduleMaxSkillLevel } from '../core/partnerSchedule';
 import { MiniGameResultModal } from './play/MiniGameResultModal';
 import { useMiniGameFeedback } from './play/useMiniGameFeedback';
 import { itemIcons } from '../assets';
@@ -21,7 +22,6 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
   const available = levelUnlocked && !pet.isSleeping && !pet.partnerSchedule.active;
   const playing = active && !active.paused && active.actorId === actorId && available;
   const result = pet.miniGames.lastResult?.actorId === actorId ? pet.miniGames.lastResult : undefined;
-  const total = getPlayTotal(pet);
   if (result?.pending && !active) return <MiniGameResultModal
     result={result} portrait={happyPortrait}
     canReplay={available && (result.game !== 'catch' || (pet.inventory.toy_ball ?? 0) > 0)}
@@ -42,17 +42,19 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
       {tab === 'games' ? <><div className="activity-choice mode-choice"><span>{L('节奏', 'Pace')}</span><button aria-pressed={mode === 'gentle'} onClick={() => setMode('gentle')}>{L('轻松 · 有辅助', 'Gentle · assisted')}</button><button aria-pressed={mode === 'normal'} onClick={() => setMode('normal')}>{L('标准', 'Standard')}</button><small>{L('两种模式同等奖励', 'Same rewards in both modes')}</small></div><div className="play-game-grid">{miniGameDefinitions.map((game) => {
         const unlocked = game.id === 'catch' ? (pet.inventory.toy_ball ?? 0) > 0 : pet.miniGames.unlocked.includes(game.id);
         const record = pet.miniGames.records[`${game.id}:${mode}`];
+        const skillCategory = getMiniGameSkillCategory(game.id);
         const descriptions = { matching: L('翻开十二张牌，慢慢找到六对朋友。', 'Find six pairs among twelve cards.'), catch: L('滑动把球抛出去，移动中的伙伴来接！一局十次。', 'Swipe to throw at your moving companion. Ten throws per game!'), bubbles: L('轻按、松开、戳破。吹出三个泡泡，互动六秒就有收获。', 'Hold, release, pop! Three bubbles and six seconds earn your reward.') };
         return <article className={`play-game-card play-game-card--${game.id}`} key={game.id}>
           <span className="game-glyph">{game.id === 'catch' ? <img src={ballImage} alt="" draggable={false} /> : game.glyph}</span><h3>{gameName(game.id)}</h3><p>{descriptions[game.id]}</p>
           <span className="activity-heart">♥ {L(`至少 ${getMiniGameBaseHearts(pet.level, game.id)} 心`, `At least ${getMiniGameBaseHearts(pet.level, game.id)} hearts`)}</span>
+          {skillCategory && pet.partnerSchedule.skills[skillCategory].level < partnerScheduleMaxSkillLevel && <small className="activity-skill-xp">{L('完成一局：', 'Finish a game: ')}{formatPracticeSkillXp(skillCategory)}</small>}
           {game.id === 'catch' && <small>{L(`每局消耗 1 个玩具球 · 持有 ${pet.inventory.toy_ball ?? 0}`, `One toy ball per game · ${pet.inventory.toy_ball ?? 0} owned`)}</small>}
           {record && <small>{L(`完成 ${record.completed} 局 · 最佳${game.id === 'matching' ? '步数' : game.id === 'catch' ? '连击' : '泡泡数'} ${record.best}`, `${record.completed} completed · Best ${record.best}`)}</small>}
           {unlocked ? <button className="activity-primary" disabled={!available || Boolean(active)} onClick={() => { const id = crypto.randomUUID(); update((current) => startMiniGame(current, game.id, mode, actorId, id, Date.now())); }}>{L('一起玩', 'Let’s play')}</button>
             : game.id === 'catch' ? <button className="activity-secondary" onClick={onShop}>{L('去买玩具球', 'Get a toy ball')}</button>
               : <button className="activity-secondary" disabled={pet.coins < 30} onClick={() => update(buyBubbleWand)}>{L('泡泡棒 · 30 金币，永久使用', 'Bubble wand · 30 coins, yours forever')}</button>}
         </article>;
-      })}</div><div className="play-collection"><h3>{L('换一点小风景', 'A change of scenery')}</h3><div className="activity-choice">{(['garden', 'fruit', 'night'] as const).map((style, index) => <button key={style} aria-pressed={pet.miniGames.style === style} disabled={total < [0, 3, 10][index]} onClick={() => update((current) => ({ ...current, miniGames: { ...current.miniGames, style } }))}>{['🌿', '🍎', '🌙'][index]} {L(['小花园', '水果篮', '星空'][index], ['Garden', 'Fruit basket', 'Starry sky'][index])}{total < [0, 3, 10][index] && ` · ${total}/${[0, 3, 10][index]}`}</button>)}</div><button className="activity-link" disabled={!available || Boolean(active)} onClick={onQuickPlay}>{L('只想简单陪玩一下', 'Just a little quick play')}</button></div>{result && <section className="play-result" aria-live="polite"><img src={happyPortrait} alt="" /><div><small>{L('上次的开心时光', 'OUR LAST HAPPY MOMENT')}</small><h3>{gameName(result.game)}</h3><p className="activity-heart">♥ +{result.hearts}</p><p>{L('已经收好啦，下次还一起玩。', 'All saved. Let’s play again sometime.')}</p></div></section>}</> : <CompanionMemories pet={pet} actorId={actorId} />}
+      })}</div><button className="activity-link" disabled={!available || Boolean(active)} onClick={onQuickPlay}>{L('只想简单陪玩一下', 'Just a little quick play')}</button>{result && <section className="play-result" aria-live="polite"><img src={happyPortrait} alt="" /><div><small>{L('上次的开心时光', 'OUR LAST HAPPY MOMENT')}</small><h3>{gameName(result.game)}</h3><p className="activity-heart">♥ +{result.hearts}</p><p>{L('已经收好啦，下次还一起玩。', 'All saved. Let’s play again sometime.')}</p></div></section>}</> : <CompanionMemories pet={pet} actorId={actorId} />}
     </>}</div>
   </DialogShell>;
 };

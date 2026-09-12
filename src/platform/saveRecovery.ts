@@ -1,4 +1,4 @@
-import { loadStoredPetJson, parseSaveFileText, type PocPetImportedSave, type PocPetSaveModSummary } from '../core/saveCodec';
+import { decodeSaveSnapshot, loadStoredPetJson, parseSaveFileText, type PocPetImportedSave, type PocPetSaveModSummary } from '../core/saveCodec';
 import { getImportBackup, getStoredRecoveryCopies } from '../core/storage';
 import { readBackupSnapshots, readExternalBackup } from './automaticBackup';
 
@@ -15,7 +15,8 @@ export const readRecoveryCandidate = (candidate: SaveRecoveryCandidate, fallback
   if (candidate.format === 'file') return parseSaveFileText(candidate.text, Date.now(), fallbackName);
   const loaded = loadStoredPetJson(candidate.text, Date.now(), undefined, fallbackName ?? candidate.activeMod?.defaultPetName);
   if (loaded.status !== 'ok') throw new Error(`Recovery failed: ${loaded.status === 'corrupt' ? loaded.stage : loaded.status}`);
-  return { pet: loaded.pet, activeMod: candidate.activeMod, source: 'legacy' };
+  const decoded = decodeSaveSnapshot(candidate.text, fallbackName);
+  return { ...decoded, pet: loaded.pet, activeMod: candidate.activeMod ?? decoded.activeMod };
 };
 export const collectRecoveryCandidates = async (fallbackName?: string) => {
   const candidates: SaveRecoveryCandidate[] = [];
@@ -26,7 +27,8 @@ export const collectRecoveryCandidates = async (fallbackName?: string) => {
       const loaded = format === 'stored' ? loadStoredPetJson(text, Date.now(), undefined, activeMod?.defaultPetName) : undefined;
       const pet = imported?.pet ?? (loaded?.status === 'ok' ? loaded.pet : undefined);
       if (!pet) return;
-      const savedAt = timestamp ?? (imported?.exportedAt ? Date.parse(imported.exportedAt) : JSON.parse(text).lastUpdatedAt);
+      const snapshot = imported ?? decodeSaveSnapshot(text);
+      const savedAt = timestamp ?? (snapshot.exportedAt ? Date.parse(snapshot.exportedAt) : snapshot.pet.lastUpdatedAt);
       candidates.push({ id, text, format, savedAt, petName: pet.name, level: pet.level, activeMod });
     } catch { /* Other recovery points remain usable. */ }
   };

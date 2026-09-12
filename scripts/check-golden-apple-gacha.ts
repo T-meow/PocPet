@@ -313,9 +313,10 @@ assert.equal(deterministicA.pet.goldenAppleGacha.coinsSpent, 5000);
 assert.equal(deterministicA.pet.goldenAppleGacha.rngCounter, 10);
 assert.equal(deterministicA.pet.goldenAppleGacha.recentResults.length, 10);
 
-const noCoinDraw = drawGoldenAppleGacha(createDefaultPet(now), 'coins', 1, now);
+const unfundedPet = createDefaultPet(now);
+const noCoinDraw = drawGoldenAppleGacha(unfundedPet, 'coins', 1, now);
 assert.equal(noCoinDraw.error, 'not_enough_coins');
-assert.deepEqual(noCoinDraw.pet, createDefaultPet(now), 'failed payment must not mutate state');
+assert.equal(noCoinDraw.pet, unfundedPet, 'failed payment must retain the same state and save identity');
 const ticketPet = {
   ...createDefaultPet(now),
   goldenAppleGacha: { ...createDefaultPet(now).goldenAppleGacha, tickets: 10 },
@@ -1076,7 +1077,8 @@ const migratedV4Schedule = normalizePartnerScheduleState(rawV4Schedule, {
   level: startedSchedule.level,
   createdAt: startedSchedule.createdAt,
 }, now, false);
-assert.equal(partnerScheduleSchemaVersion, 5);
+assert.equal(partnerScheduleSchemaVersion, 6);
+assert.equal(migratedV4Schedule.schemaVersion, partnerScheduleSchemaVersion);
 assert.equal(migratedV4Schedule.active?.trophyRewardMultiplier, 1, 'v4 active schedules must default to multiplier 1');
 if (migratedV4Schedule.active) {
   const legacyResult = {

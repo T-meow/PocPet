@@ -3,6 +3,8 @@ import { createGachaCardData, createPetProfileCardData, type PetProfileCardData 
 import type { PetState } from '../core/pet';
 import { t } from '../i18n';
 import { getToySdk, supportsToyAbility, withToySdkTimeout } from './toySdk';
+import { createMemoryPoster } from './albumPoster';
+import { createReviewAlbumData } from '../ui/albumData';
 
 export const sharePosterWidth = 1080;
 export const sharePosterHeight = 1440;
@@ -335,51 +337,7 @@ const getCareActionLabel = (action?: YearlyCareActionKey) =>
   action ? t(`ui.yearReview.actions.${action}`) : t('ui.yearReview.noTopCareAction');
 
 export const createYearReviewPoster = async ({ petName, review, petImageUrl, qrCodeDataUrl }: YearReviewPosterOptions) => {
-  const { canvas, context } = createCanvas();
-  drawSceneBackground(context);
-  drawHeader(context, t('ui.yearReview.title', { year: review.year }), t('ui.share.poster.yearSubtitle'));
-  fillPanel(context, 55, 195, 970, 315, posterColors.surface);
-  context.fillStyle = posterColors.coral;
-  setFont(context, 104, 700);
-  context.fillText(String(review.year), 75, 335);
-  context.fillStyle = posterColors.ink;
-  setFont(context, 42, 700);
-  context.fillText(truncateText(context, petName, 535), 80, 400);
-  context.fillStyle = posterColors.muted;
-  setFont(context, 25, 500);
-  context.fillText(truncateText(context, t('ui.share.poster.yearMessage'), 535), 80, 452);
-  const image = await loadImage(petImageUrl);
-  if (image) drawContainedImage(context, image, 680, 215, 305, 275);
-
-  const metrics = [
-    [t('ui.yearReview.companionDays'), review.companionDays],
-    [t('ui.yearReview.activeDays'), review.activeDays],
-    [t('ui.yearReview.careActions'), review.careActions],
-    [t('ui.yearReview.itemUseCount'), review.itemUseCount],
-    [t('ui.yearReview.pomodoroFocusCount'), review.pomodoroFocusCount],
-    [t('ui.yearReview.topCareAction'), getCareActionLabel(review.topCareAction)],
-  ] as const;
-  metrics.forEach(([label, value], index) => {
-    const column = index % 2;
-    const row = Math.floor(index / 2);
-    const x = 55 + column * 505;
-    const y = 535 + row * 170;
-    fillPanel(context, x, y, 465, 145, posterColors.surface);
-    context.fillStyle = [posterColors.blue, posterColors.coral, posterColors.green, posterColors.yellow, posterColors.teal, posterColors.blue][index];
-    setFont(context, typeof value === 'number' ? 48 : 34, 700);
-    context.fillText(truncateText(context, typeof value === 'number' ? numberFormatter.format(value) : value, 405), x + 28, y + 68);
-    context.fillStyle = posterColors.muted;
-    setFont(context, 21, 500);
-    context.fillText(truncateText(context, label, 405), x + 28, y + 108);
-  });
-  fillPanel(context, 55, 1065, 970, 190, posterColors.softBlue);
-  context.fillStyle = posterColors.blue;
-  context.fillRect(80, 1100, 8, 120);
-  context.fillStyle = posterColors.ink;
-  setFont(context, 31, 700);
-  context.fillText(truncateText(context, t('ui.share.poster.yearQuote', { name: petName }), 870), 110, 1168);
-  await drawFooter(context, qrCodeDataUrl);
-  return canvasToJpeg(canvas);
+  return createMemoryPoster(createReviewAlbumData(petName, review), petImageUrl, qrCodeDataUrl);
 };
 
 const rarityColors: Record<GachaResult['rarity'], string> = {

@@ -1,4 +1,5 @@
 import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionMemoryState } from './companionActivityTypes';
+import type { SaveMetadata } from './saveMetadata';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
@@ -6,6 +7,7 @@ export type BuiltinItemId =
   | DishId
   | KitchenMaterialId
   | 'emergency_biscuit'
+  | 'soda_biscuit_box'
   | 'bento'
   | 'orange'
   | 'apple'
@@ -425,6 +427,7 @@ export interface TimeGuardState {
 }
 
 export interface PetState {
+  saveMetadata: SaveMetadata;
   name: string;
   level: number;
   hunger: number;
@@ -514,6 +517,7 @@ export interface ShopItem {
   summary: string;
   tags?: string[];
   usable?: boolean;
+  purchaseContents?: readonly { itemId: ItemId; amount: number }[];
 }
 
 export interface ItemDefinition {
@@ -528,6 +532,7 @@ export interface ItemDefinition {
   shop: boolean;
   tags: string[];
   usable: boolean;
+  purchaseContents?: readonly { itemId: ItemId; amount: number }[];
 }
 
 export type ItemRegistry = ReadonlyMap<string, ItemDefinition>;

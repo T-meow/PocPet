@@ -1,15 +1,14 @@
-﻿import { ArrowLeft, CircleHelp, Download, FileText, RotateCcw, Upload } from 'lucide-react';
-import { useRef, useState, type ChangeEvent } from 'react';
+﻿import { ArrowLeft, Download, FileText, RotateCcw, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Check, RefreshCw, Trash2 } from 'lucide-react';
 import { Cloud, Copy, FileImage, Play, Share2 } from 'lucide-react';
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
-import type { CloudSaveManifestV1 } from '../core/cloudSave';
+import { cloudSaveMaxEncodedLength, type CloudSaveManifestV1 } from '../core/cloudSave';
 import { giftBoxIcon } from '../assets';
 import { languages, list, t, type LanguageCode } from '../i18n';
 import type { ToyAuthorSummary, ToyAuthorVideoSummary } from '../platform/toySdk';
 import type { ToyCloudAvailability, ToyCloudBusyAction } from './app/useToyIntegration';
-import { DialogShell } from './DialogShell';
 import { appBuild, features, isNativeApp } from '../platform/edition';
 import { BackupPanel } from './BackupPanel';
 import type { AutomaticBackupController } from './app/useAutomaticBackup';
@@ -17,8 +16,19 @@ import type { BackupSnapshot } from '../platform/automaticBackup';
 import { ClientUpdatePanel } from './ClientUpdatePanel';
 import type { ClientUpdateController } from './app/useClientUpdates';
 import { canShareTextFile } from '../platform/saveTextFile';
+import { AppearancePanel } from './AppearancePanel';
+import type { Appearance } from './appearance';
+import type { PetState } from '../core/pet';
+import { activityText as L } from '../core/kitchenRecipes';
+import { Palette, Settings, Volume2, VolumeX, Save, Image, Info } from 'lucide-react';
 
 interface SettingsModalProps {
+  pet: PetState;
+  portrait: string;
+  appearance: Appearance;
+  onAppearanceChange: (value: Appearance) => void;
+  isAudioEnabled: boolean;
+  onAudioToggle: () => void;
   updateController: ClientUpdateController;
   backupController: AutomaticBackupController;
   onRestoreBackup: (text: string) => void;
@@ -40,6 +50,7 @@ interface SettingsModalProps {
   hasClaimedAuthorFollowGift: boolean;
   hasClaimedHelpPageGift: boolean;
   initialPage?: SettingsPage;
+  onPageChange?: (page: SettingsPage) => void;
   cloudAvailability: ToyCloudAvailability;
   cloudManifest?: CloudSaveManifestV1;
   cloudUsedFallback: boolean;
@@ -81,11 +92,12 @@ interface SettingsModalProps {
   onImportSaveFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates';
+export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates' | 'appearance' | 'help';
 
 const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export const SettingsModal = ({
+  pet, portrait, appearance, onAppearanceChange, isAudioEnabled, onAudioToggle,
   updateController,
   backupController, onRestoreBackup, onExportBackup, onCopySave,
   onShareSaveFile, isSharingSaveFile,
@@ -99,10 +111,10 @@ export const SettingsModal = ({
   saveText,
   importSaveText,
   hasImportBackup,
-  hasOpenedHelp,
   hasClaimedAuthorFollowGift,
   hasClaimedHelpPageGift,
   initialPage = 'main',
+  onPageChange,
   cloudAvailability,
   cloudManifest,
   cloudUsedFallback,
@@ -146,19 +158,13 @@ export const SettingsModal = ({
   const modFileInputRef = useRef<HTMLInputElement>(null);
   const saveFileInputRef = useRef<HTMLInputElement>(null);
   const cloudVisible = features.cloudSave && !isNativeApp() && cloudAvailability === 'available';
-  const [isHelpOpen, setHelpOpen] = useState(false);
-  const [page, setPage] = useState<SettingsPage>(initialPage);
+  const [page, setPageState] = useState<SettingsPage>(initialPage);
+  const setPage = (next: SettingsPage) => { setPageState(next); onPageChange?.(next); };
+  useEffect(() => setPageState(initialPage), [initialPage]);
   const helpSections = [
     { title: t('ui.settings.help.careTitle'), items: list('ui.settings.help.care') },
     { title: t('ui.settings.help.growthTitle'), items: list('ui.settings.help.growth') },
   ];
-  const pageTitle = page === 'mod'
-    ? t('ui.settings.mod.title')
-    : page === 'save'
-      ? t('ui.settings.save.title')
-      : page === 'share'
-        ? t('ui.share.title')
-        : page === 'updates' ? t('ui.updates.title') : t('ui.settings.title');
   const activeModSummary = activeMod
     ? t('ui.settings.mod.current', { name: activeMod.manifest.name, version: activeMod.manifest.version })
     : t('ui.settings.mod.currentDefault');
@@ -179,7 +185,7 @@ export const SettingsModal = ({
 
   const handleOpenHelp = () => {
     onOpenHelp();
-    setHelpOpen(true);
+    setPage('help');
   };
   const cloudUploadedAt = cloudManifest
     ? new Date(cloudManifest.uploadedAt).toLocaleString(language)
@@ -194,43 +200,17 @@ export const SettingsModal = ({
 
   return (
     <>
-      <DialogShell className="settings-modal" labelId="settings-title" onClose={onClose} closeOnEscape={!isHelpOpen}>
-        <header>
-          <div className="settings-title-row">
-            {page !== 'main' && (
-              <button
-                type="button"
-                className="settings-back-button"
-                aria-label={t('ui.settings.back')}
-                title={t('ui.settings.back')}
-                onClick={() => setPage('main')}
-              >
-                <ArrowLeft size={20} aria-hidden="true" />
-              </button>
-            )}
-            <h2 id="settings-title">{pageTitle}</h2>
-          </div>
-          <div className="settings-header-actions">
-            {page === 'main' && (
-              <button
-                type="button"
-                className={hasOpenedHelp ? 'settings-help-button' : 'settings-help-button settings-help-button--unread'}
-                aria-label={t('ui.settings.help.open')}
-                title={t('ui.settings.help.open')}
-                onClick={handleOpenHelp}
-              >
-                <CircleHelp size={20} aria-hidden="true" />
-              </button>
-            )}
-            <button type="button" className="text-button" onClick={onClose}>
-              {t('ui.settings.close')}
-            </button>
-          </div>
-        </header>
-
+      <section className="settings-page" aria-labelledby="settings-title">
+        <header className="v2-page-heading"><button className="icon-button" onClick={onClose} aria-label={L('返回小窝', 'Back home')}><ArrowLeft /></button><div><p className="eyebrow">YOUR LITTLE PREFERENCES</p><h2 id="settings-title">{L('把小窝调成喜欢的样子', 'Make yourself at home')}</h2></div></header>
+        <div className="settings-layout"><nav className="settings-nav v2-card" aria-label={L('设置分类', 'Setting categories')}>{([
+          ['main', L('基本设置', 'General'), Settings], ['appearance', L('外观与环境', 'Appearance & environment'), Palette], ['save', L('存档与恢复', 'Saves & recovery'), Save], ['share', L('分享与名片', 'Sharing & cards'), Image], ['updates', L('更新', 'Updates'), RefreshCw], ['help', L('帮助与关于', 'Help & about'), Info],
+        ] as const).map(([id, label, Icon]) => <button key={id} aria-current={(page === id || (page === 'mod' && id === 'main')) ? 'page' : undefined} onClick={() => id === 'help' ? handleOpenHelp() : setPage(id)}><Icon size={18} />{label}</button>)}</nav><div className="settings-content">
         <div className="settings-modal__body">
+          {page === 'appearance' && <AppearancePanel pet={pet} appearance={appearance} onChange={onAppearanceChange} />}
           {page === 'main' && (
             <>
+              <h3>{L('认识彼此', 'Getting to know each other')}</h3>
+              <div className="settings-profile-row"><img src={portrait} alt="" /><div><strong>{pet.name}</strong><p>Lv.{pet.level} · {L(`相伴 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} days together`)}</p><button className="text-button" onClick={() => setPage('mod')}>{L('角色与 Mod', 'Companions & Mods')}</button></div></div>
               <p className="settings-free-notice">{t('ui.settings.freeNotice')}</p>
 
               <label className="field settings-inline-field settings-name-field">
@@ -290,30 +270,13 @@ export const SettingsModal = ({
                   <small>{activeModSummary}</small>
                 </span>
               </button>
-
-              <button type="button" className={`settings-nav-card${cloudVisible && cloudReminderDue ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('save')}>
-                <span>
-                  <strong>{t('ui.settings.save.manage')}</strong>
-                  <small>{t(cloudVisible ? 'ui.settings.save.summary' : 'ui.backup.localSummary')}</small>
-                </span>
-              </button>
-
-              {updateController.supported && <button type="button" className={`settings-nav-card${updateController.showReminder ? ' settings-nav-card--notice' : ''}`} onClick={() => setPage('updates')}>
-                <span><strong>{t('ui.updates.title')}</strong><small>{updateController.result?.update ? t('ui.updates.available', { version: updateController.result.update.version }) : `v${appBuild.version}`}</small></span>
-                <RefreshCw size={20} aria-hidden="true" />
-              </button>}
-
-              <button type="button" className="settings-nav-card" onClick={() => setPage('share')}>
-                <span>
-                  <strong>{t('ui.share.manage')}</strong>
-                  <small>{t('ui.share.summary')}</small>
-                </span>
-              </button>
+              <button className="settings-toggle-row" role="switch" aria-checked={isAudioEnabled} onClick={onAudioToggle}><span>{L('声音', 'Sounds')}</span>{isAudioEnabled ? <Volume2 /> : <VolumeX />}</button>
             </>
           )}
 
           {page === 'mod' && (
             <section className="settings-section" aria-label={t('ui.settings.mod.sectionAria')}>
+              <button className="text-button" onClick={() => setPage('main')}><ArrowLeft size={16} />{L('基本设置', 'General')}</button>
               <div className="settings-section__intro">
                 <span>{activeModSummary}</span>
               </div>
@@ -367,10 +330,17 @@ export const SettingsModal = ({
           )}
 
           {page === 'updates' && updateController.supported && <ClientUpdatePanel controller={updateController} onBackup={() => setPage('save')} />}
+          {page === 'updates' && !updateController.supported && <section className="v2-card"><h3>{L('当前版本', 'Current version')} · {appBuild.version}</h3><p>{L('网页版会随站点更新，重新打开即可使用最新内容。', 'The web edition updates with the site. Reopen it to use the latest version.')}</p></section>}
 
           {page === 'save' && (
             <section className="settings-section settings-save-section" aria-label={t('ui.settings.save.sectionAria')}>
               {modMessage && <p className="settings-message">{modMessage}</p>}
+              <div className="v2-card settings-save-format">
+                <h3>{t('ui.settings.save.formatV2')}</h3>
+                <p>{t(pet.saveMetadata.compensation === 'pending' ? 'ui.settings.save.migrationPending' : pet.saveMetadata.origin === 'legacy' ? 'ui.settings.save.migrationComplete' : 'ui.settings.save.newProgress')}</p>
+                {Object.keys(pet.saveMetadata.pendingItems).length > 0 && <p>{t('pet.reward.saveMigrationPending')}</p>}
+                <p>{t('ui.editionNotice.backupAdvice')} {t('ui.editionNotice.formatTimeline')}</p>
+              </div>
               <BackupPanel controller={backupController} onRestore={onRestoreBackup} onExport={onExportBackup} />
               <h3 className="save-section-title">{t('ui.backup.exportTitle')}</h3>
               <div className="save-actions">
@@ -421,6 +391,7 @@ export const SettingsModal = ({
                   <dl className="settings-cloud-meta">
                     <div><dt>{t('ui.settings.cloud.pet')}</dt><dd>{cloudManifest.petName} · Lv.{cloudManifest.petLevel}</dd></div>
                     <div><dt>{t('ui.settings.cloud.uploadedAt')}</dt><dd>{cloudUploadedAt}</dd></div>
+                    <div><dt>{t('ui.settings.cloud.capacity')}</dt><dd>{t('ui.settings.cloud.capacityValue', { used: (cloudManifest.encodedLength / 1024).toFixed(1), max: cloudSaveMaxEncodedLength / 1024, percent: Math.ceil(cloudManifest.encodedLength / cloudSaveMaxEncodedLength * 100) })}</dd></div>
                     {cloudManifest.activeMod && <div><dt>Mod</dt><dd>{cloudManifest.activeMod.name} v{cloudManifest.activeMod.version}</dd></div>}
                   </dl>
                 )}
@@ -461,6 +432,7 @@ export const SettingsModal = ({
 
           {page === 'share' && (
             <section className="settings-section settings-share-section" aria-label={t('ui.share.sectionAria')}>
+              <div className="settings-profile-card"><p className="eyebrow">POCKET · A LITTLE LIFE, TOGETHER</p><h3>{L(`${pet.name} 的伙伴名片`, `${pet.name}’s companion card`)}</h3><img src={portrait} alt="" /><p>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天，平凡的日子也在发光。`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)}. A little glow in ordinary days.`)}</p><div><span>Lv.{pet.level}</span><span>{L(`收获 ${pet.garden.lifetimeHarvestCount} 次`, `${pet.garden.lifetimeHarvestCount} harvests`)}</span></div></div>
               {modMessage && <p className="settings-message">{modMessage}</p>}
               <div className="settings-share-actions">
                 {!features.shareCards && <p>{t('ui.editionNotice.restricted')}</p>}
@@ -493,7 +465,6 @@ export const SettingsModal = ({
           )}
         </div>
 
-        <small className="build-info">v{appBuild.version} · {appBuild.edition} · {appBuild.revision.slice(0, 8)}</small>
         {page === 'main' && (
           <div className="modal-actions settings-modal__footer">
             <button type="button" className="primary-button" onClick={onSaveProfile}>{t('ui.backup.saveProfile')}</button>
@@ -503,14 +474,10 @@ export const SettingsModal = ({
             </button>
           </div>
         )}
-      </DialogShell>
-      {isHelpOpen && (
-        <DialogShell className={hasClaimedHelpPageGift ? 'help-modal' : 'help-modal help-modal--gift'} labelId="settings-help-title" onClose={() => setHelpOpen(false)}>
+      {page === 'help' && (
+        <section className="settings-help-content v2-card" aria-labelledby="settings-help-title">
           <header>
             <h2 id="settings-help-title">{t('ui.settings.help.title')}</h2>
-            <button type="button" className="text-button" onClick={() => setHelpOpen(false)}>
-              {t('ui.settings.help.close')}
-            </button>
           </header>
           <div className="help-author-cards">
             <button type="button" className="help-author-card" onClick={onOpenAuthorSpace}>
@@ -561,8 +528,10 @@ export const SettingsModal = ({
               <img src={giftBoxIcon} alt="" aria-hidden="true" />
             </button>
           )}
-        </DialogShell>
+        </section>
       )}
+        <small className="build-info">v{appBuild.version} · {appBuild.edition} · {appBuild.revision.slice(0, 8)}</small>
+      </div></div></section>
     </>
   );
 };

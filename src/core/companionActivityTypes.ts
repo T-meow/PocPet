@@ -11,7 +11,7 @@ export interface KitchenState {
   tasted: Record<string, Partial<Record<DishId, number>>>;
   recentOperationIds: string[];
   plating: 'plain' | 'flower' | 'stars';
-  lastCraft?: { id: string; dishId: DishId; quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number; at: number };
+  lastCraft?: { id: string; dishId: DishId; quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number; skillXp?: number; at: number };
 }
 export type MiniGameId = 'matching' | 'catch' | 'bubbles';
 export type PlayMode = 'normal' | 'gentle';
@@ -52,6 +52,7 @@ export interface MiniGameResult {
   baseHearts?: number;
   rewardLevel?: number;
   mood?: number;
+  skillXp?: number;
   score: number;
   elapsedMs: number;
   at: number;
@@ -59,6 +60,7 @@ export interface MiniGameResult {
 }
 export interface MiniGameState {
   schemaVersion: 1;
+  lastSettledSessionId: string;
   unlocked: MiniGameId[];
   records: Record<string, PlayRecord>;
   active?: MiniGameSession;

@@ -30,6 +30,8 @@ type PendingGachaDraw =
   | { machine: 'apple'; count: 1 | 10; payment: GachaPaymentMethod }
   | { machine: 'heart'; count: 1 | 10 };
 
+export const GachaMachineArt = ({ machine, phase, itemIconMap }: { machine: GachaMachine; phase: GachaAnimationPhase; itemIconMap: Partial<Record<string, string>> }) => <div className={`v2-gacha-machine v2-gacha-machine--${machine}`} data-phase={phase} aria-hidden="true"><div className="v2-gacha-globe">{[0, 1, 2, 3, 4].map((index) => <span key={index} className="v2-gacha-prize">{machine === 'heart' ? <Heart size={42} /> : <img src={itemIconMap[['golden_apple', 'strawberry_milk', 'bento', 'apple', 'toy_ball'][index]] ?? unknownItemIcon} alt="" />}</span>)}</div><div className="v2-gacha-base"><span className="v2-gacha-knob" /></div><div className="v2-gacha-slot" /></div>;
+
 const gachaSkipDelayMs = 300;
 const gachaBurstDelayMs = 650;
 const gachaRevealDelayMs = 1050;
@@ -373,7 +375,7 @@ export const GoldenAppleGachaModal = ({
 
   return (
     <>
-      <DialogShell className="gacha-modal" labelId="gacha-title" onClose={onClose}>
+      <DialogShell fullscreen className="gacha-modal" labelId="gacha-title" onClose={onClose}>
         <header className="dialog-header gacha-modal__header">
           <div className="dialog-title-group">
             <span className="dialog-title-icon gacha-modal__title-icon" aria-hidden="true"><Dices size={22} /></span>
@@ -406,7 +408,7 @@ export const GoldenAppleGachaModal = ({
           </button>
         </div>
 
-        <div className="gacha-wallet" aria-label={t('ui.gacha.walletAria')}>
+        <div className="gacha-v2-content"><div className="gacha-wallet" aria-label={t('ui.gacha.walletAria')}>
           {machine === 'apple' ? (
             <>
               <span><img src={currencyIcon} alt="" aria-hidden="true" />{formatCompactNumber(pet.coins)}</span>
@@ -443,18 +445,10 @@ export const GoldenAppleGachaModal = ({
           ) : null}
           {starterFeedback ? <p className="gacha-starter-feedback" role="status">{starterFeedback}</p> : null}
 
-          {phase === 'idle' ? (
-            <div className={`gacha-machine${machine === 'heart' ? ' gacha-machine--heart' : ''}`} aria-hidden="true">
-              <span className="gacha-machine__cap">{machine === 'heart' ? <Heart size={26} /> : <Sparkles size={26} />}</span>
-              <span className="gacha-machine__window">
-                {machine === 'heart'
-                  ? <Heart className="gacha-machine__heart" size={70} />
-                  : <img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" />}
-              </span>
-              <span className="gacha-machine__slot" />
-            </div>
-          ) : isAnimating && phase !== 'revealing' ? (
-            <div className="gacha-animation" aria-label={phase === 'charging' ? t('ui.gacha.charging') : t('ui.gacha.burst')}>
+          {phase === 'idle' || phase === 'charging' ? (
+            <GachaMachineArt machine={machine} phase={phase} itemIconMap={itemIconMap} />
+          ) : phase === 'burst' ? (
+            <div className="gacha-animation" aria-label={t('ui.gacha.burst')}>
               <div className="gacha-animation__core">
                 {machine === 'heart' ? <Heart size={48} aria-hidden="true" /> : <Dices size={48} aria-hidden="true" />}
               </div>
@@ -544,6 +538,7 @@ export const GoldenAppleGachaModal = ({
           <button type="button" className="secondary-button" onClick={() => openDetail('history')} disabled={isAnimating}>
             <History size={17} aria-hidden="true" />{t('ui.gacha.recentTitle')}
           </button>
+        </div>
         </div>
       </DialogShell>
 

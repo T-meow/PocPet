@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, ChefHat, Heart, Sparkles, X } from 'lucide-react';
 import type { ItemId, PetState } from '../../core/pet';
-import { canCraftRecipe, canSpendCompanionTime, craftRecipe, getKitchenHeartReward } from '../../core/kitchen';
+import { canCraftRecipe, canSpendCompanionTime, craftRecipe, getKitchenHeartReward, getKitchenSkillXpReward } from '../../core/kitchen';
+import { formatPracticeSkillXp } from '../../core/partnerSchedule';
 import { activityText as L, dishName, getDishId, getRecipe, getRecipeIngredients } from '../../core/kitchenRecipes';
 import { playSfx } from '../../core/audio';
 import { unknownItemIcon } from '../../assets';
@@ -23,6 +24,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   updateRef.current = update;
   const finishSoundPlayed = useRef(Boolean(result));
   const reward = getKitchenHeartReward(pet);
+  const skillXp = getKitchenSkillXpReward(pet, request.recipeId);
   const actions = getCookingActions(recipe.method, recipe.technique);
   const canCook = canCraftRecipe(pet, request.recipeId, request.banana, request.quantity);
   const back = () => { playSfx('close'); onBack(); };
@@ -61,6 +63,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
       <small>{L('已收入背包', 'SAVED IN YOUR BAG')}</small><h3>{dishName(result.dishId)} × {result.quantity}</h3>
       <p className="cooking-reward-hearts"><Heart /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></p>
       {baseTotal !== undefined && skillTotal !== undefined && <p className="cooking-reward-breakdown">{L(`基础 ${baseTotal} · 料理 Lv.${result.skillLevel} +${skillTotal}`, `Base ${baseTotal} · Cooking Lv.${result.skillLevel} +${skillTotal}`)}{result.hearts > baseTotal + skillTotal && L(` · 其他加成 +${result.hearts - baseTotal - skillTotal}`, ` · Other bonuses +${result.hearts - baseTotal - skillTotal}`)}</p>}
+      {(result.skillXp ?? 0) > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp('cooking', result.skillXp)}</p>}
       <p className="activity-muted">{L('香喷喷的，留着慢慢分享。', 'Something tasty to share whenever you like.')}</p>
       <div className="cooking-result-actions"><button className="activity-secondary" onClick={back}><ArrowLeft size={17} />{L('回到食谱', 'Back to recipes')}</button><button className="activity-primary" disabled={!canSpendCompanionTime(pet) || !(pet.inventory[result.dishId] > 0)} onClick={() => onFeed(result.dishId)}>{L('喂给伙伴一份', 'Share one serving')}</button></div>
     </section> : <>
@@ -73,6 +76,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
         <span className="cooking-counter" />
       </div>
       <div className="cooking-controls"><p className="activity-heart"><Heart size={16} />{L(`完成收获 ${request.quantity} 份料理，至少 ${reward.heartsPerServing * request.quantity} 心心`, `${request.quantity} servings and at least ${reward.heartsPerServing * request.quantity} hearts`)}</p>
+        {skillXp > 0 && <p className="activity-skill-xp">{L('本次出炉：', 'On completion: ')}{formatPracticeSkillXp('cooking', skillXp)}</p>}
         {!canCook && <p className="activity-info">{L('伙伴需要空闲，且材料和厨具齐全后才能继续。', 'Your companion needs to be free, with ingredients and tools ready.')}</p>}
         {submitted ? <><p className="activity-info">{L('这次还没能出炉，材料没有扣除。可以稍后重试或回食谱调整。', 'Not ready to serve yet. No ingredients were spent. Retry or return to recipes.')}</p><button className="activity-primary" disabled={!canCook} onClick={submit}>{L('重新确认出炉', 'Try serving again')}</button></> : <button className="activity-primary cooking-step-button" disabled={!canCook || Boolean(progress.readyAt) || progress.step >= 3} onClick={step}><Sparkles size={18} />{progress.readyAt ? L('好香呀…', 'Looking lovely…') : getCookingActionText(actions[Math.min(progress.step, 2)])}</button>}
         <button className="activity-link" onClick={back}>{L('先回食谱 · 完成前不消耗材料', 'Back to recipes · ingredients are spent on completion')}</button>

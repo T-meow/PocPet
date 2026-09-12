@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { features, isNativeApp } from '../../platform/edition';
 import { getStoredSaveIdentity } from '../../core/storage';
+import { UnsupportedSaveVersionError } from '../../core/saveCodec';
 import {
   getCloudReminderDecision,
   markCloudReminderShownToday,
@@ -135,8 +136,11 @@ export const useToyIntegration = ({
         setCloudUsedFallback(status.usedFallbackManifest);
         setCloudGiftClaimed(giftClaimed);
         setCloudAvailability('available');
-      } catch {
-        if (!cancelled) setCloudAvailability('unavailable');
+      } catch (error) {
+        if (!cancelled) {
+          setCloudAvailability('unavailable');
+          if (error instanceof UnsupportedSaveVersionError) callbacksRef.current.onMessage(error.message);
+        }
       }
     });
 
@@ -199,7 +203,7 @@ export const useToyIntegration = ({
       setCloudManifest(manifest);
       setCloudUsedFallback(false);
       setReminderPromptVisible(false);
-      onMessage(t('ui.settings.cloud.uploaded'));
+      onMessage(t(manifest.unchanged ? 'ui.settings.cloud.unchanged' : 'ui.settings.cloud.uploaded'));
       return manifest;
     } finally {
       setCloudBusy(null);

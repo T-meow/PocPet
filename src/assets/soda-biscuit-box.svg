@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <ellipse cx="64" cy="111" rx="42" ry="7" fill="#394331" opacity=".10"/>
+  <g stroke="#866442" stroke-width="3" stroke-linejoin="round">
+    <path d="m22 44 42-16 42 16-42 18Z" fill="#f4d8a9"/>
+    <path d="M22 44v51l42 17V62Z" fill="#ddb27c"/>
+    <path d="M64 62v50l42-17V44Z" fill="#c99760"/>
+    <path d="m22 44-9-16 41-15 10 15M64 28l12-13 41 16-11 13" fill="#f8e2b9"/>
+    <rect x="39" y="27" width="25" height="29" rx="5" fill="#f4c97e" transform="rotate(-16 52 41)"/>
+    <rect x="65" y="27" width="25" height="29" rx="5" fill="#ffe0a0" transform="rotate(15 77 42)"/>
+  </g>
+  <g fill="#b78a4f"><circle cx="48" cy="37" r="1.5"/><circle cx="56" cy="35" r="1.5"/><circle cx="50" cy="46" r="1.5"/><circle cx="58" cy="44" r="1.5"/><circle cx="73" cy="36" r="1.5"/><circle cx="81" cy="38" r="1.5"/><circle cx="71" cy="44" r="1.5"/><circle cx="79" cy="47" r="1.5"/></g>
+  <rect x="31" y="69" width="27" height="26" rx="4" fill="#fff9eb" transform="skewY(20) translate(0 -16)"/>
+  <text x="45" y="86" text-anchor="middle" fill="#735738" font-family="sans-serif" font-size="15" font-weight="700">40</text>
+</svg>

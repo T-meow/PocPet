@@ -11,15 +11,26 @@
       "backup": "Back up save", "download": "Download package", "later": "Remind tomorrow", "ignore": "Ignore this version", "ignored": "Version ignored"
     },
     "backup": {
+      "version": "Client update required",
       "exportTitle": "Export save", "importTitle": "Import and restore",
       "upgradeBackup": "The pre-upgrade backup could not be written. Saving is paused to protect the original save. You can view and export it; free storage space and reload. Further actions on this page will not be saved automatically.",
       "skippedFiles": "Skipped {count} unreadable backup files. Other recovery points remain available.",
       "title": "Local automatic backups", "enabled": "Scheduled backups", "interval": "Interval (days)", "now": "Back up now", "busy": "Backing up", "choose": "Choose automatic backup file", "authorize": "Authorize file again", "empty": "No automatic backups yet", "latest": "Latest backup", "fileTime": "File updated", "history": "Recovery points", "restore": "Restore", "export": "Export", "copy": "Copy save text", "copied": "Save text copied.", "copyFallback": "Select and copy the full save text below.", "failed": "Backup failed. Existing recovery points were retained.", "internal": "In-app recovery points", "native": "Local file in application data", "saved": "Local file connected", "unconfigured": "No local file connected", "permission": "File authorization required", "unsupported": "This environment stores in-app recovery points only", "error": "Local file has not been updated", "storageWarning": "Clearing site data or uninstalling the app can remove in-app backups. Export a separate copy.", "textFallback": "This app may not support file downloads. Copy the save text below to back up.", "saveError": "Progress could not be saved. Export your save before reopening to preserve this session.", "conflict": "Another page changed the save. Saving is paused here. Reopen to load the latest progress.", "reload": "Reload", "recoveryTitle": "Recover existing progress", "recoveryMessage": "The current save could not be loaded. Select a recovery point or import a backup. Original data will be retained.", "recoveryMissing": "The main save is missing, but recovery copies were found.", "recoveryStorage": "Local storage is unavailable. Restore browser permissions and retry.", "retry": "Retry", "original": "Original save", "import": "Import backup file", "startNew": "Start new progress", "newWarning": "Start new progress? Daily backups and the pre-upgrade copy will be retained.", "stage": "Failure stage", "parse": "File parsing", "validation": "Data validation", "migration": "Legacy migration", "simulation": "Offline simulation", "storage": "Local storage", "localSummary": "Local backups, import and recovery", "saveProfile": "Save profile"
     },
     "editionNotice": {
-      "title": "Save reminder",
-      "backupTitle": "Keep a separate save backup",
-      "backupAdvice": "Export your save regularly and keep a copy outside the app.",
+      "title": "What's new in 1.8",
+      "featuresTitle": "A fresh look for everyday life",
+      "uiAdvice": "Enjoy the new room, status rings, garden, schedules, shop and album, plus refreshed Friend Cards and gacha. Floating messages keep you informed after each action.",
+      "kitchenTitle": "Cook together",
+      "kitchenAdvice": "Discover 14 recipes and 16 dishes, with batch cooking, equipment unlocks and memories of your first taste together.",
+      "playTitle": "Play together",
+      "playAdvice": "Matching, catch and bubbles unlock at Lv.3. Catch uses one toy ball per game. Playing together earns hearts and memories.",
+      "backupTitle": "Convert and back up your save",
+      "backupAdvice": "Version 1.8 introduces the new save format. Before upgrading to 1.9, please export and keep a new-format file from Settings > Saves & recovery.",
+      "formatTimeline": "Version 1.9 will still read and convert legacy saves; 2.0 will only read the new format. Existing backup files are not rewritten automatically: keep the originals. Continue playing and syncing with an updated client after conversion.",
+      "compensationTitle": "Legacy save gift and biscuit boxes",
+      "compensationAdvice": "The first successful migration of an eligible legacy save grants 3 boxes of soda biscuits (120 biscuits delivered directly) and 10 strawberry milks. Once per save; new games are excluded. Any overflow is saved and delivered when inventory space becomes available.",
+      "boxAdvice": "A box of soda biscuits is now available for 500 coins before discounts. Each purchase delivers 40 biscuits for feeding or cooking.",
       "downloadFallback": "If the Bilibili app cannot download files, copy the save text or export it in a web browser.",
       "localBackupAdvice": "Uninstalling the app or clearing its data can also remove automatic backups. Export important progress separately.",
       "policyTitle": "Bilibili edition changes",
@@ -31,7 +42,7 @@
       "updateAdvice": "The standard app checks GitHub daily. You can also check manually in Settings > App updates.",
       "installAdvice": "When an update is available, download the package and install it yourself. Back up your save first.",
       "openUpdates": "View app updates",
-      "backup": "Back up", "acknowledge": "Understood", "restricted": "Unavailable in the Bilibili edition"
+      "backup": "Export a new-format save", "acknowledge": "Understood", "restricted": "Unavailable in the Bilibili edition"
     },
     "quantity": {
       "aria": "Choose quantity",
@@ -69,7 +80,7 @@
       "settings": "Settings",
       "openSettings": "Open settings",
       "openAchievements": "Open achievements",
-      "openBoostCards": "Open boost cards"
+      "openBoostCards": "Open Friend cards"
     },
     "dashboard": {
       "aria": "Pet stats",
@@ -196,7 +207,16 @@
         "importPasted": "Import pasted save",
         "previewReady": "Save read successfully. Review it before importing.",
         "previewTitle": "Import this save?",
-        "previewMessage": "Pet: {name} (Lv.{level}); exported: {exportedAt}; appearance: {mod}. Importing replaces the current save after creating a backup.",
+        "previewMessage": "Pet: {name} (Lv.{level}); exported: {exportedAt}; appearance: {mod}. Format: {format}. {migration} Importing replaces the current save after creating a backup.",
+        "formatV2": "New JSON save (format v2)",
+        "formatLegacy": "Legacy save (conversion needed)",
+        "migrationPending": "Legacy migration will complete once saving succeeds.",
+        "migrationComplete": "Legacy migration is complete. Compensation status travels with this save.",
+        "newProgress": "This is new progress, without legacy migration compensation.",
+        "previewMigration": "Importing keeps an original copy and converts it to the new format. Eligible legacy saves receive compensation once. Previewing does not change stored data.",
+        "previewCurrent": "Already in the new format. Migration and compensation status will be preserved.",
+        "newerVersion": "This save contains newer data that this client cannot read. Update the client first. The original save is preserved and will not be replaced or rolled back.",
+        "requiresVersion": "This save requires PocPet {version} or newer. Update the client first. The original save is preserved.",
         "previewLegacyTime": "Legacy save (no export time)",
         "previewBuiltinMod": "Built-in pet",
         "previewCancel": "Cancel",
@@ -232,6 +252,11 @@
         "manage": "Save management"
       },
       "cloud": {
+        "capacity": "Cloud capacity",
+        "capacityValue": "{used} / {max} KiB ({percent}%)",
+        "unchanged": "Game data is unchanged. The existing cloud save was kept without uploading again.",
+        "tooLarge": "This save exceeds cloud capacity or the safety size limit. The current cloud save is preserved. Export a local backup first.",
+        "newerVersion": "Cloud storage contains a newer save. Update the client to continue. Existing cloud saves will not be replaced or rolled back.",
         "title": "Toy Cloud Save",
         "checking": "Checking cloud save",
         "ready": "A restorable cloud save is available",
@@ -462,7 +487,7 @@
       "inventory": "Inventory",
       "inventoryKinds": "{count} types owned",
       "pomodoro": "Pomodoro",
-      "boostCards": "Boost cards",
+      "boostCards": "Friend cards",
       "boostCardsActive": "{card} active",
       "weatherAria": "Today's weather: {weather}",
       "garden": "Garden",
@@ -1050,7 +1075,7 @@
       "compensationGiftCoins": "+{coins}"
     },
     "boostCards": {
-      "title": "Boost Cards",
+      "title": "Friend cards",
       "close": "Close",
       "activeCard": "Active: {card}",
       "noActive": "No active card",
@@ -1059,7 +1084,7 @@
       "claimed": "Claimed today",
       "claimReward": "Claim a neighbor gift and {coins} coins",
       "rewardGiftTitle": "Neighbor gift delivered",
-      "rewardCoinsTitle": "Daily boost-card reward",
+      "rewardCoinsTitle": "Daily Friend cards reward",
       "remaining": "{days} days left",
       "buy": "{hearts} hearts · 30 days",
       "blockedByBestFriend": "Best Friend active",
@@ -1094,6 +1119,7 @@
           "name": "Soda biscuit",
           "summary": "A plain-tasting cracker."
         },
+        "soda_biscuit_box": { "name": "Box of soda biscuits", "summary": "Delivers 40 soda biscuits directly for feeding or cooking. Does not use your daily free claims." },
         "bento": {
           "name": "Homestyle bento",
           "summary": "A bento box with a generous serving of rice."
@@ -1476,6 +1502,8 @@
       "workBonus": " Good mood brought an extra {coins} coins."
     },
     "buy": {
+      "inventoryFull": "Not enough biscuit inventory space. Make room before buying a box.",
+      "bundle": "Bought {count} boxes for {price} coins. Received {biscuits} soda biscuits.",
       "missing": "This shop item does not exist.",
       "biscuitClaimedOut": "Today's soda biscuits are all claimed. Come back tomorrow.",
       "biscuitLimitInsufficient": "You can claim at most {remaining} more soda biscuit(s) today.",
@@ -1570,6 +1598,8 @@
       "authorLinkGift": "Thanks for following the author. Gacha tickets +{count}.",
       "authorFollowGift": "Author follow verified. Gacha tickets +{count}.",
       "gardenCompensation": "Garden compensation claimed, coins +{coins}.",
+      "saveMigrationGift": "Legacy save gift delivered: soda biscuits +{biscuits}, strawberry milk +{milk}.",
+      "saveMigrationPending": "The remaining gift is saved and will be delivered when inventory space becomes available.",
       "anniversary": "Today is the day you met {name}. Anniversary gift: Golden Apple +1, Shiny Sticker +1, gacha tickets +10.",
       "monthlyGift": "A fresh month begins. Gift: Golden Apple +1 and 3 gacha tickets.",
       "catchUp": "{name} waited for you with a gift.",
@@ -2184,12 +2214,12 @@
       "notEnoughHearts": "Not enough hearts. Need {hearts}.",
       "bestFriendBlocksFriend": "Friend Pass cannot be purchased while Best Friend Pass is active.",
       "buySuccess": "{card} is active or extended.",
-      "noActiveCard": "No active boost card.",
-      "dailyRewardClaimed": "Today's boost-card neighbor gift and coins were already claimed.",
-      "claimDailyRewardNamed": "{neighbor} brought {item}, and the boost card granted {coins} daily coins.",
-      "claimDailyRewardGeneric": "A neighbor brought {item}, and the boost card granted {coins} daily coins.",
+      "noActiveCard": "No active Friend cards.",
+      "dailyRewardClaimed": "Today's Friend cards neighbor gift and coins were already claimed.",
+      "claimDailyRewardNamed": "{neighbor} brought {item}, and the Friend cards granted {coins} daily coins.",
+      "claimDailyRewardGeneric": "A neighbor brought {item}, and the Friend cards granted {coins} daily coins.",
       "claimDailyRewardCoinsOnly": "Three neighbor gifts were already received today, so this claim granted only {coins} daily coins.",
-      "workBonus": " Boost card +{coins} coins."
+      "workBonus": " Friend cards +{coins} coins."
     }
   }
 }
