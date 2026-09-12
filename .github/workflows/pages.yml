@@ -1,16 +1,23 @@
 name: Deploy GitHub Pages from release
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       version:
+        description: Published release version
         type: string
         required: true
       revision:
+        description: Commit used to build the release
+        type: string
+        required: true
+      run_id:
+        description: Release workflow run containing standard-web
         type: string
         required: true
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -27,15 +34,48 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Checkout published tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
 
+      - name: Verify published release and source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_REVISION: ${{ inputs.revision }}
+          SOURCE_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
+          gh release view "v$EXPECTED_VERSION" --json isDraft,tagName > source-release.json
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            import { execFileSync } from "node:child_process";
+            const run = JSON.parse(readFileSync("source-run.json", "utf8"));
+            const release = JSON.parse(readFileSync("source-release.json", "utf8"));
+            const tag = "v" + process.env.EXPECTED_VERSION;
+            assert.equal(process.env.GITHUB_REF, "refs/heads/main");
+            assert.equal(run.path, ".github/workflows/release.yml");
+            assert.equal(run.event, "push");
+            assert.equal(run.head_branch, tag);
+            assert.equal(run.head_sha, process.env.EXPECTED_REVISION);
+            assert.equal(execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), process.env.EXPECTED_REVISION);
+            assert.equal(release.tagName, tag);
+            assert.equal(release.isDraft, false);
+          '
+
       - uses: actions/download-artifact@v4
         with:
           name: standard-web
           path: dist
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Verify release identity
         env:
@@ -46,7 +86,6 @@ jobs:
             import assert from "node:assert/strict";
             import { readFileSync } from "node:fs";
             const build = JSON.parse(readFileSync("dist/build-info.json", "utf8"));
-            assert.equal(process.env.GITHUB_REF, "refs/tags/v" + process.env.EXPECTED_VERSION);
             assert.equal(build.version, process.env.EXPECTED_VERSION);
             assert.equal(build.revision, process.env.EXPECTED_REVISION);
             assert.equal(build.edition, "standard");

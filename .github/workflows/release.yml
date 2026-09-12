@@ -518,11 +518,15 @@ jobs:
     name: Deploy matching standard edition
     needs: [metadata, release]
     if: needs.metadata.outputs.publish_release == 'true'
-    uses: ./.github/workflows/pages.yml
-    with:
-      version: ${{ needs.metadata.outputs.version }}
-      revision: ${{ needs.metadata.outputs.revision }}
+    runs-on: ubuntu-22.04
     permissions:
+      actions: write
       contents: read
-      pages: write
-      id-token: write
+    steps:
+      - name: Start deployment from the allowed main branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+          RELEASE_REVISION: ${{ needs.metadata.outputs.revision }}
+        run: gh workflow run pages.yml --ref main -f version="$RELEASE_VERSION" -f revision="$RELEASE_REVISION" -f run_id="$GITHUB_RUN_ID"

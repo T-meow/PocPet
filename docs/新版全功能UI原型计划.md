@@ -7,7 +7,8 @@
 - 现场：GitHub main 与本地均为 25913ec；v1.8.0 尚无标签，已有旧构建 Release 草稿未发布。package.json／Tauri／Cargo 版本一致；未跟踪文件共约 1.17 MiB，均为本次 UI／存档模块、检查脚本或需保留的冒险原型。
 - 进度／验证：发布元数据与差异空白检查通过；补齐发布说明中的最新交互、经验和隐藏入口，并将新版存档／云端／UI 及种植检查接入发布门禁，产物重新生成 SHA-256 清单。
 - 提交／验证：源码提交 72b5b33；首次 CI 发现旧存档检查未纳入新增的可选 skillXp 字段，76830fc 补齐“旧结果不补发经验”的预期。发布流程中的 12 项本地专项及 GitHub CI 全部通过；main 与 v1.8.0 均已推送，发布代码为 76830fc886d84d665b8d459ae78f5e485297bda5。
-- 构建：全量流水线 https://github.com/T-meow/PocPet/actions/runs/34698494700 已启动，Web、macOS、Linux 和两种 Windows 已完成，Android 构建中；完成后自动公开 GitHub Release 并部署 https://t-meow.github.io/PocPet/。
+- 构建：全量流水线 https://github.com/T-meow/PocPet/actions/runs/34698494700 的所有平台构建及 Release 发布已成功，8 个平台包已上线 https://github.com/T-meow/PocPet/releases/tag/v1.8.0。
+- Pages：原部署任务在启动前被 github-pages 环境规则拒绝，v1.8.0 标签不在允许范围。部署改由已允许的 main 分支启动，继续读取本次发布的 standard-web artifact，并核对已公开 Release、版本标签、原始构建运行和提交；不调整环境保护规则。工作流 YAML 解析与读回通过，待推送后执行部署。
 - Web 封装：下载检查发现 Windows Compress-Archive 将 ZIP 内目录写为反斜杠，部分解压器不能解析网页引用的资源。改用已有 JSZip 生成标准路径，已将本次 CI 的 125 个前端文件重新封装并逐文件核对 SHA-256 一致，build-info 仍为 76830fc；发布后同步替换 Web 包及校验清单。旧 CI ZIP 和提取输入均保留在 release/ 下。
 - Toy：构建、元数据与 toy_doctor 检查通过；已按本次发布授权提交更新并审核通过，状态 published。正式地址 https://www.bilibili.com/toy/pocpet/index.html，线上 build-info 为 1.8.0／bilibili／76830fc；已核对实际版本目录 23949807352832-v14121 下的入口 JS／CSS，SHA-256 与本地发布构建一致。
 - 备份：release/backups/before-full-release-20260912/ 保存本地旧 APK（SHA-256 0EEB59E9D30EAD1040CD6405ADA3D882A2E6C6FE1E3AE864106720BEDB671C98）及更新前 GitHub 草稿元数据。
