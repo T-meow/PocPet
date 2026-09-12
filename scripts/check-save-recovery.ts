@@ -197,7 +197,7 @@ for (const game of ['matching', 'catch', 'bubbles'] as const) {
 }
 const completedGame: PetState = { ...preActivitiesPet, miniGames: { ...basePet.miniGames, lastResult: { id: 'old-result', actorId: 'official.mint', game: 'matching', mode: 'gentle', hearts: 2312, baseHearts: 2312, rewardLevel: 99, score: 6, elapsedMs: 14000, at: exportAt, pending: true } } };
 const completedGameLoaded = parseSaveFileText(oldEnvelope(completedGame), importAt).pet;
-assert.deepEqual(completedGameLoaded.miniGames.lastResult, { ...completedGame.miniGames.lastResult, mood: undefined }, 'completed rewards keep their historical amount without inventing a missing mood reward');
+assert.deepEqual(completedGameLoaded.miniGames.lastResult, { ...completedGame.miniGames.lastResult, mood: undefined, skillXp: undefined }, 'completed rewards keep their historical amount without inventing missing mood or skill rewards');
 assert.equal(acknowledgeMiniGameResult(completedGameLoaded, 'old-result').hearts, completedGameLoaded.hearts);
 
 for (const definition of partnerScheduleDefinitions) {
