@@ -1,6 +1,6 @@
 # 新版全功能 UI 原型
 
-## GitHub、B 站与全平台发布（2026-09-12，进行中）
+## GitHub、B 站与全平台发布（2026-09-12，已完成）
 
 - 目标／授权：用户明确要求提交 Git、推送 GitHub 与 bilitoy、部署并构建所有；本阶段覆盖此前不提交／不发布／不构建的限制。单助手，不使用 Computer Use。
 - 决定：版本保持 1.8.0；main 上提交当前全部源码、检查脚本、文档及冒险原型，再推送 v1.8.0 标签触发现有全平台流水线和 GitHub Pages。复用 B 站 Toy 23949807352832／pocpet，以 dist-toy 更新既有项目。
@@ -8,11 +8,13 @@
 - 进度／验证：发布元数据与差异空白检查通过；补齐发布说明中的最新交互、经验和隐藏入口，并将新版存档／云端／UI 及种植检查接入发布门禁，产物重新生成 SHA-256 清单。
 - 提交／验证：源码提交 72b5b33；首次 CI 发现旧存档检查未纳入新增的可选 skillXp 字段，76830fc 补齐“旧结果不补发经验”的预期。发布流程中的 12 项本地专项及 GitHub CI 全部通过；main 与 v1.8.0 均已推送，发布代码为 76830fc886d84d665b8d459ae78f5e485297bda5。
 - 构建：全量流水线 https://github.com/T-meow/PocPet/actions/runs/34698494700 的所有平台构建及 Release 发布已成功，8 个平台包已上线 https://github.com/T-meow/PocPet/releases/tag/v1.8.0。
-- Pages：原部署任务在启动前被 github-pages 环境规则拒绝，v1.8.0 标签不在允许范围。部署改由已允许的 main 分支启动，继续读取本次发布的 standard-web artifact，并核对已公开 Release、版本标签、原始构建运行和提交；不调整环境保护规则。工作流 YAML 解析与读回通过，待推送后执行部署。
-- Web 封装：下载检查发现 Windows Compress-Archive 将 ZIP 内目录写为反斜杠，部分解压器不能解析网页引用的资源。改用已有 JSZip 生成标准路径，已将本次 CI 的 125 个前端文件重新封装并逐文件核对 SHA-256 一致，build-info 仍为 76830fc；发布后同步替换 Web 包及校验清单。旧 CI ZIP 和提取输入均保留在 release/ 下。
+- Pages：原部署任务在启动前被 github-pages 环境规则拒绝，v1.8.0 标签不在允许范围。a140057 改由已允许的 main 启动部署，核对已公开 Release、版本标签、原始构建运行和提交；环境保护规则保持原设置。部署 https://github.com/T-meow/PocPet/actions/runs/34699771735 成功，https://t-meow.github.io/PocPet/ 线上版本、入口 JS／CSS 与本次标准版产物一致；main 的验证流水线 34699752884 通过。
+- Web 封装：下载检查发现 Windows Compress-Archive 将 ZIP 内目录写为反斜杠，部分解压器不能解析网页引用的资源。7c33dde 改用已有 JSZip 生成标准路径，将本次 CI 的 125 个前端文件重新封装并逐文件核对 SHA-256 一致，build-info 仍为 76830fc；GitHub Web 包及校验清单已同步替换。旧 CI ZIP 和提取输入均保留在 release/ 下。
 - Toy：构建、元数据与 toy_doctor 检查通过；已按本次发布授权提交更新并审核通过，状态 published。正式地址 https://www.bilibili.com/toy/pocpet/index.html，线上 build-info 为 1.8.0／bilibili／76830fc；已核对实际版本目录 23949807352832-v14121 下的入口 JS／CSS，SHA-256 与本地发布构建一致。
 - 备份：release/backups/before-full-release-20260912/ 保存本地旧 APK（SHA-256 0EEB59E9D30EAD1040CD6405ADA3D882A2E6C6FE1E3AE864106720BEDB671C98）及更新前 GitHub 草稿元数据。
-- 待办：跟进剩余 CI、Pages／Release 验证、下载并校验全平台产物；完成后回填结果并提交记录。
+- 交付／验证：release/ 已保存 Windows x64／x86、Android arm64／ARMv7、Web、macOS arm64、Linux AppImage／deb 共 8 个包，另有 SHA256SUMS.txt 和 update-info.json；合计 292,692,622 字节（约 279.13 MiB）。10 个附件的大小与 SHA-256 均与公开 Release 一致，9 项清单及 6 个客户端更新目标通过。两个 APK 在 CI 中通过固定测试签名、版本、架构和内嵌前端校验。
+- Android arm64：release/pocket1.8.0.apk，35,403,399 字节，SHA-256 41F291006B0B55CDC7BDE84C1ADBDD2BD62688DA09B9F3E09E7B64A11272F14A。
+- 收尾：应用源码、Tauri 与依赖清单相对 v1.8.0 无差异，后续提交只修正发布工具并补充记录；全部源码与原型已提交推送。线上发布及本地产物交付完成，平台实际安装体验由用户继续测试。
 - 路径／禁动：docs/1.8.0-release.md、.github/workflows/release.yml、release/；既有同名本地包先备份，产物不入 Git；保留真实存档、签名与账号设置，不调整版本，不重建 Toy 项目。
 
 ## 点击菜谱弹出制作窗口（2026-09-12，已完成／待体验）
