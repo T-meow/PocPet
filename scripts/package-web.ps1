@@ -29,9 +29,8 @@ if ($distItems.Count -eq 0) {
 }
 
 New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
-if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
-
-Compress-Archive -LiteralPath $distItems.FullName -DestinationPath $target -Force
+& node (Join-Path $root 'scripts/package-web.mjs') $distDir $target
+if ($LASTEXITCODE -ne 0) { throw 'Web archive creation failed.' }
 if (-not (Test-Path -LiteralPath $target)) {
   throw "Web deployment package was not created: $target"
 }
