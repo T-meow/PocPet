@@ -2,6 +2,10 @@ node_modules/
 dist/
 dist-toy/
 release/
+# Generated previews, screenshots, videos, and release staging
+/output/
+/artifacts/
+/dist-release/
 *.local
 *.tsbuildinfo
 *.log
