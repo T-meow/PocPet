@@ -34,9 +34,6 @@ export const BoostCardModal = ({ pet, onClose, onBuyCard, onClaimDailyReward }: 
           {effects.workBonusDailyLimit > 0 && (
             <span>{t('ui.boostCards.todayWork', { coins: pet.boostCards.dailyWorkBonusCoinsUsed, limit: effects.workBonusDailyLimit })}</span>
           )}
-          {effects.gardenExtraDropDailyLimit > 0 && (
-            <span>{t('ui.boostCards.todayGarden', { count: pet.boostCards.dailyGardenExtraDrops, limit: effects.gardenExtraDropDailyLimit })}</span>
-          )}
           <button type="button" className="primary-button" disabled={!activeCardId || claimed} onClick={onClaimDailyReward}>
             {claimed ? t('ui.boostCards.claimed') : t('ui.boostCards.claimReward', { coins: effects.dailyCoins })}
           </button>
@@ -53,7 +50,6 @@ export const BoostCardModal = ({ pet, onClose, onBuyCard, onClaimDailyReward }: 
               L(`额外小心心概率 ${definition.extraHeartChancePercent}%`, `${definition.extraHeartChancePercent}% chance of extra hearts`),
               ...(definition.partnerScheduleCoinBonusPercent ? [L(`日程金币 +${definition.partnerScheduleCoinBonusPercent}%`, `Activity coins +${definition.partnerScheduleCoinBonusPercent}%`)] : []),
               ...(definition.gardenGrowTimeMultiplier < 1 ? [L(`植物成长时间减少 ${Math.round((1 - definition.gardenGrowTimeMultiplier) * 100)}%`, `${Math.round((1 - definition.gardenGrowTimeMultiplier) * 100)}% shorter garden growth`)] : []),
-              ...(definition.gardenExtraDropChancePercent ? [L(`花园额外产物概率 ${definition.gardenExtraDropChancePercent}%，每日最多 ${definition.gardenExtraDropDailyLimit} 次`, `${definition.gardenExtraDropChancePercent}% extra garden drops, up to ${definition.gardenExtraDropDailyLimit} daily`)] : []),
             ];
             return (
               <article className={activeCardId === cardId ? 'boost-card boost-card--active' : 'boost-card'} key={cardId}>

@@ -1,11 +1,22 @@
 # 新版全功能 UI 原型
 
+## GitHub 提交与双站部署（2026-09-13，进行中）
+
+- 目标／授权：用户追加要求提交 Git、推送 GitHub、部署 GitHub Pages 和 B 站 Toy；覆盖前阶段“不推送／不发布”的限制，版本保持 1.8.0。明确部署授权已具备，沿用单助手、代码／数据检查，不重复询问授权。
+- 现场：本地 main 已有 6977e8a，origin/main 仍为 9d6d452；随后其他任务完成了挚友证园艺掉落、梦想肥料补给、礼物和胡萝卜蛋饭的补充调整，本次一并核对提交。美术试稿与 output/ 继续保留在本地。
+- 决定：Pages 现流程只支持已发布标签，新增 source=main 的明确提交部署入口，与原生打包独立；原 source=release 校验链保留。更新既有 PocPet Toy，保留 slug、封面与可见性；按 Toy CLI 技能完成内容检查与预览，再使用当前明确部署授权提交更新。
+- 前任务接续：四架构原生编译和封装已完成，但收尾前被本次指令中断；之后 x64 包被数值任务更新。待双站部署源码固定后，完成四个测试包同步与版本／架构／签名／SHA-256 收尾。
+- 验证：check:release、check:release-policy、道具数值、伙伴活动、园艺、UI v2 和 TypeScript 通过；PyYAML 核对 Pages 两条条件分支、默认 Release 路径与独立部署依赖，UTF-8 读回和 git diff --check 通过。
+- 进度／路径：.github/workflows/pages.yml、AGENTS.md、README.md、当前数值改动及本记录；待提交／推送、Pages 部署、dist-toy 内容预检／更新和线上资源验证。不创建新 Toy、不覆盖既有版本标签、不改签名或玩家存档。
+
 ## 本地提交与四架构测试包（2026-09-13，进行中）
 
 - 目标／授权：用户要求先提交本地 Git，再打包 EXE 和 APK，并明确包含 32 位版本；交付 Windows x64／x86 与 Android arm64／ARMv7 共 4 包，版本保持 1.8.0。单助手，沿用代码／数据检查，体验由用户测试。
 - 现场／决定：已核对 status、版本及相关 diff；提交当前功能修复、发布规则和已完成的道具／厨房／园艺调整，以及所需新源码、检查脚本和数值记录。output/ 与两份美术试稿记录保留在本地，不纳入游戏提交；不推送远端、不发布。
 - 打包前验证：check:release、道具数值、伙伴活动、园艺、扭蛋、存档恢复、UI v2 和 TypeScript 通过。修正旧 UI 检查的普通树营养剂入口数量、施肥轮次状态和分类清理费断言，游戏逻辑未额外调整。所需 Rust 四架构目标、JDK 17、SDK、NDK 27.2 和既有 debug keystore 已就绪。
-- 进度／待办：提交源码；备份同名包、校验清单及构建输入；按项目脚本依次生成 Windows x64、Android arm64、Windows x86、Android ARMv7，核对版本／架构／内嵌资源／APK 签名并记录大小与 SHA-256。
+- 提交／备份：本地 main 提交 6977e8a5bdd2c539594c0b98f79d13840b4d9cc8，63 个文件。release/backups/before-four-arch-test-20260913-031216/ 保留旧 x64 EXE（31,559,168 字节，SHA-256 8524D01BCFD6D523AEC8D54986E9A22BE0B2F4582537ED4E04C700070DD8B285）、原校验清单、Cargo.toml 原字节与 434 项构建输入 SHA-256；其余 3 个同名包原先不在 release/。
+- 进度／待办：Windows x64 和 Android arm64 已完成；Windows x86 构建中，后续 Android ARMv7；日志 release/four-arch-test-*.log。Android arm64 原生编译成功后因本机符号链接权限封装失败，已先校验本次新 libapp_lib.so 的版本／架构／资源，再用既有 :reuse 复制封装脚本生成 APK，v2／v3 签名通过。
+- Android 环境：C:/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot、C:/Users/Ferris/AppData/Local/Android/Sdk、ndk/27.2.12479018，仅当前构建进程设置环境；既有签名 SHA-256 预期 E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285。待四包版本／架构／内嵌资源／签名／大小／SHA-256 复核。
 - 路径／禁动：release/pocket1.8.0.exe、release/pocket1.8.0.apk、release/pocket1.8.0-win32.exe、release/pocket1.8.0-32bit.apk；保留既有备份、美术草稿和未提交的其他任务文件，不读写实际玩家存档，不改变系统或签名配置。
 
 ## 发布规则调整（2026-09-13，已完成）

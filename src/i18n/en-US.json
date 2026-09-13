@@ -609,6 +609,9 @@
       "nextRequirementMaster": "{target} master completions",
       "nextRequirementApples": "{target} golden apples",
       "completeStage": "Complete this stage",
+      "supplySupplementTitle": "Dream stage supplies",
+      "supplySupplementHint": "Each project with stage 3 completed can claim its fertilizer supplies once.",
+      "claimSupplySupplement": "{project}: claim Normal Fertilizer ×{amount}",
       "legacyKicker": "Shared Legacy",
       "legacyTitle": "Legacy Level {level}",
       "legacySummary": "Legacy levels, no rewards.",
@@ -1088,7 +1091,6 @@
       "activeCard": "Active: {card}",
       "noActive": "No active card",
       "todayWork": "Work bonus {coins}/{limit}",
-      "todayGarden": "Garden drops {count}/{limit}",
       "claimed": "Claimed today",
       "claimReward": "Claim a neighbor gift and {coins} coins",
       "rewardGiftTitle": "Neighbor gift delivered",
@@ -1104,7 +1106,7 @@
         },
         "best_friend_pass": {
           "name": "Best Friend Pass",
-          "summary": "A daily neighbor gift and 50 coins, +10% partner schedule coins, plus the existing garden growth and drop bonuses."
+          "summary": "A daily neighbor gift and 50 coins, +10% partner schedule coins, 12% shorter garden growth, and a 30% extra-heart chance."
         }
       }
     },
@@ -2143,7 +2145,9 @@
       "stageNeedsCoins": "Fully fund this stage first.",
       "requirementsMissing": "The skill, schedule, or master requirements are not met.",
       "applesMissing": "Completion requires {apples} golden apples.",
-      "stageComplete": "Partner Dream stage {stage} completed. Hearts +{hearts}.",
+      "rewardInventoryFull": "There is not enough inventory space. Make room to claim the reward.",
+      "supplySupplementClaimed": "Claimed supplies for {project}: Normal Fertilizer +{amount}.",
+      "stageComplete": "Partner Dream stage {stage} completed. Hearts +{hearts}. {items}",
       "allComplete": "All four Partner Dreams are complete. The final memorial is unlocked. Hearts +{hearts}.",
       "legacyLocked": "Complete all four Partner Dreams first.",
       "legacyFunded": "This legacy level is fully funded.",

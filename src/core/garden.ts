@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { getAchievementEffects, incrementAchievementGardenHarvest, incrementAchievementGardenPlant, incrementAchievementGardenWater, recordEarnedCoins } from './achievements';
-import { getBoostCardEffects, normalizeBoostCardState, spendBoostCardGardenExtraDrop } from './boostCards';
+import { getBoostCardEffects, normalizeBoostCardState } from './boostCards';
 import { getClassicTrophyEffects } from './classicTrophies';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
@@ -333,14 +333,8 @@ const resolveExtraDrops = (pet: PetState, slot: GardenSlot, seed: string, now: n
   const trophyChance = getClassicTrophyEffects(pet).gardenExtraDropChancePercent;
   const totalChance = Math.max(0, getExtraDropChance(slot, pet.garden) + environmentChance + achievementChance + trophyChance);
   const remainderChance = totalChance % 100;
-  let extraDropCount = Math.floor(totalChance / 100) + (remainderChance > 0 && (hashString(seed + ':extra') % 100) < remainderChance ? 1 : 0);
-  let boostCards = normalizeBoostCardState(pet.boostCards, now, getEffectiveDailyDateKey(pet, now));
-  const effects = getBoostCardEffects({ ...pet, boostCards }, now);
-  if (extraDropCount === 0 && effects.gardenExtraDropChancePercent > 0 && (hashString(seed + ':boost') % 100) < effects.gardenExtraDropChancePercent) {
-    const spend = spendBoostCardGardenExtraDrop({ ...pet, boostCards }, now);
-    boostCards = spend.boostCards;
-    extraDropCount = spend.didSpend ? 1 : 0;
-  }
+  const extraDropCount = Math.floor(totalChance / 100) + (remainderChance > 0 && (hashString(seed + ':extra') % 100) < remainderChance ? 1 : 0);
+  const boostCards = normalizeBoostCardState(pet.boostCards, now, getEffectiveDailyDateKey(pet, now));
   return { extraDropCount, boostCards };
 };
 const generateGardenDrops = (pet: PetState, slot: GardenSlot, now: number): { drops: GardenDrop[]; boostCards: BoostCardState } => {

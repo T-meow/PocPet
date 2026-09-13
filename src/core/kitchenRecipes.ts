@@ -23,7 +23,7 @@ export const recipes: readonly RecipeDefinition[] = [
   { id: 'watermelon_juice', name: '西瓜冰饮', en: 'Watermelon cooler', glyph: '🍉', method: 'blender', ingredients: ['watermelon'], effect: { hunger: 36, mood: 20 }, chainHearts: 1 },
   { id: 'biscuit_cup', name: '草莓饼干杯', en: 'Strawberry biscuit cup', glyph: '🍨', method: 'mix', ingredients: ['emergency_biscuit', 'strawberry_milk'], effect: { hunger: 38, mood: 20 }, chainHearts: 1 },
   { id: 'egg_rice', name: '蛋炒饭', en: 'Egg fried rice', glyph: '🍛', method: 'pan', ingredients: ['dish_plain_rice', 'egg'], effect: { hunger: 42, mood: 10, energy: 2 }, chainHearts: 1, main: true },
-  { id: 'carrot_rice', name: '胡萝卜蛋饭', en: 'Carrot egg rice', glyph: '🍲', method: 'pan', ingredients: ['dish_egg_rice', 'carrot'], effect: { hunger: 54, mood: 16, energy: 2 }, chainHearts: 2, main: true },
+  { id: 'carrot_rice', name: '胡萝卜蛋饭', en: 'Carrot egg rice', glyph: '🍲', method: 'pan', ingredients: ['dish_egg_rice', 'carrot'], effect: { hunger: 60, mood: 12, energy: 2 }, chainHearts: 2, main: true },
   { id: 'fruit_pancake', name: '水果松饼', en: 'Fruit pancakes', glyph: '🥞', method: 'pan', ingredients: ['flour', 'egg', 'apple'], effect: { hunger: 48, mood: 24, energy: 4 }, chainHearts: 2, fruitVariant: true },
   { id: 'milk_cookies', name: '草莓小饼干', en: 'Strawberry cookies', glyph: '🍪', method: 'oven', ingredients: ['flour', 'strawberry_milk'], effect: { hunger: 42, mood: 24, energy: 2 }, chainHearts: 2 },
   { id: 'carrot_omelet', name: '胡萝卜蛋饼', en: 'Carrot omelet', glyph: '🍳', method: 'pan', ingredients: ['carrot', 'egg'], effect: { hunger: 34, mood: 10 }, chainHearts: 1, main: true },

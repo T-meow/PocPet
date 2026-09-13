@@ -25,8 +25,6 @@ export interface BoostCardDefinition {
   extraHeartChancePercent: number;
   partnerScheduleCoinBonusPercent: number;
   gardenGrowTimeMultiplier: number;
-  gardenExtraDropChancePercent: number;
-  gardenExtraDropDailyLimit: number;
 }
 
 export interface BoostCardEffects extends BoostCardDefinition {
@@ -43,8 +41,6 @@ export const boostCardDefinitions: Record<BoostCardId, BoostCardDefinition> = {
     extraHeartChancePercent: 10,
     partnerScheduleCoinBonusPercent: 0,
     gardenGrowTimeMultiplier: 1,
-    gardenExtraDropChancePercent: 0,
-    gardenExtraDropDailyLimit: 0,
   },
   best_friend_pass: {
     id: 'best_friend_pass',
@@ -55,8 +51,6 @@ export const boostCardDefinitions: Record<BoostCardId, BoostCardDefinition> = {
     extraHeartChancePercent: 30,
     partnerScheduleCoinBonusPercent: 10,
     gardenGrowTimeMultiplier: 0.88,
-    gardenExtraDropChancePercent: 20,
-    gardenExtraDropDailyLimit: 10,
   },
 };
 
@@ -68,8 +62,6 @@ const emptyBoostCardEffects: BoostCardEffects = {
   extraHeartChancePercent: 0,
   partnerScheduleCoinBonusPercent: 0,
   gardenGrowTimeMultiplier: 1,
-  gardenExtraDropChancePercent: 0,
-  gardenExtraDropDailyLimit: 0,
 };
 
 const boostCardIdSet = new Set<BoostCardId>(boostCardIds);
@@ -270,19 +262,5 @@ export const applyBoostCardHeartBonus = (pet: PetState, gainedHearts: number, no
   return {
     extraHearts,
     boostCards,
-  };
-};
-
-export const spendBoostCardGardenExtraDrop = (pet: PetState, now = Date.now()) => {
-  const boostCards = normalizeBoostCardState(pet.boostCards, now, getEffectiveDailyDateKey(pet, now));
-  const effects = getBoostCardEffects({ ...pet, boostCards }, now);
-  const remaining = Math.max(0, effects.gardenExtraDropDailyLimit - boostCards.dailyGardenExtraDrops);
-  const didSpend = remaining > 0;
-
-  return {
-    didSpend,
-    boostCards: didSpend
-      ? { ...boostCards, dailyGardenExtraDrops: boostCards.dailyGardenExtraDrops + 1 }
-      : boostCards,
   };
 };

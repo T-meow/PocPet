@@ -9,6 +9,7 @@ import {
   getClassicLegacyAppleCost,
   getClassicLegacyLevelCoinCost,
   getClassicGoalProgress,
+  getDreamProjectSupplySupplement,
   getDreamStageEligibility,
   isClassicEndgameComplete,
   isClassicEndgameUnlocked,
@@ -27,6 +28,7 @@ interface CommonDreamsPageProps {
   onBack: () => void;
   onInvestProject: (category: PartnerScheduleCategory, coins: number) => void;
   onCompleteProjectStage: (category: PartnerScheduleCategory) => void;
+  onClaimProjectSupplement: (category: PartnerScheduleCategory) => void;
   onInvestLegacy: (coins: number) => void;
   onCompleteLegacy: () => void;
   onExchangeGoldenApples: (apples: number) => void;
@@ -63,6 +65,7 @@ export const CommonDreamsPage = ({
   onBack,
   onInvestProject,
   onCompleteProjectStage,
+  onClaimProjectSupplement,
   onInvestLegacy,
   onCompleteLegacy,
   onExchangeGoldenApples,
@@ -73,6 +76,9 @@ export const CommonDreamsPage = ({
   const complete = isClassicEndgameComplete(pet);
   const goalProgress = getClassicGoalProgress(pet);
   const goldenApples = pet.inventory.golden_apple ?? 0;
+  const supplySupplements = dreamProjectCategories
+    .map((category) => ({ category, ...getDreamProjectSupplySupplement(pet, category) }))
+    .filter((supplement) => supplement.amount > 0);
 
   const requestInvestment = (pending: PendingInvestment) => {
     if (!unlocked || pending.coins <= 0) return;
@@ -152,6 +158,24 @@ export const CommonDreamsPage = ({
         {complete && <p className="classic-endgame-overview__complete">{t('ui.classicEndgame.finalComplete')}</p>}
       </div>
 
+      {supplySupplements.length > 0 && (
+        <div className="classic-endgame-overview" role="region" aria-label={t('ui.classicEndgame.supplySupplementTitle')}>
+          <strong>{t('ui.classicEndgame.supplySupplementTitle')}</strong>
+          <p>{t('ui.classicEndgame.supplySupplementHint')}</p>
+          <div className="classic-dream__actions">
+            {supplySupplements.map((supplement) => (
+              <button type="button" className="secondary-button" key={supplement.category}
+                disabled={!supplement.canClaim} onClick={() => onClaimProjectSupplement(supplement.category)}>
+                {t('ui.classicEndgame.claimSupplySupplement', {
+                  project: t(`ui.classicEndgame.projects.${supplement.category}.title`), amount: supplement.amount,
+                })}
+              </button>
+            ))}
+          </div>
+          {supplySupplements.some((supplement) => !supplement.canClaim) && <p role="status">{t('pet.classicEndgame.rewardInventoryFull')}</p>}
+        </div>
+      )}
+
       {!complete ? (
         !hasReachedDreamLevel ? (
           <div className="classic-dream-lock" role="status">
@@ -180,7 +204,7 @@ export const CommonDreamsPage = ({
               const definition = eligibility.definition;
               const nextDefinition = dreamStageDefinitions[definition.stage];
               const percent = definition.coinCost > 0 ? progress.currentStageCoins / definition.coinCost * 100 : 100;
-              const canComplete = eligibility.requirementsMet && eligibility.coinsMet && eligibility.applesMet;
+              const canComplete = eligibility.requirementsMet && eligibility.coinsMet && eligibility.applesMet && eligibility.rewardFits;
               return (
                 <article className="classic-dream" key={category}>
                 <header>
@@ -230,6 +254,7 @@ export const CommonDreamsPage = ({
                     </>
                   )}
                 </div>
+                {!eligibility.rewardFits && <p role="status">{t('pet.classicEndgame.rewardInventoryFull')}</p>}
                 <div className="classic-dream__actions">
                   {renderInvestmentButtons(definition.coinCost, progress.currentStageCoins, 'project', category)}
                   <button type="button" className="primary-button" disabled={!unlocked || !canComplete} onClick={() => onCompleteProjectStage(category)}>

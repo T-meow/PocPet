@@ -110,6 +110,8 @@ Android 脚本会重建原生库和内嵌前端资源，再生成、对齐并使
 - 手动运行 workflow：默认构建日常测试包；勾选 `full_build` 时构建全平台产物。手动构建本身不公开 Release。
 - 本地打包范围遵循上节约定，不因版本号或 CI 规则自动扩展。
 
+单独更新 GitHub Pages 时，手动运行 `pages.yml`，选择 `source=main`，填写当前版本和已推送的完整提交 SHA；流程核对该提交后只构建和部署标准版网页，无需等待原生打包。`source=release` 为默认选项，继续部署已公开 Release 对应的校验产物。
+
 日常测试包：
 
 - Windows x64：`pocket<version>.exe`

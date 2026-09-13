@@ -539,7 +539,10 @@ try {
   const discountHtml = renderStorageActions(ShopModal, { ...shopProps, browse: { ...defaultBrowse, selectedId: discountedId, quantity: 5 } });
   assert.ok(discountHtml.includes(`<strong title="${locale.t('ui.shop.price', { price: discountQuote.totalPrice })}"`), 'the detail displays the actual bulk quote');
   for (const html of [shopHtml, inventoryHtml, rawMaterialHtml, claimHtml]) assert.ok(!html.includes('src="undefined"'));
-  const [{ ItemRecoveryPreview }, { AchievementsPage }] = await Promise.all([server.ssrLoadModule('/src/ui/ItemRecoveryPreview.tsx'), server.ssrLoadModule('/src/ui/AchievementsPage.tsx')]);
+  const [{ ItemRecoveryPreview }, { AchievementsPage }, { CommonDreamsPage }, { BoostCardModal }] = await Promise.all([
+    server.ssrLoadModule('/src/ui/ItemRecoveryPreview.tsx'), server.ssrLoadModule('/src/ui/AchievementsPage.tsx'),
+    server.ssrLoadModule('/src/ui/CommonDreamsPage.tsx'), server.ssrLoadModule('/src/ui/BoostCardModal.tsx'),
+  ]);
   const readingPet = structuredClone(storagePet);
   readingPet.partnerSchedule.skills.study = { level: 9, xp: 618, masterCompletions: 0 };
   const readingProps = { pet: readingPet, item: storageRegistry.get('picture_book'), quantity: 5 };
@@ -558,6 +561,18 @@ try {
   assert.ok(suppliesHtml.includes('领取补给') && suppliesHtml.includes('平衡补给') && suppliesHtml.includes('扭蛋券 +1'));
   const capacityHtml = renderToStaticMarkup(createElement(AchievementsPage, { ...achievementProps, pet: { ...supplementPet, goldenAppleGacha: { ...supplementPet.goldenAppleGacha, tickets: 9999 } } }));
   assert.ok(capacityHtml.includes('空间不足') && capacityHtml.includes('class="primary-button" disabled=""'));
+  const dreamPet = structuredClone(base);
+  for (const project of Object.values(dreamPet.classicEndgame.projects)) project.completedStages = 5;
+  const dreamProps = { pet: dreamPet, onBack: noop, onInvestProject: noop, onCompleteProjectStage: noop, onClaimProjectSupplement: noop, onInvestLegacy: noop, onCompleteLegacy: noop, onExchangeGoldenApples: noop };
+  const dreamSupplies = renderToStaticMarkup(createElement(CommonDreamsPage, dreamProps));
+  assert.ok(dreamSupplies.includes('梦想阶段补给') && dreamSupplies.includes('纪念等级'));
+  assert.equal((dreamSupplies.match(/领取普通肥料 ×19/g) ?? []).length, 4, 'completed dreams still show all pending supplies');
+  const fullDreamHtml = renderToStaticMarkup(createElement(CommonDreamsPage, { ...dreamProps, pet: { ...dreamPet, inventory: { normal_fertilizer: 9981 } } }));
+  assert.ok(fullDreamHtml.includes('背包空间不足'));
+  assert.equal((fullDreamHtml.match(/class="secondary-button" disabled="">[^<]*领取普通肥料 ×19/g) ?? []).length, 4);
+  const cardProps = { pet: base, onClose: noop, onBuyCard: noop, onClaimDailyReward: noop };
+  const cardsHtml = renderToStaticMarkup(createElement(BoostCardModal, cardProps));
+  assert.ok(cardsHtml.includes('植物成长时间减少 12%') && !cardsHtml.includes('额外产物'));
   locale.setLanguage('en-US');
   try {
     const englishShop = renderToStaticMarkup(createElement(ShopModal, shopProps));
@@ -573,6 +588,10 @@ try {
     assert.ok(renderToStaticMarkup(createElement(ItemRecoveryPreview, readingProps)).includes('4 books read after mastering Study'));
     const englishSupplies = renderToStaticMarkup(createElement(AchievementsPage, achievementProps));
     assert.ok(englishSupplies.includes('Claim supplies') && englishSupplies.includes('Gacha tickets +1'));
+    const englishDreams = renderToStaticMarkup(createElement(CommonDreamsPage, dreamProps));
+    assert.ok(englishDreams.includes('Dream stage supplies') && englishDreams.includes('claim Normal Fertilizer ×19'));
+    const englishCards = renderToStaticMarkup(createElement(BoostCardModal, cardProps));
+    assert.ok(englishCards.includes('12% shorter garden growth') && !englishCards.includes('extra garden drops'));
   } finally { locale.setLanguage('zh-CN'); }
   console.log('Storage rendering: click-open catalogue, ingredient actions, empty/busy/claim states, quotes, ball images, colors, and both languages passed.');
   console.log('React rendering: new home, kitchen, game lobby, and all three game boards passed.');

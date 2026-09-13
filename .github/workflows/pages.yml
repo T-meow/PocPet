@@ -1,20 +1,28 @@
-name: Deploy GitHub Pages from release
+name: Deploy GitHub Pages
 
 on:
   workflow_dispatch:
     inputs:
+      source:
+        description: Deploy a published release or the requested main commit
+        type: choice
+        options:
+          - release
+          - main
+        default: release
+        required: true
       version:
-        description: Published release version
+        description: Version to deploy
         type: string
         required: true
       revision:
-        description: Commit used to build the release
+        description: Exact commit to deploy
         type: string
         required: true
       run_id:
         description: Release workflow run containing standard-web
         type: string
-        required: true
+        required: false
 
 permissions:
   actions: read
@@ -28,16 +36,16 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy verified release artifact
+    name: Deploy verified standard edition
     runs-on: ubuntu-22.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout published tag
+      - name: Checkout requested source
         uses: actions/checkout@v7
         with:
-          ref: refs/tags/v${{ inputs.version }}
+          ref: ${{ inputs.source == 'main' && inputs.revision || format('refs/tags/v{0}', inputs.version) }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -45,6 +53,7 @@ jobs:
           node-version: "24"
 
       - name: Verify published release and source run
+        if: inputs.source == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_VERSION: ${{ inputs.version }}
@@ -71,13 +80,40 @@ jobs:
           '
 
       - uses: actions/download-artifact@v4
+        if: inputs.source == 'release'
         with:
           name: standard-web
           path: dist
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
 
-      - name: Verify release identity
+      - name: Verify requested main commit
+        if: inputs.source == 'main'
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_REVISION: ${{ inputs.revision }}
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            import { execFileSync } from "node:child_process";
+            assert.equal(process.env.GITHUB_REF, "refs/heads/main");
+            assert.equal(process.env.GITHUB_SHA, process.env.EXPECTED_REVISION);
+            assert.equal(execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), process.env.EXPECTED_REVISION);
+            assert.equal(JSON.parse(readFileSync("package.json", "utf8")).version, process.env.EXPECTED_VERSION);
+          '
+
+      - name: Build requested main commit
+        if: inputs.source == 'main'
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmmirror.com/
+        run: |
+          npm ci
+          npm run check:release
+          npm run build
+          node scripts/check-release.mjs --dist dist
+
+      - name: Verify deployed build identity
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
           EXPECTED_REVISION: ${{ inputs.revision }}

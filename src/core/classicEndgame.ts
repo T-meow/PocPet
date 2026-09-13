@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import { recordEarnedHearts } from './achievements';
 import { addInventoryItem, getInventoryCount } from './items';
+import { inventoryItemLimit } from './saveMetadata';
 import { clampCoins, clampCount } from './petStats';
 import type {
   ClassicEndgameState,
@@ -64,10 +65,24 @@ export const dreamStageDefinitions: readonly DreamStageDefinition[] = dreamStage
 const stageRewards: readonly { hearts: number; itemId?: ItemId; itemAmount?: number }[] = [
   { hearts: 2, itemId: 'bento', itemAmount: 2 },
   { hearts: 3, itemId: 'energy_drink', itemAmount: 2 },
-  { hearts: 5, itemId: 'normal_fertilizer', itemAmount: 1 },
+  { hearts: 5, itemId: 'normal_fertilizer', itemAmount: 20 },
   { hearts: 8, itemId: 'picture_book', itemAmount: 2 },
   { hearts: 12, itemId: 'harvest_nutrient', itemAmount: 1 },
 ];
+
+const dreamSupplyStage = 3;
+const getDreamSupplyRewardId = (category: PartnerScheduleCategory) => `dream_fertilizer_balance_v1:${category}`;
+const canFitDreamStageReward = (pet: Pick<PetState, 'inventory'>, stageIndex: number) => {
+  const reward = stageRewards[stageIndex];
+  return !reward?.itemId || getInventoryCount(pet.inventory, reward.itemId) + (reward.itemAmount ?? 1) <= inventoryItemLimit;
+};
+
+export const getDreamProjectSupplySupplement = (pet: PetState, category: PartnerScheduleCategory) => {
+  const pending = pet.classicEndgame.projects[category].completedStages >= dreamSupplyStage
+    && !pet.claimedRewardIds.includes(getDreamSupplyRewardId(category));
+  const amount = pending ? stageRewards[dreamSupplyStage - 1].itemAmount! - 1 : 0;
+  return { amount, canClaim: amount > 0 && getInventoryCount(pet.inventory, 'normal_fertilizer') + amount <= inventoryItemLimit };
+};
 
 const defaultDreamProgress = (): DreamProjectProgress => ({ completedStages: 0, currentStageCoins: 0 });
 
@@ -252,6 +267,7 @@ export const getDreamStageEligibility = (pet: PetState, category: PartnerSchedul
     requirementsMet: skill.level >= definition.skillLevel && scheduleCount >= definition.scheduleCount && skill.masterCompletions >= definition.masterCount,
     coinsMet: progress.currentStageCoins >= definition.coinCost,
     applesMet: apples >= definition.appleCost,
+    rewardFits: canFitDreamStageReward(pet, progress.completedStages),
   };
 };
 
@@ -259,6 +275,26 @@ const failEndgameAction = (pet: PetState, key: string, params: Record<string, st
   ...pet,
   recentEvent: t(key, params),
 });
+
+export const claimDreamProjectSupplySupplement = (
+  pet: PetState,
+  category: PartnerScheduleCategory,
+  now = Date.now(),
+): PetState => {
+  const supplement = getDreamProjectSupplySupplement(pet, category);
+  if (supplement.amount <= 0) return pet;
+  if (!supplement.canClaim) return failEndgameAction(pet, 'pet.classicEndgame.rewardInventoryFull');
+  return {
+    ...pet,
+    inventory: addInventoryItem(pet.inventory, 'normal_fertilizer', supplement.amount),
+    claimedRewardIds: [...pet.claimedRewardIds, getDreamSupplyRewardId(category)],
+    recentEvent: t('pet.classicEndgame.supplySupplementClaimed', {
+      project: t(`ui.classicEndgame.projects.${category}.title`),
+      amount: supplement.amount,
+    }),
+    lastInteractionAt: now,
+  };
+};
 
 export const exchangeClassicGoldenApplesForHearts = (
   pet: PetState,
@@ -322,6 +358,7 @@ export const completeDreamProjectStage = (
   if (!eligibility.coinsMet) return failEndgameAction(pet, 'pet.classicEndgame.stageNeedsCoins');
   if (!eligibility.requirementsMet) return failEndgameAction(pet, 'pet.classicEndgame.requirementsMissing');
   if (!eligibility.applesMet) return failEndgameAction(pet, 'pet.classicEndgame.applesMissing', { apples: eligibility.definition.appleCost });
+  if (!eligibility.rewardFits) return failEndgameAction(pet, 'pet.classicEndgame.rewardInventoryFull');
 
   const nextCompletedStages = progress.completedStages + 1;
   const projectCompleted = nextCompletedStages >= dreamStageDefinitions.length;
@@ -343,10 +380,14 @@ export const completeDreamProjectStage = (
   const withAppleCost = eligibility.definition.appleCost > 0
     ? removeInventoryAmount(withInventoryReward, 'golden_apple', eligibility.definition.appleCost)
     : withInventoryReward;
+  const supplyRewardId = getDreamSupplyRewardId(category);
   const next = {
     ...pet,
     hearts: clampCount(pet.hearts + reward.hearts),
     inventory: withAppleCost,
+    claimedRewardIds: nextCompletedStages === dreamSupplyStage && !pet.claimedRewardIds.includes(supplyRewardId)
+      ? [...pet.claimedRewardIds, supplyRewardId]
+      : pet.claimedRewardIds,
     classicEndgame: {
       ...state,
       projects: nextProjects,
@@ -355,6 +396,7 @@ export const completeDreamProjectStage = (
     recentEvent: t(allCompleted ? 'pet.classicEndgame.allComplete' : 'pet.classicEndgame.stageComplete', {
       stage: eligibility.definition.stage,
       hearts: reward.hearts,
+      items: reward.itemId ? t('pet.achievements.rewards.item', { item: t(`pet.shop.items.${reward.itemId}.name`), count: reward.itemAmount ?? 1 }) : '',
     }),
     lastInteractionAt: now,
   };

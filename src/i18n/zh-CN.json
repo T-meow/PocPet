@@ -609,6 +609,9 @@
       "nextRequirementMaster": "大师完成 {target} 次",
       "nextRequirementApples": "金苹果 {target} 个",
       "completeStage": "完成当前阶段",
+      "supplySupplementTitle": "梦想阶段补给",
+      "supplySupplementHint": "已完成的第 3 阶段可领取普通肥料补给，每个项目领取一次。",
+      "claimSupplySupplement": "{project}：领取普通肥料 ×{amount}",
       "legacyKicker": "共同纪念",
       "legacyTitle": "纪念等级 Lv.{level}",
       "legacySummary": "纪念等级，无收益",
@@ -1088,7 +1091,6 @@
       "activeCard": "当前生效：{card}",
       "noActive": "当前没有生效朋友卡",
       "todayWork": "今日打工加成 {coins}/{limit}",
-      "todayGarden": "今日种植额外产物 {count}/{limit}",
       "claimed": "今日已领取",
       "claimReward": "领取邻居礼物和 {coins} 金币",
       "rewardGiftTitle": "邻居礼物已送达",
@@ -1104,7 +1106,7 @@
         },
         "best_friend_pass": {
           "name": "挚友证",
-          "summary": "每日邻居礼物与 50 金币，伙伴日程金币 +10%，并保留种植成长与额外产物加成。"
+          "summary": "每日邻居礼物与 50 金币，伙伴日程金币 +10%，植物成长时间减少 12%，额外小心心概率 30%。"
         }
       }
     },
@@ -2143,7 +2145,9 @@
       "stageNeedsCoins": "需要先补足当前阶段的金币。",
       "requirementsMissing": "技能、日程或大师次数尚未满足当前阶段要求。",
       "applesMissing": "完成时需要 {apples} 个金苹果。",
-      "stageComplete": "伙伴梦想第 {stage} 阶段完成，小心心 +{hearts}。",
+      "rewardInventoryFull": "背包空间不足，腾出位置后可继续领取奖励。",
+      "supplySupplementClaimed": "领取了{project}的阶段补给，普通肥料 +{amount}。",
+      "stageComplete": "伙伴梦想第 {stage} 阶段完成，小心心 +{hearts}。{items}",
       "allComplete": "四项伙伴梦想全部达成，最终纪念已经解锁，小心心 +{hearts}。",
       "legacyLocked": "需要先完成四项伙伴梦想。",
       "legacyFunded": "当前纪念等级的金币已经投入完毕。",

@@ -122,7 +122,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.small_bouquet.name'),
     kind: 'item',
     price: 18,
-    effect: { mood: 20 },
+    effect: { mood: 24 },
     summary: t('pet.shop.items.small_bouquet.summary'),
   },
   {
@@ -130,7 +130,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.shiny_sticker.name'),
     kind: 'item',
     price: 24,
-    effect: { mood: 28 },
+    effect: { mood: 32 },
     summary: t('pet.shop.items.shiny_sticker.summary'),
   },
   {
@@ -138,7 +138,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.soft_cloud_doll.name'),
     kind: 'item',
     price: 56,
-    effect: { mood: 40, energy: 8 },
+    effect: { mood: 48, energy: 12 },
     summary: t('pet.shop.items.soft_cloud_doll.summary'),
   },
   {
@@ -146,7 +146,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.ribbon_bell.name'),
     kind: 'item',
     price: 34,
-    effect: { mood: 20 },
+    effect: { mood: 24 },
     summary: t('pet.shop.items.ribbon_bell.summary'),
   },
   {
@@ -154,7 +154,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.toy_ball.name'),
     kind: 'item',
     price: 30,
-    effect: { mood: 25, energy: -4 },
+    effect: { mood: 30, energy: -4 },
     summary: t('pet.shop.items.toy_ball.summary'),
   },
   {
@@ -162,7 +162,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.picture_book.name'),
     kind: 'item',
     price: 52,
-    effect: { mood: 40 },
+    effect: { mood: 44 },
     summary: t('pet.shop.items.picture_book.summary'),
   },
   {

@@ -135,6 +135,7 @@ export {
   classicLegacyCoinRoundingUnit,
   classicGoldenAppleHeartExchangeRate,
   classicLegacyFirstLevelCoinCost,
+  claimDreamProjectSupplySupplement,
   completeClassicLegacyLevel,
   completeDreamProjectStage,
   defaultClassicEndgameState,
@@ -152,6 +153,7 @@ export {
   getClassicGoldenAppleHeartExchangePreview,
   getClassicGoalInvestedCoins,
   getClassicGoalProgress,
+  getDreamProjectSupplySupplement,
   getDreamStageEligibility,
   hasClassicEndgameUnlockNotice,
   investClassicLegacy,
@@ -251,7 +253,6 @@ export {
   getActiveBoostCard,
   getBoostCardEffects,
   normalizeBoostCardState,
-  spendBoostCardGardenExtraDrop,
 } from './boostCards';
 export {
   awakeEnergyRecoveryMs,

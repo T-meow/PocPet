@@ -5,6 +5,7 @@ import {
   authorFollowGiftRewardId,
   completeClassicLegacyLevel,
   completeDreamProjectStage,
+  claimDreamProjectSupplySupplement,
   exchangeClassicGoldenApplesForHearts,
   claimBoostCardDailyReward,
   getGardenReminder,
@@ -1614,6 +1615,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onBack={handleCloseCommonDreams}
           onInvestProject={(category: PartnerScheduleCategory, coins: number) => commitEndgameAction((current) => investDreamProject(current, category, coins))}
           onCompleteProjectStage={(category: PartnerScheduleCategory) => commitEndgameAction((current) => completeDreamProjectStage(current, category))}
+          onClaimProjectSupplement={(category: PartnerScheduleCategory) => commitEndgameAction((current) => claimDreamProjectSupplySupplement(current, category))}
           onInvestLegacy={(coins: number) => commitEndgameAction((current) => investClassicLegacy(current, coins))}
           onCompleteLegacy={() => commitEndgameAction((current) => completeClassicLegacyLevel(current))}
           onExchangeGoldenApples={(apples: number) => commitEndgameAction((current) => exchangeClassicGoldenApplesForHearts(current, apples))}

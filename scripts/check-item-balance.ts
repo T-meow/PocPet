@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { achievementDefinitions, applyHeartGain, claimAchievementReward, claimAllAchievementRewards, evaluateAchievements, getAchievementBalanceRewardId, getAchievementEffects, getAchievementViews } from '../src/core/achievements';
+import { claimDreamProjectSupplySupplement, completeDreamProjectStage, dreamProjectCategories, getDreamProjectSupplySupplement, getDreamStageEligibility } from '../src/core/classicEndgame';
+import { getBoostCardEffects } from '../src/core/boostCards';
 import { advanceGarden, fertilizeTree, gardenTreeDefinitions, gardenTreeSaplingItemIds, getGardenClearCost, getGardenEnvironmentEffects, getGardenToolUpgradeCost, harvestTree, normalizeGardenState, plantTree, useGardenNutrient } from '../src/core/garden';
 import { goldenAppleGachaRewards, normalizeGoldenAppleGachaState } from '../src/core/goldenAppleGacha';
 import { getItemRecoveryPreview, getItemStatEffect, getPictureBookReward, itemStatKeys } from '../src/core/itemEffects';
@@ -161,6 +163,22 @@ try {
     const boostedDrops = advanceGarden(fed, now + 72 * hour).garden.slots[0].pendingDrops;
     assert.equal(amount(boostedDrops), treeId === 'money_tree' ? Math.floor(amount(baseDrops) * 1.25) : amount(baseDrops) + 1);
   }
+  for (const treeId of Object.keys(gardenTreeDefinitions) as GardenTreeId[]) {
+    for (let index = 0; index < 64; index += 1) {
+      const tree = growing(treeId, 12 * hour, { plantedAt: now - 12 * hour - index, naturalReadyAt: now - index, nextReadyAt: now - index });
+      const cardTree = { ...tree, boostCards: { ...tree.boostCards, bestFriendPassExpiresAt: now + 7 * day, dailyGardenExtraDrops: 3 } };
+      const baseDrops = advanceGarden(tree, now).garden.slots[0].pendingDrops;
+      const cardReady = advanceGarden(cardTree, now);
+      assert.deepEqual(cardReady.garden.slots[0].pendingDrops, baseDrops, 'a best-friend pass must no longer change harvest rewards');
+      assert.equal(cardReady.boostCards.dailyGardenExtraDrops, 3, 'legacy drop counters are preserved without spending');
+      assert.equal(getBoostCardEffects(cardTree, now).gardenGrowTimeMultiplier, 0.88);
+      if (treeId === 'money_tree' || treeId === 'golden_apple_tree') {
+        const nutrientTree = { ...cardTree, garden: { ...cardTree.garden, slots: cardTree.garden.slots.map((slot) => slot.slotIndex === 0 ? { ...slot, hasNutrientBoost: true } : slot) } };
+        const nutrientDrops = advanceGarden(nutrientTree, now).garden.slots[0].pendingDrops;
+        assert.equal(amount(nutrientDrops), treeId === 'money_tree' ? Math.floor(amount(baseDrops) * 1.25) : amount(baseDrops) + 1, 'nutrients retain their full effect with a best-friend pass');
+      }
+    }
+  }
   let variedRounds = 0;
   const frequencies = new Map<ItemId, number>();
   for (let index = 0; index < 1000; index += 1) {
@@ -234,6 +252,49 @@ try {
     assert.deepEqual(partial.claimedIds, ['garden_water_20'], 'batch claims report only rewards that actually fit');
     assert.ok(partial.pet.claimedRewardIds.includes(getAchievementBalanceRewardId('garden_water_20')));
   }
+  for (const category of dreamProjectCategories) {
+    const stage = fresh();
+    for (const skill of Object.values(stage.partnerSchedule.skills)) skill.level = 10;
+    stage.achievements.counters.partnerScheduleClaimCountsByCategory[category] = 50;
+    stage.classicEndgame.projects[category] = { completedStages: 2, currentStageCoins: 8000 };
+    stage.inventory = { golden_apple: 5, normal_fertilizer: 9980 };
+    assert.equal(getDreamProjectSupplySupplement(stage, category).amount, 0, 'unfinished stages have no supplement');
+    const blocked = completeDreamProjectStage(stage, category, now);
+    assert.deepEqual(stock(blocked), stock(stage));
+    assert.equal(blocked.hearts, stage.hearts);
+    assert.deepEqual(blocked.classicEndgame, stage.classicEndgame, 'full inventory must not spend stage funding or apples');
+    assert.equal(getDreamStageEligibility(blocked, category).rewardFits, false);
+    const completed = completeDreamProjectStage({ ...stage, inventory: { golden_apple: 5, normal_fertilizer: 9979 } }, category, now);
+    assert.equal(completed.inventory.normal_fertilizer, 9999, 'new stage rewards grant all 20 fertilizers');
+    assert.equal(completed.inventory.golden_apple ?? 0, 0);
+    assert.equal(completed.hearts - stage.hearts, 5);
+    assert.equal(completed.classicEndgame.projects[category].completedStages, 3);
+    assert.equal(getDreamProjectSupplySupplement(completed, category).amount, 0, 'full new rewards must also mark the supplement received');
+    assert.deepEqual(stock(completeDreamProjectStage(completed, category, now)), stock(completed));
+    assert.equal(getDreamProjectSupplySupplement(roundTrip(completed), category).amount, 0);
+
+    const oldDream = fresh();
+    oldDream.classicEndgame.projects[category].completedStages = 5;
+    oldDream.inventory = { normal_fertilizer: 9981 };
+    assert.deepEqual(getDreamProjectSupplySupplement(oldDream, category), { amount: 19, canClaim: false });
+    const blockedSupplement = claimDreamProjectSupplySupplement(roundTrip(oldDream), category, now);
+    assert.equal(blockedSupplement.inventory.normal_fertilizer, 9981);
+    assert.equal(getDreamProjectSupplySupplement(blockedSupplement, category).amount, 19);
+    let supplied = claimDreamProjectSupplySupplement({ ...blockedSupplement, inventory: { normal_fertilizer: 9980 } }, category, now);
+    assert.equal(supplied.inventory.normal_fertilizer, 9999);
+    assert.equal(supplied.hearts, blockedSupplement.hearts);
+    assert.equal(supplied.coins, blockedSupplement.coins);
+    for (let index = 0; index < 3; index += 1) {
+      supplied = roundTrip(supplied);
+      assert.strictEqual(claimDreamProjectSupplySupplement(supplied, category, now), supplied, 'repeated claims and imports must not reissue dream supplies');
+      assert.equal(supplied.inventory.normal_fertilizer, 9999);
+    }
+  }
+  const allDreams = fresh();
+  for (const project of Object.values(allDreams.classicEndgame.projects)) project.completedStages = 5;
+  allDreams.inventory = {};
+  const allDreamSupplies = dreamProjectCategories.reduce<PetState>((pet, category) => claimDreamProjectSupplySupplement(pet, category, now), allDreams);
+  assert.equal(allDreamSupplies.inventory.normal_fertilizer, 76, 'each of the four projects has its own one-time supplement');
   const eight = fresh(); eight.kitchen.made = Object.fromEntries(recipes.slice(-8).map((recipe) => [recipe.id, 1]));
   assert.ok(evaluateAchievements(eight, now).achievements.unlockedAtById.kitchen_eight);
   const history = normalizeGoldenAppleGachaState({ ...fresh().goldenAppleGacha, recentResults: ['normal_fertilizer_1', 'heart_fertilizer_1', 'normal_fertilizer_20', 'heart_fertilizer_30'].map((rewardId) => ({ rewardId, drawnAt: now })) }, now, now);
