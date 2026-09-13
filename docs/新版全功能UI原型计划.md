@@ -1,22 +1,29 @@
 # 新版全功能 UI 原型
 
-## GitHub 提交与双站部署（2026-09-13，进行中）
+## GitHub 提交、双站部署与四架构测试包（2026-09-13，已完成／待实机测试）
 
 - 目标／授权：用户追加要求提交 Git、推送 GitHub、部署 GitHub Pages 和 B 站 Toy；覆盖前阶段“不推送／不发布”的限制，并明确当前版本为 1.8.2。两站和四架构测试包统一使用 1.8.2；沿用单助手、代码／数据检查，不重复询问授权。
 - 现场：本地 main 已有 6977e8a，origin/main 仍为 9d6d452；随后其他任务完成了挚友证园艺掉落、梦想肥料补给、礼物和胡萝卜蛋饭的补充调整，本次一并核对提交。美术试稿与 output/ 继续保留在本地。
 - 决定：Pages 现流程只支持已发布标签，新增 source=main 的明确提交部署入口，与原生打包独立；原 source=release 校验链保留。更新既有 PocPet Toy，保留 slug、封面与可见性；按 Toy CLI 技能完成内容检查与预览，再使用当前明确部署授权提交更新。
-- 前任务接续：四架构原生编译和封装已完成，但收尾前被本次指令中断；之后 x64 包被数值任务更新。待双站部署源码固定后，完成四个测试包同步与版本／架构／签名／SHA-256 收尾。
+- 前任务接续：原四架构 1.8.0 编译／封装完成后，用户追加部署与 1.8.2 版本要求；现已按最终源码重新生成四包并完成校验，交付以下 1.8.2 测试包。
 - 验证：check:release、check:release-policy、道具数值、伙伴活动、园艺、UI v2 和 TypeScript 通过；PyYAML 核对 Pages 两条条件分支、默认 Release 路径与独立部署依赖，UTF-8 读回和 git diff --check 通过。
 - 提交／版本校正：93e47b0488eea8f59a9a875132c32c25742e13fd 已推送 main；用户补充 1.8.2 后，取消原 1.8.0 Pages 运行 34737464293，同步 package／lock、Tauri／Cargo 和本地版本回退字段后重新提交部署。存档最低读取版本 1.8.0 与历史兼容测试保持有效。
-- 进度／路径：.github/workflows/pages.yml、AGENTS.md、README.md、当前数值改动、版本配置及本记录；待 1.8.2 提交／推送、Pages 部署、dist-toy 内容预检／更新、线上资源验证和四包收尾。不创建新 Toy、不覆盖既有版本标签、不改签名或玩家存档。
+- 双站部署完成：1.8.2 源码 3402746b2361a7d2c1df66b039428985c2835424 已推送 main；Pages 运行 34737556441 成功，线上 build-info.json 与提交一致，7 个 JS／CSS 可访问，规范 Windows／Linux 换行和对应分块名后内容相同。Toy 23949807352832 已审核通过，内容目录 23949807352832-v14249，版本信息及 7 个 JS／CSS 与本地 dist-toy 逐字节一致；原封面、slug、PUBLIC 可见性保留。校验明细 release/deploy-1.8.2-verification.json。
+- 打包／备份：四包原路径均无同名文件；release/backups/before-1.8.2-four-arch-20260913T042114Z/ 保存原校验清单、Cargo.toml 原字节和 434 项构建输入哈希。四架构原生编译均成功；两个 Android 目标受本机符号链接权限限制后，先校验本次新编译的库，再经现有 :reuse 复制封装流程生成，未改系统配置。
+- 四包验证：版本均为 1.8.2；Windows ProductVersion／FileVersion 与 x64／x86 PE 架构正确，交付文件与对应 app.exe 字节一致。APK 为 com.frostforge.pocpet、versionCode 10802、分别仅含 arm64-v8a／armeabi-v7a，ELF 位数和架构正确，v2／v3 签名有效，证书 SHA-256 均为 E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285。每包内嵌 7 个当前 JS／CSS，434 项输入和源码提交在构建期间完全一致。
+- Windows x64：release/pocket1.8.2.exe，31,559,680 字节（30.10 MiB），SHA-256 19B35965DBA0B9DCBB765952E10875E36DE153FE9EC3D358D0BE915C57A5F9E3。
+- Windows x86：release/pocket1.8.2-win32.exe，28,105,728 字节（26.80 MiB），SHA-256 9850745D3FB4FC4BAC855EAB8598A93C41AD65310DAEA750A2F65D0690B113B6。
+- Android arm64：release/pocket1.8.2.apk，34,158,147 字节（32.58 MiB），SHA-256 EC3C2DC0E0107A094D70F17D68A1C3BAFC89794E6D589A9AF9026B6D0D3A839C。
+- Android ARMv7：release/pocket1.8.2-32bit.apk，29,902,405 字节（28.52 MiB），SHA-256 AD0C37B81FD7436A852F8B68B4DBD114CC0ADC4B37EE1D441D9138908F74BEB4。
+- 收尾／路径：release/1.8.2-four-arch-build.json 与 release/1.8.2-SHA256SUMS.txt 记录四包结果；原 SHA256SUMS.txt 保留其他版本项目并追加本次四包，读回哈希一致。两站及测试包任务完成，实际窗口恢复、图片保存和移动端体验由用户实机测试；打包产物不提交 Git，美术／视频草稿和 output/ 保留本地，未改玩家存档或签名。
 
-## 本地提交与四架构测试包（2026-09-13，进行中）
+## 本地提交与四架构测试包（2026-09-13，已接续至 1.8.2）
 
 - 目标／授权：用户要求先提交本地 Git，再打包 EXE 和 APK，并明确包含 32 位版本；交付 Windows x64／x86 与 Android arm64／ARMv7 共 4 包，版本保持 1.8.0。单助手，沿用代码／数据检查，体验由用户测试。
 - 现场／决定：已核对 status、版本及相关 diff；提交当前功能修复、发布规则和已完成的道具／厨房／园艺调整，以及所需新源码、检查脚本和数值记录。output/ 与两份美术试稿记录保留在本地，不纳入游戏提交；不推送远端、不发布。
 - 打包前验证：check:release、道具数值、伙伴活动、园艺、扭蛋、存档恢复、UI v2 和 TypeScript 通过。修正旧 UI 检查的普通树营养剂入口数量、施肥轮次状态和分类清理费断言，游戏逻辑未额外调整。所需 Rust 四架构目标、JDK 17、SDK、NDK 27.2 和既有 debug keystore 已就绪。
 - 提交／备份：本地 main 提交 6977e8a5bdd2c539594c0b98f79d13840b4d9cc8，63 个文件。release/backups/before-four-arch-test-20260913-031216/ 保留旧 x64 EXE（31,559,168 字节，SHA-256 8524D01BCFD6D523AEC8D54986E9A22BE0B2F4582537ED4E04C700070DD8B285）、原校验清单、Cargo.toml 原字节与 434 项构建输入 SHA-256；其余 3 个同名包原先不在 release/。
-- 进度／待办：Windows x64 和 Android arm64 已完成；Windows x86 构建中，后续 Android ARMv7；日志 release/four-arch-test-*.log。Android arm64 原生编译成功后因本机符号链接权限封装失败，已先校验本次新 libapp_lib.so 的版本／架构／资源，再用既有 :reuse 复制封装脚本生成 APK，v2／v3 签名通过。
+- 进度／接续：四架构 1.8.0 编译／封装均已完成，日志 release/four-arch-test-*.log；两个 Android 目标均在新库校验后使用既有 :reuse 复制封装流程，v2／v3 签名通过。用户随后明确部署及 1.8.2 版本，最终交付和完整验证见上节。
 - Android 环境：C:/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot、C:/Users/Ferris/AppData/Local/Android/Sdk、ndk/27.2.12479018，仅当前构建进程设置环境；既有签名 SHA-256 预期 E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285。待四包版本／架构／内嵌资源／签名／大小／SHA-256 复核。
 - 路径／禁动：release/pocket1.8.0.exe、release/pocket1.8.0.apk、release/pocket1.8.0-win32.exe、release/pocket1.8.0-32bit.apk；保留既有备份、美术草稿和未提交的其他任务文件，不读写实际玩家存档，不改变系统或签名配置。
 
