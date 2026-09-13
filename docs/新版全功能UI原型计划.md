@@ -1,5 +1,75 @@
 # 新版全功能 UI 原型
 
+## 本地提交与四架构测试包（2026-09-13，进行中）
+
+- 目标／授权：用户要求先提交本地 Git，再打包 EXE 和 APK，并明确包含 32 位版本；交付 Windows x64／x86 与 Android arm64／ARMv7 共 4 包，版本保持 1.8.0。单助手，沿用代码／数据检查，体验由用户测试。
+- 现场／决定：已核对 status、版本及相关 diff；提交当前功能修复、发布规则和已完成的道具／厨房／园艺调整，以及所需新源码、检查脚本和数值记录。output/ 与两份美术试稿记录保留在本地，不纳入游戏提交；不推送远端、不发布。
+- 打包前验证：check:release、道具数值、伙伴活动、园艺、扭蛋、存档恢复、UI v2 和 TypeScript 通过。修正旧 UI 检查的普通树营养剂入口数量、施肥轮次状态和分类清理费断言，游戏逻辑未额外调整。所需 Rust 四架构目标、JDK 17、SDK、NDK 27.2 和既有 debug keystore 已就绪。
+- 进度／待办：提交源码；备份同名包、校验清单及构建输入；按项目脚本依次生成 Windows x64、Android arm64、Windows x86、Android ARMv7，核对版本／架构／内嵌资源／APK 签名并记录大小与 SHA-256。
+- 路径／禁动：release/pocket1.8.0.exe、release/pocket1.8.0.apk、release/pocket1.8.0-win32.exe、release/pocket1.8.0-32bit.apk；保留既有备份、美术草稿和未提交的其他任务文件，不读写实际玩家存档，不改变系统或签名配置。
+
+## 发布规则调整（2026-09-13，已完成）
+
+- 目标／授权：用户要求以后按明确指令推送、发布和更新，小版本同样发布，取消大版本号规则。本阶段修改规则和相关 CI 判断；尚无本次实际推送／发布指令。
+- 现场／决定：核对 status 与相关 diff，保留全部已有改动及未跟踪文件；移除版本尾号／白名单判断，所有正式版本标签均全平台发布并生成更新清单，分支推送仅检查，手动构建范围由 full_build 决定。
+- 实现：同步 AGENTS.md、README.md、package.json、scripts/release-policy.mjs、发布校验脚本及 .github/workflows/release.yml；所有公开 Release 必须等全部平台成功并校验 8 个包，默认附件校验不再依赖版本号。发布规则检查已接入 CI。
+- 验证：check:release-policy、check:updates、check:release 通过，覆盖 1.6.1、1.8.0、1.8.1、1.8.2、2.0.0 标签，以及分支／PR／两种手动构建；6 个客户端目标可从 1.7.0 升级到 1.7.1。真实 metadata 命令的 4 种事件输出正确；工作流由已安装 PyYAML 解析并核对发布依赖，未安装新依赖。旧版本门槛搜索无残留，UTF-8 读回完成。
+- 路径／收尾：上述规则、脚本和本记录；当前版本仍为 1.8.0。本次未修改包、签名或玩家存档，未提交／推送／运行远程 CI／发布；保留其他任务新增的厨房数值改动。
+
+## 超窄屏顶部修复（2026-09-13，已修复／EXE 待实测）
+
+- 目标／授权：页内标题改为 PocPet；窄屏隐藏品牌区，超窄屏仅显示金币、心心、扭蛋券和设置，顶部保持单行。沿用代码／数据检查及 Windows EXE 测试包授权，单助手，不使用 Computer Use。
+- 现场／决定：核对 status 与相关 diff，保留此前修复和全部未跟踪文件；复用 820px 单列断点隐藏品牌，480px 以下隐藏顶部次要入口，禁止按钮换行；扭蛋券采用已有数字简写，完整数值保留在提示和无障碍标签。
+- 验证：src/ui/App.tsx、src/styles/ui-v2.css 的 UTF-8 读回与逻辑复查完成，已有 check-ui-v2、check:release、TypeScript／前端生产构建和 Windows Rust 构建通过；仅代码／数据检查，未进行人工视觉检查。
+- 交付：release/pocket1.8.0.exe 已更新，版本 1.8.0、x64、31,555,072 字节（30.09 MiB），SHA-256 396AFB103493A01EC706D293B6AF65B5CB1207B134585E8E094C1A6C30F6C3C2。与新生成的 app.exe 字节一致，入口 JS／CSS 已内嵌，SHA256SUMS.txt 的 EXE 项已更新并读回。
+- 备份／收尾：release/backups/before-narrow-header-exe-20260913-010345/ 保留旧 EXE、原校验清单、Cargo.toml 原字节和 332 项源码／配置哈希；仅恢复构建工具改写的 Cargo.toml 换行，332 项输入与构建前一致。用户用新 EXE 缩窄窗口实测；未改真实存档，未打 APK、提交或发布。
+
+## 1.8 自动备份失败修复（2026-09-13，已修复／EXE 待实测）
+
+- 目标／授权：用户反馈“立即备份”提示“备份未完成，已有恢复点已保留”，并确认 App 版同样发生；沿用本轮问题修复授权，单助手，仅代码／数据检查。
+- 现场／决定：已核对 git status 和备份相关 diff，保留前面所有改动与未跟踪文件。新导出已切换 JSON v2，但 Rust 备份写入仍只接受旧 POCPET-SAVE-v2: 前缀，原生失败可由代码确定；同时检查网页应用内恢复点路径。
+- 根因／修复：使用真实 createSaveFileText 导出的 5,455 字节 JSON v2 作为 Rust 测试输入，修复前稳定报 Invalid backup text。原生边界现同时接受受支持的 JSON v1／v2 和旧转码备份，完整玩法校验仍由前端执行；JSON 不再被旧前缀规则拒绝。网页 IndexedDB 写入不经过该原生判断，本次未改其存储逻辑。
+- 验证：Rust 4 项备份测试、check:save-recovery、TypeScript 和 check:release 通过。覆盖实际新格式写入、同日更新、旧格式／Mint 兼容、7 日保留、坏文件隔离、非法／未来格式拒绝、写入失败旧文件不变与可重试；前端串联即时／定时备份、状态读回、失败队列恢复和暂停不写。scripts/fixtures/pocpet-1.8.0-backup.json 为生成的测试数据，非玩家存档。
+- 交付计划：沿用用户本轮 Windows EXE 测试包授权重新打包；构建前 release/pocket1.8.0.exe 已不在原路径，未删除或覆盖其他位置的包。release/backups/before-backup-fix-exe-20260913-004907/ 保留当前 SHA256SUMS.txt、Cargo.toml 原字节和 427 项构建输入哈希。
+- 交付／校验：npm.cmd run package:win:portable 成功；release/pocket1.8.0.exe，31,555,072 字节（30.09 MiB），SHA-256 6574668EE92F9DF934BBEA696FD8BCA7107378FA42AE6F8FA91145F0DC828E1C。版本 1.8.0、x64、内嵌前端与生成的 app.exe 一致；仅恢复构建工具改写的 Cargo.toml 换行，427 项构建输入与构建前一致。
+- 收尾／待办：更新本地 SHA256SUMS.txt 的 EXE 项并核对通过；其余 8 项文件已不在 release/，未补建或改动对应清单内容。最终 UTF-8 读回、源码差异及空白检查通过。用户以新 EXE 复测“立即备份”；Android 共用原生修复代码，APK 尚未重打。本阶段未提交／推送／发布，也未改变真实存档及备份。
+- 路径／禁动：src-tauri/src/backup.rs、src/platform/automaticBackup.ts、相关脚本和本记录；不读写真实玩家存档、账号签名或既有恢复点，不提交／发布。
+
+## 本轮修复 Windows 测试包（2026-09-13，已完成／待用户测试）
+
+- 目标／授权：用户要求“打包exe测试”，仅 Windows x64，版本保持 1.8.0，包含本轮背包／商店弹窗、窗口位置、作者奖励及图片保存修复。沿用单助手、代码／数据检查，实际体验由用户测试。
+- 现场／决定：已核对 git status、相关 diff、三处版本字段，npm.cmd run check:release 通过；保留当前全部未提交改动和未跟踪文件，不打其他平台、不提交／推送／发布。
+- 备份：release/backups/before-win-test-20260913-000455/ 保存旧 pocket1.8.0.exe、SHA256SUMS.txt、update-info.json，逐文件哈希一致；旧 EXE 为 31,342,592 字节，SHA-256 1E218D3B07D61B987285A531C3714F2E43A3E4ECB7A7E6A320D19BC9C0CEDD05。另保留 Cargo.toml 原字节及 427 个构建输入的 SHA-256，供打包后核对。
+- 构建／验证：npm.cmd run package:win:portable 成功，TypeScript／前端生产构建及 Windows Rust release 编译通过；核对 EXE 的 ProductVersion／FileVersion 均为 1.8.0、PE x64、全部入口 JS／CSS 引用和窗口状态插件已内嵌，交付文件与 target/release/app.exe 字节一致。仅恢复 Tauri CLI 改写的 Cargo.toml 换行，427 个构建输入均与打包前 SHA-256 一致。
+- 交付：release/pocket1.8.0.exe，31,553,024 字节（30.09 MiB），SHA-256 8030B6605CC7D73692BE656D4F99E63137310B337D40AFA6ADE25949CAE4504F。基于 HEAD 9d6d4523347e6682db21d2795c30a36255c49949 加本轮未提交修复，本地测试包。
+- 清单：仅更新 release/SHA256SUMS.txt 的 EXE 项，9 项逐文件核对通过；保留既有公开版本 update-info.json 元数据，本测试包不用于自动更新发布。最终差异空白检查通过。
+- 待办：用户运行 EXE 检查背包／商店弹窗、退出重开后的窗口位置、作者主页十连奖励及图片系统保存；本轮不使用 Computer Use 或截图。
+- 路径／禁动：release/pocket1.8.0.exe、上述备份目录及本记录；真实存档、账号签名、其他平台包和未跟踪 docs/道具数值平衡复核.md 保持原样。
+
+## 背包商店、窗口位置、作者奖励与图片保存修复（2026-09-13，已完成代码检查／待实机验证）
+
+- 目标／授权：用户要求背包和商店点击物品后弹窗操作、Windows 记住窗口位置、非 B 站打开作者主页获得十连奖励，并排查修复图片保存；追加 B 站仅支持图片下载，禁用存档文件下载。用户选择仅代码和数据检查；单助手，不使用 Computer Use。
+- 现场／禁动：初始仅 AGENTS.md、README.md、本记录有未提交修改，完整保留；不修改真实玩家存档、账号签名、版本和 release/，不提交／推送／发布。
+- 实现：背包／商店复用 DialogShell，点击才打开详情，关闭返回原列表；最后一件用完关闭原物品详情，保留批量、折扣和现有购买／使用规则。非 B 站打开作者主页后发十张扭蛋券，沿用现有领取标记，连续点击、React 更新重放、存档重载不重复发放；B 站仍核验关注。
+- 图片根因／修复：writeFile 缺少 fs:allow-write-file 权限，原生写入会被拦截；纪念插画另走网页 a.download，绕过原生保存。已补齐权限并统一插画与海报保存，支持资源 URL／Base64，依据 PNG／JPEG 文件头尾校验并修正 MIME／扩展名，原样写二进制；网页用 Blob 下载，取消与写入失败不报成功。
+- B 站限制：移除设置页、历史备份与损坏存档的文件下载入口，底层同时拦截存档下载和系统文件分享，禁用外部备份文件绑定／授权；保留导出／复制文本、导入、应用内恢复点、云存档和图片保存。公告与中英文提示同步。
+- Windows：接入 [Tauri window-state](https://v2.tauri.app/plugin/window-state/)，仅 Windows 编译，记录位置、尺寸和最大化状态；插件在退出时保存到 app_config_dir/.window-state.json，恢复时检查显示器相交范围。Rust 调用不需要新增前端命令权限。
+- 依赖核对：新增 tauri-plugin-window-state 2.4.1，Cargo.lock 仅增加该包。源码 C:/Users/Ferris/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-plugin-window-state-2.4.1，231,702 字节；缓存 C:/Users/Ferris/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/tauri-plugin-window-state-2.4.1.crate，95,023 字节，SHA-256 73736611e14142408d15353e21e3cca2f12a3cfb523ad0ce85999b6d2ef1a704，与锁文件一致。
+- 验证：TypeScript、Windows cargo check、check:images、check:toy、check-companion-activities、check-ui-v2、check:release、UTF-8 读回与差异空白检查通过。图片检查使用真实 PNG／JPEG，覆盖字节一致性、错误 MIME、截断数据、Windows 路径／Android content URI、取消／写入失败、资源 URL 和 Blob；平台检查覆盖普通版／B 站版中英文页面、作者导航失败、并发点击及状态重放、底层下载禁用。旧静态页面断言已改为“点击前无详情”，操作按钮仍单独验证。
+- 路径／待办：主要位于 src/ui/、src/platform/、src/styles/、src-tauri/ 和 scripts/check-image-export.ts；版本保持 1.8.0，未重新打包 EXE／APK、提交或发布，原生实际窗口恢复及系统保存待新包实机验证。复查时另发现未跟踪 docs/道具数值平衡复核.md，非本任务创建，保持原样。
+
+## EXE 与 APK 本地测试包（2026-09-12，已完成／待实机测试）
+
+- 目标／授权：用户要求“打包exe 和apk 我要测试”；本次按明确指定范围生成 Windows x64 EXE 与 Android arm64 APK，版本保持 1.8.0。单助手，不使用 Computer Use。
+- 现场／决定：初始工作区干净，HEAD 为 9d6d4523；package.json、Tauri、Cargo 与发布元数据检查一致。沿用项目脚本重编前端和原生代码，APK 使用既有 debug keystore，并校验签名基线。
+- 备份：release/backups/before-test-packages-20260912-232946/ 已保存旧 EXE、APK、SHA256SUMS.txt 和 update-info.json，逐文件 SHA-256 与原文件一致。
+- 构建：Windows x64 与 Android arm64 前端和原生代码均重新编译完成；Android 符号链接受 Windows 权限限制后，先校验本次新库，再通过 package:android:arm64:reuse 复制并封装成功。仅当前命令使用已安装的 JDK 17、SDK 与 NDK 27.2；Cargo.toml 的工具换行改写已恢复，源码无差异。
+- 验证：TypeScript、前端构建、两包版本／架构／内嵌资源检查通过。APK 包名 com.frostforge.pocpet、版本 1.8.0／10800，v2／v3 签名有效，证书与旧包一致：E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285。
+- 交付：release/pocket1.8.0.exe，31,342,592 字节（29.89 MiB），SHA-256 1E218D3B07D61B987285A531C3714F2E43A3E4ECB7A7E6A320D19BC9C0CEDD05；release/pocket1.8.0.apk，34,137,667 字节（32.56 MiB），SHA-256 EC7F04CA973E695B9A53D5AB6D815D2BC24BBA7E0C79FFFCAB4F4346498A5B35。
+- 清单／收尾：本地 update-info.json 同步两包大小；核对应用源码与其原发布 revision 一致，保留原发布来源字段，本次构建 HEAD 见上。SHA256SUMS.txt 的 9 项已更新，其他平台产物哈希保持原值；git diff --check 通过，仅本记录有受跟踪改动。Android 封装日志为 release/test-package-android.log。
+- 待办：用户运行 EXE、安装 APK 进行实机测试。
+- 路径／禁动：release/pocket1.8.0.exe、release/pocket1.8.0.apk、release/backups/；保留源码、其他平台包、真实存档、签名与账号设置，不提交／推送／发布。
+
 ## GitHub、B 站与全平台发布（2026-09-12，已完成）
 
 - 目标／授权：用户明确要求提交 Git、推送 GitHub 与 bilitoy、部署并构建所有；本阶段覆盖此前不提交／不发布／不构建的限制。单助手，不使用 Computer Use。

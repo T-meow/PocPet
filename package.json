@@ -3,9 +3,6 @@
   "version": "1.8.0",
   "private": true,
   "type": "module",
-  "pocpetRelease": {
-    "fullBuildVersions": ["1.6.1"]
-  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "serve:local": "node scripts/serve-dev.mjs --port 5173",
@@ -14,6 +11,7 @@
     "check:date-rewards": "tsx scripts/check-date-rewards.ts",
     "check:companion-activities": "tsx scripts/check-companion-activities.ts",
     "check:garden-care": "tsx scripts/check-garden-care.ts",
+    "check:item-balance": "tsx scripts/check-item-balance.ts",
     "check:stat-scaling-batch": "tsx scripts/check-stat-scaling-batch.ts",
     "check:gacha": "tsx scripts/check-golden-apple-gacha.ts",
     "check:partner-schedule": "tsx scripts/check-partner-schedule.ts",
@@ -24,7 +22,9 @@
     "check:save-recovery": "tsx scripts/check-save-recovery.ts",
     "check:mint-compat": "tsx scripts/check-mint-compat.ts",
     "check:toy": "tsx scripts/check-toy-sdk.ts",
+    "check:images": "tsx scripts/check-image-export.ts",
     "check:release": "node scripts/check-release.mjs",
+    "check:release-policy": "node scripts/check-release-policy.mjs",
     "check:updates": "tsx scripts/check-client-updates.ts",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",

@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       full_build:
-        description: "Build all release artifacts: Windows x64/x86, Android arm64/ARMv7, web, macOS, and Linux"
+        description: "Build all platforms for manual testing (all stable release tags always build every platform)"
         required: false
         default: false
         type: boolean
@@ -72,6 +72,7 @@ jobs:
       - name: Validate versions and saves
         run: |
           npm run check:release
+          npm run check:release-policy
           npm run check:save-recovery
           npx tsx scripts/check-save-v2.ts
           npx tsx scripts/check-cloud-save-v2.ts
@@ -459,18 +460,12 @@ jobs:
       needs.metadata.outputs.publish_release == 'true' &&
       needs.validate.result == 'success' &&
       needs.windows.result == 'success' &&
+      needs.windows_x86.result == 'success' &&
       needs.android.result == 'success' &&
+      needs.android_armv7.result == 'success' &&
       needs.web.result == 'success' &&
-      (
-        needs.metadata.outputs.full_build != 'true' ||
-        (
-          needs.windows_x86.result == 'success' &&
-          needs.android_armv7.result == 'success' &&
-          needs.web.result == 'success' &&
-          needs.linux.result == 'success' &&
-          needs.macos.result == 'success'
-        )
-      )
+      needs.linux.result == 'success' &&
+      needs.macos.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -487,8 +482,6 @@ jobs:
           pattern: pocpet-*
 
       - name: Verify complete artifact set
-        env:
-          FULL_BUILD: ${{ needs.metadata.outputs.full_build }}
         run: node scripts/check-release-assets.mjs dist-release
 
       - name: Create client update manifest

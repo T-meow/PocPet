@@ -3,7 +3,7 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import type { ActivePetMod, PetModCustomItem, PetModItemOverride } from './mod';
 import type { BuiltinItemId, Inventory, InventoryItemDefinition, ItemDefinition, ItemId, ItemRegistry, PetState, ShopCategory, ShopItem } from './petTypes';
 import { hashString } from './utils';
-import { activityText, allDishes, dishName, kitchenMaterials } from './kitchenRecipes';
+import { activityText, allDishes, dishName, getRecipeEffect, kitchenMaterials } from './kitchenRecipes';
 import { inventoryItemLimit } from './saveMetadata';
 
 export const dailyBiscuitClaimLimit = 3;
@@ -37,11 +37,11 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.bento.name'),
     kind: 'food',
     price: 24,
-    effect: { hunger: 30 },
+    effect: { hunger: 40, mood: 3 },
     summary: t('pet.shop.items.bento.summary'),
   },
   {
-    id: 'soda_biscuit_box', name: t('pet.shop.items.soda_biscuit_box.name'), kind: 'food', price: 500,
+    id: 'soda_biscuit_box', name: t('pet.shop.items.soda_biscuit_box.name'), kind: 'food', price: 280,
     effect: {}, usable: false, tags: ['bundle'], purchaseContents: [{ itemId: 'emergency_biscuit', amount: 40 }],
     summary: t('pet.shop.items.soda_biscuit_box.summary'),
   },
@@ -50,7 +50,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.orange.name'),
     kind: 'food',
     price: 16,
-    effect: { hunger: 18, mood: 1, health: 1 },
+    effect: { hunger: 18, mood: 4, health: 1 },
     summary: t('pet.shop.items.orange.summary'),
   },
   {
@@ -58,7 +58,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.apple.name'),
     kind: 'food',
     price: 18,
-    effect: { hunger: 20, mood: 1, health: 2 },
+    effect: { hunger: 20, mood: 4, health: 1 },
     summary: t('pet.shop.items.apple.summary'),
   },
   {
@@ -66,7 +66,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.banana.name'),
     kind: 'food',
     price: 20,
-    effect: { hunger: 24, mood: 1, energy: 2 },
+    effect: { hunger: 24, mood: 3, energy: 2 },
     summary: t('pet.shop.items.banana.summary'),
   },
   {
@@ -74,7 +74,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.watermelon.name'),
     kind: 'food',
     price: 26,
-    effect: { hunger: 28, mood: 2, cleanliness: -2 },
+    effect: { hunger: 32, mood: 6, cleanliness: -1 },
     summary: t('pet.shop.items.watermelon.summary'),
   },
   {
@@ -82,7 +82,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.nutri_meal.name'),
     kind: 'food',
     price: 36,
-    effect: { hunger: 30, mood: 2, health: 15 },
+    effect: { hunger: 32, mood: 6, health: 8 },
     summary: t('pet.shop.items.nutri_meal.summary'),
   },
   {
@@ -90,7 +90,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.pig_trotter.name'),
     kind: 'food',
     price: 48,
-    effect: { hunger: 44, mood: 6, cleanliness: -5, health: 5 },
+    effect: { hunger: 64, mood: 12, cleanliness: -3 },
     summary: t('pet.shop.items.pig_trotter.summary'),
   },
   {
@@ -98,7 +98,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.strawberry_cake.name'),
     kind: 'food',
     price: 30,
-    effect: { hunger: 28, mood: 8, cleanliness: -3 },
+    effect: { hunger: 30, mood: 16, cleanliness: -2 },
     summary: t('pet.shop.items.strawberry_cake.summary'),
   },
   {
@@ -106,7 +106,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.ad_milk.name'),
     kind: 'food',
     price: 24,
-    effect: { hunger: 22, mood: 5, health: 6 },
+    effect: { hunger: 22, mood: 6, health: 2 },
     summary: t('pet.shop.items.ad_milk.summary'),
   },
   {
@@ -114,7 +114,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.strawberry_milk.name'),
     kind: 'food',
     price: 22,
-    effect: { hunger: 20, mood: 5, health: 3 },
+    effect: { hunger: 20, mood: 8 },
     summary: t('pet.shop.items.strawberry_milk.summary'),
   },
   {
@@ -122,7 +122,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.small_bouquet.name'),
     kind: 'item',
     price: 18,
-    effect: { mood: 16 },
+    effect: { mood: 20 },
     summary: t('pet.shop.items.small_bouquet.summary'),
   },
   {
@@ -130,7 +130,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.shiny_sticker.name'),
     kind: 'item',
     price: 24,
-    effect: { mood: 20 },
+    effect: { mood: 28 },
     summary: t('pet.shop.items.shiny_sticker.summary'),
   },
   {
@@ -138,7 +138,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.soft_cloud_doll.name'),
     kind: 'item',
     price: 56,
-    effect: { mood: 40, energy: 6 },
+    effect: { mood: 40, energy: 8 },
     summary: t('pet.shop.items.soft_cloud_doll.summary'),
   },
   {
@@ -146,7 +146,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.ribbon_bell.name'),
     kind: 'item',
     price: 34,
-    effect: { mood: 24 },
+    effect: { mood: 20 },
     summary: t('pet.shop.items.ribbon_bell.summary'),
   },
   {
@@ -162,7 +162,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.picture_book.name'),
     kind: 'item',
     price: 52,
-    effect: { mood: 40, energy: 2 },
+    effect: { mood: 40 },
     summary: t('pet.shop.items.picture_book.summary'),
   },
   {
@@ -170,7 +170,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.shampoo.name'),
     kind: 'care',
     price: 20,
-    effect: { cleanliness: 50, health: 5 },
+    effect: { cleanliness: 60, mood: 3 },
     summary: t('pet.shop.items.shampoo.summary'),
   },
   {
@@ -178,7 +178,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.wet_wipes.name'),
     kind: 'care',
     price: 10,
-    effect: { cleanliness: 32, health: 1 },
+    effect: { cleanliness: 32 },
     summary: t('pet.shop.items.wet_wipes.summary'),
   },
   {
@@ -201,8 +201,8 @@ export const shopItems: readonly ShopItem[] = [
     id: 'blanket',
     name: t('pet.shop.items.blanket.name'),
     kind: 'care',
-    price: 42,
-    effect: { energy: 36, mood: 4 },
+    price: 52,
+    effect: { energy: 40, mood: 10 },
     summary: t('pet.shop.items.blanket.summary'),
   },
   {
@@ -210,14 +210,14 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.energy_drink.name'),
     kind: 'care',
     price: 36,
-    effect: { energy: 30, mood: -1 },
+    effect: { energy: 30 },
     summary: t('pet.shop.items.energy_drink.summary'),
   },
   {
     id: 'fruit_tree_sapling',
     name: t('pet.shop.items.fruit_tree_sapling.name'),
     kind: 'garden',
-    price: 30,
+    price: 120,
     effect: {},
     summary: t('pet.shop.items.fruit_tree_sapling.summary'),
     tags: ['garden', 'sapling'],
@@ -227,7 +227,7 @@ export const shopItems: readonly ShopItem[] = [
     id: 'care_tree_sapling',
     name: t('pet.shop.items.care_tree_sapling.name'),
     kind: 'garden',
-    price: 30,
+    price: 180,
     effect: {},
     summary: t('pet.shop.items.care_tree_sapling.summary'),
     tags: ['garden', 'sapling'],
@@ -237,7 +237,7 @@ export const shopItems: readonly ShopItem[] = [
     id: 'gift_tree_sapling',
     name: t('pet.shop.items.gift_tree_sapling.name'),
     kind: 'garden',
-    price: 30,
+    price: 240,
     effect: {},
     summary: t('pet.shop.items.gift_tree_sapling.summary'),
     tags: ['garden', 'sapling'],
@@ -267,7 +267,7 @@ export const shopItems: readonly ShopItem[] = [
     id: 'normal_fertilizer',
     name: t('pet.shop.items.normal_fertilizer.name'),
     kind: 'garden',
-    price: 300,
+    price: 15,
     effect: {},
     summary: t('pet.shop.items.normal_fertilizer.summary'),
     tags: ['garden', 'fertilizer'],
@@ -277,7 +277,7 @@ export const shopItems: readonly ShopItem[] = [
     id: 'heart_fertilizer',
     name: t('pet.shop.items.heart_fertilizer.name'),
     kind: 'garden',
-    price: 900,
+    price: 30,
     effect: {},
     summary: t('pet.shop.items.heart_fertilizer.summary'),
     tags: ['garden', 'fertilizer'],
@@ -296,7 +296,7 @@ export const shopItems: readonly ShopItem[] = [
 ] as const;
 
 export const specialItems: readonly ShopItem[] = [
-  ...allDishes.map(({ recipe, id }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: recipe.effect, tags: ['homemade'], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
+  ...allDishes.map(({ recipe, id, banana }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: getRecipeEffect(recipe, banana), tags: ['homemade'], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
   {
     id: 'birthday_cake',
     name: t('pet.shop.items.birthday_cake.name'),

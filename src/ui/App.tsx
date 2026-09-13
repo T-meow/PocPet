@@ -154,7 +154,7 @@ import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
-import { features } from '../platform/edition';
+import { features, requiresAuthorFollowVerification } from '../platform/edition';
 import { readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
 import { EditionNoticeDialog } from './EditionNoticeDialog';
 import { useAutomaticBackup } from './app/useAutomaticBackup';
@@ -232,15 +232,6 @@ const getItemSfx = (itemId: ItemId, item?: { kind: 'food' | 'item' | 'care' | 'g
   if (itemId === 'medicine' || itemId === 'vitamin_tablet' || itemId === 'energy_drink') return 'action_work_play_medicine';
   return 'pet_heart';
 };
-const downloadImageFile = (fileName: string, imageUrl: string) => {
-  const link = document.createElement('a');
-  link.href = imageUrl;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-};
-
 const readFileText = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -488,8 +479,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       playAfterUnlock('notification');
       enqueueReward({
         id: authorFollowGiftRewardId,
-        title: t('ui.settings.author.rewardTitle'),
-        message: t('ui.settings.author.rewardMessage', { count: tickets }),
+        title: t(requiresAuthorFollowVerification() ? 'ui.settings.author.rewardTitle' : 'ui.settings.author.visitRewardTitle'),
+        message: t(requiresAuthorFollowVerification() ? 'ui.settings.author.rewardMessage' : 'ui.settings.author.visitRewardMessage', { count: tickets }),
         gachaTickets: tickets,
         items: [],
       });
@@ -1271,14 +1262,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     if (!request) return;
     pendingImageSaveRef.current = null;
     setPendingImageSave(null);
-    if (request.kind === 'album') {
+    if (request.kind === 'album' || request.kind === 'achievement') {
+      if (request.kind === 'achievement' && !getAchievementViews(petRef.current).some((entry) => entry.reward.cgId === request.cgId && isAlbumArtworkUnlocked(petRef.current, entry))) return;
       shareBusyRef.current = true;
       void saveShareImage(request.fileName, request.imageUrl).then((result) => notices.notify(getPosterSavedMessage(result), result === 'cancelled' ? 'info' : 'success')).catch((error) => notices.notify(error instanceof Error ? error.message : t('ui.share.saveFailed'), 'error')).finally(() => { shareBusyRef.current = false; });
-      return;
-    }
-    if (request.kind === 'achievement') {
-      if (!getAchievementViews(petRef.current).some((entry) => entry.reward.cgId === request.cgId && isAlbumArtworkUnlocked(petRef.current, entry))) return;
-      downloadImageFile(request.fileName, request.imageUrl);
       return;
     }
     if (request.kind === 'profile') {
@@ -1534,7 +1521,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenUpdates={updateController.supported ? () => { setEditionNoticeVisible(false); setSettingsInitialPage('updates'); setActivePage('settings'); } : undefined} />
       )}
       <header className="top-bar v2-top-bar">
-        <button className="v2-brand" onClick={() => setActivePage('home')} aria-label={L('返回小窝', 'Back home')}><span><Flower2 size={27} /></span><div><strong>Pocket</strong><small>A LITTLE LIFE, TOGETHER</small></div></button>
+        <button className="v2-brand" onClick={() => setActivePage('home')} aria-label={L('返回小窝', 'Back home')}><span><Flower2 size={27} /></span><div><strong>PocPet</strong><small>A LITTLE LIFE, TOGETHER</small></div></button>
         <div className="top-actions">
           <button
             type="button"
@@ -1550,13 +1537,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             <Heart size={20} aria-hidden="true" />
             <strong>{formatCompactNumber(pet.hearts)}</strong>
           </div>
-          <button className="home-ticket-pill" onClick={handleOpenGacha} aria-label={L(`扭蛋券 ${pet.goldenAppleGacha.tickets} 张`, `${pet.goldenAppleGacha.tickets} gacha tickets`)}><Ticket size={17} />{pet.goldenAppleGacha.tickets}</button>
-          <button className="top-shop-button" onClick={() => handleOpenShop()}><ShoppingBag size={18} /><span>{L('商店', 'Shop')}</span></button>
-          <button className="icon-button" onClick={() => notices.setHistoryOpen(true)} aria-label={L('通知记录', 'Notification history')}><Bell size={20} /></button>
-          <button className="icon-button" onClick={() => openSettings('appearance')} aria-label={L('外观与环境', 'Appearance & environment')}><Palette size={20} /></button>
+          <button className="home-ticket-pill" onClick={handleOpenGacha} aria-label={L(`扭蛋券 ${pet.goldenAppleGacha.tickets} 张`, `${pet.goldenAppleGacha.tickets} gacha tickets`)} title={L(`扭蛋券 ${pet.goldenAppleGacha.tickets} 张`, `${pet.goldenAppleGacha.tickets} gacha tickets`)}><Ticket size={17} />{formatCompactNumber(pet.goldenAppleGacha.tickets)}</button>
+          <button className="top-shop-button top-secondary-action" onClick={() => handleOpenShop()}><ShoppingBag size={18} /><span>{L('商店', 'Shop')}</span></button>
+          <button className="icon-button top-secondary-action" onClick={() => notices.setHistoryOpen(true)} aria-label={L('通知记录', 'Notification history')}><Bell size={20} /></button>
+          <button className="icon-button top-secondary-action" onClick={() => openSettings('appearance')} aria-label={L('外观与环境', 'Appearance & environment')}><Palette size={20} /></button>
           <button
             type="button"
-            className="icon-button audio-button"
+            className="icon-button audio-button top-secondary-action"
             aria-label={isAudioEnabled ? t('ui.top.audioOn') : t('ui.top.audioOff')}
             title={isAudioEnabled ? t('ui.top.audioOn') : t('ui.top.audioOff')}
             aria-pressed={isAudioEnabled}
@@ -1736,7 +1723,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           </span>
         </button>
       )}
-      {utilityDialog === 'kitchen' && <KitchenModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} />}
+      {utilityDialog === 'kitchen' && <KitchenModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} />}
       {utilityDialog === 'play' && <PlayModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} happyPortrait={activityHappyPortrait} ballImage={itemIconMap.toy_ball} onClose={() => { activities.update(pauseMiniGame); closeUtilityDialog(); }} onShop={() => handleOpenShop('item')} onQuickPlay={() => handleAction('play')} update={activities.update} onAct={activities.act} />}
       {activePage === 'memories' && <MemoryAlbum pet={{ ...pet, name: getSharePetName() }} actorId={actorId} portrait={activityHappyPortrait} art={memoryArt} onBack={() => setActivePage('home')} onOpenArt={() => { if (memoryAchievement) handleOpenAchievementCg(memoryAchievement); }} onSave={(imageUrl) => requestImageSave({ kind: 'album', fileName: createShareImageFileName(`${getSharePetName()}-memories`).replace(/\.jpg$/, '.png'), imageUrl })} onError={(message) => notices.notify(message, 'error')} />}
       <NoticeCenter controller={notices} recentEvent={pet.recentEvent} />
@@ -1744,6 +1731,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <InventoryModal
           items={ownedItems}
           pet={pet}
+          favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
           itemIconMap={itemIconMap}
           browse={inventoryController.browse}
           isPetBusy={Boolean(pet.partnerSchedule.active)}

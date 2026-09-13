@@ -53,7 +53,7 @@ export type GardenFertilizerId = 'normal' | 'heart';
 
 export type GardenCareActionId = 'water' | GardenFertilizerId;
 
-export type GardenCareBlockedReason = 'minimum_remaining' | 'round_limit';
+export type GardenCareBlockedReason = 'minimum_remaining' | 'round_limit' | 'wrong_tree' | 'fertilized_round';
 
 export interface GardenCarePreview {
   percent: number;
@@ -104,7 +104,7 @@ export interface GardenTools {
 }
 
 export interface GardenState {
-  schemaVersion: 4;
+  schemaVersion: 5;
   activeSlotIndex: number;
   slots: GardenSlot[];
   dailyCareDateKey: string;

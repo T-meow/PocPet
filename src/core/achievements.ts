@@ -7,6 +7,7 @@ import { clampCoins, clampCount } from './petStats';
 import type { AchievementCounters, AchievementId, AchievementState, CareActionKey, GardenTreeId, ItemId, PartnerScheduleCategory, PartnerScheduleRewardChoice, PartnerScheduleSize, PetState, YearlyCareActionKey, YearlyStats } from './petTypes';
 import { isNumber } from './utils';
 import { recipes } from './kitchenRecipes';
+import { inventoryItemLimit } from './saveMetadata';
 
 export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden' | 'kitchen' | 'play';
 export type AchievementRarity = 'normal' | 'rare' | 'hidden';
@@ -14,6 +15,7 @@ export type AchievementRarity = 'normal' | 'rare' | 'hidden';
 export interface AchievementReward {
   coins?: number;
   hearts?: number;
+  gachaTickets?: number;
   items?: readonly { itemId: ItemId; amount: number }[];
   workCoinBonus?: number;
   pomodoroCoinBonus?: number;
@@ -63,6 +65,8 @@ export interface AchievementView extends AchievementDefinition {
   rewardText: string;
   claimed: boolean;
   claimable: boolean;
+  claimKind?: 'initial' | 'balance';
+  claimBlocked?: boolean;
   effectActive: boolean;
 }
 
@@ -349,6 +353,28 @@ const getPartnerScheduleMinimumMasterCompletionCount = (pet: PetState) => Math.m
 const getInventoryItemTotal = (pet: PetState) =>
   Object.values(pet.inventory).reduce((sum, amount) => sum + Math.max(0, Math.floor(amount ?? 0)), 0);
 
+const achievementBalanceOriginalFertilizers: Partial<Record<AchievementId, number>> = {
+  garden_water_20: 1, garden_harvest_30: 1, garden_harvest_100: 2,
+  garden_tree_catalogue: 2, schedule_long_all_categories: 2,
+};
+export const getAchievementBalanceRewardId = (id: AchievementId) => `achievement_balance_v1:${id}`;
+const gardenSupplyReward = (amount: number, supplement = false): AchievementReward => ({
+  items: [{ itemId: 'heart_fertilizer', amount: amount * (supplement ? 2 : 3) }, { itemId: 'harvest_nutrient', amount }],
+  gachaTickets: amount,
+});
+const hasOneTimeReward = (reward: AchievementReward) => Boolean(reward.coins || reward.hearts || reward.gachaTickets || reward.items?.length);
+const getPendingAchievementReward = (pet: PetState, definition: AchievementDefinition): AchievementReward | undefined => {
+  if (!pet.achievements.claimedOneTimeRewardIds.includes(definition.id)) return hasOneTimeReward(definition.reward) ? definition.reward : undefined;
+  const originalAmount = achievementBalanceOriginalFertilizers[definition.id];
+  return originalAmount && !pet.claimedRewardIds.includes(getAchievementBalanceRewardId(definition.id)) ? gardenSupplyReward(originalAmount, true) : undefined;
+};
+const canFitAchievementReward = (pet: PetState, reward: AchievementReward) => {
+  if (pet.goldenAppleGacha.tickets + (reward.gachaTickets ?? 0) > 9999) return false;
+  const amounts = new Map<ItemId, number>();
+  for (const item of reward.items ?? []) amounts.set(item.itemId, (amounts.get(item.itemId) ?? 0) + item.amount);
+  return Array.from(amounts).every(([id, amount]) => (pet.inventory[id] ?? 0) + amount <= inventoryItemLimit);
+};
+
 const baseAchievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'title' | 'description'>[] = [
   { id: 'first_feed', category: 'care', rarity: 'normal', target: 1, progress: (pet) => getCareCount(pet, 'feed'), reward: { coins: 20 } },
   { id: 'first_clean', category: 'care', rarity: 'normal', target: 1, progress: (pet) => getCareCount(pet, 'clean'), reward: { coins: 20 } },
@@ -378,10 +404,10 @@ const baseAchievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'ti
   { id: 'companion_100', category: 'daily', rarity: 'rare', target: 60, progress: getActiveDaysTotal, isComplete: (pet: PetState) => getCompanionDays(pet) >= 100 && getActiveDaysTotal(pet) >= 60, reward: { dailyStipendCoins: 3, items: [{ itemId: 'golden_apple', amount: 1 }] } },
   { id: 'garden_first_plant', category: 'garden', rarity: 'normal', target: 1, progress: (pet) => pet.achievements.counters.gardenPlantCount, reward: { coins: 50 } },
   { id: 'garden_first_harvest', category: 'garden', rarity: 'normal', target: 1, progress: (pet) => pet.garden.lifetimeHarvestCount, reward: { coins: 80 } },
-  { id: 'garden_water_20', category: 'garden', rarity: 'normal', target: 20, progress: (pet) => pet.achievements.counters.gardenWaterCount, reward: { coins: 100, items: [{ itemId: 'heart_fertilizer', amount: 1 }] } },
-  { id: 'garden_harvest_30', category: 'garden', rarity: 'normal', target: 30, progress: (pet) => pet.garden.lifetimeHarvestCount, reward: { coins: 200, items: [{ itemId: 'heart_fertilizer', amount: 1 }] } },
-  { id: 'garden_harvest_100', category: 'garden', rarity: 'rare', target: 100, progress: (pet) => pet.garden.lifetimeHarvestCount, reward: { coins: 500, items: [{ itemId: 'heart_fertilizer', amount: 2 }], gardenExtraDropChancePercent: 10 } },
-  { id: 'garden_tree_catalogue', category: 'garden', rarity: 'rare', target: achievementGardenTreeIds.length, progress: getHarvestedGardenTreeKindCount, reward: { coins: 300, items: [{ itemId: 'heart_fertilizer', amount: 2 }], gardenExtraDropChancePercent: 10 } },
+  { id: 'garden_water_20', category: 'garden', rarity: 'normal', target: 20, progress: (pet) => pet.achievements.counters.gardenWaterCount, reward: { coins: 100, ...gardenSupplyReward(1) } },
+  { id: 'garden_harvest_30', category: 'garden', rarity: 'normal', target: 30, progress: (pet) => pet.garden.lifetimeHarvestCount, reward: { coins: 200, ...gardenSupplyReward(1) } },
+  { id: 'garden_harvest_100', category: 'garden', rarity: 'rare', target: 100, progress: (pet) => pet.garden.lifetimeHarvestCount, reward: { coins: 500, ...gardenSupplyReward(2), gardenExtraDropChancePercent: 10 } },
+  { id: 'garden_tree_catalogue', category: 'garden', rarity: 'rare', target: achievementGardenTreeIds.length, progress: getHarvestedGardenTreeKindCount, reward: { coins: 300, ...gardenSupplyReward(2), gardenExtraDropChancePercent: 10 } },
   { id: 'garden_all_slots', category: 'garden', rarity: 'rare', target: 5, progress: getUnlockedGardenSlotCount, reward: { coins: 500, gardenExtraDropChancePercent: 20 } },
   { id: 'garden_tools_max', category: 'garden', rarity: 'rare', target: 3, progress: getMaxedGardenToolCount, reward: { coins: 300, gardenExtraDropChancePercent: 10 } },
   { id: 'schedule_first', category: 'schedule', rarity: 'normal', target: 1, progress: (pet) => pet.achievements.counters.partnerScheduleClaimCount, reward: { coins: 80 } },
@@ -389,7 +415,7 @@ const baseAchievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'ti
   { id: 'schedule_50', category: 'schedule', rarity: 'rare', target: 50, progress: (pet) => pet.achievements.counters.partnerScheduleClaimCount, reward: { coins: 500, items: [{ itemId: 'golden_apple', amount: 1 }] } },
   { id: 'schedule_all_categories', category: 'schedule', rarity: 'normal', target: achievementPartnerScheduleCategories.length, progress: getPartnerScheduleCategoryCount, reward: { coins: 300 } },
   { id: 'schedule_long_5', category: 'schedule', rarity: 'normal', target: 5, progress: getPartnerScheduleLongCount, reward: { coins: 300 } },
-  { id: 'schedule_long_all_categories', category: 'schedule', rarity: 'rare', target: achievementPartnerScheduleCategories.length, progress: getPartnerScheduleLongCategoryCount, reward: { coins: 500, items: [{ itemId: 'heart_fertilizer', amount: 2 }] } },
+  { id: 'schedule_long_all_categories', category: 'schedule', rarity: 'rare', target: achievementPartnerScheduleCategories.length, progress: getPartnerScheduleLongCategoryCount, reward: { coins: 500, ...gardenSupplyReward(2) } },
   { id: 'schedule_category_reward_10', category: 'schedule', rarity: 'normal', target: 10, progress: (pet) => pet.achievements.counters.partnerScheduleCategoryRewardClaimCount, reward: { coins: 250 } },
   { id: 'schedule_daily_three', category: 'hidden', rarity: 'hidden', target: 3, progress: (pet) => pet.partnerSchedule.completedOfferIds.length, reward: { coins: 500, partnerScheduleExtraRewardChancePercent: 10 }, hiddenUntilUnlocked: true },
   { id: 'schedule_all_skills_3', category: 'schedule', rarity: 'rare', target: 3, progress: getPartnerScheduleMinimumSkillLevel, reward: { coins: 500, items: [{ itemId: 'golden_apple', amount: 1 }] } },
@@ -460,7 +486,7 @@ const achievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'title'
   ...baseAchievementDefinitionConfigs,
   { id: 'kitchen_first', category: 'kitchen', rarity: 'normal', target: 1, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 50, hearts: 5 } },
   { id: 'kitchen_three', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 100, hearts: 10 } },
-  { id: 'kitchen_eight', category: 'kitchen', rarity: 'rare', target: 8, progress: (pet) => recipes.slice(0, 8).filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length, reward: { coins: 200, hearts: 20 } },
+  { id: 'kitchen_eight', category: 'kitchen', rarity: 'rare', target: 8, progress: (pet) => recipes.filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length, reward: { coins: 200, hearts: 20 } },
   { id: 'kitchen_thirty', category: 'kitchen', rarity: 'normal', target: 30, progress: (pet) => Object.values(pet.kitchen.made).reduce((sum, amount) => sum + (amount ?? 0), 0), reward: { coins: 200, hearts: 10 } },
   { id: 'kitchen_methods', category: 'kitchen', rarity: 'normal', target: 4, progress: (pet) => new Set(recipes.filter((recipe) => pet.kitchen.made[recipe.id]).map((recipe) => recipe.method)).size, reward: { coins: 150, hearts: 10 } },
   { id: 'kitchen_tastes', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => new Set(Object.values(pet.kitchen.tasted).flatMap((tastes) => Object.keys(tastes).map((id) => id.replace(/_banana$/, '')))).size, reward: { coins: 100, hearts: 10 } },
@@ -541,7 +567,7 @@ export const getAchievementEffects = (pet: PetState): AchievementEffects => {
         + goodEndingCount * goodEndingDailyStipendCoinsPerYear,
     ),
     dailyLoginItemBonus: Math.max(0, sumUnlockedReward(pet, (reward) => reward.dailyLoginItemBonus)),
-    careStatBonus: Math.min(1, sumUnlockedReward(pet, (reward) => reward.careStatBonus)),
+    careStatBonus: Math.min(2, sumUnlockedReward(pet, (reward) => reward.careStatBonus)),
     unlockedCgIds: pet.achievements.unlockedCgIds,
     revealsHiddenAchievements: unlockedDefinitions(pet).some((definition) => Boolean(definition.reward.revealsHiddenAchievements)),
   };
@@ -779,24 +805,29 @@ export const incrementAchievementPartnerScheduleClaim = (
 });
 
 const applyOneTimeAchievementReward = (pet: PetState, definition: AchievementDefinition, now: number): PetState => {
-  if (!definition.reward.coins && !definition.reward.hearts && !definition.reward.items?.length) return pet;
-  if (pet.achievements.claimedOneTimeRewardIds.includes(definition.id)) return pet;
+  const reward = getPendingAchievementReward(pet, definition);
+  if (!reward) return pet;
+  if (!canFitAchievementReward(pet, reward)) return { ...pet, recentEvent: t('pet.achievements.events.rewardCapacity') };
+  const isSupplement = pet.achievements.claimedOneTimeRewardIds.includes(definition.id);
   let next = pet;
-  if (definition.reward.coins) {
-    const gain = applyCoinGain(next, definition.reward.coins);
+  if (reward.coins) {
+    const gain = applyCoinGain(next, reward.coins);
     next = recordEarnedCoins({ ...next, coins: gain.coins }, gain.amount);
   }
-  if (definition.reward.hearts) {
-    const gain = applyHeartGain(next, definition.reward.hearts);
-    next = recordEarnedHearts({ ...next, hearts: gain.hearts }, gain.amount);
+  if (reward.hearts) {
+    const gain = applyHeartGain(next, reward.hearts);
+    next = recordEarnedHearts({ ...next, hearts: gain.hearts, boostCards: gain.boostCards }, gain.amount);
   }
-  if (definition.reward.items) {
-    next = { ...next, inventory: definition.reward.items.reduce((inventory, item) => addInventoryItem(inventory, item.itemId, item.amount), next.inventory) };
+  if (reward.items) {
+    next = { ...next, inventory: reward.items.reduce((inventory, item) => addInventoryItem(inventory, item.itemId, item.amount), next.inventory) };
   }
+  if (reward.gachaTickets) next = { ...next, goldenAppleGacha: { ...next.goldenAppleGacha, tickets: next.goldenAppleGacha.tickets + reward.gachaTickets } };
+  const balanceId = getAchievementBalanceRewardId(definition.id);
   return {
     ...next,
-    achievements: { ...next.achievements, claimedOneTimeRewardIds: [...next.achievements.claimedOneTimeRewardIds, definition.id] },
-    recentEvent: t('pet.achievements.events.rewardClaimed', { title: definition.title }),
+    claimedRewardIds: achievementBalanceOriginalFertilizers[definition.id] && !next.claimedRewardIds.includes(balanceId) ? [...next.claimedRewardIds, balanceId] : next.claimedRewardIds,
+    achievements: isSupplement ? next.achievements : { ...next.achievements, claimedOneTimeRewardIds: [...next.achievements.claimedOneTimeRewardIds, definition.id] },
+    recentEvent: t(isSupplement ? 'pet.achievements.events.balanceRewardClaimed' : 'pet.achievements.events.rewardClaimed', { title: definition.title }),
     lastInteractionAt: now,
   };
 };
@@ -854,6 +885,7 @@ export const formatAchievementReward = (reward: AchievementReward) => {
   const parts: string[] = [];
   if (reward.coins) parts.push(t('pet.achievements.rewards.coins', { coins: reward.coins }));
   if (reward.hearts) parts.push(t('pet.achievements.rewards.hearts', { hearts: reward.hearts }));
+  if (reward.gachaTickets) parts.push(t('pet.achievements.rewards.gachaTickets', { count: reward.gachaTickets }));
   reward.items?.forEach((item) => parts.push(t('pet.achievements.rewards.item', { item: getItemName(item.itemId), count: item.amount })));
   if (reward.workCoinBonus) parts.push(t('pet.achievements.rewards.workCoinBonus', { amount: reward.workCoinBonus }));
   if (reward.pomodoroCoinBonus) parts.push(t('pet.achievements.rewards.pomodoroCoinBonus', { amount: reward.pomodoroCoinBonus }));
@@ -877,10 +909,12 @@ export const getAchievementViews = (pet: PetState): AchievementView[] => {
       const progressValue = Math.min(definition.target, definition.progress(pet));
       const unlockedAt = pet.achievements.unlockedAtById[definition.id];
       const unlocked = Boolean(unlockedAt);
-      const hasReward = Boolean(definition.reward.coins || definition.reward.hearts || definition.reward.items?.length);
+      const hasReward = hasOneTimeReward(definition.reward);
       const claimed = !hasReward || pet.achievements.claimedOneTimeRewardIds.includes(definition.id);
+      const pendingReward = getPendingAchievementReward(pet, definition);
+      const claimKind = pendingReward ? claimed ? 'balance' as const : 'initial' as const : undefined;
       const effectActive = unlocked && Boolean(definition.reward.workCoinBonus || definition.reward.pomodoroCoinBonus || definition.reward.cleanCooldownMs || definition.reward.extraHeartChancePercent || definition.reward.gardenExtraDropChancePercent || definition.reward.partnerScheduleExtraRewardChancePercent || definition.reward.dailyStipendCoins || definition.reward.dailyLoginItemBonus || definition.reward.careStatBonus || definition.reward.cgId || definition.reward.revealsHiddenAchievements);
-      return { ...definition, progressValue, unlocked, unlockedAt, rewardText: formatAchievementReward(definition.reward), claimed, claimable: unlocked && hasReward && !claimed, effectActive };
+      return { ...definition, progressValue, unlocked, unlockedAt, rewardText: claimKind === 'balance' ? t('pet.achievements.rewards.balanceSupplement', { reward: formatAchievementReward(pendingReward!) }) : formatAchievementReward(definition.reward), claimed, claimable: unlocked && Boolean(pendingReward), claimKind, claimBlocked: unlocked && Boolean(pendingReward) && !canFitAchievementReward(pet, pendingReward!), effectActive };
     });
   const extraYears = pet.achievements.completedGoodEndingYears.filter((year) => year > 1);
   return [
@@ -923,17 +957,21 @@ export const claimAchievementReward = (pet: PetState, id: AchievementId, now = D
 };
 
 export const claimAllAchievementRewards = (pet: PetState, now = Date.now()): AchievementClaimAllResult => {
-  const claimedIds = getAchievementViews(pet).filter((view) => view.claimable).map((view) => view.id);
-  if (claimedIds.length === 0) return { pet, claimedIds };
+  const pendingIds = getAchievementViews(pet).filter((view) => view.claimable).map((view) => view.id);
+  const claimedIds: AchievementId[] = [];
+  if (pendingIds.length === 0) return { pet, claimedIds };
   const definitionsById = new Map(achievementDefinitions.map((definition) => [definition.id, definition]));
-  const claimedPet = claimedIds.reduce((next, id) => {
+  const claimedPet = pendingIds.reduce((next, id) => {
     const definition = definitionsById.get(id);
-    return definition ? applyOneTimeAchievementReward(next, definition, now) : next;
+    const reward = definition && getPendingAchievementReward(next, definition);
+    if (!definition || !reward || !canFitAchievementReward(next, reward)) return next;
+    claimedIds.push(id);
+    return applyOneTimeAchievementReward(next, definition, now);
   }, pet);
   return {
     pet: {
       ...claimedPet,
-      recentEvent: t('pet.achievements.events.rewardsClaimed', { count: claimedIds.length }),
+      recentEvent: [claimedIds.length > 0 ? t('pet.achievements.events.rewardsClaimed', { count: claimedIds.length }) : '', claimedIds.length < pendingIds.length ? t('pet.achievements.events.rewardCapacity') : ''].filter(Boolean).join(' '),
       lastInteractionAt: now,
     },
     claimedIds,

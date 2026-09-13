@@ -33,13 +33,13 @@ const createGrowingPet = (
   const slot: GardenSlot = {
     ...pet.garden.slots[0],
     unlocked: true,
-    treeId: 'golden_apple_tree',
+    treeId: 'fruit_tree',
     plantedAt: now,
     naturalReadyAt,
     careReductionMs: 0,
     nextReadyAt: naturalReadyAt,
     harvestsUsed: 0,
-    maxHarvests: 9,
+    maxHarvests: 10,
     pendingDrops: [],
     state: 'growing',
     ...slotOverrides,
@@ -62,7 +62,7 @@ const createGrowingPet = (
 };
 
 const summerNoon = new Date(2026, 6, 15, 12, 0, 0, 0).getTime();
-const longRoundPet = createGrowingPet(summerNoon, 96 * hourMs, {}, {
+const longRoundPet = createGrowingPet(summerNoon, 96 * hourMs, { treeId: 'golden_apple_tree' }, {
   weather: 'rainy',
 });
 longRoundPet.garden.tools.wateringCanLevel = 3;
@@ -74,16 +74,19 @@ assert.equal(earlyWater.percent, 18);
 assert.equal(earlyWater.nominalReductionMs, gardenWaterReductionMaxMs);
 assert.equal(laterWater.nominalReductionMs, earlyWater.nominalReductionMs, 'watering value must not depend on action time');
 
-const normalPreview = getGardenCarePreview(longRoundPet, longRoundSlot, 'normal', summerNoon);
-const heartPreview = getGardenCarePreview(longRoundPet, longRoundSlot, 'heart', summerNoon);
-assert.equal(normalPreview.nominalReductionMs, 10 * hourMs);
-assert.equal(heartPreview.nominalReductionMs, 18 * hourMs);
+assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'normal', summerNoon).blockedReason, 'wrong_tree');
+assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'heart', summerNoon).actualReductionMs, 0);
+const ordinaryPet = createGrowingPet(summerNoon, 12 * hourMs);
+const normalPreview = getGardenCarePreview(ordinaryPet, ordinaryPet.garden.slots[0], 'normal', summerNoon);
+const heartPreview = getGardenCarePreview(ordinaryPet, ordinaryPet.garden.slots[0], 'heart', summerNoon);
+assert.equal(normalPreview.nominalReductionMs, 3.6 * hourMs);
+assert.equal(heartPreview.nominalReductionMs, 4.8 * hourMs);
 
 const wateredPet = waterTree(longRoundPet, 0, summerNoon);
 assert.equal(wateredPet.partnerSchedule.skills.garden.xp, 1);
 assert.equal(longRoundPet.partnerSchedule.skills.garden.xp, 0, 'practice does not mutate the source');
 assert.equal(waterTree(wateredPet, 0, summerNoon).partnerSchedule.skills.garden.xp, 1, 'repeat watering grants no XP');
-const fedPet = fertilizeTree(wateredPet, 0, 'normal', summerNoon);
+const fedPet = fertilizeTree(waterTree(ordinaryPet, 0, summerNoon), 0, 'normal', summerNoon);
 assert.equal(fedPet.partnerSchedule.skills.garden.xp, 2, 'fertilizing is one separate practice');
 assert.equal(fertilizeTree(fedPet, 0, 'heart', summerNoon).partnerSchedule.skills.garden.xp, 2, 'switching fertilizer cannot repeat the reward');
 assert.equal(fertilizeTree({ ...longRoundPet, inventory: {} }, 0, 'normal', summerNoon).partnerSchedule.skills.garden.xp, 0, 'missing fertilizer grants no XP');
@@ -143,9 +146,10 @@ const heartFirstPet = fertilizeTree(createGrowingPet(nearReadyNow, 96 * hourMs),
 const normalNextDayPet = fertilizeTree(heartFirstPet, 0, 'normal', nearReadyNow + dayMs);
 assert.equal(heartFirstPet.garden.slots[0].fertilizerType, 'heart');
 assert.equal(normalNextDayPet.garden.slots[0].fertilizerType, 'heart', 'normal fertilizer must not downgrade heart fertilizer');
+assert.equal(normalNextDayPet.inventory.normal_fertilizer, heartFirstPet.inventory.normal_fertilizer, 'a new day cannot spend fertilizer twice in one round');
 
 const migrationNow = new Date(2026, 2, 10, 12, 0, 0, 0).getTime();
-const migrationPet = createGrowingPet(migrationNow, 48 * hourMs);
+const migrationPet = createGrowingPet(migrationNow, 48 * hourMs, { treeId: 'golden_apple_tree', maxHarvests: 9 });
 const legacyDeadline = migrationPet.garden.slots[0].nextReadyAt;
 const legacyGarden = structuredClone(migrationPet.garden) as unknown as Record<string, unknown>;
 legacyGarden.schemaVersion = 2;
@@ -157,7 +161,7 @@ assert.equal(migratedGarden.schemaVersion, gardenSchemaVersion);
 assert.equal(migratedGarden.slots[0].nextReadyAt, legacyDeadline);
 assert.equal(migratedGarden.slots[0].naturalReadyAt, legacyDeadline);
 assert.equal(migratedGarden.slots[0].careReductionMs, 0);
-assert.equal(migratedGarden.slots[0].maxHarvests, 9, 'schema 2 migration must not extend golden apple tree life again');
+assert.equal(migratedGarden.slots[0].maxHarvests, 10, 'schema 2 trees receive only the new balance extension');
 
 const readyPet = createGrowingPet(migrationNow, hourMs, {
   fertilizerType: 'heart',

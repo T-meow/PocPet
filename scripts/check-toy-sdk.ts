@@ -373,7 +373,7 @@ const sdkInteractionMock = {
 } as unknown as ToySdk;
 assert.equal(await openAuthorSpace(sdkInteractionMock), 'toy');
 assert.deepEqual(navigationRequest, { type: 'space', id: '37393114', extra: { from: 'pocpet' } });
-const testImageData = 'data:image/jpeg;base64,AA==';
+const testImageData = `data:image/png;base64,${readFileSync(new URL('../src-tauri/icons/32x32.png', import.meta.url)).toString('base64')}`;
 assert.equal(await saveShareImage('pocpet.jpg', testImageData, sdkInteractionMock), 'album');
 assert.equal(albumRequest?.base64Data, testImageData);
 assert.equal(typeof albumRequest?.hintMsg, 'string');
@@ -395,6 +395,7 @@ assert.equal(followReward.claimed, true, 'the legacy click reward must not block
 assert.equal(followReward.pet.goldenAppleGacha.tickets, oldRewardPet.goldenAppleGacha.tickets + authorFollowGiftTickets);
 assert(followReward.pet.claimedRewardIds.includes(authorFollowGiftRewardId));
 assert.equal(claimAuthorFollowGift(followReward.pet).claimed, false);
+assert.equal(claimAuthorFollowGift(parseSaveFileText(createSaveFilePlainText(followReward.pet, null, firstUploadAt), firstUploadAt).pet).claimed, false, 'author reward remains claimed after export and reload');
 const reconciledReward = claimAuthorFollowGift(oldRewardPet, false);
 assert.equal(reconciledReward.pet.goldenAppleGacha.tickets, oldRewardPet.goldenAppleGacha.tickets);
 assert(reconciledReward.pet.claimedRewardIds.includes(authorFollowGiftRewardId));

@@ -199,9 +199,9 @@ const expectedGachaWeights: Record<string, number> = {
   energy_drink_10: 7600,
   blanket_10: 2600,
   picture_book_10: 2600,
-  normal_fertilizer_1: 4800,
+  normal_fertilizer_20: 4800,
   harvest_nutrient_1: 5000,
-  heart_fertilizer_1: 1000,
+  heart_fertilizer_30: 1000,
   money_tree_sapling_1: 1180,
   golden_apple_tree_sapling_1: 320,
   golden_apple_1: 11632,
@@ -248,9 +248,9 @@ const tenDrawWhiteGreenCount = whiteGreenProbability * 10
 const coinExpectedValue = getGoldenAppleGachaCoinExpectedValue();
 const tenDrawCoinExpectedValue = coinExpectedValue * 10
   - tenDrawFallbackProbability * coinExpectedValue / (1 - appleProbability);
-near(getGoldenAppleGachaExpectedValue(), 538.74768, 0.00001, 'single expected value');
+near(getGoldenAppleGachaExpectedValue(), 542.74768, 0.00001, 'single expected value');
 near(coinExpectedValue, 202.838, 0.00001, 'coin expected value');
-near(getGoldenAppleGachaTenExpectedValue(), 5500.067254, 0.00001, 'ten draw expected value');
+near(getGoldenAppleGachaTenExpectedValue(), 5538.864623, 0.00001, 'ten draw expected value');
 near(tenDrawCoinExpectedValue, 1967.395173, 0.00001, 'ten draw coin expected value');
 near(tenDrawFallbackProbability, 0.2630755762, 0.0000000001, 'ten draw fallback probability');
 near(appleCountExpected, 0.15341, 0.0000001, 'single golden apple count');
@@ -782,10 +782,10 @@ assert.equal(monthlyRewards.rewards.find((reward) => reward.kind === 'daily_logi
 assert.equal(monthlyRewards.pet.goldenAppleGacha.tickets, 3);
 assert.equal(monthlyRewards.pet.inventory.golden_apple, 2);
 
-assert.equal(gardenSchemaVersion, 4);
-assert.equal(gardenTreeDefinitions.golden_apple_tree.growDurationMs, 4 * dayMs);
+assert.equal(gardenSchemaVersion, 5);
+assert.equal(gardenTreeDefinitions.golden_apple_tree.growDurationMs, 3 * dayMs);
 assert.equal(gardenTreeDefinitions.golden_apple_tree.harvestCooldownMs, 48 * 60 * 60 * 1000);
-assert.equal(gardenTreeDefinitions.golden_apple_tree.maxHarvests, 9);
+assert.equal(gardenTreeDefinitions.golden_apple_tree.maxHarvests, 10);
 assert.equal(goldenAppleTreeLimit, 3);
 
 const oldGarden = defaultGardenState(now) as unknown as Record<string, unknown>;
@@ -795,9 +795,9 @@ oldSlots[0] = { ...oldSlots[0], unlocked: true, treeId: 'golden_apple_tree', sta
 oldSlots[1] = { ...oldSlots[1], unlocked: true, treeId: 'golden_apple_tree', state: 'withered', plantedAt: now - 10 * dayMs, nextReadyAt: now - dayMs, maxHarvests: 7, harvestsUsed: 7 };
 oldGarden.slots = oldSlots;
 const migratedGarden = normalizeGardenState(oldGarden, now);
-assert.equal(migratedGarden.slots[0].maxHarvests, 9, 'active old golden apple tree should gain two harvests');
+assert.equal(migratedGarden.slots[0].maxHarvests, 10, 'active legacy tree receives both historical and balance extensions');
 assert.equal(migratedGarden.slots[1].maxHarvests, 7, 'withered old tree must not be revived');
-assert.equal(normalizeGardenState(migratedGarden, now).slots[0].maxHarvests, 9, 'migration must only run once');
+assert.equal(normalizeGardenState(migratedGarden, now).slots[0].maxHarvests, 10, 'migration must only run once');
 
 const overLimitSlots = defaultGardenState(now).slots.map((slot, index): GardenSlot => index < 4
   ? { ...slot, unlocked: true, treeId: 'golden_apple_tree', state: index === 3 ? 'withered' : 'growing', plantedAt: now, nextReadyAt: now + dayMs, maxHarvests: 9, harvestsUsed: index === 3 ? 9 : 0 }
@@ -1117,8 +1117,8 @@ const cookingGoldPet = withGoalStages({
   inventory: { watermelon: 1 },
 }, { cooking: 5 });
 const ateWithCookingGold = useInventoryItem(cookingGoldPet, 'watermelon', now);
-assert.equal(ateWithCookingGold.hunger, 56, 'gold cooking trophy must double positive normal-food effects');
-assert.equal(ateWithCookingGold.cleanliness, 48, 'food trophies must not amplify negative effects');
+assert.equal(ateWithCookingGold.hunger, 64, 'gold cooking trophy must double positive normal-food effects');
+assert.equal(ateWithCookingGold.cleanliness, 49, 'food trophies must not amplify negative effects');
 const masteryCookingPet: PetState = {
   ...cookingGoldPet,
   partnerSchedule: {
@@ -1129,7 +1129,7 @@ const masteryCookingPet: PetState = {
     },
   },
 };
-assert.equal(useInventoryItem(masteryCookingPet, 'watermelon', now).hunger, 64, 'cooking mastery and trophy multipliers must multiply');
+assert.equal(useInventoryItem(masteryCookingPet, 'watermelon', now).hunger, 74, 'cooking mastery and trophy multipliers must multiply');
 const specialApplePet = withGoalStages({
   ...createDefaultPet(now),
   hunger: 0,

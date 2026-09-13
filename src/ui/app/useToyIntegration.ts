@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { features, isNativeApp } from '../../platform/edition';
+import { features, isNativeApp, requiresAuthorFollowVerification } from '../../platform/edition';
 import { getStoredSaveIdentity } from '../../core/storage';
 import { UnsupportedSaveVersionError } from '../../core/saveCodec';
 import {
@@ -241,6 +241,7 @@ export const useToyIntegration = ({
   };
 
   const verifyPendingAuthorFollow = async () => {
+    if (!requiresAuthorFollowVerification()) return;
     if (!readPendingAuthorFollow() || authorVerificationRef.current || authorVerificationAttemptedRef.current) return;
     const sdk = getToySdk();
     if (!sdk) return;
@@ -295,15 +296,30 @@ export const useToyIntegration = ({
   }, []);
 
   const handleOpenAuthorSpace = async () => {
-    const isToy = Boolean(getToySdk());
-    if (isToy) {
+    const needsFollow = requiresAuthorFollowVerification();
+    if (needsFollow) {
       authorVerificationAttemptedRef.current = false;
       writePendingAuthorFollow(true);
     }
     try {
       await openAuthorSpace();
+      if (!needsFollow) {
+        let notified = false;
+        setPet((current) => {
+          const result = claimAuthorFollowGift(current);
+          if (!result.claimed) return current;
+          const tickets = result.pet.goldenAppleGacha.tickets - current.goldenAppleGacha.tickets;
+          const message = t('ui.settings.author.visitClaimed', { count: tickets });
+          if (!notified) {
+            notified = true;
+            if (tickets > 0) callbacksRef.current.onAuthorReward(tickets);
+            callbacksRef.current.onMessage(message);
+          }
+          return callbacksRef.current.commitPet({ ...result.pet, recentEvent: message });
+        });
+      }
     } catch (error) {
-      if (isToy) writePendingAuthorFollow(false);
+      if (needsFollow) writePendingAuthorFollow(false);
       onMessage(error instanceof Error ? error.message : t('ui.settings.author.openFailed'));
     }
   };

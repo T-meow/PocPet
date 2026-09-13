@@ -62,12 +62,24 @@ pub fn write_backup_files(app: tauri::AppHandle, snapshot: String) -> Result<(),
     write_backup_in(&directory(&app)?, &snapshot)
 }
 
+fn is_supported_backup_text(text: &str) -> bool {
+    let text = text.trim();
+    if text.starts_with("POCPET-SAVE-v2:") { return true; }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else { return false; };
+    // The frontend fully validates the save before invoking this command.
+    // Accept its JSON envelopes as well as existing protected recovery copies.
+    matches!(value["app"].as_str(), Some("PocPet" | "Pocpet-Mint"))
+        && matches!(value["schemaVersion"].as_u64(), Some(1 | 2))
+        && value["exportedAt"].as_str().is_some_and(|time| !time.is_empty())
+        && value["pet"].is_object()
+}
+
 fn write_backup_in(dir: &Path, snapshot: &str) -> Result<(), String> {
     let value: serde_json::Value = serde_json::from_str(&snapshot).map_err(|e| e.to_string())?;
     let date = value["dateKey"].as_str().ok_or("Missing backup date")?;
     if date.len() != 10 || !date.bytes().all(|b| b.is_ascii_digit() || b == b'-') { return Err("Invalid backup date".into()); }
     let text = value["text"].as_str().ok_or("Missing backup text")?;
-    if !text.starts_with("POCPET-SAVE-v2:") { return Err("Invalid backup text".into()); }
+    if !is_supported_backup_text(text) { return Err("Invalid backup text".into()); }
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     atomic_write(&dir.join(format!("daily-{date}.json")), snapshot.as_bytes())?;
     atomic_write(&dir.join("pocpet-auto-backup.pocpet"), text.as_bytes())?;
@@ -81,6 +93,65 @@ fn write_backup_in(dir: &Path, snapshot: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accepts_current_frontend_json_and_replaces_the_same_day() {
+        // Captured from createSaveFileText, rather than a hand-written format stub.
+        let fixture = include_str!("../../scripts/fixtures/pocpet-1.8.0-backup.json");
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("pocpet-backup-json-test-{unique}"));
+        let mut snapshot: serde_json::Value = serde_json::from_str(fixture).unwrap();
+        write_backup_in(&dir, fixture).unwrap();
+        let latest = dir.join("pocpet-auto-backup.pocpet");
+        assert_eq!(fs::read_to_string(&latest).unwrap(), snapshot["text"].as_str().unwrap());
+        let mut save: serde_json::Value = serde_json::from_str(snapshot["text"].as_str().unwrap()).unwrap();
+        assert_eq!(save["schemaVersion"], 2);
+        save["pet"]["coins"] = 4321.into();
+        snapshot["text"] = save.to_string().into();
+        snapshot["savedAt"] = (snapshot["savedAt"].as_u64().unwrap() + 1000).into();
+        write_backup_in(&dir, &snapshot.to_string()).unwrap();
+        assert_eq!(history_files(&dir).unwrap().len(), 1);
+        assert_eq!(fs::read_to_string(&latest).unwrap(), save.to_string());
+        let history = read_backup_in(&dir).unwrap();
+        assert!(history.warnings.is_empty());
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&history.files[0]).unwrap(), snapshot);
+
+        // Reject unrelated/future data before changing either existing file.
+        for invalid in [
+            "{}", "[]", "not JSON",
+            r#"{"app":"AnotherApp","schemaVersion":2,"exportedAt":"2026-09-13T04:00:00.000Z","pet":{}}"#,
+            r#"{"app":"PocPet","schemaVersion":3,"exportedAt":"2026-09-13T04:00:00.000Z","pet":{}}"#,
+            r#"{"app":"PocPet","schemaVersion":2,"exportedAt":"2026-09-13T04:00:00.000Z","pet":null}"#,
+        ] {
+            let mut bad = snapshot.clone();
+            bad["text"] = invalid.into();
+            assert!(write_backup_in(&dir, &bad.to_string()).is_err());
+            assert_eq!(fs::read_to_string(&latest).unwrap(), save.to_string());
+            assert_eq!(read_backup_in(&dir).unwrap().files, history.files);
+        }
+        // A failed replacement preserves the last valid backup and can be retried.
+        let daily = dir.join("daily-2026-09-13.json");
+        fs::create_dir(daily.with_extension("tmp")).unwrap();
+        assert!(write_backup_in(&dir, fixture).is_err());
+        assert_eq!(fs::read_to_string(&latest).unwrap(), save.to_string());
+        assert_eq!(read_backup_in(&dir).unwrap().files, history.files);
+        fs::remove_dir(daily.with_extension("tmp")).unwrap();
+        write_backup_in(&dir, fixture).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn accepts_legacy_json_and_protected_backups() {
+        let protected = include_str!("../../scripts/fixtures/pocpet-mint-1.0.1-export.pocpet");
+        assert!(is_supported_backup_text(protected));
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../scripts/fixtures/pocpet-1.8.0-backup.json")).unwrap();
+        let mut legacy: serde_json::Value = serde_json::from_str(fixture["text"].as_str().unwrap()).unwrap();
+        legacy["schemaVersion"] = 1.into();
+        for app in ["PocPet", "Pocpet-Mint"] {
+            legacy["app"] = app.into();
+            assert!(is_supported_backup_text(&legacy.to_string()));
+        }
+    }
 
     #[test]
     fn retains_seven_dates_and_preserves_file_when_write_fails() {

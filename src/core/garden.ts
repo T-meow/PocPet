@@ -12,7 +12,7 @@ import { getSeasonForDate, type Season } from './season';
 import type { BoostCardState, BuiltinItemId, GardenCareActionId, GardenCarePreview, GardenDrop, GardenFertilizerId, GardenSlot, GardenSlotState, GardenState, GardenToolId, GardenTools, GardenTreeId, ItemId, PetState, WeatherType } from './petTypes';
 import { hashString, isNumber } from './utils';
 
-export const gardenSchemaVersion = 4;
+export const gardenSchemaVersion = 5;
 export const gardenSlotCount = 5;
 export const goldenAppleTreeLimit = 3;
 export const maxGardenToolLevel = 3;
@@ -24,10 +24,13 @@ export const gardenToolIds: readonly GardenToolId[] = ['watering_can', 'shovel',
 export const gardenSlotStates: readonly GardenSlotState[] = ['empty', 'growing', 'ready', 'withered'];
 export const gardenSlotUnlockCosts = [100, 1000, 5000, 10000, 30000] as const;
 export const gardenWaterCost = 0;
-export const gardenNormalFertilizerCost = 300;
-export const gardenHeartFertilizerCost = 900;
+export const gardenNormalFertilizerCost = 15;
+export const gardenHeartFertilizerCost = 30;
 export const gardenNutrientCost = 300;
 export const gardenClearBaseCost = 80;
+export const gardenOrdinaryClearBaseCost = 20;
+export const gardenPendingDropKindLimit = 8;
+export const isOrdinaryGardenTree = (treeId: GardenTreeId) => treeId === 'fruit_tree' || treeId === 'care_tree' || treeId === 'gift_tree';
 
 export const gardenTreeSaplingItemIds: Record<GardenTreeId, BuiltinItemId> = {
   fruit_tree: 'fruit_tree_sapling',
@@ -58,28 +61,26 @@ export interface GardenTreeDefinition {
   growDurationMs: number;
   harvestCooldownMs: number;
   maxHarvests: number;
+  baseDropCount: number;
   dropPool: readonly DropPoolEntry[];
 }
 
 export const gardenTreeDefinitions: Record<GardenTreeId, GardenTreeDefinition> = {
-  fruit_tree: { id: 'fruit_tree', price: 30, growDurationMs: 8 * hourMs, harvestCooldownMs: 8 * hourMs, maxHarvests: 8, dropPool: [{ itemId: 'orange', weight: 24 }, { itemId: 'apple', weight: 22 }, { itemId: 'banana', weight: 20 }, { itemId: 'watermelon', weight: 14 }, { itemId: 'bento', weight: 8 }, { itemId: 'strawberry_milk', weight: 6, rare: true }, { itemId: 'nutri_meal', weight: 4, rare: true }, { itemId: 'strawberry_cake', weight: 2, rare: true }] },
-  care_tree: { id: 'care_tree', price: 30, growDurationMs: 10 * hourMs, harvestCooldownMs: 10 * hourMs, maxHarvests: 7, dropPool: [{ itemId: 'wet_wipes', weight: 26 }, { itemId: 'vitamin_tablet', weight: 20 }, { itemId: 'shampoo', weight: 14 }, { itemId: 'energy_drink', weight: 14 }, { itemId: 'blanket', weight: 10 }, { itemId: 'medicine', weight: 6, rare: true }, { itemId: 'apple', weight: 6 }, { itemId: 'watermelon', weight: 4, rare: true }] },
-  gift_tree: { id: 'gift_tree', price: 30, growDurationMs: 12 * hourMs, harvestCooldownMs: 12 * hourMs, maxHarvests: 6, dropPool: [{ itemId: 'small_bouquet', weight: 24 }, { itemId: 'shiny_sticker', weight: 22 }, { itemId: 'ribbon_bell', weight: 18 }, { itemId: 'toy_ball', weight: 14 }, { itemId: 'picture_book', weight: 8, rare: true }, { itemId: 'soft_cloud_doll', weight: 5, rare: true }, { itemId: 'strawberry_cake', weight: 5, rare: true }, { itemId: 'strawberry_milk', weight: 4, rare: true }] },
-  money_tree: { id: 'money_tree', price: 3000, growDurationMs: 3 * dayMs, harvestCooldownMs: 36 * hourMs, maxHarvests: 8, dropPool: [] },
-  golden_apple_tree: { id: 'golden_apple_tree', price: 8888, growDurationMs: 4 * dayMs, harvestCooldownMs: 48 * hourMs, maxHarvests: 9, dropPool: [] },
+  fruit_tree: { id: 'fruit_tree', price: 120, growDurationMs: 12 * hourMs, harvestCooldownMs: 12 * hourMs, maxHarvests: 10, baseDropCount: 4, dropPool: [{ itemId: 'orange', weight: 20 }, { itemId: 'apple', weight: 25 }, { itemId: 'banana', weight: 20 }, { itemId: 'watermelon', weight: 10, rare: true }, { itemId: 'tomato', weight: 15 }, { itemId: 'greens', weight: 10 }] },
+  care_tree: { id: 'care_tree', price: 180, growDurationMs: 12 * hourMs, harvestCooldownMs: 12 * hourMs, maxHarvests: 10, baseDropCount: 3, dropPool: [{ itemId: 'wet_wipes', weight: 25 }, { itemId: 'vitamin_tablet', weight: 20 }, { itemId: 'shampoo', weight: 20 }, { itemId: 'energy_drink', weight: 15 }, { itemId: 'blanket', weight: 15, rare: true }, { itemId: 'medicine', weight: 5, rare: true }] },
+  gift_tree: { id: 'gift_tree', price: 240, growDurationMs: 12 * hourMs, harvestCooldownMs: 12 * hourMs, maxHarvests: 10, baseDropCount: 3, dropPool: [{ itemId: 'small_bouquet', weight: 25 }, { itemId: 'shiny_sticker', weight: 25 }, { itemId: 'ribbon_bell', weight: 20 }, { itemId: 'toy_ball', weight: 15 }, { itemId: 'picture_book', weight: 10, rare: true }, { itemId: 'soft_cloud_doll', weight: 5, rare: true }] },
+  money_tree: { id: 'money_tree', price: 3000, growDurationMs: 3 * dayMs, harvestCooldownMs: 36 * hourMs, maxHarvests: 8, baseDropCount: 0, dropPool: [] },
+  golden_apple_tree: { id: 'golden_apple_tree', price: 8888, growDurationMs: 3 * dayMs, harvestCooldownMs: 48 * hourMs, maxHarvests: 10, baseDropCount: 0, dropPool: [] },
 };
 
-export const gardenSaplingRecycleMaxPrice = 30;
-export const getGardenSaplingRecycleCoins = (treeId: GardenTreeId) => {
-  const price = gardenTreeDefinitions[treeId]?.price ?? 0;
-  return price > 0 && price <= gardenSaplingRecycleMaxPrice ? Math.floor(price / 2) : 0;
-};
+export const getGardenSaplingRecycleCoins = (treeId: GardenTreeId) => isOrdinaryGardenTree(treeId) ? 15 : 0;
 
 export const gardenTreeMaxHarvests: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].maxHarvests])) as Record<GardenTreeId, number>;
 export const gardenTreeGrowDurationMs: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].growDurationMs])) as Record<GardenTreeId, number>;
 export const gardenTreeHarvestCooldownMs: Record<GardenTreeId, number> = Object.fromEntries(gardenTreeIds.map((treeId) => [treeId, gardenTreeDefinitions[treeId].harvestCooldownMs])) as Record<GardenTreeId, number>;
 
-const gardenToolUpgradeCosts: Record<GardenToolId, readonly number[]> = { watering_can: [0, 900, 2200], shovel: [0, 800, 2000], fertilizer_box: [0, 1200, 3000] };
+const gardenToolUpgradeCosts: Record<GardenToolId, readonly number[]> = { watering_can: [0, 150, 450], shovel: [0, 80, 240], fertilizer_box: [0, 150, 450] };
+const legacyTreeMaxHarvests: Record<GardenTreeId, number> = { fruit_tree: 8, care_tree: 7, gift_tree: 6, money_tree: 8, golden_apple_tree: 9 };
 const gardenTreeIdSet = new Set<GardenTreeId>(gardenTreeIds);
 const gardenFertilizerIdSet = new Set<GardenFertilizerId>(gardenFertilizerIds);
 const gardenSlotStateSet = new Set<GardenSlotState>(gardenSlotStates);
@@ -109,7 +110,7 @@ const mergeDrops = (drops: readonly GardenDrop[]): GardenDrop[] => {
 
 const normalizeGardenDrops = (value: unknown): GardenDrop[] => {
   if (!Array.isArray(value)) return [];
-  return mergeDrops(value.slice(0, 4).flatMap((entry): GardenDrop[] => {
+  return mergeDrops(value.slice(0, gardenPendingDropKindLimit).flatMap((entry): GardenDrop[] => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
     const raw = entry as Record<string, unknown>;
     const amount = isNumber(raw.amount) ? Math.min(999999, clampCount(raw.amount)) : 0;
@@ -125,7 +126,7 @@ const normalizeGardenTools = (value: unknown): GardenTools => {
   return { wateringCanLevel: clampToolLevel(raw.wateringCanLevel), shovelLevel: clampToolLevel(raw.shovelLevel), fertilizerBoxLevel: clampToolLevel(raw.fertilizerBoxLevel) };
 };
 
-const normalizeGardenSlot = (value: unknown, slotIndex: number, previousUnlocked: boolean, now: number, resetDateKey: string, migrateGoldenAppleTree: boolean, migrateCareTiming: boolean): GardenSlot => {
+const normalizeGardenSlot = (value: unknown, slotIndex: number, previousUnlocked: boolean, now: number, resetDateKey: string, migrateGoldenAppleTree: boolean, migrateCareTiming: boolean, migrateBalance: boolean): GardenSlot => {
   const fallback = defaultGardenSlot(slotIndex, now, resetDateKey);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
   const raw = value as Record<string, unknown>;
@@ -135,9 +136,13 @@ const normalizeGardenSlot = (value: unknown, slotIndex: number, previousUnlocked
   const pendingDrops = normalizeGardenDrops(raw.pendingDrops);
   const plantedAt = clampTimestamp(raw.plantedAt, now);
   const nextReadyAt = clampTimestamp(raw.nextReadyAt, now);
-  const storedMaxHarvests = treeId ? Math.min(99, Math.max(1, isNumber(raw.maxHarvests) ? Math.floor(raw.maxHarvests) : gardenTreeMaxHarvests[treeId])) : 0;
+  const fallbackMaxHarvests = treeId ? migrateBalance ? (migrateGoldenAppleTree && treeId === 'golden_apple_tree' ? 7 : legacyTreeMaxHarvests[treeId]) : gardenTreeMaxHarvests[treeId] : 0;
+  const storedMaxHarvests = treeId ? Math.min(99, Math.max(1, isNumber(raw.maxHarvests) ? Math.floor(raw.maxHarvests) : fallbackMaxHarvests)) : 0;
   const shouldExtendGoldenAppleTree = migrateGoldenAppleTree && treeId === 'golden_apple_tree' && state !== 'withered';
-  const maxHarvests = shouldExtendGoldenAppleTree ? Math.min(99, storedMaxHarvests + 2) : storedMaxHarvests;
+  const legacyMaxHarvests = shouldExtendGoldenAppleTree ? Math.min(99, storedMaxHarvests + 2) : storedMaxHarvests;
+  const isAlive = state === 'ready' || (state === 'growing' && clampCount(isNumber(raw.harvestsUsed) ? raw.harvestsUsed : 0) < legacyMaxHarvests);
+  const balanceHarvestBonus = migrateBalance && isAlive && treeId ? gardenTreeMaxHarvests[treeId] - legacyTreeMaxHarvests[treeId] : 0;
+  const maxHarvests = Math.min(99, legacyMaxHarvests + balanceHarvestBonus);
   const harvestsUsed = treeId ? Math.min(maxHarvests, clampCount(isNumber(raw.harvestsUsed) ? raw.harvestsUsed : 0)) : 0;
   const isDailyHarvestCurrent = normalizeLegacyDailyDateKey(raw.dailyHarvestDateKey, now) === resetDateKey;
   const dailyHarvestDateKey = resetDateKey;
@@ -182,7 +187,7 @@ export const normalizeGardenState = (value: unknown, now = Date.now(), effective
   const rawSlots = Array.isArray(raw.slots) ? raw.slots : [];
   let previousUnlocked = true;
   const slots = Array.from({ length: gardenSlotCount }, (_, slotIndex) => {
-    const slot = normalizeGardenSlot(rawSlots[slotIndex], slotIndex, previousUnlocked, now, effectiveDateKey, migrateGoldenAppleTree, migrateCareTiming);
+    const slot = normalizeGardenSlot(rawSlots[slotIndex], slotIndex, previousUnlocked, now, effectiveDateKey, migrateGoldenAppleTree, migrateCareTiming, storedSchemaVersion < 5);
     previousUnlocked = slot.unlocked;
     return slot;
   });
@@ -195,7 +200,10 @@ export const normalizeGardenState = (value: unknown, now = Date.now(), effective
 const getToolLevel = (tools: GardenTools, toolId: GardenToolId) => toolId === 'watering_can' ? tools.wateringCanLevel : toolId === 'shovel' ? tools.shovelLevel : tools.fertilizerBoxLevel;
 const setToolLevel = (tools: GardenTools, toolId: GardenToolId, level: number): GardenTools => toolId === 'watering_can' ? { ...tools, wateringCanLevel: level } : toolId === 'shovel' ? { ...tools, shovelLevel: level } : { ...tools, fertilizerBoxLevel: level };
 export const getGardenToolUpgradeCost = (tools: GardenTools, toolId: GardenToolId) => { const currentLevel = getToolLevel(tools, toolId); return currentLevel >= maxGardenToolLevel ? 0 : gardenToolUpgradeCosts[toolId][currentLevel] ?? 0; };
-export const getGardenClearCost = (tools: GardenTools) => tools.shovelLevel >= 3 ? Math.ceil(gardenClearBaseCost * 0.5) : tools.shovelLevel >= 2 ? Math.ceil(gardenClearBaseCost * 0.75) : gardenClearBaseCost;
+export const getGardenClearCost = (tools: GardenTools, treeId?: GardenTreeId) => {
+  const base = treeId && isOrdinaryGardenTree(treeId) ? gardenOrdinaryClearBaseCost : gardenClearBaseCost;
+  return Math.ceil(base * (tools.shovelLevel >= 3 ? 0.5 : tools.shovelLevel >= 2 ? 0.75 : 1));
+};
 export const getGardenWaterCost = () => gardenWaterCost;
 export const getGardenWaterReductionPercent = (tools: GardenTools, environmentBonusPercent = 0) =>
   (tools.wateringCanLevel >= 3 ? 10 : tools.wateringCanLevel >= 2 ? 8 : 5) + environmentBonusPercent;
@@ -248,15 +256,19 @@ const applyGrowMultiplier = (pet: PetState, durationMs: number, now: number) => 
 };
 const getGrowDuration = (pet: PetState, treeId: GardenTreeId, now: number) => applyGrowMultiplier(pet, gardenTreeDefinitions[treeId].growDurationMs, now);
 const getHarvestCooldown = (pet: PetState, treeId: GardenTreeId, now: number) => applyGrowMultiplier(pet, gardenTreeDefinitions[treeId].harvestCooldownMs, now);
-const fertilizerReductionConfigs: Record<GardenFertilizerId, { percent: number; maxMs: number }> = { normal: { percent: 20, maxMs: 10 * hourMs }, heart: { percent: 35, maxMs: 18 * hourMs } };
+export const getGardenFertilizerReductionPercent = (tools: GardenTools, fertilizerId: GardenFertilizerId) =>
+  (fertilizerId === 'heart' ? 40 : 30) + (tools.fertilizerBoxLevel - 1) * 5;
 
 export const getGardenCarePreview = (pet: PetState, slot: GardenSlot, actionId: GardenCareActionId, now = Date.now()): GardenCarePreview => {
   const naturalReadyAt = slot.naturalReadyAt > slot.plantedAt ? slot.naturalReadyAt : slot.nextReadyAt + Math.max(0, slot.careReductionMs);
   const roundDurationMs = Math.max(0, naturalReadyAt - slot.plantedAt);
+  if (actionId !== 'water' && (!slot.treeId || !isOrdinaryGardenTree(slot.treeId) || slot.fertilizerType)) {
+    return { percent: 0, nominalReductionMs: 0, actualReductionMs: 0, remainingAfterMs: Math.max(0, slot.nextReadyAt - now), blockedReason: slot.treeId && isOrdinaryGardenTree(slot.treeId) ? 'fertilized_round' : 'wrong_tree' };
+  }
   const percent = actionId === 'water'
     ? getGardenWaterReductionPercent(pet.garden.tools, getGardenEnvironmentEffects(pet, now).waterReductionBonusPercent)
-    : fertilizerReductionConfigs[actionId].percent;
-  const actionLimitMs = actionId === 'water' ? gardenWaterReductionMaxMs : fertilizerReductionConfigs[actionId].maxMs;
+    : getGardenFertilizerReductionPercent(pet.garden.tools, actionId);
+  const actionLimitMs = actionId === 'water' ? gardenWaterReductionMaxMs : 6 * hourMs;
   const nominalReductionMs = Math.min(actionLimitMs, Math.floor(roundDurationMs * (percent / 100)));
   const careReductionMs = Math.max(0, slot.careReductionMs, naturalReadyAt - slot.nextReadyAt);
   const careReductionLimitMs = Math.floor(roundDurationMs * (gardenCareReductionLimitPercent / 100));
@@ -283,20 +295,26 @@ export const formatGardenCareDuration = (milliseconds: number) => {
 
 const getGardenCareBlockedEventKey = (preview: GardenCarePreview) => preview.blockedReason === 'minimum_remaining'
   ? 'pet.garden.careMinimumRemaining'
+  : preview.blockedReason === 'wrong_tree' ? 'pet.garden.fertilizerOrdinaryOnly'
+  : preview.blockedReason === 'fertilized_round' ? 'pet.garden.fertilizedRound'
   : 'pet.garden.careReductionLimitReached';
 
-const getStrongestFertilizerType = (current: GardenFertilizerId | undefined, next: GardenFertilizerId): GardenFertilizerId =>
-  current === 'heart' || next === 'heart' ? 'heart' : 'normal';
-
+// Mix adjacent draw seeds so each slot is a separate draw rather than nearby hash buckets.
+const gardenDropRoll = (seed: string) => {
+  let value = hashString(seed);
+  value = Math.imul(value ^ (value >>> 16), 0x85ebca6b);
+  value = Math.imul(value ^ (value >>> 13), 0xc2b2ae35);
+  return (value ^ (value >>> 16)) >>> 0;
+};
 const pickWeightedDrop = (pool: readonly DropPoolEntry[], seed: string, rareWeightBonusPercent: number) => {
   const weightedPool = pool.map((entry) => ({ ...entry, weight: entry.rare ? entry.weight * (1 + rareWeightBonusPercent / 100) : entry.weight }));
   const total = weightedPool.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
-  let target = hashString(seed) % Math.max(1, Math.round(total * 100));
+  let target = gardenDropRoll(seed) % Math.max(1, Math.round(total * 100));
   for (const entry of weightedPool) { target -= Math.max(0, Math.round(entry.weight * 100)); if (target < 0) return entry.itemId; }
   return weightedPool[weightedPool.length - 1]?.itemId ?? 'orange';
 };
 const getExtraDropItem = (treeId: GardenTreeId, seed: string) => {
-  if (treeId === 'golden_apple_tree') return hashString(seed + ':golden-extra') % 100 < 25 ? 'golden_apple' : 'apple';
+  if (treeId === 'golden_apple_tree') return gardenDropRoll(seed + ':golden-extra') % 100 < 50 ? 'golden_apple' : 'apple';
   const commonPool = gardenTreeDefinitions[treeId].dropPool.filter((entry) => !entry.rare);
   return pickWeightedDrop(commonPool.length > 0 ? commonPool : gardenTreeDefinitions[treeId].dropPool, seed, 0);
 };
@@ -304,21 +322,11 @@ const getExtraDropChance = (slot: GardenSlot, garden: GardenState) => {
   if (slot.hasNutrientBoost) return 100;
   if (slot.treeId === 'money_tree' || slot.treeId === 'golden_apple_tree') return 0;
   if (slot.fertilizerType === 'normal') return getNormalFertilizerChance(garden.tools);
-  if (slot.fertilizerType === 'heart') return 20;
+  if (slot.fertilizerType === 'heart') return 100;
   return 0;
 };
 const pickInRange = (seed: string, min: number, max: number) => min + (hashString(seed) % (max - min + 1));
 const pickMoneyTreeCoins = (seed: string) => { const roll = hashString(seed + ':money-roll') % 100; if (roll < 70) return pickInRange(seed + ':money-common', 600, 1200); if (roll < 95) return pickInRange(seed + ':money-good', 1200, 2200); return pickInRange(seed + ':money-jackpot', 4000, 6000); };
-const pickGoldenAppleTreeAppleSlot = (seed: string): ItemId => hashString(seed) % 100 < 25 ? 'golden_apple' : 'apple';
-const pickGoldenAppleTreeDrops = (slot: GardenSlot, seed: string): GardenDrop[] => {
-  const harvestNumber = slot.harvestsUsed + 1;
-  const appleSlots = harvestNumber >= slot.maxHarvests - 1 ? 2 : 1;
-  const drops: GardenDrop[] = [{ itemId: 'golden_apple', amount: 1 }];
-  for (let index = 0; index < appleSlots; index += 1) {
-    drops.push({ itemId: pickGoldenAppleTreeAppleSlot(seed + ':apple-slot:' + index), amount: 1 });
-  }
-  return drops;
-};
 const resolveExtraDrops = (pet: PetState, slot: GardenSlot, seed: string, now: number) => {
   const environmentChance = getGardenEnvironmentEffects(pet, now).extraDropChancePercent;
   const achievementChance = getAchievementEffects(pet).gardenExtraDropChancePercent;
@@ -340,11 +348,12 @@ const generateGardenDrops = (pet: PetState, slot: GardenSlot, now: number): { dr
   const seed = [slot.slotIndex, slot.treeId, slot.plantedAt, slot.nextReadyAt, slot.harvestsUsed].join(':');
   const extra = resolveExtraDrops(pet, slot, seed, now);
   if (slot.treeId === 'money_tree') { const baseCoins = pickMoneyTreeCoins(seed); const coins = Math.floor(baseCoins * (1 + extra.extraDropCount * 0.25)); return { drops: [{ kind: 'coins', amount: coins }], boostCards: extra.boostCards }; }
-  if (slot.treeId === 'golden_apple_tree') { const drops: GardenDrop[] = pickGoldenAppleTreeDrops(slot, seed); for (let index = 0; index < extra.extraDropCount; index += 1) drops.push({ itemId: getExtraDropItem(slot.treeId, seed + ':common:' + index), amount: 1 }); return { drops: mergeDrops(drops).slice(0, 4), boostCards: extra.boostCards }; }
+  if (slot.treeId === 'golden_apple_tree') { const drops: GardenDrop[] = [{ itemId: 'golden_apple', amount: 2 }, { itemId: 'apple', amount: 1 }]; for (let index = 0; index < extra.extraDropCount; index += 1) drops.push({ itemId: getExtraDropItem(slot.treeId, seed + ':common:' + index), amount: 1 }); return { drops: mergeDrops(drops).slice(0, gardenPendingDropKindLimit), boostCards: extra.boostCards }; }
   const rareWeightBonusPercent = slot.fertilizerType === 'heart' ? getHeartRareWeightBonusPercent(pet.garden.tools) : 0;
-  const drops: GardenDrop[] = [{ itemId: pickWeightedDrop(gardenTreeDefinitions[slot.treeId].dropPool, seed, rareWeightBonusPercent), amount: 1 }];
+  const definition = gardenTreeDefinitions[slot.treeId];
+  const drops: GardenDrop[] = Array.from({ length: definition.baseDropCount }, (_, index) => ({ itemId: pickWeightedDrop(definition.dropPool, seed + ':base:' + index, rareWeightBonusPercent), amount: 1 }));
   for (let index = 0; index < extra.extraDropCount; index += 1) drops.push({ itemId: getExtraDropItem(slot.treeId, seed + ':common:' + index), amount: 1 });
-  return { drops: mergeDrops(drops).slice(0, 4), boostCards: extra.boostCards };
+  return { drops: mergeDrops(drops).slice(0, gardenPendingDropKindLimit), boostCards: extra.boostCards };
 };
 const resetRoundBoosts = (slot: GardenSlot): GardenSlot => ({ ...slot, fertilizerType: undefined, hasNutrientBoost: false, careReductionMs: 0 });
 export const advanceGarden = (pet: PetState, now = Date.now()): PetState => {
@@ -415,7 +424,8 @@ export const fertilizeTree = (pet: PetState, slotIndex: number, fertilizerId: Ga
   const slot = current.garden.slots[slotIndex];
   const dateKey = getEffectiveDailyDateKey(current, now);
   if (!slot || slot.state !== 'growing' || !slot.treeId) return failGardenAction(current, 'pet.garden.cannotFertilize');
-  if (slot.lastFertilizedDateKey === dateKey) return failGardenAction(current, 'pet.garden.fertilizedToday');
+  if (!isOrdinaryGardenTree(slot.treeId)) return failGardenAction(current, 'pet.garden.fertilizerOrdinaryOnly');
+  if (slot.fertilizerType) return failGardenAction(current, 'pet.garden.fertilizedRound');
   const itemId = gardenFertilizerItemIds[fertilizerId];
   if (getInventoryCount(current.inventory, itemId) <= 0) return failGardenAction(current, 'pet.garden.missingGardenItem', { item: getItemName(itemId) });
   const preview = getGardenCarePreview(current, slot, fertilizerId, now);
@@ -423,12 +433,21 @@ export const fertilizeTree = (pet: PetState, slotIndex: number, fertilizerId: Ga
   return grantPracticeSkillXp({
     ...current,
     inventory: removeInventoryItem(current.inventory, itemId),
-    garden: updateGardenSlot({ ...current.garden, dailyCareDateKey: dateKey, dailyFertilizeCount: current.garden.dailyFertilizeCount + 1 }, slotIndex, (target) => ({ ...target, fertilizerType: getStrongestFertilizerType(target.fertilizerType, fertilizerId), lastFertilizedAt: now, lastFertilizedDateKey: dateKey, careReductionMs: target.careReductionMs + preview.actualReductionMs, nextReadyAt: target.nextReadyAt - preview.actualReductionMs })),
+    garden: updateGardenSlot({ ...current.garden, dailyCareDateKey: dateKey, dailyFertilizeCount: current.garden.dailyFertilizeCount + 1 }, slotIndex, (target) => ({ ...target, fertilizerType: fertilizerId, lastFertilizedAt: now, lastFertilizedDateKey: dateKey, careReductionMs: target.careReductionMs + preview.actualReductionMs, nextReadyAt: target.nextReadyAt - preview.actualReductionMs })),
     recentEvent: t('pet.garden.fertilizeSuccess', { item: getItemName(itemId), time: formatGardenCareDuration(preview.actualReductionMs) }),
     lastInteractionAt: now,
   }, 'garden');
 };
-export const useGardenNutrient = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; const dateKey = getEffectiveDailyDateKey(current, now); if (!slot || slot.state !== 'growing' || !slot.treeId) return failGardenAction(current, 'pet.garden.cannotBoost'); if (slot.lastBoostedDateKey === dateKey) return failGardenAction(current, 'pet.garden.boostedToday'); if (getInventoryCount(current.inventory, gardenNutrientItemId) <= 0) return failGardenAction(current, 'pet.garden.missingGardenItem', { item: getItemName(gardenNutrientItemId) }); return { ...current, inventory: removeInventoryItem(current.inventory, gardenNutrientItemId), garden: updateGardenSlot(current.garden, slotIndex, (target) => ({ ...target, hasNutrientBoost: true, lastBoostedAt: now, lastBoostedDateKey: dateKey })), recentEvent: t('pet.garden.nutrientSuccess', { item: getItemName(gardenNutrientItemId) }), lastInteractionAt: now }; };
+export const useGardenNutrient = (pet: PetState, slotIndex: number, now = Date.now()): PetState => {
+  const current = advanceGarden(pet, now);
+  const slot = current.garden.slots[slotIndex];
+  const dateKey = getEffectiveDailyDateKey(current, now);
+  if (!slot || slot.state !== 'growing' || !slot.treeId) return failGardenAction(current, 'pet.garden.cannotBoost');
+  if (isOrdinaryGardenTree(slot.treeId)) return failGardenAction(current, 'pet.garden.nutrientAdvancedOnly');
+  if (slot.hasNutrientBoost) return failGardenAction(current, 'pet.garden.boostedRound');
+  if (getInventoryCount(current.inventory, gardenNutrientItemId) <= 0) return failGardenAction(current, 'pet.garden.missingGardenItem', { item: getItemName(gardenNutrientItemId) });
+  return { ...current, inventory: removeInventoryItem(current.inventory, gardenNutrientItemId), garden: updateGardenSlot(current.garden, slotIndex, (target) => ({ ...target, hasNutrientBoost: true, lastBoostedAt: now, lastBoostedDateKey: dateKey })), recentEvent: t('pet.garden.nutrientSuccess', { item: getItemName(gardenNutrientItemId) }), lastInteractionAt: now };
+};
 const addDropsToInventory = (inventory: PetState['inventory'], drops: readonly GardenDrop[]) => drops.reduce((next, drop) => drop.itemId ? addInventoryItem(next, drop.itemId, drop.amount) : next, inventory);
 const getDropItemCount = (drops: readonly GardenDrop[]) => drops.reduce((sum, drop) => sum + (drop.itemId ? drop.amount : 0), 0);
 const getDropCoinAmount = (drops: readonly GardenDrop[]) => drops.reduce((sum, drop) => sum + (drop.kind === 'coins' ? drop.amount : 0), 0);
@@ -458,7 +477,7 @@ export const harvestTree = (pet: PetState, slotIndex: number, now = Date.now()):
   }, slot.treeId);
   return grantPracticeSkillXp(coinAmount > 0 ? recordEarnedCoins(nextPet, coinAmount) : nextPet, 'garden');
 };
-export const clearWitheredTree = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; if (!slot || !slot.treeId || slot.state === 'empty') return failGardenAction(current, 'pet.garden.cannotClear'); const cost = getGardenClearCost(current.garden.tools); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const eventKey = slot.state === 'withered' ? 'pet.garden.clearSuccess' : 'pet.garden.removeSuccess'; const dateKey = getEffectiveDailyDateKey(current, now); return { ...current, coins: clampCoins(current.coins - cost), garden: updateGardenSlot(current.garden, slotIndex, () => ({ ...defaultGardenSlot(slotIndex, now, dateKey), unlocked: true })), recentEvent: t(eventKey, { coins: cost }), lastInteractionAt: now }; };
+export const clearWitheredTree = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; if (!slot || !slot.treeId || slot.state === 'empty') return failGardenAction(current, 'pet.garden.cannotClear'); const cost = getGardenClearCost(current.garden.tools, slot.treeId); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const eventKey = slot.state === 'withered' ? 'pet.garden.clearSuccess' : 'pet.garden.removeSuccess'; const dateKey = getEffectiveDailyDateKey(current, now); return { ...current, coins: clampCoins(current.coins - cost), garden: updateGardenSlot(current.garden, slotIndex, () => ({ ...defaultGardenSlot(slotIndex, now, dateKey), unlocked: true })), recentEvent: t(eventKey, { coins: cost }), lastInteractionAt: now }; };
 export const upgradeGardenTool = (pet: PetState, toolId: GardenToolId, now = Date.now()): PetState => { const current = advanceGarden(pet, now); const currentLevel = getToolLevel(current.garden.tools, toolId); if (currentLevel >= maxGardenToolLevel) return failGardenAction(current, 'pet.garden.toolMaxLevel'); const cost = getGardenToolUpgradeCost(current.garden.tools, toolId); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const nextLevel = currentLevel + 1; return { ...current, coins: clampCoins(current.coins - cost), garden: { ...current.garden, tools: setToolLevel(current.garden.tools, toolId, nextLevel) }, recentEvent: t('pet.garden.toolUpgradeSuccess', { tool: t('ui.garden.tools.' + toolId + '.name'), level: nextLevel, coins: cost }), lastInteractionAt: now }; };
 const getGardenGrowthProgress = (slot: GardenSlot, now: number) => {
   const naturalReadyAt = slot.naturalReadyAt > slot.plantedAt ? slot.naturalReadyAt : slot.nextReadyAt + Math.max(0, slot.careReductionMs);

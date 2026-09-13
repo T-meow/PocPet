@@ -99,6 +99,56 @@ for (const mode of ['development', 'toy']) {
     const paths = ['core/pet', 'i18n/index', 'assets', 'ui/HomePageV2', 'ui/CompanionStatus', 'ui/GardenPage', 'ui/PartnerSchedulePage', 'ui/BoostCardModal', 'ui/GoldenAppleGachaModal', 'ui/SettingsModal', 'ui/MemoryAlbum', 'ui/RolePicker', 'ui/CommonDreamsPage', 'ui/NoticeCenter', 'ui/YearReviewModal', 'ui/App', 'ui/EditionNoticeDialog'];
     const modules = await Promise.all(paths.map((path) => server.ssrLoadModule(`/src/${path}.${path.startsWith('ui/') ? 'tsx' : 'ts'}`)));
     const [core, locale, assets, home, status, garden, schedule, cards, gacha, settings, album, roles, dreams, notices, annual, app, editionNotice] = modules;
+    const textFiles = await server.ssrLoadModule('/src/platform/saveTextFile.ts');
+    const edition = await server.ssrLoadModule('/src/platform/edition.ts');
+    assert.equal(edition.features.saveFileDownload, mode !== 'toy');
+    assert.equal(edition.requiresAuthorFollowVerification(), mode === 'toy', 'Bilibili still requires verification even before its SDK loads');
+    if (mode === 'toy') {
+      assert.equal(textFiles.canShareTextFile('test.pocpet', 'test'), false);
+      await assert.rejects(textFiles.saveTextFile('test.pocpet', 'test'), /B 站|Bilibili/);
+      await assert.rejects(textFiles.shareTextFile('test.pocpet', 'test'), /B 站|Bilibili/);
+    }
+    const { useToyIntegration } = await server.ssrLoadModule('/src/ui/app/useToyIntegration.ts');
+    const priorRewardWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const rewardPetRef = { current: core.createDefaultPet(now) };
+    const pending = new Map<string, string>();
+    const rewards: number[] = [];
+    let opened = 0;
+    let failOpen = false;
+    const openAuthor = () => { if (failOpen) throw new Error('open failed'); opened++; };
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+      localStorage: { getItem: (key: string) => pending.get(key) ?? null, setItem: (key: string, value: string) => pending.set(key, value), removeItem: (key: string) => pending.delete(key) },
+      open: openAuthor,
+      ...(mode === 'toy' ? { toy: { navigate: async () => openAuthor() } } : {}),
+    } });
+    try {
+      let integration: any;
+      const RewardHarness = () => {
+        integration = useToyIntegration({ pet: rewardPetRef.current, petRef: rewardPetRef, activeMod: null,
+          setPet: (update: any) => {
+            const before = rewardPetRef.current;
+            const first = typeof update === 'function' ? update(before) : update;
+            const replay = typeof update === 'function' ? update(before) : update;
+            assert.deepEqual(first, replay, 'React updater replay preserves the same reward state');
+            rewardPetRef.current = replay;
+          },
+          commitPet: (pet: any) => pet, onMessage: noop, onAuthorReward: (tickets: number) => rewards.push(tickets),
+        });
+        return null;
+      };
+      renderToStaticMarkup(createElement(RewardHarness));
+      failOpen = true;
+      await integration.openAuthorSpace();
+      assert.deepEqual(rewards, [], 'a failed author navigation grants nothing');
+      failOpen = false;
+      await Promise.all([integration.openAuthorSpace(), integration.openAuthorSpace()]);
+      assert.equal(opened, 2);
+      assert.deepEqual(rewards, mode === 'toy' ? [] : [10], 'standard grants ten tickets once; Bilibili waits for verification');
+      assert.equal(rewardPetRef.current.claimedRewardIds.includes(core.authorFollowGiftRewardId), mode !== 'toy');
+    } finally {
+      if (priorRewardWindow) Object.defineProperty(globalThis, 'window', priorRewardWindow);
+      else Reflect.deleteProperty(globalThis, 'window');
+    }
     const rich = core.normalizePet({ ...core.createDefaultPet(now), level: 20, coins: 100000, hearts: 1000, energy: 190, hunger: 190, mood: 190, cleanliness: 190, health: 190 }, now);
     const render = (component: any, props: any) => {
       // Browser file-picker capability probing needs window, but no DOM or storage.
@@ -154,7 +204,7 @@ for (const mode of ['development', 'toy']) {
       assert.equal((gardenHtml.match(/<article class="garden-plot /g) ?? []).length, 5);
       assert.ok(!gardenHtml.includes('garden-selected-detail'));
       const gardenDay = core.getEffectiveDailyDateKey(rich, now);
-      const mixedGarden = { ...rich, coins: 0, garden: { ...rich.garden, activeSlotIndex: 4, slots: rich.garden.slots.map((slot: any, index: number) => ({
+      const mixedGarden = { ...rich, coins: 0, inventory: { ...rich.inventory, normal_fertilizer: 5, heart_fertilizer: 5, harvest_nutrient: 5 }, garden: { ...rich.garden, activeSlotIndex: 4, slots: rich.garden.slots.map((slot: any, index: number) => ({
         ...slot, unlocked: index < 4,
         state: ['empty', 'growing', 'ready', 'withered', 'empty'][index],
         treeId: [undefined, 'fruit_tree', 'money_tree', 'fruit_tree', undefined][index],
@@ -162,6 +212,7 @@ for (const mode of ['development', 'toy']) {
         harvestsUsed: index === 3 ? 8 : 1, maxHarvests: 8,
         lastWateredDateKey: index === 1 ? gardenDay : '',
         lastFertilizedDateKey: index === 1 ? gardenDay : '',
+        fertilizerType: index === 1 ? 'normal' : undefined,
         lastBoostedDateKey: index === 1 ? gardenDay : '',
         pendingDrops: index === 2 ? [{ kind: 'coins', amount: 123 }] : [],
       })) } };
@@ -171,9 +222,10 @@ for (const mode of ['development', 'toy']) {
       for (const [index, state] of ['empty', 'growing', 'ready', 'withered', 'locked'].entries()) assert.ok(plots[index].includes(`garden-plot--${state}`));
       assert.ok(plots[0].includes(locale.t('ui.garden.chooseSapling')));
       assert.ok(plots[1].includes(locale.t('ui.garden.actions.water')) && plots[1].includes('1/8'));
-      assert.equal((plots[1].match(/class="garden-choice" disabled=""/g) ?? []).length, 4, 'daily care limits stay attached to each plot');
+      assert.equal((plots[1].match(/class="garden-choice" disabled=""/g) ?? []).length, 3, 'daily watering and per-round fertilizer limits stay attached to each plot');
+      assert.ok(!plots[1].includes(locale.t('ui.garden.actions.nutrient')), 'ordinary trees only offer watering and the two fertilizers');
       assert.ok(plots[2].includes('garden-plot-drops') && plots[2].includes('+123') && plots[2].includes(locale.t('ui.garden.actions.harvest')));
-      assert.ok(plots[3].includes(locale.t('ui.garden.actions.clear', { coins: core.getGardenClearCost(mixedGarden.garden.tools) })));
+      assert.ok(plots[3].includes(locale.t('ui.garden.actions.clear', { coins: core.getGardenClearCost(mixedGarden.garden.tools, 'fruit_tree') })));
       assert.ok(plots[4].includes('disabled=""') && plots[4].includes(locale.t('ui.garden.unlockSlot', { coins: core.gardenSlotUnlockCosts[4] })));
       assert.ok(mixedGardenHtml.includes(locale.t('ui.garden.compensationGiftLabel', { coins: 100 })), 'compensation remains available on the board');
       assert.ok(render(schedule.PartnerSchedulePage, { pet: rich, itemIconMap: assets.itemIcons, neighbors: [] }).includes('schedule-category-tabs'));
@@ -189,11 +241,15 @@ for (const mode of ['development', 'toy']) {
         if (page === 'main') assert.equal(html.includes('readonly=""'), mode === 'toy');
         if (page === 'mod') assert.equal(html.includes('type="file"'), mode !== 'toy');
         if (page === 'save') {
+          assert.equal(html.includes(`>${locale.t('ui.settings.save.download')}</button>`), mode !== 'toy');
+          assert.equal(html.includes(locale.t('ui.settings.save.fileDownloadDisabled')), mode === 'toy');
+          assert.ok(html.includes(locale.t('ui.settings.save.exportText')), 'text export remains available');
           assert.equal(html.includes('class="settings-cloud-panel"'), mode === 'toy');
           assert.ok(html.includes(locale.t('ui.settings.save.formatV2')));
           assert.ok(html.includes(locale.t('ui.settings.save.newProgress')));
           assert.equal(html.includes('4.0 / 60 KiB'), mode === 'toy');
         }
+        if (page === 'help') assert.ok(html.includes(locale.t(mode === 'toy' ? 'ui.settings.author.rewardAvailable' : 'ui.settings.author.visitRewardAvailable', { count: core.authorFollowGiftTickets })));
       }
       const memoryPet = { ...rich, latestYearReview: oldReview, companionMemories: { schemaVersion: 1, entries: [
         { id: 'one', actorId: 'official.furo', kind: 'first_taste', subject: 'dish_egg_rice', at: now, mentionedAt: 0 },

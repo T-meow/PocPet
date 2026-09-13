@@ -1,4 +1,7 @@
 /* 小窝与陪伴弹窗：独立功能配色，避免影响原有页面。 */
+.item-recovery-preview { padding: 10px 12px; border-radius: 12px; background: #f2f6ef; color: #426148; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.item-recovery-preview p { margin: 0; }
+.item-recovery-preview small { display: block; color: #856e52; }
 .app-shell--home-v2 { max-width: 1120px; padding-bottom: 32px; }
 .home-brand-flower { color: #588467; }
 .home-ticket-pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfd5ee; border-radius: 30px; padding: 8px 10px; background: #f3eafa; color: #795394; font-weight: 700; }

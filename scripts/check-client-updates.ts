@@ -29,4 +29,16 @@ assert.equal(selectClientUpdate(null, '1.6.1', mac), null);
 const windows = { platform: 'windows', arch: 'x86_64' };
 assert.equal(selectClientUpdate({ ...release, assets: [] }, '1.6.1', windows)?.asset, undefined);
 assert.equal(selectClientUpdate({ ...release, assets: [{ ...release.assets[0], browser_download_url: 'https://example.com/fake.exe' }] }, '1.6.1', windows)?.asset, undefined);
-console.log('Client update checks passed: versions, platforms, legacy releases, publication manifest and invalid assets.');
+const patchVersion = '1.7.1';
+const patchRelease = {
+  ...release,
+  tag_name: `v${patchVersion}`,
+  assets: release.assets.map((asset) => ({ ...asset, name: asset.name.replace(version, patchVersion), browser_download_url: asset.browser_download_url.replaceAll(version, patchVersion) })),
+};
+const patchManifest = createUpdateManifest(patchVersion, 'test-patch', patchRelease.assets, 'arm64');
+for (const target of [...targets.map(([platform, arch]) => ({ platform, arch })), mac]) {
+  const update = selectClientUpdate(patchRelease, version, target, patchManifest);
+  assert.equal(update?.version, patchVersion);
+  assert.ok(update?.asset, `Patch release must update ${target.platform}/${target.arch}`);
+}
+console.log('Client update checks passed: versions, platforms, legacy releases, publication manifest, patch updates and invalid assets.');

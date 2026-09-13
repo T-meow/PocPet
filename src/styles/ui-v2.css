@@ -196,20 +196,33 @@
 
 .v2-top-bar .top-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
   overflow: visible;
 }
 
+.v2-top-bar .top-actions>* {
+  flex-shrink: 0;
+}
+
 .v2-top-bar :is(.coin-pill,.heart-pill,.home-ticket-pill) {
+  min-width: 0;
+  max-width: none;
+  height: 38px;
   min-height: 38px;
+  gap: 5px;
   padding: 7px 11px;
   box-shadow: none;
   font-size: 13px;
   border-radius: 24px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.v2-top-bar :is(.coin-pill,.heart-pill) strong {
+  font-size: inherit;
 }
 
 .v2-top-bar .coin-pill {
@@ -2183,6 +2196,36 @@
   max-width: 560px;
 }
 
+.ui-v2-app .storage-modal.storage-item-modal {
+  width: min(560px,100%);
+  height: auto;
+  max-height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
+}
+.storage-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #dce4ed;
+}
+.storage-item-header h2 { margin: 0; font-size: 18px; }
+.storage-item-modal .storage-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  border: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.storage-item-modal .storage-detail-copy { flex: none; overflow: visible; }
+.storage-item-modal .storage-detail-actions { border-left: 0; border-top: 1px solid var(--storage-line); overflow: visible; }
+.storage-item-modal .storage-detail-art { width: 96px; height: 96px; }
+.storage-item-modal .storage-detail-art img { width: 80px; height: 80px; }
+
 .kitchen-recipe-modal .recipe-detail {
   align-self: stretch;
   border: 0;
@@ -2506,6 +2549,18 @@
 }
 
 @media (max-width:820px) {
+  .v2-top-bar {
+    min-height: 0;
+  }
+  .v2-brand {
+    display: none;
+  }
+  .v2-top-bar .top-actions {
+    width: 100%;
+  }
+  .v2-top-bar .home-ticket-pill {
+    margin-right: auto;
+  }
   .home-v2-grid {
     grid-template-columns: minmax(0,1fr);
     grid-template-areas: 'companion' 'today' 'activities';
@@ -2584,20 +2639,15 @@
     padding: 0 14px 25px;
   }
   .v2-top-bar {
-    display: grid;
-    grid-template-columns: minmax(0,1fr);
-    gap: 12px;
-    padding-bottom: 14px;
+    display: flex;
     margin-bottom: 22px;
-  }
-  .v2-brand small {
-    display: block;
   }
   .v2-top-bar .top-actions {
     justify-content: flex-start;
     gap: 6px;
   }
   .v2-top-bar :is(.coin-pill,.heart-pill,.home-ticket-pill) {
+    height: 34px;
     min-height: 34px;
     padding: 6px 9px;
     font-size: 12px;
@@ -2620,9 +2670,6 @@
   }
   .top-shop-button span {
     display: none;
-  }
-  .v2-top-bar .home-ticket-pill {
-    margin-right: auto;
   }
   .home-v2-title {
     gap: 9px;
@@ -2830,25 +2877,16 @@
     max-height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
   }
   .ui-v2-app .storage-body {
-    display: block;
+    display: flex;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
   .storage-modal .storage-grid-scroll {
-    max-height: min(330px,40dvh);
-    min-height: 130px;
+    min-height: 0;
   }
   .storage-modal .storage-item-grid {
     grid-template-columns: repeat(3,minmax(0,1fr));
-  }
-  .ui-v2-app .storage-detail {
-    height: auto;
-    min-height: 235px;
-    grid-template-columns: minmax(0,1fr) 145px;
-  }
-  .storage-detail .storage-detail-copy {
-    max-height: 330px;
   }
   .storage-detail .storage-detail-actions {
     overflow: visible;
@@ -2860,6 +2898,12 @@
   }
   .storage-detail .storage-quantity-row {
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width:480px) {
+  .v2-top-bar .top-secondary-action {
+    display: none;
   }
 }
 

@@ -26,7 +26,7 @@
 .storage-stat i { display: block; height: 4px; margin-top: 6px; background: #ece9df; border-radius: 6px; overflow: hidden; }
 .storage-stat b { display: block; height: 100%; background: currentColor; border-radius: inherit; }
 .storage-stat--mood { color: #bd7b94; }.storage-stat--cleanliness { color: #6e9fb4; }.storage-stat--energy { color: #b39546; }.storage-stat--health { color: #79a280; }
-.storage-body { display: grid; grid-template-columns: minmax(0,1fr) 290px; min-height: 0; flex: 1; }
+.storage-body { display: grid; grid-template-columns: minmax(0,1fr); min-height: 0; flex: 1; }
 .storage-catalogue { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 18px 20px 14px; }
 .storage-tools { display: flex; flex-direction: column; gap: 11px; padding-bottom: 14px; flex-shrink: 0; }
 .storage-tabs { display: flex; gap: 3px; flex-wrap: wrap; }
@@ -84,7 +84,6 @@
 .storage-empty,.storage-detail-empty { display: grid; justify-items: center; align-content: center; gap: 12px; min-height: 180px; padding: 20px; font-size: 12px; line-height: 1.8; color: var(--storage-muted); text-align: center; }
 .storage-detail-empty { flex: 1; }
 @media (max-width: 1023px) {
-  .storage-body { grid-template-columns: minmax(0,1fr) 254px; }
   .storage-item-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .storage-header { gap: 10px; padding: 16px 20px; }
   .storage-detail-copy { padding: 18px; }

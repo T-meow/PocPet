@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { isBilibiliAppWebView } from './edition';
+import { features, isBilibiliAppWebView } from './edition';
 
 export type SaveTextFileResult = 'saved' | 'cancelled' | 'downloaded' | 'shared';
 
@@ -44,6 +44,7 @@ const downloadTextFile = (fileName: string, text: string) => {
 };
 
 const getShareableTextFile = (fileName: string, text: string) => {
+  if (!features.saveFileDownload) return;
   if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return;
   // Android share targets may reject an unknown extension even for plain text.
   for (const name of [fileName, `${fileName}.txt`]) {
@@ -57,6 +58,7 @@ const getShareableTextFile = (fileName: string, text: string) => {
 export const canShareTextFile = (fileName: string, text: string) => Boolean(getShareableTextFile(fileName, text));
 
 export const shareTextFile = async (fileName: string, text: string): Promise<SaveTextFileResult> => {
+  if (!features.saveFileDownload) throw new Error(t('ui.settings.save.fileDownloadDisabled'));
   const file = getShareableTextFile(fileName, text);
   if (!file) throw new Error('File sharing is unavailable.');
   try {
@@ -70,6 +72,7 @@ export const shareTextFile = async (fileName: string, text: string): Promise<Sav
 };
 
 export const saveTextFile = async (fileName: string, text: string): Promise<SaveTextFileResult> => {
+  if (!features.saveFileDownload) throw new Error(t('ui.settings.save.fileDownloadDisabled'));
   if (!('__TAURI_INTERNALS__' in window)) {
     downloadTextFile(fileName, text);
     return 'downloaded';

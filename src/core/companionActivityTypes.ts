@@ -1,7 +1,7 @@
 export type CookingMethod = 'mix' | 'pan' | 'blender' | 'oven';
-export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'banana_shake' | 'watermelon_juice' | 'biscuit_cup' | 'egg_rice' | 'carrot_rice' | 'fruit_pancake' | 'milk_cookies' | 'carrot_omelet' | 'rice_pancake' | 'fruit_pudding' | 'apple_pie';
+export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'banana_shake' | 'watermelon_juice' | 'biscuit_cup' | 'egg_rice' | 'carrot_rice' | 'fruit_pancake' | 'milk_cookies' | 'carrot_omelet' | 'rice_pancake' | 'fruit_pudding' | 'apple_pie' | 'tomato_egg_bowl' | 'pork_rice_bowl';
 export type DishId = `dish_${RecipeId}` | 'dish_fruit_pancake_banana' | 'dish_fruit_pudding_banana';
-export type KitchenMaterialId = 'rice' | 'egg' | 'flour' | 'carrot';
+export type KitchenMaterialId = 'rice' | 'egg' | 'flour' | 'carrot' | 'tomato' | 'greens';
 export interface KitchenState {
   schemaVersion: 1;
   starterClaimed: boolean;

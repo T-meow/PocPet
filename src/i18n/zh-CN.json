@@ -30,8 +30,8 @@
       "formatTimeline": "1.9 仍兼容旧档并支持转换；2.0 将只读取新版存档。已有旧备份文件不会自动改写，请保留原文件。转换后请使用升级后的客户端继续游玩和同步。",
       "compensationTitle": "旧档补偿与箱装饼干",
       "compensationAdvice": "有效旧存档首次迁移成功后，自动赠送 3 箱苏打饼干（直接到账 120 块）和 10 个草莓牛奶。每份存档只发一次，新建进度不发。库存不足时，余量会在腾出空间后自动到账。",
-      "boxAdvice": "商店新增「一箱苏打饼干」，原价 500 金币，购买后直接到账 40 块，可喂食或用于做饭。",
-      "downloadFallback": "B 站 App 无法下载文件时，可复制存档文本，或换用网页浏览器导出。",
+      "boxAdvice": "商店提供「一箱苏打饼干」，原价 280 金币，购买后直接到账 40 块，可喂食或用于做饭。",
+      "downloadFallback": "B 站仅支持保存图片，存档文件下载已禁用。请复制存档文本或使用云存档备份。",
       "localBackupAdvice": "卸载应用或清理数据可能同时删除自动备份，请另行导出重要进度。",
       "policyTitle": "B 站版功能调整",
       "policyChanges": "由于 B 站政策原因，已关闭宠物改名和新增非内置 Mod 导入。",
@@ -232,6 +232,7 @@
         "phoneDownloadRequested": "已请求下载。若手机未出现文件，请尝试系统文件分享，或复制存档文本。",
         "saveCancelled": "已取消保存存档。",
         "saveFailed": "保存存档文件失败。",
+        "fileDownloadDisabled": "B 站仅支持保存图片，已禁用存档文件下载。请复制存档文本或使用云存档备份。",
         "imported": "存档已导入。",
         "importedMissingMod": "存档已导入，但它引用了 {name} v{version}。如需外观一致，请导入对应 Mod zip。",
         "importedMissingModFallbackMint": "存档已导入，但它引用的 {name} v{version} 不可用，已回退为内置 Mint。如需原外观，请导入对应 Mod zip。",
@@ -287,6 +288,11 @@
         "loading": "正在读取视频信息",
         "rewardAvailable": "打开作者主页，返回后关注可领取 {count} 张扭蛋券",
         "rewardClaimed": "关注奖励已领取",
+        "visitRewardAvailable": "打开作者主页，即可领取 {count} 张扭蛋券（十连抽），仅限一次",
+        "visitRewardClaimed": "作者主页访问奖励已领取",
+        "visitClaimed": "已领取作者主页访问奖励，扭蛋券 +{count}。",
+        "visitRewardTitle": "感谢支持 PocPet",
+        "visitRewardMessage": "感谢访问作者主页，送你 {count} 张扭蛋券。",
         "followNotFound": "暂未检测到关注，关注作者后可以再次打开主页核验。",
         "claimSynced": "已根据云端记录同步关注奖励领取状态。",
         "claimed": "已验证关注，获得 {count} 张扭蛋券。",
@@ -354,6 +360,8 @@
       "downloadStarted": "纪念卡已开始下载",
       "saveCancelled": "已取消保存。",
       "saveFailed": "纪念卡保存失败，请重试",
+      "invalidImage": "图片数据无效或不完整，请重新生成后保存。",
+      "imageLoadFailed": "无法读取图片，请重试。",
       "cardGenerating": "正在生成纪念卡",
       "saveConfirm": {
         "title": "保存这张图片？",
@@ -1018,7 +1026,7 @@
       },
       "trees": {
         "fruit_tree": {
-          "name": "神奇果树"
+          "name": "食材树"
         },
         "care_tree": {
           "name": "护理之树"
@@ -1174,7 +1182,7 @@
         },
         "ribbon_bell": {
           "name": "缎带铃铛",
-          "summary": "系着缎带的小铃铛"
+          "summary": "清脆的铃声带来好心情，每个固定获得 1 点基础心心，成就与增益卡加成另计。"
         },
         "toy_ball": {
           "name": "玩具球",
@@ -1182,7 +1190,7 @@
         },
         "picture_book": {
           "name": "绘本",
-          "summary": "适合安静翻看的绘本"
+          "summary": "安静阅读，恢复心情并获得 3 点学习经验；学习技能满 10 级后，每本改为 1 点基础心心，可享受产心加成。"
         },
         "shampoo": {
           "name": "泡泡香波",
@@ -1202,11 +1210,11 @@
         },
         "blanket": {
           "name": "暖毯",
-          "summary": "柔软的小毯子，让人想睡觉💤"
+          "summary": "裹上柔软的暖毯，大份恢复体力，也让心情舒展开来。"
         },
         "energy_drink": {
           "name": "能量饮料",
-          "summary": "奇妙风味的饮料"
+          "summary": "直接补充体力，适合临时恢复精神。"
         },
         "birthday_cake": {
           "name": "生日蛋糕",
@@ -1217,16 +1225,16 @@
           "summary": "种植获得的特殊苹果，全属性恢复并带来小心心"
         },
         "fruit_tree_sapling": {
-          "name": "神奇果树树苗",
-          "summary": "可在种植栏位种下，成熟后产出食物"
+          "name": "食材树树苗",
+          "summary": "基础每 12 小时收获 4 件水果或厨房食材，共 10 轮。"
         },
         "care_tree_sapling": {
           "name": "护理之树树苗",
-          "summary": "可在种植栏位种下，成熟后产出护理道具"
+          "summary": "基础每 12 小时收获 3 件护理用品，共 10 轮。"
         },
         "gift_tree_sapling": {
           "name": "神奇礼物树树苗",
-          "summary": "可在种植栏位种下，成熟后产出礼物道具"
+          "summary": "基础每 12 小时收获 3 件礼物，共 10 轮。"
         },
         "money_tree_sapling": {
           "name": "摇钱树树苗",
@@ -1234,19 +1242,19 @@
         },
         "golden_apple_tree_sapling": {
           "name": "金苹果树树苗",
-          "summary": "稀有树苗，成熟后有机会产出金苹果"
+          "summary": "基础首次等待 72 小时，之后每 48 小时收获 2 金苹果和 1 苹果，共 10 轮。"
         },
         "normal_fertilizer": {
           "name": "普通肥料",
-          "summary": "按本轮原始时长缩短 20%，单次最多 10 小时"
+          "summary": "普通树专用，每轮与爱心肥料二选一。减时 30%，升级肥料箱后为 35%／40%，并有机会多收 1 件普通产物。"
         },
         "heart_fertilizer": {
           "name": "爱心肥料",
-          "summary": "按本轮原始时长缩短 35%，单次最多 18 小时"
+          "summary": "普通树专用，每轮与普通肥料二选一。减时 40%，升级后为 45%／50%；保底多 1 件普通产物，并提高稀有产物权重。"
         },
         "harvest_nutrient": {
           "name": "丰收营养剂",
-          "summary": "种植页使用，下次收获获得额外产物"
+          "summary": "高级树专用，每轮一次。摇钱树基础金币 +25%；金苹果树多 1 个苹果，50% 为金苹果。"
         }
       },
       "categories": {
@@ -1664,6 +1672,8 @@
     "achievements": {
       "events": {
         "rewardClaimed": "成就「{title}」奖励已领取。",
+        "balanceRewardClaimed": "成就「{title}」的平衡补给已领取，原奖励保留。",
+        "rewardCapacity": "部分奖励所需的背包或扭蛋券空间不足，礼包已保留，请腾出空间后领取。",
         "rewardsClaimed": "已领取 {count} 项成就奖励。",
         "unlocked": "成就「{title}」已解锁。",
         "dailyStipendClaimed": "已领取每日成就津贴：{coins} 金币。"
@@ -1682,6 +1692,8 @@
         "cg": "解锁纪念内容",
         "badge": "纪念徽章",
         "hearts": "小心心 +{hearts}",
+        "gachaTickets": "扭蛋券 +{count}",
+        "balanceSupplement": "平衡补给：{reward}",
         "dailyLoginItemBonus": "每日登录道具 +{amount}",
         "hiddenReveal": "显示所有隐藏成就条件"
       },
@@ -2189,6 +2201,10 @@
       "waterSuccess": "免费浇水完成，成长时间缩短 {time}。",
       "cannotFertilize": "这棵树现在不能施肥。",
       "fertilizedToday": "这个栏位今天已经施肥了。",
+      "fertilizedRound": "这棵树本轮已经施肥，收获后可再次使用。",
+      "fertilizerOrdinaryOnly": "普通肥料和爱心肥料用于食材树、护理之树和礼物树。",
+      "nutrientAdvancedOnly": "丰收营养剂用于摇钱树和金苹果树。",
+      "boostedRound": "这棵树本轮已经使用营养剂，收获后可再次使用。",
       "careMinimumRemaining": "成长时间已达到最低 10 秒，无法继续加速。",
       "careReductionLimitReached": "本轮浇水与施肥加速已达到上限。",
       "cannotBoost": "这棵树现在不能使用营养剂。",

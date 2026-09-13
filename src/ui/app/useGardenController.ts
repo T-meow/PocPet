@@ -60,7 +60,7 @@ export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commit
       slotIndex,
       kind: slot.state === 'withered' ? 'clear' : 'remove',
       treeId: slot.treeId,
-      coins: getGardenClearCost(current.garden.tools),
+      coins: getGardenClearCost(current.garden.tools, slot.treeId),
     });
   };
 

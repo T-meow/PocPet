@@ -2,7 +2,7 @@ import { createSaveFileText, parseSaveFileText, type PocPetSaveModSummary } from
 import type { PetState } from '../core/pet';
 import { assertStorageUnchanged } from '../core/storage';
 import { localDateKey } from '../core/editionNotice';
-import { isNativeApp, isBilibiliAppWebView } from './edition';
+import { features, isNativeApp, isBilibiliAppWebView } from './edition';
 
 export const automaticBackupFileName = 'pocpet-auto-backup.pocpet';
 const preferencesKey = 'pocpet.automatic-backup.v1';
@@ -43,7 +43,7 @@ export const isBackupDue = (latest: BackupSnapshot | undefined, preferences: Bac
 export const trimBackupSnapshots = (snapshots: BackupSnapshot[]) =>
   [...new Map(snapshots.map((snapshot) => [snapshot.dateKey, snapshot])).values()]
     .sort((a, b) => b.savedAt - a.savedAt).slice(0, 7);
-export const canChooseBackupFile = () => !isNativeApp()
+export const canChooseBackupFile = () => features.saveFileDownload && !isNativeApp()
   && !isBilibiliAppWebView() && typeof (window as PickerWindow).showSaveFilePicker === 'function';
 
 const openDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -202,6 +202,7 @@ export const chooseBackupFile = async () => {
   return syncExternalFile(await readBackupState());
 };
 export const authorizeBackupFile = async () => {
+  if (!canChooseBackupFile()) throw new Error('File binding is unavailable.');
   const handle = await readSetting<BackupFileHandle>('file');
   if (handle) await handle.requestPermission({ mode: 'readwrite' });
   return syncExternalFile(await readBackupState());

@@ -4,6 +4,7 @@ import { t, getLanguage } from '../i18n';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { SaveFailureStage } from '../core/saveCodec';
 import type { SaveRecoveryCandidate } from '../platform/saveRecovery';
+import { features } from '../platform/edition';
 
 export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onRestore, onImport, onExport, onStartNew }: {
   candidates: SaveRecoveryCandidate[]; stage?: SaveFailureStage; unavailable: boolean; raw: string; message: string;
@@ -34,9 +35,10 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onR
     <div className="modal-actions">
       <button type="button" className="primary-button" disabled={busy || !selected || readOnly} onClick={() => { const candidate = candidates.find((item) => item.id === selected); if (candidate) void perform(() => onRestore(candidate)); }}><RotateCcw size={18} />{t('ui.backup.restore')}</button>
       <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.retry')}</button>
-      {raw && <button type="button" className="secondary-button" onClick={onExport}><Download size={18} />{t('ui.backup.original')}</button>}
+      {raw && features.saveFileDownload && <button type="button" className="secondary-button" onClick={onExport}><Download size={18} />{t('ui.backup.original')}</button>}
     </div>
     {raw && <textarea className="save-textarea" readOnly value={raw} aria-label={t('ui.backup.original')} onFocus={(event) => event.target.select()} />}
+    {raw && !features.saveFileDownload && <p>{t('ui.settings.save.fileDownloadDisabled')}</p>}
     <label className="secondary-button settings-file-picker"><Upload size={18} />{t('ui.backup.import')}
       <input className="file-input" type="file" disabled={busy} onChange={async (event) => {
         const file = event.target.files?.[0]; event.target.value = '';

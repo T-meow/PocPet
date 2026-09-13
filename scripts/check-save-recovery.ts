@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createDefaultPet, type PetState } from '../src/core/pet';
 import {
   createSaveFileText,
@@ -23,7 +24,7 @@ import {
   upgradeStorageKey,
 } from '../src/core/storage';
 import { getEditionFeatures } from '../src/platform/edition';
-import { isBackupDue, trimBackupSnapshots, type BackupSnapshot } from '../src/platform/automaticBackup';
+import { isBackupDue, readBackupState, runAutomaticBackup, trimBackupSnapshots, type BackupSnapshot } from '../src/platform/automaticBackup';
 import { editionNoticeKey, recordEditionNoticeShown, readEditionNotice, localDateKey, shouldShowEditionNotice } from '../src/core/editionNotice';
 import { builtinMintManifest } from '../src/core/builtinPetModManifests';
 import { readRecoveryCandidate } from '../src/platform/saveRecovery';
@@ -419,8 +420,8 @@ loadPet(importAt);
 replacePetFromImport(secondPet, createSaveFileText(firstPet, null, exportAt), modB);
 assert.equal(candidateFor('pocpet.pet.v1.backup').activeMod, undefined, 'a backup of the default role must remain the default role');
 
-assert.deepEqual(getEditionFeatures('bilibili'), { cloudSave: true, rename: false, importMod: false, shareCards: true, shareCustomName: false });
-assert.deepEqual(getEditionFeatures('standard'), { cloudSave: false, rename: true, importMod: true, shareCards: true, shareCustomName: true });
+assert.deepEqual(getEditionFeatures('bilibili'), { cloudSave: true, saveFileDownload: false, rename: false, importMod: false, shareCards: true, shareCustomName: false });
+assert.deepEqual(getEditionFeatures('standard'), { cloudSave: false, saveFileDownload: true, rename: true, importMod: true, shareCards: true, shareCustomName: true });
 assert.equal(shouldShowEditionNotice({ count: 0, lastLaunch: '' }, 'first'), true);
 assert.equal(shouldShowEditionNotice({ count: 1, lastLaunch: 'first' }, 'first'), false);
 assert.equal(shouldShowEditionNotice({ count: 3, lastLaunch: 'third' }, 'fourth'), false);
@@ -448,5 +449,51 @@ assert.equal(isBackupDue(snapshots[0], { enabled: true, intervalDays: 1 }, expor
 assert.equal(isBackupDue(snapshots[0], { enabled: true, intervalDays: 1 }, exportAt + 86400000), true);
 assert.equal(isBackupDue(snapshots[0], { enabled: true, intervalDays: 3 }, exportAt + 86400000), false);
 assert.equal(isBackupDue(undefined, { enabled: false, intervalDays: 1 }, exportAt), false);
+
+// The native Rust regression uses this same real 1.8 export as its write input.
+const nativeFixture: BackupSnapshot = JSON.parse(readFileSync(new URL('./fixtures/pocpet-1.8.0-backup.json', import.meta.url), 'utf8'));
+const fixturePet = parseSaveFileText(nativeFixture.text, nativeFixture.savedAt).pet;
+assert.equal(fixturePet.name, nativeFixture.petName);
+assert.equal(fixturePet.coins, 1234);
+assert.equal(fixturePet.inventory.apple, 7);
+const previousWindow = globalThis.window;
+const nativeHistory = new Map<string, string>();
+let nativeLatest: string | null = null;
+let failNativeWrite = false;
+let nativeWrites = 0;
+Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: { localStorage, __TAURI_INTERNALS__: {
+  invoke: async (command: string, payload?: { snapshot: string }) => {
+    if (command === 'read_backup_files') return { files: [...nativeHistory.values()], warnings: [] };
+    if (command === 'read_backup_latest') return nativeLatest;
+    assert.equal(command, 'write_backup_files');
+    if (failNativeWrite) throw new Error('Injected native backup write failure');
+    const snapshot: BackupSnapshot = JSON.parse(payload!.snapshot);
+    assert.equal(parseSaveFileText(snapshot.text, snapshot.savedAt).formatVersion, 2);
+    nativeHistory.set(snapshot.dateKey, payload!.snapshot);
+    nativeLatest = snapshot.text;
+    nativeWrites++;
+  },
+} } });
+try {
+  const initialBackup = await runAutomaticBackup(firstPet, undefined, true);
+  assert.equal(initialBackup.error, undefined);
+  assert.equal(initialBackup.fileStatus, 'native');
+  assert.equal(initialBackup.snapshots.length, 1);
+  assert.equal(initialBackup.fileSavedAt, initialBackup.snapshots[0].savedAt);
+  await runAutomaticBackup(firstPet);
+  assert.equal(nativeWrites, 1, 'scheduled checks skip an already backed-up day');
+  const changedPet = { ...firstPet, coins: 9876 };
+  const repeated = await runAutomaticBackup(changedPet, undefined, true);
+  assert.equal(repeated.snapshots.length, 1);
+  assert.equal(parseSaveFileText(repeated.snapshots[0].text).pet.coins, 9876, 'immediate backup refreshes the same day');
+  failNativeWrite = true;
+  await assert.rejects(runAutomaticBackup(firstPet, undefined, true), /Injected native/);
+  assert.deepEqual((await readBackupState()).snapshots, repeated.snapshots, 'a failed write preserves the last recovery point');
+  failNativeWrite = false;
+  assert.equal((await runAutomaticBackup(firstPet, undefined, true)).error, undefined, 'a failure does not poison the backup queue');
+  const writesBeforePause = nativeWrites;
+  await runAutomaticBackup(firstPet, undefined, true, () => true);
+  assert.equal(nativeWrites, writesBeforePause, 'paused/conflicting saves never write a backup');
+} finally { globalThis.window = previousWindow; }
 
 console.log('Save validation, backup recovery, and import timing checks passed.');

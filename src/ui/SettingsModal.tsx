@@ -9,7 +9,7 @@ import { giftBoxIcon } from '../assets';
 import { languages, list, t, type LanguageCode } from '../i18n';
 import type { ToyAuthorSummary, ToyAuthorVideoSummary } from '../platform/toySdk';
 import type { ToyCloudAvailability, ToyCloudBusyAction } from './app/useToyIntegration';
-import { appBuild, features, isNativeApp } from '../platform/edition';
+import { appBuild, features, isNativeApp, requiresAuthorFollowVerification } from '../platform/edition';
 import { BackupPanel } from './BackupPanel';
 import type { AutomaticBackupController } from './app/useAutomaticBackup';
 import type { BackupSnapshot } from '../platform/automaticBackup';
@@ -348,11 +348,12 @@ export const SettingsModal = ({
                   <FileText size={18} aria-hidden="true" />
                   {t('ui.settings.save.exportText')}
                 </button>
-                <button type="button" className="primary-button save-action" onClick={onDownloadSave}>
+                {features.saveFileDownload && <button type="button" className="primary-button save-action" onClick={onDownloadSave}>
                   <Download size={18} aria-hidden="true" />
-                  {t(appBuild.edition === 'bilibili' && !isNativeApp() ? 'ui.settings.save.saveToPhone' : 'ui.settings.save.download')}
-                </button>
+                  {t('ui.settings.save.download')}
+                </button>}
               </div>
+              {!features.saveFileDownload && <p className="settings-cloud-warning">{t('ui.settings.save.fileDownloadDisabled')}</p>}
               {saveText && <><textarea className="save-textarea" readOnly value={saveText} aria-label={t('ui.settings.save.exportedAria')} onFocus={(event) => event.target.select()} />
                 <div className="save-actions">
                   <button type="button" className="secondary-button save-action" onClick={onCopySave}><Copy size={18} />{t('ui.backup.copy')}</button>
@@ -488,8 +489,8 @@ export const SettingsModal = ({
                 <strong>{authorSummary.nickname || t('ui.settings.author.name')}</strong>
                 <small>{t(
                   hasClaimedAuthorFollowGift
-                    ? 'ui.settings.author.rewardClaimed'
-                    : 'ui.settings.author.rewardAvailable',
+                    ? (requiresAuthorFollowVerification() ? 'ui.settings.author.rewardClaimed' : 'ui.settings.author.visitRewardClaimed')
+                    : (requiresAuthorFollowVerification() ? 'ui.settings.author.rewardAvailable' : 'ui.settings.author.visitRewardAvailable'),
                   { count: authorFollowGiftTickets },
                 )}</small>
               </span>

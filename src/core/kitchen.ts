@@ -1,22 +1,26 @@
-import { applyHeartGain, recordEarnedHearts } from './achievements';
+import { recordEarnedHearts } from './achievements';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practiceSkillXp } from './partnerSchedule';
-import { getPetStatScale } from './petStats';
+import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId } from './companionActivityTypes';
 import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, recipes } from './kitchenRecipes';
 import { rememberTogether } from './companionMemories';
 
-export const kitchenBaseHearts = 3;
 const kitchenFirstRecipeXp = 5;
 export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
   ? 0 : practiceSkillXp + (pet.kitchen.made[recipeId] ? 0 : kitchenFirstRecipeXp);
-export const getKitchenHeartReward = (pet: PetState) => {
+export const getKitchenHeartReward = (pet: PetState, recipeId: RecipeId, banana = false) => {
+  const recipe = getRecipe(recipeId);
   const skillLevel = Math.max(1, Math.min(partnerScheduleMaxSkillLevel, Math.floor(pet.partnerSchedule.skills.cooking.level)));
-  const baseHearts = Math.max(1, Math.round(kitchenBaseHearts * getPetStatScale(pet)));
   const skillBonusPercent = (skillLevel - 1) * 10;
-  const skillHearts = Math.round(baseHearts * skillBonusPercent / 100);
-  return { baseHearts, skillLevel, skillBonusPercent, skillHearts, heartsPerServing: baseHearts + skillHearts };
+  const inputBudgets = recipe ? getRecipeIngredientEntries(recipe, banana).map(({ id, quantity }) => ({ hearts: getDish(id)?.recipe.chainHearts ?? 0, quantity })) : [];
+  const chainHearts = recipe?.chainHearts ?? 0;
+  const baseHearts = chainHearts - inputBudgets.reduce((sum, input) => sum + input.hearts * input.quantity, 0);
+  // Round whole-chain budgets before subtraction so extra processing cannot mint hearts.
+  const scaleBudget = (hearts: number) => Math.round(hearts * (100 + skillBonusPercent) / 100);
+  const heartsPerServing = scaleBudget(chainHearts) - inputBudgets.reduce((sum, input) => sum + scaleBudget(input.hearts) * input.quantity, 0);
+  return { baseHearts, skillLevel, skillBonusPercent, skillHearts: heartsPerServing - baseHearts, heartsPerServing };
 };
 export const defaultKitchenState = (): KitchenState => ({ schemaVersion: 1, starterClaimed: false, equipment: ['mix', 'pan'], made: {}, firstMadeAt: {}, tasted: {}, recentOperationIds: [], plating: 'plain' });
 export const normalizeKitchenState = (raw: unknown): KitchenState => {
@@ -74,14 +78,11 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   let next: PetState = { ...pet, lastInteractionAt: now, kitchen: { ...pet.kitchen, made: { ...pet.kitchen.made, [recipeId]: (pet.kitchen.made[recipeId] ?? 0) + quantity }, firstMadeAt: first ? { ...pet.kitchen.firstMadeAt, [recipeId]: now } : pet.kitchen.firstMadeAt, recentOperationIds: [...pet.kitchen.recentOperationIds, operationId].slice(-32) } };
   next.inventory = getRecipeIngredientEntries(recipe, banana).reduce((stock, ingredient) => removeInventoryItem(stock, ingredient.id, ingredient.quantity * quantity), pet.inventory);
   next.inventory = addInventoryItem(next.inventory, dishId, quantity);
-  const reward = getKitchenHeartReward(pet);
+  const reward = getKitchenHeartReward(pet, recipeId, banana);
   const skillXp = getKitchenSkillXpReward(pet, recipeId);
-  let hearts = 0;
-  for (let index = 0; index < quantity; index++) {
-    const gain = applyHeartGain(next, reward.heartsPerServing);
-    hearts += gain.amount;
-    next = { ...next, hearts: gain.hearts, boostCards: gain.boostCards };
-  }
+  const nextHearts = clampCount(next.hearts + reward.heartsPerServing * quantity);
+  const hearts = nextHearts - next.hearts;
+  next = { ...next, hearts: nextHearts };
   if (skillXp > 0) next.partnerSchedule = { ...next.partnerSchedule, skills: { ...next.partnerSchedule.skills, cooking: addSkillXp(next.partnerSchedule.skills.cooking, skillXp) } };
   next.kitchen.lastCraft = { id: operationId, dishId, quantity, hearts, baseHearts: reward.baseHearts * quantity, skillHearts: reward.skillHearts * quantity, skillLevel: reward.skillLevel, skillXp, at: now };
   next.recentActivity = 'work_food';

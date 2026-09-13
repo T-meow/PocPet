@@ -75,44 +75,40 @@ npm run tauri:dev
 npm run build
 ```
 
-## 打包
+## 本地打包
 
-Windows 便携 exe：
+本地只打包 Windows 和 Android，默认生成 Windows x64 EXE 与 Android arm64 APK。本地“全量打包”“完整包”仍使用这两个平台，构建范围与版本号无关；32 位架构仅在明确指定时生成。Web、macOS、Linux 产物由 CI 发布流程处理。
+
+先核对 `package.json`、Tauri 和 Cargo 版本，运行发布元数据检查，并备份 `release/` 中已有的同名产物：
+
+```powershell
+npm.cmd run check:release
+```
+
+然后依次打包 Windows x64 便携 EXE 和 Android arm64 APK：
 
 ```powershell
 npm.cmd run package:win:portable
-```
-
-网页版部署包：
-
-```powershell
-npm.cmd run package:web
-```
-
-Android arm64 APK：
-
-```powershell
 npm.cmd run package:android:arm64
 ```
 
-说明：默认 Android 打包脚本会重建 Tauri Android arm64 原生库和内嵌前端资源，再生成、对齐、debug 签名并校验 APK。网页版部署包会把当前 `dist/` 压缩为 `release/pocket<version>-web.zip`。
+交付路径：
 
-macOS 与 Linux 需要在对应系统上构建：
+- Windows x64：`release/pocket<version>.exe`
+- Android arm64：`release/pocket<version>.apk`
 
-```bash
-npm run package:desktop
-```
-
-macOS 目标产物以 `.dmg` / `.app` 为主。Linux 目标产物以 `.AppImage` / `.deb` 为主，优先面向 Ubuntu 兼容环境；国产 Linux 发行版通常可优先测试 AppImage，Debian/Ubuntu 系发行版可测试 deb 包。
+Android 脚本会重建原生库和内嵌前端资源，再生成、对齐并使用既有 debug keystore 签名。交付前确认两包版本、架构、内嵌资源及 APK 签名校验通过，记录大小与 SHA-256，并同步已有的本地校验清单。`release/` 中的产物不提交到 Git。
 
 ## GitHub Actions 自动构建与发行版
 
-仓库包含 `.github/workflows/release.yml`。默认行为：
+推送、发布和更新按用户明确指定的范围执行，不区分“大版本”和“小版本”。例如 `1.8.1` 可以正常发布，并向 `1.8.0` 客户端提供更新；已有明确授权时直接完成相应流程。
 
-- pull request 和普通分支推送：只运行 `npm run build` 做前端与 TypeScript 构建检查。
-- 推送 `v*` tag 或手动运行 workflow：构建日常测试包。
-- 当前版本号为 semver 的 `x.y.0`，或手动运行时勾选 `full_build`：额外构建 Web、macOS、Linux 产物。
-- 推送 `v*` tag：构建完成后自动创建 GitHub Release 并上传产物。
+仓库包含 `.github/workflows/release.yml`，不再使用版本尾号或白名单决定构建范围：
+
+- pull request 和普通分支推送：运行版本、存档、玩法等检查，并构建标准版和 B 站版前端。
+- 推送与项目版本一致的 `v<version>` tag：所有正式版本均全量构建，生成客户端更新清单，校验附件后公开 GitHub Release、设为最新版本，并部署对应标准版网页。
+- 手动运行 workflow：默认构建日常测试包；勾选 `full_build` 时构建全平台产物。手动构建本身不公开 Release。
+- 本地打包范围遵循上节约定，不因版本号或 CI 规则自动扩展。
 
 日常测试包：
 
@@ -121,6 +117,8 @@ macOS 目标产物以 `.dmg` / `.app` 为主。Linux 目标产物以 `.AppImage`
 
 全量构建会额外产出：
 
+- Windows 32 位：`pocket<version>-win32.exe`
+- Android ARMv7：`pocket<version>-32bit.apk`
 - Web 部署包：`pocket<version>-web.zip`
 - macOS：`pocket<version>-mac.dmg`
 - Ubuntu/Linux：`pocket<version>-ubuntu.AppImage`，如 runner 生成 deb，也会保留 `pocket<version>-ubuntu.deb`

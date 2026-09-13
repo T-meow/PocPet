@@ -1,16 +1,22 @@
 # PocPet Agent Rules
 
+## 发布规则
+
+- 发布依据用户的明确指令，不按“大版本／小版本”、版本尾号或版本白名单限制发布。
+- 用户明确要求推送、发布或更新时，按指定范围直接完成；已有授权不重复确认，小版本同样可以发布。仅要求修改代码或本地测试时，不自动推送或发布。
+- 正式发布使用与 `package.json` 一致的 `v<version>` 标签；所有正式版本标签均触发 CI 全平台构建、GitHub Release、客户端更新清单和对应网页部署，小版本与其他版本使用同一流程。
+- 推送 GitHub 远端时，确认推送成功后即可反馈结果，无需等待远端 CI 打包完成，也不自动轮询等待；只有用户明确要求跟进构建结果或获取产物时，才继续处理对应远端任务。
+
 ## 打包规则
 
 - 当前版本来源以 `package.json` 为准；打包前同步确认 Tauri 和 Cargo 版本字段。
-- 日常打包默认只生成简名测试包：
+- 本地打包仅限 Windows 和 Android，默认只生成以下简名测试包：
   - Windows x64：`release/pocket<version>.exe`
   - Android arm64：`release/pocket<version>.apk`
-- 日常打包不要额外生成 Web、macOS、Linux、Windows 32 位或 Android 32 位产物，除非用户明确要求。
-- 全量打包在以下任一条件触发：
-  - 当前版本号是 semver 的 `x.y.0`，例如 `1.1.0`、`1.2.0`、`2.0.0`
-  - 用户明确要求“全量打包”“完整包”，或明确要求包含 macOS、Linux、32 位、Web 部署包等产物
-- 全量打包产物命名：
+- 本地不生成 Web、macOS 或 Linux 产物；本地“全量打包”“完整包”仍限上述两个平台，构建范围与版本号无关。Windows 32 位、Android 32 位仅在用户明确指定时生成。
+- 本地流程：核对版本并运行 `npm.cmd run check:release`；已有同名产物先备份，再依次运行 `npm.cmd run package:win:portable` 和 `npm.cmd run package:android:arm64`；完成后核对版本、架构、内嵌资源与 APK 签名，记录文件大小和 SHA-256。
+- CI 按 `.github/workflows/release.yml` 执行；正式版本标签一律全量构建。手动运行默认生成 Windows x64 和 Android arm64 测试包，明确选择 `full_build` 时全量构建；手动构建本身不公开 Release。本地打包不自动启动 CI。
+- CI 全量构建及明确指定的额外架构产物命名：
   - Windows x64：`release/pocket<version>.exe`
   - Windows 32 位 x86：`release/pocket<version>-win32.exe`
   - Android arm64：`release/pocket<version>.apk`

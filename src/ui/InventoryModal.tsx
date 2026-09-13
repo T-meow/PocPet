@@ -17,10 +17,11 @@ interface InventoryModalProps {
   onOpenGarden: () => void;
   onOpenKitchen: () => void;
   onUseItem: (itemId: ItemId, quantity: number) => void;
+  favoriteFoodIds?: readonly ItemId[];
 }
 
-export const InventoryModal = ({ items, pet, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenKitchen, onUseItem }: InventoryModalProps) => <ItemStorageModal
-  mode="bag" pet={pet} items={items} itemIconMap={itemIconMap} browse={browse} onBrowseChange={onBrowseChange} onClose={onClose} onSwitch={onOpenShop} quantityDisabled={isPetBusy}
+export const InventoryModal = ({ items, pet, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenKitchen, onUseItem, favoriteFoodIds }: InventoryModalProps) => <ItemStorageModal
+  mode="bag" pet={pet} items={items} itemIconMap={itemIconMap} browse={browse} onBrowseChange={onBrowseChange} onClose={onClose} onSwitch={onOpenShop} quantityDisabled={isPetBusy} favoriteFoodIds={favoriteFoodIds}
   renderActions={(item, quantity) => {
     if (item.kind === 'garden') return <button className="storage-primary" onClick={onOpenGarden}><Sprout size={17} />{t('ui.inventory.goGarden')}</button>;
     if (isDedicatedKitchenMaterial(item)) return <button className="storage-primary" onClick={onOpenKitchen}><ChefHat size={17} />{L('去厨房', 'Open kitchen')}</button>;

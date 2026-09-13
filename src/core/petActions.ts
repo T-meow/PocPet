@@ -13,10 +13,9 @@ import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, g
 import type { BuiltinItemId, BuyItemOptions, CareActionKey, ItemDefinition, ItemId, PetAction, PetBirthday, PetState, PomodoroDurations, RecentActivity, UseInventoryItemOptions } from './petTypes';
 import { defaultPomodoroState, getDefaultPomodoroRemainingMs, getPomodoroPhaseDurationMs, normalizePomodoroSettings, pickPomodoroActivity, pomodoroMinHealthThreshold, pomodoroPhaseLabels, pomodoroResetEventMinFocusMs } from './pomodoro';
 import { startSleepSnapshot, wakePet } from './petEvents';
-import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
-import { getClassicTrophyEffects } from './classicTrophies';
+import { getItemStatEffect, getPictureBookReward } from './itemEffects';
 import { randomInt } from './utils';
-import { isPartnerSchedulePetBusy } from './partnerSchedule';
+import { formatPracticeSkillXp, isPartnerSchedulePetBusy } from './partnerSchedule';
 import { recordDishTaste } from './kitchen';
 import { unlockBallGame } from './miniGames';
 import { deliverPurchasedItems, getPurchaseCapacity } from './items';
@@ -242,15 +241,14 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
         const achievementCareBonus = getAchievementEffects(base).careStatBonus;
         return incrementAchievementCareAction(recordWishProgress(recordYearlyCareAction({
           ...withActivity(base, 'bath', now),
-          cleanliness: clampPetStat(base, base.cleanliness + scalePetStatDelta(base, 30 + (base.weather === 'rainy' ? 5 : 0) + seasonCleanBonus + achievementCareBonus)),
+          cleanliness: clampPetStat(base, base.cleanliness + Math.min(80, scalePetStatDelta(base, 20 + (base.weather === 'rainy' ? 5 : 0) + seasonCleanBonus + achievementCareBonus))),
           energy: clampPetEnergy(base, base.energy - 3),
-          hunger: clampPetStat(base, base.hunger + scalePetStatDelta(base, -3)),
-          mood: clampPetStat(base, base.mood + scalePetStatDelta(base, 1)),
-          health: clampPetHealth(base, base.health + scalePetStatDelta(base, 4 + achievementCareBonus)),
+          hunger: clampPetStat(base, base.hunger + scalePetStatDelta(base, -2)),
+          mood: clampPetStat(base, base.mood + Math.min(3, scalePetStatDelta(base, 1))),
           recentEvent: `${t('pet.action.clean', {
             name: base.name,
-            hunger: Math.abs(roundPetStatDisplayAmount(scalePetStatDelta(base, -3))),
-            mood: roundPetStatDisplayAmount(scalePetStatDelta(base, 1)),
+            hunger: Math.abs(roundPetStatDisplayAmount(scalePetStatDelta(base, -2))),
+            mood: roundPetStatDisplayAmount(Math.min(3, scalePetStatDelta(base, 1))),
             energy: 3,
           })}${base.weather === 'rainy' ? t('pet.weather.effect.rainyClean') : ''}${seasonCleanBonus > 0 ? t('pet.season.effect.summerClean') : ''}${overuse.text}`,
         }, 'clean', now), 'clean', now), 'clean');
@@ -475,14 +473,7 @@ export const useInventoryItem = (
     return recordWishProgress(recordEarnedHearts(withWakeRecord, heartGain.amount), 'feed', now);
   }
 
-  const foodEffectMultiplier = item.kind === 'food'
-    ? getPartnerScheduleCrossSystemEffects(current).foodEffectMultiplier * getClassicTrophyEffects(current).foodEffectMultiplier
-    : 1;
-  const scaleFoodEffect = (amount: number | undefined) => {
-    if (amount === undefined || amount <= 0 || foodEffectMultiplier === 1) return amount ?? 0;
-    return Math.max(1, Math.round(amount * foodEffectMultiplier));
-  };
-  const effect = item.effect;
+  const effect = getItemStatEffect(current, item);
   const runtimeFavoriteFoodIdSet = options.favoriteFoodIds ? new Set<ItemId>(options.favoriteFoodIds) : favoriteFoodIdSet;
   const favoriteMoodBonus = runtimeFavoriteFoodIdSet.has(itemId) ? 4 * quantity : 0;
   const overuseKey: CareActionKey = item.kind === 'food' ? 'feed' : giftItemIdSet.has(itemId) ? 'gift' : 'touch';
@@ -490,9 +481,11 @@ export const useInventoryItem = (
   const base = overuse.pet;
   let giftHeartPet = base;
   let giftHeartAmount = 0;
-  if (giftItemIdSet.has(itemId)) {
-    for (let index = 0; index < quantity; index += 1) {
-      if (Math.random() >= 0.2) continue;
+  const bookReward = itemId === 'picture_book' ? getPictureBookReward(base.partnerSchedule.skills.study, quantity) : undefined;
+  const studyXp = bookReward?.xp ?? 0;
+  if (giftItemIdSet.has(itemId) || itemId === 'picture_book') {
+    for (let index = 0; index < (bookReward?.heartServings ?? quantity); index += 1) {
+      if (itemId !== 'ribbon_bell' && itemId !== 'picture_book' && Math.random() >= 0.2) continue;
       const gain = applyHeartGain(giftHeartPet, 1);
       giftHeartAmount += gain.amount;
       giftHeartPet = { ...giftHeartPet, hearts: gain.hearts, boostCards: gain.boostCards };
@@ -544,15 +537,16 @@ export const useInventoryItem = (
     recordYearlyCareAction({
       ...withActivity(base, itemActivity[itemId] ?? defaultItemActivity, now),
       isSleeping: false,
-      hunger: clampPetStat(base, base.hunger + (scaleFoodEffect(effect.hunger) + (item.kind === 'food' ? getAchievementEffects(base).careStatBonus : 0)) * quantity),
-      mood: clampPetStat(base, base.mood + scaleFoodEffect(effect.mood) * quantity + favoriteMoodBonus + scalePetStatDelta(base, wokePet ? -2 : 0)),
-      cleanliness: clampPetStat(base, base.cleanliness + scaleFoodEffect(effect.cleanliness) * quantity),
-      energy: clampPetEnergy(base, base.energy + scaleFoodEffect(effect.energy) * quantity),
-      health: clampPetHealth(base, base.health + scaleFoodEffect(effect.health) * quantity),
+      hunger: clampPetStat(base, base.hunger + (effect.hunger ?? 0) * quantity),
+      mood: clampPetStat(base, base.mood + (effect.mood ?? 0) * quantity + favoriteMoodBonus + scalePetStatDelta(base, wokePet ? -2 : 0)),
+      cleanliness: clampPetStat(base, base.cleanliness + (effect.cleanliness ?? 0) * quantity),
+      energy: clampPetEnergy(base, base.energy + (effect.energy ?? 0) * quantity),
+      health: clampPetHealth(base, base.health + (effect.health ?? 0) * quantity),
       hearts: giftHeartPet.hearts,
       boostCards: giftHeartPet.boostCards,
+      partnerSchedule: bookReward && studyXp > 0 ? { ...base.partnerSchedule, skills: { ...base.partnerSchedule.skills, study: bookReward.skill } } : base.partnerSchedule,
       inventory: removeInventoryItem(base.inventory, itemId, quantity),
-      recentEvent: `${baseEvent}${favoriteText}${giftHeartText}${overuse.text}`,
+      recentEvent: `${baseEvent}${favoriteText}${giftHeartText}${studyXp > 0 ? ` ${formatPracticeSkillXp('study', studyXp)}` : ''}${overuse.text}`,
     }, overuseKey, now, quantity),
     now,
     quantity,

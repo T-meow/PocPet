@@ -1,4 +1,4 @@
-import { allDishes, getRecipeIngredients, getRecipeIngredientEntries, activityText as L } from '../core/kitchenRecipes';
+import { allDishes, getRecipeIngredients, getRecipeMaterialCost, activityText as L } from '../core/kitchenRecipes';
 import { batchActionUnlockLevel, getDailyBiscuitClaimInfo, maxBatchQuantity } from '../core/pet';
 import type { InventoryItemDefinition, PetState, ShopCategory } from '../core/pet';
 import { t } from '../i18n';
@@ -39,7 +39,9 @@ export const sortBagItems = (items: readonly InventoryItemDefinition[], definiti
   const prices = new Map(definitions.map((item) => [item.id, item.price]));
   // Homemade dishes have no shop price; rank their value by ingredient cost.
   const dishValues = new Map<string, number>(allDishes.map(({ recipe, banana, id }) => [id,
-    getRecipeIngredientEntries(recipe, banana).reduce((sum, ingredient) => sum + (prices.get(ingredient.id) ?? getInventoryItem(ingredient.id)?.price ?? 0) * ingredient.quantity, 0),
+    getRecipeMaterialCost(recipe, banana, (ingredientId) => ingredientId === 'emergency_biscuit'
+      ? (prices.get('soda_biscuit_box') ?? getInventoryItem('soda_biscuit_box')!.price) / 40
+      : prices.get(ingredientId) ?? getInventoryItem(ingredientId)?.price ?? 0),
   ]));
   return [...items].sort((a, b) => {
     const aValue = dishValues.get(a.id);

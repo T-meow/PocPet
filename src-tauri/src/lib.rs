@@ -8,7 +8,14 @@ fn get_client_update_target() -> serde_json::Value {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  let builder = tauri::Builder::default();
+  #[cfg(windows)]
+  let builder = builder.plugin(
+    tauri_plugin_window_state::Builder::default()
+      .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION | tauri_plugin_window_state::StateFlags::SIZE | tauri_plugin_window_state::StateFlags::MAXIMIZED)
+      .build(),
+  );
+  builder
     .invoke_handler(tauri::generate_handler![backup::read_backup_files, backup::read_backup_latest, backup::write_backup_files, get_client_update_target, updates::read_client_update_json])
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())

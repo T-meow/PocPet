@@ -235,7 +235,7 @@ const fixedEnergyUse = useInventoryItem(atLevel(99, {
   inventory: { energy_drink: 2 },
 }), 'energy_drink', now, { quantity: 2 });
 assert.equal(fixedEnergyUse.energy, 60, 'batch item energy recovery must not scale with level');
-assert.equal(fixedEnergyUse.mood, 98, 'batch item mood effect must not scale with level');
+assert.equal(fixedEnergyUse.mood, 100, 'energy drinks no longer cost mood');
 
 const insufficientInventory = atLevel(20, { hunger: 0, inventory: { emergency_biscuit: 2 } });
 const rejectedUse = useInventoryItem(insufficientInventory, 'emergency_biscuit', now, { quantity: 3 });

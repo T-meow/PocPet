@@ -30,8 +30,8 @@
       "formatTimeline": "Version 1.9 will still read and convert legacy saves; 2.0 will only read the new format. Existing backup files are not rewritten automatically: keep the originals. Continue playing and syncing with an updated client after conversion.",
       "compensationTitle": "Legacy save gift and biscuit boxes",
       "compensationAdvice": "The first successful migration of an eligible legacy save grants 3 boxes of soda biscuits (120 biscuits delivered directly) and 10 strawberry milks. Once per save; new games are excluded. Any overflow is saved and delivered when inventory space becomes available.",
-      "boxAdvice": "A box of soda biscuits is now available for 500 coins before discounts. Each purchase delivers 40 biscuits for feeding or cooking.",
-      "downloadFallback": "If the Bilibili app cannot download files, copy the save text or export it in a web browser.",
+      "boxAdvice": "A box of soda biscuits costs 280 coins before discounts. Each purchase delivers 40 biscuits for feeding or cooking.",
+      "downloadFallback": "Bilibili only supports saving images. Save file downloads are disabled. Copy the save text or use cloud saves to back up.",
       "localBackupAdvice": "Uninstalling the app or clearing its data can also remove automatic backups. Export important progress separately.",
       "policyTitle": "Bilibili edition changes",
       "policyChanges": "Due to Bilibili policies, pet renaming and new custom Mod imports are disabled.",
@@ -232,6 +232,7 @@
         "phoneDownloadRequested": "Download requested. If no file appears, try sharing the file to your device or copying the save text.",
         "saveCancelled": "Save export cancelled.",
         "saveFailed": "Failed to save the save file.",
+        "fileDownloadDisabled": "Bilibili only supports saving images. Save file downloads are disabled; copy the save text or use cloud saves instead.",
         "imported": "Save imported.",
         "importedMissingMod": "Save imported, but it references {name} v{version}. Import the matching mod zip for the same appearance.",
         "importedMissingModFallbackMint": "Save imported, but {name} v{version} is unavailable, so built-in Mint is being used. Import the matching mod zip for the original appearance.",
@@ -287,6 +288,11 @@
         "loading": "Loading video details",
         "rewardAvailable": "Open the author page; follow and return to claim {count} tickets",
         "rewardClaimed": "Follow reward claimed",
+        "visitRewardAvailable": "Open the author page for {count} tickets (ten draws), once per save",
+        "visitRewardClaimed": "Author page visit reward claimed",
+        "visitClaimed": "Author page visit reward claimed. Gacha tickets +{count}.",
+        "visitRewardTitle": "Thanks for supporting PocPet",
+        "visitRewardMessage": "Thanks for visiting the author page. Here are {count} gacha tickets.",
         "followNotFound": "A follow was not detected. Follow the author and open the page again to verify.",
         "claimSynced": "Follow reward status synced from cloud storage.",
         "claimed": "Follow verified. You received {count} gacha tickets.",
@@ -354,6 +360,8 @@
       "downloadStarted": "Memory card download started.",
       "saveCancelled": "Save cancelled.",
       "saveFailed": "Could not save the memory card. Try again.",
+      "invalidImage": "The image data is invalid or incomplete. Generate it again before saving.",
+      "imageLoadFailed": "Could not load the image. Try again.",
       "cardGenerating": "Creating memory card",
       "saveConfirm": {
         "title": "Save this image?",
@@ -1018,7 +1026,7 @@
       },
       "trees": {
         "fruit_tree": {
-          "name": "Fruit tree"
+          "name": "Ingredient tree"
         },
         "care_tree": {
           "name": "Care tree"
@@ -1174,7 +1182,7 @@
         },
         "ribbon_bell": {
           "name": "Ribbon bell",
-          "summary": "A small bell tied with a ribbon."
+          "summary": "A cheerful ring grants 1 base heart per bell. Achievement and boost card heart bonuses also apply."
         },
         "toy_ball": {
           "name": "Toy ball",
@@ -1182,7 +1190,7 @@
         },
         "picture_book": {
           "name": "Picture book",
-          "summary": "A picture book for quiet reading."
+          "summary": "Quiet reading restores mood and grants 3 Study XP. At Study Lv.10, each book grants 1 base heart instead, with heart bonuses."
         },
         "shampoo": {
           "name": "Bubble shampoo",
@@ -1202,11 +1210,11 @@
         },
         "blanket": {
           "name": "Warm blanket",
-          "summary": "A soft little blanket that makes you sleepy. 💤"
+          "summary": "Wrap up for a generous energy refill and a little comfort."
         },
         "energy_drink": {
           "name": "Energy drink",
-          "summary": "A drink with a curious flavor."
+          "summary": "A quick energy refill when you need a little pick-me-up."
         },
         "birthday_cake": {
           "name": "Birthday Cake",
@@ -1217,16 +1225,16 @@
           "summary": "A special apple from gardening. Restores all stats and grants hearts."
         },
         "fruit_tree_sapling": {
-          "name": "Fruit tree sapling",
-          "summary": "Plant in a garden slot to grow food items."
+          "name": "Ingredient tree sapling",
+          "summary": "Base yield: 4 fruits or cooking ingredients every 12 hours, for 10 harvests."
         },
         "care_tree_sapling": {
           "name": "Care tree sapling",
-          "summary": "Plant in a garden slot to grow care items."
+          "summary": "Base yield: 3 care items every 12 hours, for 10 harvests."
         },
         "gift_tree_sapling": {
           "name": "Gift tree sapling",
-          "summary": "Plant in a garden slot to grow gift items."
+          "summary": "Base yield: 3 gifts every 12 hours, for 10 harvests."
         },
         "money_tree_sapling": {
           "name": "Money tree sapling",
@@ -1234,19 +1242,19 @@
         },
         "golden_apple_tree_sapling": {
           "name": "Golden apple tree sapling",
-          "summary": "A rare sapling with a chance to grow golden apples."
+          "summary": "Base growth: 72 hours, then every 48 hours. Each of 10 harvests grants 2 golden apples and 1 apple."
         },
         "normal_fertilizer": {
           "name": "Fertilizer",
-          "summary": "Cuts 20% of the round's original duration, up to 10 hours."
+          "summary": "Ordinary trees only; choose one fertilizer per round. Cuts 30% of growth time (35%/40% with upgrades) and may add one common item."
         },
         "heart_fertilizer": {
           "name": "Heart fertilizer",
-          "summary": "Cuts 35% of the round's original duration, up to 18 hours."
+          "summary": "Ordinary trees only; choose one fertilizer per round. Cuts 40% of growth time (45%/50% with upgrades), guarantees one extra common item and improves rare item weights."
         },
         "harvest_nutrient": {
           "name": "Harvest nutrient",
-          "summary": "Use in the garden to add an extra drop to the next harvest."
+          "summary": "Advanced trees only, once per harvest round. Money trees gain 25% base coins; golden apple trees gain one apple with a 50% chance to be golden."
         }
       },
       "categories": {
@@ -1664,6 +1672,8 @@
     "achievements": {
       "events": {
         "rewardClaimed": "Achievement \"{title}\" reward claimed.",
+        "balanceRewardClaimed": "Balance supplies for \"{title}\" claimed. Original rewards are kept.",
+        "rewardCapacity": "Some rewards need more inventory or gacha ticket space. Their packages remain available to claim later.",
         "rewardsClaimed": "Claimed rewards from {count} achievements.",
         "unlocked": "Achievement \"{title}\" unlocked.",
         "dailyStipendClaimed": "Daily achievement stipend claimed: {coins} coins."
@@ -1682,6 +1692,8 @@
         "cg": "Unlock memorial content",
         "badge": "Commemorative badge",
         "hearts": "Hearts +{hearts}",
+        "gachaTickets": "Gacha tickets +{count}",
+        "balanceSupplement": "Balance supplies: {reward}",
         "dailyLoginItemBonus": "Daily login items +{amount}",
         "hiddenReveal": "Reveal all hidden achievement conditions"
       },
@@ -2189,6 +2201,10 @@
       "waterSuccess": "Watered for free. Growth time shortened by {time}.",
       "cannotFertilize": "This tree cannot be fertilized now.",
       "fertilizedToday": "This slot was already fertilized today.",
+      "fertilizedRound": "This tree was already fertilized this round. Use again after harvesting.",
+      "fertilizerOrdinaryOnly": "Normal and heart fertilizer are for ingredient, care and gift trees.",
+      "nutrientAdvancedOnly": "Harvest nutrient is for money and golden apple trees.",
+      "boostedRound": "This tree already used nutrient this round. Use again after harvesting.",
       "careMinimumRemaining": "Growth time is already at the 10-second minimum and cannot be shortened further.",
       "careReductionLimitReached": "This round's watering and fertilizer speed-up limit has been reached.",
       "cannotBoost": "This tree cannot use nutrient now.",

@@ -8,6 +8,7 @@ export const appBuild: AppBuild = typeof __APP_BUILD__ === 'undefined'
 
 export const getEditionFeatures = (edition: AppEdition) => ({
   cloudSave: edition === 'bilibili',
+  saveFileDownload: edition === 'standard',
   rename: edition === 'standard',
   importMod: edition === 'standard',
   shareCards: true,
@@ -16,5 +17,6 @@ export const getEditionFeatures = (edition: AppEdition) => ({
 
 export const features = getEditionFeatures(appBuild.edition);
 export const isNativeApp = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+export const requiresAuthorFollowVerification = () => appBuild.edition === 'bilibili' && !isNativeApp();
 export const isBilibiliAppWebView = () =>
   typeof navigator !== 'undefined' && /BiliApp|bili-universal/i.test(navigator.userAgent);

@@ -2,6 +2,7 @@ import { Download, FolderOpen, RotateCcw, Save } from 'lucide-react';
 import { getLanguage, t } from '../i18n';
 import { canChooseBackupFile, type BackupSnapshot } from '../platform/automaticBackup';
 import type { AutomaticBackupController } from './app/useAutomaticBackup';
+import { features } from '../platform/edition';
 
 export const BackupPanel = ({ controller, onRestore, onExport }: {
   controller: AutomaticBackupController;
@@ -28,13 +29,13 @@ export const BackupPanel = ({ controller, onRestore, onExport }: {
     <div className="save-actions">
       <button type="button" className="primary-button save-action" disabled={busy} onClick={() => void controller.backup()}><Save size={18} />{t(busy ? 'ui.backup.busy' : 'ui.backup.now')}</button>
       {canChooseBackupFile() && <button type="button" className="secondary-button save-action" disabled={busy} onClick={() => void controller.chooseFile()}><FolderOpen size={18} />{t('ui.backup.choose')}</button>}
-      {state.fileStatus === 'permission' && <button type="button" className="secondary-button save-action" disabled={busy} onClick={() => void controller.authorizeFile()}><RotateCcw size={18} />{t('ui.backup.authorize')}</button>}
+      {canChooseBackupFile() && state.fileStatus === 'permission' && <button type="button" className="secondary-button save-action" disabled={busy} onClick={() => void controller.authorizeFile()}><RotateCcw size={18} />{t('ui.backup.authorize')}</button>}
     </div>
     {state.snapshots.length > 0 && <ul className="backup-history" aria-label={t('ui.backup.history')}>
       {state.snapshots.map((snapshot) => <li key={snapshot.dateKey}>
         <span><strong>{snapshot.petName} · Lv.{snapshot.level}</strong><small>{formatTime(snapshot.savedAt)}</small></span>
         <button className="icon-button" type="button" title={t('ui.backup.restore')} aria-label={t('ui.backup.restore')} onClick={() => onRestore(snapshot.text)}><RotateCcw size={18} /></button>
-        <button className="icon-button" type="button" title={t('ui.backup.export')} aria-label={t('ui.backup.export')} onClick={() => onExport(snapshot)}><Download size={18} /></button>
+        {features.saveFileDownload && <button className="icon-button" type="button" title={t('ui.backup.export')} aria-label={t('ui.backup.export')} onClick={() => onExport(snapshot)}><Download size={18} /></button>}
       </li>)}
     </ul>}
     <p className="settings-cloud-warning">{t('ui.backup.storageWarning')}</p>

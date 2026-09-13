@@ -3,6 +3,7 @@ import { readFileSync, existsSync, appendFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { getReleaseBuildPlan } from './release-policy.mjs';
 
 const { values } = parseArgs({ options: {
   dist: { type: 'string' }, edition: { type: 'string', default: 'standard' },
@@ -22,9 +23,8 @@ if (process.env.GITHUB_SHA) assert.equal(process.env.GITHUB_SHA, revision, 'Buil
 const isTag = (process.env.GITHUB_REF || '').startsWith('refs/tags/');
 if (isTag) assert.equal(process.env.GITHUB_REF, `refs/tags/v${version}`, 'Git tag does not match package.json');
 if (values.metadata && process.env.GITHUB_OUTPUT) {
-  const full = version.endsWith('.0') || project.pocpetRelease?.fullBuildVersions?.includes(version) || process.env.MANUAL_FULL_BUILD === 'true';
-  const publish = isTag && process.env.GITHUB_EVENT_NAME === 'push';
-  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nrevision=${revision}\nfull_build=${full}\nrelease_build=${publish || process.env.GITHUB_EVENT_NAME === 'workflow_dispatch'}\npublish_release=${publish}\n`);
+  const plan = getReleaseBuildPlan({ eventName: process.env.GITHUB_EVENT_NAME, ref: process.env.GITHUB_REF, manualFullBuild: process.env.MANUAL_FULL_BUILD === 'true' });
+  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nrevision=${revision}\nfull_build=${plan.fullBuild}\nrelease_build=${plan.releaseBuild}\npublish_release=${plan.publishRelease}\n`);
 }
 let assets = [];
 if (values.dist) {

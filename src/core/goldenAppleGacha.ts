@@ -82,15 +82,15 @@ export const goldenAppleGachaRewards: readonly GoldenAppleGachaRewardDefinition[
   itemReward('bento_5', 'bento', 5, 3200, 'common', 24),
   itemReward('nutri_meal_5', 'nutri_meal', 5, 3200, 'common', 36),
   itemReward('energy_drink_5', 'energy_drink', 5, 3200, 'common', 36),
-  itemReward('blanket_5', 'blanket', 5, 2800, 'common', 42),
+  itemReward('blanket_5', 'blanket', 5, 2800, 'common', 52),
   itemReward('picture_book_5', 'picture_book', 5, 2000, 'common', 52),
   itemReward('bento_10', 'bento', 10, 8000, 'common', 24),
   itemReward('energy_drink_10', 'energy_drink', 10, 7600, 'common', 36),
-  itemReward('blanket_10', 'blanket', 10, 2600, 'uncommon', 42),
+  itemReward('blanket_10', 'blanket', 10, 2600, 'uncommon', 52),
   itemReward('picture_book_10', 'picture_book', 10, 2600, 'uncommon', 52),
-  itemReward('normal_fertilizer_1', 'normal_fertilizer', 1, 4800, 'uncommon', 300),
+  itemReward('normal_fertilizer_20', 'normal_fertilizer', 20, 4800, 'uncommon', 15),
   itemReward('harvest_nutrient_1', 'harvest_nutrient', 1, 5000, 'rare', 300),
-  itemReward('heart_fertilizer_1', 'heart_fertilizer', 1, 1000, 'rare', 900),
+  itemReward('heart_fertilizer_30', 'heart_fertilizer', 30, 1000, 'rare', 30),
   itemReward('money_tree_sapling_1', 'money_tree_sapling', 1, 1180, 'rare', 3000),
   itemReward('golden_apple_tree_sapling_1', 'golden_apple_tree_sapling', 1, 320, 'legendary', 8888),
   itemReward('golden_apple_1', 'golden_apple', 1, 11632, 'rare', goldenAppleValue),
@@ -124,7 +124,12 @@ export const goldenAppleHeartGachaRewards: readonly GoldenAppleHeartGachaRewardD
   heartReward(888, 500, 'jackpot'),
 ] as const;
 
-const rewardById = new Map(goldenAppleGachaRewards.map((reward) => [reward.id, reward]));
+// Old result IDs retain the amounts actually awarded, without entering the active pool.
+const legacyGachaRewards = [
+  itemReward('normal_fertilizer_1', 'normal_fertilizer', 1, 0, 'uncommon', 300),
+  itemReward('heart_fertilizer_1', 'heart_fertilizer', 1, 0, 'rare', 900),
+];
+const rewardById = new Map([...legacyGachaRewards, ...goldenAppleGachaRewards].map((reward) => [reward.id, reward]));
 const heartRewardById = new Map(goldenAppleHeartGachaRewards.map((reward) => [reward.id, reward]));
 const guaranteedHeartRewards = goldenAppleHeartGachaRewards.filter((reward) =>
   reward.amount >= goldenAppleHeartGachaGuaranteeMinimum,

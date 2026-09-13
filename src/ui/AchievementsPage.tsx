@@ -195,14 +195,15 @@ export const AchievementsPage = ({
                   {rewardIcon ? <img src={rewardIcon} alt="" aria-hidden="true" /> : <Sparkles size={17} aria-hidden="true" />}
                   <span>{achievement.rewardText}</span>
                 </div>
+                {achievement.claimBlocked && <small>{t('pet.achievements.events.rewardCapacity')}</small>}
               </div>
 
               <div className="achievement-list-item__actions">
                 {achievement.unlockedAt ? <time dateTime={new Date(achievement.unlockedAt).toISOString()}>{formatDateTime(achievement.unlockedAt)}</time> : null}
                 {achievement.claimable ? (
-                  <button type="button" className="primary-button" onClick={() => onClaimReward(achievement.id)}>
+                  <button type="button" className="primary-button" disabled={achievement.claimBlocked} onClick={() => onClaimReward(achievement.id)}>
                     <Gift size={16} aria-hidden="true" />
-                    {labels.claim}
+                    {achievement.claimKind === 'balance' ? L('领取补给', 'Claim supplies') : labels.claim}
                   </button>
                 ) : achievement.unlocked ? (
                   <span className="achievement-list-item__done"><CheckCircle2 size={16} aria-hidden="true" />{achievement.effectActive ? labels.active : labels.claimed}</span>
