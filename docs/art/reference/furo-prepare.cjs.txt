@@ -1,0 +1,18 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const crypto=require('node:crypto');
+const sharp=require('C:/Users/Ferris/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
+const root=__dirname;
+(async()=>{
+  const source=path.resolve(root,'../../../src/assets/pet/pet_idle_sit.png');
+  const reference=path.join(root,'furo-reference.png');
+  fs.copyFileSync(source,reference,fs.constants.COPYFILE_EXCL);
+  const meta=await sharp(reference).metadata();
+  const common=fs.readFileSync(path.join(root,'prompt-common.txt'),'utf8');
+  for(const style of ['pixel','original']) {
+    fs.writeFileSync(path.join(root,'prompt-'+style+'.txt'),common+'\n'+fs.readFileSync(path.join(root,'style-'+style+'.txt'),'utf8'),{flag:'wx'});
+  }
+  const manifest={source,reference,width:meta.width,height:meta.height,sha256:crypto.createHash('sha256').update(fs.readFileSync(reference)).digest('hex'),userAuthorizedReferenceInput:true};
+  fs.writeFileSync(path.join(root,'reference-manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+  console.log(JSON.stringify(manifest));
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,4 +1,4 @@
-import { Gem, Lock, Trophy } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import {
   classicTrophyDefinitions,
   classicTrophyTotal,
@@ -10,6 +10,7 @@ import {
   type PetState,
 } from '../core/pet';
 import { t } from '../i18n';
+import { trophyImages } from '../trophyAssets';
 
 interface ClassicTrophyCabinetProps {
   pet: PetState;
@@ -50,7 +51,8 @@ export const ClassicTrophyCabinet = ({ pet }: ClassicTrophyCabinetProps) => {
               key={trophy.id}
             >
               <span className="classic-trophy__icon" aria-hidden="true">
-                {unlocked ? <Trophy size={22} /> : <Lock size={19} />}
+                <img src={trophyImages[trophy.id]} alt="" draggable={false} />
+                {!unlocked && <Lock className="classic-trophy__lock" size={18} />}
               </span>
               <div>
                 <h3>{t(`ui.classicEndgame.trophies.names.${trophy.category}.${trophy.tier}`)}</h3>
@@ -66,7 +68,8 @@ export const ClassicTrophyCabinet = ({ pet }: ClassicTrophyCabinetProps) => {
 
       <article className={`classic-trophy classic-trophy--diamond${diamondUnlocked ? ' is-unlocked' : ' is-locked'}`}>
         <span className="classic-trophy__icon" aria-hidden="true">
-          {diamondUnlocked ? <Gem size={24} /> : <Lock size={20} />}
+          <img src={trophyImages.diamond} alt="" draggable={false} />
+          {!diamondUnlocked && <Lock className="classic-trophy__lock" size={20} />}
         </span>
         <div>
           <h3>{t('ui.classicEndgame.trophies.names.diamond')}</h3>

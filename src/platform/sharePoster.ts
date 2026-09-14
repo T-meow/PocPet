@@ -1,4 +1,5 @@
-import { getInventoryItem, type GachaResult, type YearReview, type YearlyCareActionKey } from '../core/pet';
+import { getGachaRewardItems, type GachaResult, type YearReview, type YearlyCareActionKey } from '../core/pet';
+import { getGachaRewardContentLabels, getGachaRewardLabel } from '../ui/gachaRewards';
 import { createGachaCardData, createPetProfileCardData, type PetProfileCardData } from '../core/shareCards';
 import type { PetState } from '../core/pet';
 import { t } from '../i18n';
@@ -348,13 +349,6 @@ const rarityColors: Record<GachaResult['rarity'], string> = {
   jackpot: '#ffe4ea',
 };
 
-const getGachaRewardLabel = (result: GachaResult) => {
-  if (result.kind === 'coins') return t('ui.gacha.coinReward', { coins: numberFormatter.format(result.amount) });
-  if (result.kind === 'hearts') return t('ui.gacha.heartReward', { hearts: numberFormatter.format(result.amount) });
-  const itemName = result.itemId ? getInventoryItem(result.itemId)?.name ?? result.itemId : t('ui.gacha.unknownReward');
-  return `${itemName} x${result.amount}`;
-};
-
 export const createGachaPoster = async ({
   machine,
   results,
@@ -386,19 +380,28 @@ export const createGachaPoster = async ({
   const isSingle = results.length === 1;
   const columns = isSingle ? 1 : 2;
   const cardWidth = isSingle ? 700 : 460;
-  const cardHeight = isSingle ? 410 : 135;
+  const cardHeight = isSingle ? 410 : 148;
   const startX = isSingle ? 190 : 60;
   const startY = isSingle ? 500 : 465;
-  const loadedIcons = await Promise.all(results.map((result) =>
-    loadImage(result.itemId ? itemIconMap[result.itemId] : undefined)));
+  const loadedIcons = await Promise.all(results.map((result) => Promise.all(
+    getGachaRewardItems(result).slice(0, 3).map(({ itemId }) => loadImage(itemIconMap[itemId])),
+  )));
   results.forEach((result, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
     const x = startX + column * 500;
     const y = startY + row * (cardHeight + 16);
     fillPanel(context, x, y, cardWidth, cardHeight, rarityColors[result.rarity]);
-    const icon = loadedIcons[index];
-    if (icon) drawContainedImage(context, icon, x + 18, y + 18, isSingle ? 230 : 96, isSingle ? 230 : 96);
+    const icons = loadedIcons[index];
+    if (icons.some(Boolean)) {
+      const size = isSingle ? 230 : 96;
+      icons.forEach((icon, iconIndex) => {
+        if (!icon) return;
+        const part = icons.length === 1 ? size : size / 2;
+        const offsetX = icons.length === 3 && iconIndex === 2 ? size / 4 : (iconIndex % 2) * part;
+        drawContainedImage(context, icon, x + 18 + offsetX, y + 18 + Math.floor(iconIndex / 2) * part, part, part);
+      });
+    }
     else {
       context.fillStyle = result.kind === 'hearts' ? '#df5b72' : '#d08b18';
       context.beginPath();
@@ -407,20 +410,27 @@ export const createGachaPoster = async ({
       context.fillStyle = '#ffffff';
       context.textAlign = 'center';
       setFont(context, isSingle ? 72 : 38, 700);
-      context.fillText(result.kind === 'hearts' ? '♥' : 'C', x + (isSingle ? 130 : 66), y + (isSingle ? 154 : 80));
+      context.fillText(result.kind === 'hearts' ? '♥' : result.kind === 'bundle' ? '□' : 'C', x + (isSingle ? 130 : 66), y + (isSingle ? 154 : 80));
       context.textAlign = 'left';
     }
     const copyX = x + (isSingle ? 285 : 130);
     context.fillStyle = posterColors.ink;
     setFont(context, isSingle ? 38 : 22, 700);
-    context.fillText(truncateText(context, getGachaRewardLabel(result), cardWidth - (copyX - x) - 25), copyX, y + (isSingle ? 105 : 54));
+    context.fillText(truncateText(context, getGachaRewardLabel(result), cardWidth - (copyX - x) - 25), copyX, y + (isSingle ? 80 : 32));
     context.fillStyle = posterColors.muted;
-    setFont(context, isSingle ? 26 : 17, 600);
-    context.fillText(t(`ui.gacha.rarity.${result.rarity}`), copyX, y + (isSingle ? 155 : 86));
+    setFont(context, isSingle ? 24 : 15, 600);
+    context.fillText(t(`ui.gacha.rarity.${result.rarity}`), copyX, y + (isSingle ? 122 : 55));
+    if (result.kind === 'bundle') {
+      setFont(context, isSingle ? 21 : 15, 500);
+      getGachaRewardContentLabels(result).forEach((label, contentIndex) => {
+        context.fillText(truncateText(context, label, cardWidth - (copyX - x) - 20), copyX, y + (isSingle ? 175 + contentIndex * 32 : 80 + contentIndex * 20));
+      });
+    }
     if (result.pityGuaranteed || result.guaranteed) {
       context.fillStyle = posterColors.coral;
       setFont(context, isSingle ? 24 : 15, 700);
-      context.fillText(t(result.pityGuaranteed ? 'ui.gacha.pityGuaranteed' : 'ui.gacha.guaranteed'), copyX, y + (isSingle ? 205 : 112));
+      const flagKey = result.pityGuaranteed ? 'ui.gacha.pityGuaranteed' : machine === 'heart' ? 'ui.gacha.heartGuaranteed' : 'ui.gacha.guaranteed';
+      context.fillText(t(flagKey), copyX, y + (isSingle ? 280 : 130));
     }
   });
   await drawFooter(context, qrCodeDataUrl);

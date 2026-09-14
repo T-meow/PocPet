@@ -6,6 +6,7 @@ export const itemEffectKeys = ['hunger', 'mood', 'cleanliness', 'energy', 'healt
 export type ItemEffectBadge = {
   key: (typeof itemEffectKeys)[number];
   label: string;
+  amount: string;
 };
 
 export const getItemEffectBadges = (effect: ItemEffect, quantity = 1): ItemEffectBadge[] =>
@@ -18,6 +19,7 @@ export const getItemEffectBadges = (effect: ItemEffect, quantity = 1): ItemEffec
       const amount = total > 0 ? `+${total}` : String(total);
       return {
         key,
+        amount,
         label: `${t(`ui.stats.${key}`)} ${amount}`,
       };
     })

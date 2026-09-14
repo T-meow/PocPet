@@ -49,8 +49,8 @@ try {
   const goldenApplePet = createSleepingPet('golden_apple');
   const goldenApple = useInventoryItem(goldenApplePet, 'golden_apple', now);
   assertWakeSnapshotCleared(goldenApple, 'golden apple wake');
-  assert.equal(goldenApple.mood, 70, 'golden apple must retain the prior sleep settlement');
-  assert.equal(goldenApple.energy, 50);
+  assert.equal(goldenApple.mood, 90, 'sleep settlement (+2), half-cap recovery (+50), then the wake penalty (-2) must all apply');
+  assert.equal(goldenApple.energy, 70);
   assert.equal(goldenApple.inventory.golden_apple, undefined);
 
   const birthdayPet = createSleepingPet('birthday_cake');

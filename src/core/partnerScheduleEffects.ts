@@ -2,7 +2,7 @@ import type { PartnerScheduleCategory, PartnerScheduleSkill, PartnerScheduleStat
 
 export const partnerScheduleCategories: readonly PartnerScheduleCategory[] = ['study', 'cooking', 'garden', 'exercise'];
 
-export const partnerScheduleDailyCompletionLimit = 3;
+export const partnerScheduleDailyContributionTargetMs = 60 * 60 * 1000;
 
 export const partnerScheduleMasteryThresholds = [10, 30, 60] as const;
 
@@ -13,9 +13,9 @@ export const getPartnerScheduleMinimumSkillLevel = (skills: PartnerScheduleSkill
 
 export const getPartnerScheduleUnlockedOfferCount = (skills: PartnerScheduleSkills) => {
   const minimumLevel = getPartnerScheduleMinimumSkillLevel(skills);
-  if (minimumLevel >= 6) return 5;
-  if (minimumLevel >= 3) return 4;
-  return 3;
+  if (minimumLevel >= 6) return 6;
+  if (minimumLevel >= 3) return 5;
+  return 4;
 };
 
 export const getPartnerScheduleGlobalCoinBonusPercent = (skills: PartnerScheduleSkills) => {

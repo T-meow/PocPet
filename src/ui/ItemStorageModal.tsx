@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Heart, PackageOpen, ShoppingBag, X } from 'lucide-react';
+import { Apple, ChefHat, Droplets, Heart, HeartPulse, PackageOpen, ShoppingBag, Smile, Sprout, X, Zap } from 'lucide-react';
 import { batchActionUnlockLevel, getPetEnergyCap, getPetStatCap, type InventoryItemDefinition, type ItemId, type PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
+import { getItemStatEffect } from '../core/itemEffects';
 import { currencyIcon, unknownItemIcon } from '../assets';
 import { t } from '../i18n';
 import { DialogShell } from './DialogShell';
@@ -12,6 +13,8 @@ import { getItemEffectBadges } from './itemEffectBadges';
 import { ItemRecoveryPreview } from './ItemRecoveryPreview';
 import { playSfx } from '../core/audio';
 import { filterBrowseItems, getItemBrowseCategories, getItemBrowseLimit, getItemBrowseTone, getCategoryBrowseTone, isKitchenIngredient, resolveItemBrowseState, sortBagItems, type ItemBrowseState, type ItemStorageMode } from './itemBrowse';
+
+const effectIcons = { hunger: Apple, mood: Smile, cleanliness: Droplets, energy: Zap, health: HeartPulse };
 
 interface Props {
   mode: ItemStorageMode;
@@ -50,7 +53,8 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
   const iconFor = (entry: InventoryItemDefinition) => itemIconMap[entry.id] ?? entry.imageUrl ?? unknownItemIcon;
   const titleId = mode === 'shop' ? 'shop-title' : 'inventory-title';
   const maxQuantity = item ? getItemBrowseLimit(pet, item, mode, now) : 0;
-  const effects = item ? getItemEffectBadges(item.effect) : [];
+  const effectBadgesFor = (entry: InventoryItemDefinition) => getItemEffectBadges(entry.id === 'golden_apple' ? getItemStatEffect(pet, entry) : entry.effect);
+  const effects = item ? effectBadgesFor(item) : [];
   const ownedCount = (entry: InventoryItemDefinition) => pet.inventory[entry.purchaseContents?.length === 1 ? entry.purchaseContents[0].itemId : entry.id] ?? 0;
   const stats = ['hunger', 'mood', 'cleanliness', 'energy', 'health'] as const;
   const canBatch = pet.level >= batchActionUnlockLevel && item && (mode === 'shop' || (item.usable && item.kind !== 'garden' && item.id !== 'golden_apple' && item.id !== 'birthday_cake'));
@@ -72,7 +76,17 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
         <div className="storage-grid-scroll"><div className="storage-item-grid">{visible.map((entry) => {
           const info = tileInfo?.(entry);
           const owned = ownedCount(entry);
+          const tileEffects = effectBadgesFor(entry);
+          const ingredient = isKitchenIngredient(entry);
           return <button className="storage-item-tile" data-item-id={entry.id} data-tone={entry.id === item?.id ? getItemBrowseTone(entry) : undefined} key={entry.id} aria-pressed={entry.id === item?.id} aria-haspopup="dialog" aria-expanded={isDetailOpen && detailItemId === entry.id} onClick={() => { playSfx('open'); onBrowseChange({ ...browse, selectedId: entry.id, quantity: 1 }); setDetailItemId(entry.id); }} title={entry.displayName}>
+            <span className="storage-tile-tags">
+              {tileEffects.map((effect) => {
+                const Icon = effectIcons[effect.key];
+                return <span className={`storage-tile-tag storage-tile-tag--${effect.key}`} key={effect.key} title={effect.label} role="img" aria-label={effect.label}><Icon size={12} aria-hidden="true" /><span aria-hidden="true">{effect.amount}</span></span>;
+              })}
+              {ingredient && <span className="storage-tile-tag storage-tile-tag--ingredient" title={L('厨房食材', 'Cooking ingredient')} role="img" aria-label={L('厨房食材', 'Cooking ingredient')}><ChefHat size={12} aria-hidden="true" /></span>}
+              {!tileEffects.length && !ingredient && <span className={`storage-tile-tag storage-tile-tag--${entry.kind}`} title={categories.find((category) => category.id === entry.kind)?.label} role="img" aria-label={categories.find((category) => category.id === entry.kind)?.label}>{entry.kind === 'garden' ? <Sprout size={12} aria-hidden="true" /> : <PackageOpen size={12} aria-hidden="true" />}</span>}
+            </span>
             <span className="storage-tile-count" title={L(`持有 ${owned} 件`, `${owned} owned`)}>{mode === 'shop' ? L('有 ', 'Have ') : '×'}{formatCompactNumber(owned)}</span>
             {info?.mark && <span className="storage-tile-mark">{info.mark}</span>}
             <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{entry.displayName}</strong>{info && <span className="storage-tile-price">{info.price}</span>}

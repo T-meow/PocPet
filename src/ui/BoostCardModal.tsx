@@ -48,7 +48,7 @@ export const BoostCardModal = ({ pet, onClose, onBuyCard, onClaimDailyReward }: 
               L(`每日邻居礼物与 ${definition.dailyCoins} 金币`, `A daily neighbor gift and ${definition.dailyCoins} coins`),
               ...(definition.workBonusCoins ? [L(`打工每次 +${definition.workBonusCoins} 金币，每日最多 ${definition.workBonusDailyLimit}`, `Work +${definition.workBonusCoins} coins, up to ${definition.workBonusDailyLimit} daily`)] : []),
               L(`额外小心心概率 ${definition.extraHeartChancePercent}%`, `${definition.extraHeartChancePercent}% chance of extra hearts`),
-              ...(definition.partnerScheduleCoinBonusPercent ? [L(`日程金币 +${definition.partnerScheduleCoinBonusPercent}%`, `Activity coins +${definition.partnerScheduleCoinBonusPercent}%`)] : []),
+              ...(definition.partnerScheduleCoinBonusPercent ? [L(`计时工作金币 +${definition.partnerScheduleCoinBonusPercent}%`, `Community work coins +${definition.partnerScheduleCoinBonusPercent}%`)] : []),
               ...(definition.gardenGrowTimeMultiplier < 1 ? [L(`植物成长时间减少 ${Math.round((1 - definition.gardenGrowTimeMultiplier) * 100)}%`, `${Math.round((1 - definition.gardenGrowTimeMultiplier) * 100)}% shorter garden growth`)] : []),
             ];
             return (

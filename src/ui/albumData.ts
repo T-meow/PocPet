@@ -15,7 +15,7 @@ export const createAlbumData = (pet: PetState): AlbumPosterData => {
   return {
     name: pet.name, title: L('把小日子，收进回忆里。', 'Keep our little days together.'),
     subtitle: L(`一起走过 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天 · Lv.${pet.level}`, `${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} days together · Lv.${pet.level}`),
-    metrics: [metric(L('照顾时刻', 'Care moments'), Object.values(counters.careActionCounts).reduce((sum, count) => sum + count, 0), 'rose'), metric(L('物品使用', 'Items used'), counters.totalItemUseCount, 'gold'), metric(L('花园收获', 'Garden harvests'), pet.garden.lifetimeHarvestCount, 'mint'), metric(L('完成日程', 'Activities completed'), counters.partnerScheduleClaimCount, 'sky'), metric(L('专注时光', 'Focus sessions'), pet.pomodoro.completedFocusCount, 'lilac'), metric(L('成长成就', 'Achievements'), Object.keys(pet.achievements.unlockedAtById).length, 'peach')],
+    metrics: [metric(L('照顾时刻', 'Care moments'), Object.values(counters.careActionCounts).reduce((sum, count) => sum + count, 0), 'rose'), metric(L('物品使用', 'Items used'), counters.totalItemUseCount, 'gold'), metric(L('花园收获', 'Garden harvests'), pet.garden.lifetimeHarvestCount, 'mint'), metric(L('完成计时工作', 'Services completed'), counters.partnerScheduleClaimCount, 'sky'), metric(L('专注时光', 'Focus sessions'), pet.pomodoro.completedFocusCount, 'lilac'), metric(L('成长成就', 'Achievements'), Object.keys(pet.achievements.unlockedAtById).length, 'peach')],
     notes: [L('当前存档累计 · 从已有记录中收集我们的日常', 'Current save · All recorded moments together'), ...(['study', 'cooking', 'garden', 'exercise'] as const).map((category) => `${t(`ui.partnerSchedule.categories.${category}`)} Lv.${pet.partnerSchedule.skills[category].level}`)],
   };
 };

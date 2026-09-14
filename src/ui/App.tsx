@@ -57,6 +57,7 @@ import {
   updatePetProfile,
   startPomodoro,
   startPartnerSchedule,
+  refreshPartnerScheduleOffers,
   updatePomodoroSettings,
   upgradePet,
   useInventoryItem,
@@ -132,6 +133,7 @@ import { HomePageV2 as HomePage } from './HomePageV2';
 import { KitchenModal } from './KitchenModal';
 import { PlayModal } from './PlayModal';
 import { DialogShell } from './DialogShell';
+import { FloatingRewardBubble } from './FloatingRewardBubble';
 import { useCompanionActivities } from './app/useCompanionActivities';
 import { claimKitchenStarter } from '../core/kitchen';
 import { pauseMiniGame, resumeMiniGame } from '../core/miniGames';
@@ -330,7 +332,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [hasImportBackup, setHasImportBackup] = useState(() => Boolean(getImportBackup()));
   const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [modDeleteConfirmId, setModDeleteConfirmId] = useState<string | null>(null);
-  const [isPartnerScheduleCancelConfirmOpen, setPartnerScheduleCancelConfirmOpen] = useState(false);
   const [isGoldenAppleUseConfirmOpen, setGoldenAppleUseConfirmOpen] = useState(false);
   const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementTabId>('all');
   const [achievementCgPopup, setAchievementCgPopup] = useState<AchievementCgPopup | null>(null);
@@ -612,7 +613,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleOpenInventory = () => {
     activityReturnRef.current = getStorageReturnTarget(utilityDialog, activityReturnRef.current);
     playAfterUnlock('open');
-    inventoryController.prepareOpen('item');
+    inventoryController.prepareOpen('food');
     setPet((current) => recordPetInteraction(current));
     openUtilityDialog('inventory');
   };
@@ -634,10 +635,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const handleOpenPartnerSchedule = () => {
-    if (petRef.current.level < 3) {
-      playAfterUnlock('error');
-      return;
-    }
     playAfterUnlock('open');
     setActivePage('partnerSchedule');
     setPet((current) => recordPetInteraction(current));
@@ -645,7 +642,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleClosePartnerSchedule = () => {
     playAfterUnlock('close');
-    setPartnerScheduleCancelConfirmOpen(false);
     setActivePage('home');
   };
 
@@ -658,7 +654,15 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     const didStart = next.partnerSchedule.active?.offerId === offerId;
     playSfx(didStart ? 'action_work_play_medicine' : 'error');
     setPetWithFeedback(commitPet(next));
-    if (didStart) setActivePage('home');
+  };
+
+  const handleRefreshPartnerSchedule = (boardKey: string) => {
+    playAfterUnlock('tap');
+    setPetWithFeedback((current) => {
+      const next = refreshPartnerScheduleOffers(current, boardKey);
+      playSfx(next.hearts < current.hearts ? 'coin' : 'error');
+      return commitPet(next);
+    });
   };
 
   const handleClaimPartnerSchedule = (choice: PartnerScheduleRewardChoice) => {
@@ -687,7 +691,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const handleConfirmPartnerScheduleCancel = () => {
-    setPartnerScheduleCancelConfirmOpen(false);
     playAfterUnlock('close');
     setPetWithFeedback((current) => commitPet(cancelPartnerSchedule(current)));
   };
@@ -918,9 +921,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         return;
       case 'clean':
       case 'play':
-      case 'work':
       case 'sleep':
         handleAction(action);
+        return;
+      case 'work':
+        handleOpenPartnerSchedule();
         return;
     }
   };
@@ -1515,7 +1520,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); setActivePage('settings'); }}>{t('ui.backup.export')}</button>
         <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.reload')}</button>
       </div>}
-      {editionNoticeVisible && !persistenceError && !activeRewardPopup && !utilityDialog && !pendingImportedSave && !activeYearReview && !achievementCgPopup && !isResetConfirmOpen && !isCloudUploadConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImageSave && !isPartnerScheduleCancelConfirmOpen && !isGoldenAppleUseConfirmOpen && (
+      {editionNoticeVisible && !persistenceError && !activeRewardPopup && !utilityDialog && !pendingImportedSave && !activeYearReview && !achievementCgPopup && !isResetConfirmOpen && !isCloudUploadConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImageSave && !isGoldenAppleUseConfirmOpen && (
         <EditionNoticeDialog
           onAcknowledge={() => setEditionNoticeVisible(false)}
           onBackup={() => { setEditionNoticeVisible(false); setSettingsInitialPage('save'); setActivePage('settings'); }}
@@ -1606,8 +1611,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           neighbors={neighbors}
           onBack={handleClosePartnerSchedule}
           onStart={handleStartPartnerSchedule}
-          onCancel={() => setPartnerScheduleCancelConfirmOpen(true)}
+          onCancel={handleConfirmPartnerScheduleCancel}
           onClaim={handleClaimPartnerSchedule}
+          onRefresh={handleRefreshPartnerSchedule}
+          onQuickWork={() => handleAction('work')}
         />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
@@ -1704,16 +1711,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         </aside>
       )}
 
-      {availableFloatingReward && !toyIntegration.isReminderPromptVisible && (
-        <button
-          type="button"
-          className="floating-reward-button"
-          aria-label={t('ui.rewards.claim')}
-          title={t('ui.rewards.claim')}
-          onClick={() => handleClaimFloatingReward(availableFloatingReward)}
-        >
-          <img src={giftBoxIcon} alt="" aria-hidden="true" />
-        </button>
+      {availableFloatingReward && !toyIntegration.isReminderPromptVisible && !activeRewardPopup && !persistenceError && !pendingImportedSave && !isImportingSave && (
+        <FloatingRewardBubble reward={availableFloatingReward} onClaim={handleClaimFloatingReward} />
       )}
 
       {achievementToast && activePage === 'home' && !utilityDialog && (
@@ -1954,16 +1953,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           confirmLabel={t('ui.settings.mod.deleteDialog.confirm')}
           onCancel={() => setModDeleteConfirmId(null)}
           onConfirm={() => void handleConfirmDeleteMod()}
-        />
-      )}
-      {isPartnerScheduleCancelConfirmOpen && (
-        <ConfirmDialog
-          title={t('ui.partnerSchedule.cancelDialog.title')}
-          message={t('ui.partnerSchedule.cancelDialog.message')}
-          cancelLabel={t('ui.partnerSchedule.cancelDialog.keep')}
-          confirmLabel={t('ui.partnerSchedule.cancelDialog.confirm')}
-          onCancel={() => setPartnerScheduleCancelConfirmOpen(false)}
-          onConfirm={handleConfirmPartnerScheduleCancel}
         />
       )}
       {isGoldenAppleUseConfirmOpen && (

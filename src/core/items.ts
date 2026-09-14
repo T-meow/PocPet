@@ -310,7 +310,7 @@ export const specialItems: readonly ShopItem[] = [
     name: t('pet.shop.items.golden_apple.name'),
     kind: 'food',
     price: 888,
-    effect: { hunger: 30, mood: 30, cleanliness: 30, energy: 30, health: 30 },
+    effect: {},
     summary: t('pet.shop.items.golden_apple.summary'),
   },
 ] as const;

@@ -1,0 +1,131 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const sharp = require('C:/Users/Ferris/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
+const root = __dirname;
+const items = JSON.parse(fs.readFileSync(path.join(root, '../shop-icons-20260913/items.json'), 'utf8'));
+const models = [{key:'gpt',label:'GPT Image 2.5 Sunburst'}, {key:'nano',label:'Nano 2.0'}];
+const sha = buffer => crypto.createHash('sha256').update(buffer).digest('hex');
+const fileSha = file => sha(fs.readFileSync(file));
+
+// 按整张图的空白走廊选择切线，避免模型稍偏离等分网格时切到主体。
+function findCuts(data,width,height,axis) {
+  const length=axis==='x'?width:height,counts=new Uint32Array(length);
+  for(let y=0;y<height;y++) for(let x=0;x<width;x++) {
+    const k=(y*width+x)*4;
+    if(data[k+3]>0 && Math.min(data[k],data[k+1],data[k+2])<220) counts[axis==='x'?x:y]++;
+  }
+  const cuts=[0];
+  for(let i=1;i<4;i++) {
+    const expected=length*i/4,radius=Math.floor(length/20),gaps=[];
+    let start=-1;
+    for(let n=Math.floor(expected-radius);n<=Math.ceil(expected+radius);n++) {
+      if(counts[n]===0) {if(start<0)start=n;}
+      else if(start>=0) {gaps.push([start,n]);start=-1;}
+    }
+    if(start>=0)gaps.push([start,Math.ceil(expected+radius)+1]);
+    const eligible=gaps.filter(([a,b])=>b-a>=4).sort((a,b)=>Math.abs((a[0]+a[1])/2-expected)-Math.abs((b[0]+b[1])/2-expected));
+    if(!eligible.length)throw new Error('No safe grid gutter on '+axis+' boundary '+i);
+    cuts.push(Math.floor((eligible[0][0]+eligible[0][1])/2));
+  }
+  return [...cuts,length];
+}
+
+function removeWhiteBackground(data, width, height) {
+  const visited = new Uint8Array(width*height), queue = new Int32Array(width*height);
+  let tail=0, head=0;
+  const visit = i => {
+    if (visited[i]) return;
+    visited[i]=1;
+    const k=i*4, colors=[data[k],data[k+1],data[k+2]];
+    if (data[k+3]===0 || (Math.min(...colors)>=238 && Math.max(...colors)-Math.min(...colors)<=24)) queue[tail++]=i;
+  };
+  for(let x=0;x<width;x++) {visit(x);visit((height-1)*width+x);}
+  for(let y=0;y<height;y++) {visit(y*width);visit(y*width+width-1);}
+  while(head<tail) {
+    const i=queue[head++],x=i%width,y=Math.floor(i/width);
+    data.fill(0,i*4,i*4+4);
+    if(x>0) visit(i-1); if(x<width-1) visit(i+1);
+    if(y>0) visit(i-width); if(y<height-1) visit(i+width);
+  }
+  let x0=width,y0=height,x1=-1,y1=-1,foreground=0,edgePixels=0;
+  for(let y=0;y<height;y++) for(let x=0;x<width;x++) if(data[(y*width+x)*4+3]>0) {
+    foreground++;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);
+    if(x===0||y===0||x===width-1||y===height-1) edgePixels++;
+  }
+  if(!foreground) throw new Error('Empty icon');
+  return {foregroundPixels:foreground,removedBackgroundPixels:tail,bounds:[x0,y0,x1+1,y1+1],minMargin:Math.min(x0,y0,width-x1-1,height-y1-1),edgePixels};
+}
+
+(async()=>{
+  const prompt=fs.readFileSync(path.join(root,'prompt.txt'),'utf8');
+  const reports=[];
+  for(const model of models) {
+    const request=JSON.parse(fs.readFileSync(path.join(root,model.key+'-request.json'),'utf8'));
+    const permitted=new Set(['model','aspect_ratio','resolution','prompt','quality','count']);
+    if(Object.keys(request).some(k=>!permitted.has(k)) || request.prompt!==prompt) throw new Error('Text-only or identical-prompt constraint failed');
+    const status=JSON.parse(fs.readFileSync(path.join(root,model.key+'-status.json'),'utf8'));
+    if(status.status!==2) throw new Error(model.key+' is not complete');
+    const raw=path.join(root,model.key+'-raw.png'),meta=await sharp(raw).metadata();
+    if(meta.width!==meta.height) throw new Error(model.key+' actual image is not square');
+    const dir=path.join(root,model.key),manifest=path.join(dir,'manifest.json');
+    if(fs.existsSync(manifest)) {reports.push(JSON.parse(fs.readFileSync(manifest,'utf8')));continue;}
+    fs.mkdirSync(path.join(dir,'cells'),{recursive:true});fs.mkdirSync(path.join(dir,'icons'),{recursive:true});fs.mkdirSync(path.join(dir,'source-crops'),{recursive:true});
+    const rawImage=await sharp(raw).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+    const columns=findCuts(rawImage.data,meta.width,meta.height,'x'),rows=findCuts(rawImage.data,meta.width,meta.height,'y');
+    const sheet1k=path.join(root,model.key+'-sheet-1k.png');
+    const report={model:request.model,serialNo:status.serial_no,textOnly:true,promptSha256:sha(Buffer.from(prompt,'utf8')),raw:{file:raw,width:meta.width,height:meta.height,format:meta.format,bytes:fs.statSync(raw).size,sha256:fileSha(raw)},sheet:{file:sheet1k,width:1024,height:1024,layout:'4x4, centered, longest icon side 184px',kernel:'lanczos3'},sourceCuts:{columns,rows},items:[]};
+    const layers=[];
+    for(const [i,item] of items.entries()) {
+      const col=i%4,row=Math.floor(i/4),left=col*256,top=row*256;
+      const cell=path.join(dir,'cells',item.file),icon=path.join(dir,'icons',item.file);
+      const sourceCrop=path.join(dir,'source-crops',item.file);
+      const sourceRect={left:columns[col],top:rows[row],width:columns[col+1]-columns[col],height:rows[row+1]-rows[row]};
+      await sharp(raw).extract(sourceRect).png().toFile(sourceCrop);
+      const {data,info}=await sharp(sourceCrop).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+      const stats=removeWhiteBackground(data,info.width,info.height);
+      if(stats.edgePixels!==0) throw new Error('Cell needs crop review: '+item.id);
+      const [x0,y0,x1,y1]=stats.bounds;
+      const sprite=await sharp(data,{raw:info}).extract({left:x0,top:y0,width:x1-x0,height:y1-y0}).resize(184,184,{fit:'inside',kernel:'lanczos3'}).png().toBuffer();
+      const spriteMeta=await sharp(sprite).metadata();
+      const offsetX=Math.floor((256-spriteMeta.width)/2),offsetY=Math.floor((256-spriteMeta.height)/2);
+      await sharp({create:{width:256,height:256,channels:4,background:'#00000000'}}).composite([{input:sprite,left:offsetX,top:offsetY}]).png().toFile(icon);
+      await sharp(icon).flatten({background:'#ffffff'}).png().toFile(cell);
+      const checked=await sharp(icon).metadata();
+      if(!checked.hasAlpha||checked.width!==256||checked.height!==256) throw new Error('Invalid PNG: '+icon);
+      layers.push({input:icon,left,top});
+      report.items.push({...item,row:row+1,column:col+1,sourceCrop,sourceRect,cell,icon,sourceCutout:stats,minMargin:Math.min(offsetX,offsetY),edgePixels:stats.edgePixels,bytes:fs.statSync(icon).size,sha256:fileSha(icon)});
+    }
+    const sheet=path.join(root,model.key+'-transparent.png');
+    await sharp({create:{width:1024,height:1024,channels:4,background:'#00000000'}}).composite(layers).png().toFile(sheet);
+    await sharp(sheet).flatten({background:'#ffffff'}).png().toFile(sheet1k);
+    report.sheet.sha256=fileSha(sheet1k);
+    await sharp(sheet).flatten({background:'#282537'}).png().toFile(path.join(root,model.key+'-dark-preview.png'));
+    fs.writeFileSync(manifest,JSON.stringify(report,null,2)+'\n');reports.push(report);
+  }
+  const layers=[];
+  for(const [i,model] of models.entries()) {
+    const label=Buffer.from('<svg width="512" height="48"><text x="256" y="32" text-anchor="middle" font-family="Arial" font-size="22" fill="#302b3a">'+model.label+'</text></svg>');
+    layers.push({input:label,left:16+i*528,top:8});
+    layers.push({input:await sharp(path.join(root,model.key+'-sheet-1k.png')).resize(512,512,{kernel:'lanczos3'}).png().toBuffer(),left:16+i*528,top:64});
+  }
+  await sharp({create:{width:1072,height:592,channels:3,background:'#f2f0eb'}}).composite(layers).png().toFile(path.join(root,'comparison.png'));
+  const previous=path.join(root,'../shop-icons-20260913-textonly/comparison.png');
+  const styleLayers=[];
+  for(const [i,entry] of [{title:'像素画风 · 上一轮',file:previous},{title:'角色画风 · 本轮',file:path.join(root,'comparison.png')}].entries()) {
+    const heading=Buffer.from('<svg width="1072" height="48"><text x="24" y="33" font-family="Microsoft YaHei,Arial" font-size="25" fill="#302b3a">'+entry.title+'</text></svg>');
+    styleLayers.push({input:heading,left:0,top:i*640},{input:entry.file,left:0,top:i*640+48});
+  }
+  await sharp({create:{width:1072,height:1280,channels:3,background:'#f2f0eb'}}).composite(styleLayers).png().toFile(path.join(root,'style-comparison.png'));
+  const sourceDimensions=reports.map(r=>(r.model.startsWith('gpt')?'GPT':'Nano')+' '+r.raw.width+'×'+r.raw.height).join('，');
+  const cards=items.map((item,i)=>'<article><h2>'+String(i+1).padStart(2,'0')+' '+item.name+'</h2><div class="pair">'+models.map(m=>'<figure><div class="stage"><img src="'+m.key+'/icons/'+item.file+'" alt="'+m.label+' '+item.name+'"></div><figcaption>'+m.label+'</figcaption></figure>').join('')+'</div></article>').join('\n');
+  const html=`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>商店图标 · 角色画风对比</title>
+<style>:root{--size:128px;--bg:#f3efe5;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#302b3a;background:#f8f6f2}body{margin:0 auto;max-width:1400px;padding:28px}h1{font-size:28px;margin-bottom:8px}p{color:#706979}nav{position:sticky;top:0;background:#f8f6f2;display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:16px 0}select{padding:7px;border:1px solid #d4ced8;border-radius:6px}a{color:inherit}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}article{padding:18px;border:1px solid #e0dbe4;border-radius:12px;background:white}h2{font-size:16px;margin:0 0 14px}.pair{display:flex;justify-content:space-around;gap:12px;flex-wrap:wrap}figure{margin:0;text-align:center;flex:1}.stage{background:var(--bg);height:calc(var(--size) + 16px);display:flex;align-items:center;justify-content:center;border-radius:6px}.stage img{width:var(--size);height:var(--size);object-fit:contain;image-rendering:auto}figcaption{font-size:11px;color:#706979;margin-top:8px}footer{font-size:13px;color:#706979;margin:28px 0}</style>
+<h1>商店图标 · 角色画风对比</h1><p>提取默认角色、Doro、Mint 的圆润 Q 版、深色顺滑描边及柔和明暗，以相同文字提示词生成，没有上传角色图片。各 16 个道具，裁切、平滑缩放后居中排为 1024×1024。原始返回：${sourceDimensions}，原图完整保留。</p><p><a href="style-comparison.png">查看上一轮像素画风与本轮角色画风的四组对照</a></p>
+<nav><label>显示尺寸 <select id="size"><option>48</option><option>64</option><option selected>128</option><option>256</option></select> px</label><label>背景 <select id="background"><option value="#f3efe5">暖白</option><option value="#ffffff">纯白</option><option value="#282537">深色</option></select></label><a href="gpt-sheet-1k.png">GPT 1K 表格</a><a href="nano-sheet-1k.png">Nano 1K 表格</a><a href="prompt.txt">提示词</a></nav><main>${cards}</main><footer>切分文件为 256×256 PNG；白底原格和透明图分别保留，可比较实际使用尺寸与边缘效果。</footer>
+<script>document.querySelector('#size').onchange=e=>document.documentElement.style.setProperty('--size',e.target.value+'px');document.querySelector('#background').onchange=e=>document.documentElement.style.setProperty('--bg',e.target.value);</script></html>`;
+  fs.writeFileSync(path.join(root,'compare.html'),html+'\n');
+  fs.writeFileSync(path.join(root,'items.json'),JSON.stringify(items,null,2)+'\n');
+  fs.writeFileSync(path.join(root,'verification.json'),JSON.stringify({generatedAt:new Date().toISOString(),reports},null,2)+'\n');
+  console.log(JSON.stringify(reports.map(r=>({model:r.model,textOnly:r.textOnly,serialNo:r.serialNo,rawSize:[r.raw.width,r.raw.height],sheetSize:[r.sheet.width,r.sheet.height],bytes:r.raw.bytes,sha256:r.raw.sha256,icons:r.items.length,minMargin:Math.min(...r.items.map(i=>i.minMargin)),edgePixels:r.items.reduce((s,i)=>s+i.edgePixels,0)})),null,2));
+})().catch(e=>{console.error(e);process.exitCode=1;});

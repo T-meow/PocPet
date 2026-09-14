@@ -10,7 +10,7 @@ import { craftRecipe, getKitchenHeartReward } from '../src/core/kitchen';
 import { allDishes, getDish, getRecipe, getRecipeEffect, getRecipeIngredientEntries, getRecipeMaterialCost, recipes } from '../src/core/kitchenRecipes';
 import { applyPetAction, useInventoryItem } from '../src/core/petActions';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
-import { getPetStatCap } from '../src/core/petStats';
+import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
 import type { GardenDrop, GardenSlot, GardenTreeId, ItemId, PetState } from '../src/core/petTypes';
 import type { RecipeId } from '../src/core/companionActivityTypes';
 import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
@@ -110,6 +110,36 @@ try {
     for (const key of itemStatKeys) assert.equal(used[key] - testPet[key], preview.actual[key], `${key} recovery must match the cap-aware preview`);
     assert.ok(used.hunger <= getPetStatCap(testPet));
   }
+  const goldenApple = item('golden_apple');
+  for (const [testPet, recovery, energyRecovery] of [
+    [{ ...fresh(), level: 1 }, 50, 50],
+    [{ ...fresh(), level: 20 }, 98, 98],
+    [fresh(), 295, 295],
+    [endgame, 295, 370],
+    [boosted, 295, 295],
+  ] as const) {
+    // Settle legacy achievement backfills before measuring item consumption.
+    const hungry = { ...normalizePet(testPet, now), hunger: 1, mood: 1, cleanliness: 1, energy: 1, health: 1, inventory: { golden_apple: 2 } };
+    const preview = getItemRecoveryPreview(hungry, goldenApple, 99, ['golden_apple']);
+    const used = useInventoryItem(hungry, goldenApple.id, now, { quantity: 99, favoriteFoodIds: ['golden_apple'] });
+    for (const key of itemStatKeys) {
+      assert.equal(used[key] - hungry[key], key === 'energy' ? energyRecovery : recovery, `${key} golden apple recovery scales with its maximum without food bonuses`);
+      assert.equal(preview.actual[key], used[key] - hungry[key], `${key} golden apple preview matches consumption`);
+      assert.equal(preview.overflow[key], 0);
+    }
+    assert.equal(used.inventory.golden_apple, 1, 'golden apples remain single-use even with a batch request');
+    assert.equal(used.hearts - hungry.hearts, applyHeartGain(hungry, 10).amount, 'golden apples retain their random heart reward and heart bonuses');
+  }
+  for (const deficit of [0, 3]) {
+    const nearlyFull = { ...endgame, hunger: 590 - deficit, mood: 590 - deficit, cleanliness: 590 - deficit, health: 590 - deficit, energy: 740 - deficit, inventory: { golden_apple: 1 } };
+    const preview = getItemRecoveryPreview(nearlyFull, goldenApple);
+    const used = useInventoryItem(nearlyFull, goldenApple.id, now);
+    for (const key of itemStatKeys) {
+      assert.equal(used[key], key === 'energy' ? getPetEnergyCap(nearlyFull) : getPetStatCap(nearlyFull));
+      assert.equal(preview.actual[key], deficit);
+      assert.equal(preview.overflow[key], (key === 'energy' ? 370 : 295) - deficit, `${key} preview explains wasted golden apple recovery`);
+    }
+  }
   const cross = fresh(); cross.partnerSchedule.skills.study = { level: 9, xp: 618, masterCompletions: 0 }; cross.inventory = { picture_book: 99 };
   assert.deepEqual(getPictureBookReward(cross.partnerSchedule.skills.study, 99), { skill: { level: 10, xp: 0, masterCompletions: 0 }, xp: 3, heartServings: 98 });
   const read = useInventoryItem(cross, 'picture_book', now, { quantity: 99 });
@@ -153,8 +183,8 @@ try {
   }
   for (const treeId of ['money_tree', 'golden_apple_tree'] as const) {
     const tree = growing(treeId, 72 * hour);
-    assert.deepEqual(fertilizeTree(tree, 0, 'normal', now).inventory, tree.inventory);
-    assert.deepEqual(fertilizeTree(tree, 0, 'heart', now).inventory, tree.inventory);
+    assert.equal(fertilizeTree(tree, 0, 'normal', now).inventory.normal_fertilizer, 4);
+    assert.equal(fertilizeTree(tree, 0, 'heart', now).inventory.heart_fertilizer, 4);
     const fed = useGardenNutrient(tree, 0, now);
     assert.equal(fed.inventory.harvest_nutrient, 4);
     assert.equal(useGardenNutrient(fed, 0, now + day).inventory.harvest_nutrient, 4, 'nutrient is once per round across dates');
@@ -301,6 +331,7 @@ try {
   assert.deepEqual(history.recentResults.map((result) => result.amount), [1, 1, 20, 30]);
   assert.equal(goldenAppleGachaRewards.reduce((sum, reward) => sum + reward.weight, 0), 100000);
   assert.equal(goldenAppleGachaRewards.find((reward) => reward.id === 'normal_fertilizer_20')?.value, 300);
-  assert.equal(goldenAppleGachaRewards.find((reward) => reward.id === 'heart_fertilizer_30')?.value, 900);
+  assert.equal(goldenAppleGachaRewards.find((reward) => reward.id === 'heart_fertilizer_15')?.value, 450);
+  assert.equal(goldenAppleGachaRewards.find((reward) => reward.id === 'harvest_nutrient_2')?.value, 600);
   console.log('Item balance: recipe DAG and all 10 skill budgets, atomic crafting, capped recovery, book mastery, garden draws/restrictions/migrations, achievement supplements/capacity, and legacy gacha history passed.');
 } finally { Date.now = originalNow; Math.random = originalRandom; }

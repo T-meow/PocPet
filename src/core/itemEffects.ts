@@ -7,6 +7,7 @@ import { clampPetEnergy, clampPetHealth, clampPetStat, getPetEnergyCap, getPetSt
 import type { ItemDefinition, ItemEffect, ItemId, PartnerScheduleSkill, PetState } from './petTypes';
 
 export const itemStatKeys = ['hunger', 'mood', 'cleanliness', 'energy', 'health'] as const;
+export const goldenAppleRecoveryPercent = 50;
 type EffectItem = Pick<ItemDefinition, 'id' | 'kind' | 'effect'>;
 
 export const getPictureBookReward = (initialSkill: PartnerScheduleSkill, quantity: number) => {
@@ -21,10 +22,17 @@ export const getPictureBookReward = (initialSkill: PartnerScheduleSkill, quantit
 };
 
 export const getItemStatEffect = (pet: PetState, item: EffectItem): ItemEffect => {
+  const effect: ItemEffect = {};
+  if (item.id === 'golden_apple') {
+    for (const key of itemStatKeys) {
+      const cap = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet);
+      effect[key] = Math.round(cap * goldenAppleRecoveryPercent / 100);
+    }
+    return effect;
+  }
   const multiplier = item.kind === 'food'
     ? getPartnerScheduleCrossSystemEffects(pet).foodEffectMultiplier * getClassicTrophyEffects(pet).foodEffectMultiplier
     : 1;
-  const effect: ItemEffect = {};
   for (const key of itemStatKeys) {
     const amount = item.effect[key] ?? 0;
     effect[key] = amount > 0 && multiplier !== 1 ? Math.max(1, Math.round(amount * multiplier)) : amount;
@@ -37,7 +45,7 @@ export const getItemStatEffect = (pet: PetState, item: EffectItem): ItemEffect =
 export const getItemRecoveryPreview = (pet: PetState, item: EffectItem, quantity = 1, favoriteFoodIds?: readonly ItemId[]) => {
   const isSpecial = item.id === 'birthday_cake' || item.id === 'golden_apple';
   const count = isSpecial ? 1 : Math.max(1, Math.floor(quantity));
-  const effect = isSpecial ? item.effect : getItemStatEffect(pet, item);
+  const effect = item.id === 'birthday_cake' ? item.effect : getItemStatEffect(pet, item);
   const favorite = !isSpecial && (favoriteFoodIds ? favoriteFoodIds.includes(item.id) : favoriteFoodIdSet.has(item.id));
   const actual: ItemEffect = {};
   const overflow: ItemEffect = {};

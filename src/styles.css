@@ -2559,6 +2559,26 @@ h1 {
   transform: translateY(1px);
 }
 
+.floating-reward-button.floating-reward-button--labeled {
+  display: flex;
+  gap: 10px;
+  width: auto;
+  max-width: min(280px, calc(100vw - 28px));
+  height: auto;
+  min-height: 58px;
+  padding: 9px 16px 9px 10px;
+  color: var(--text, #28364a);
+  border: 1px solid var(--line, #eadbb6);
+  background: var(--surface, #fff5cc);
+  text-align: left;
+}
+
+.floating-reward-button--labeled img { flex-shrink: 0; }
+.floating-reward-button__copy { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.floating-reward-button__copy strong { font-size: 13px; }
+.floating-reward-button__copy small { color: var(--brand-text, #825d20); font-size: 12px; }
+.floating-reward-button:focus-visible { outline: 3px solid var(--brand-color, #476b55); outline-offset: 3px; }
+
 @media (min-width: 760px) {
   .floating-reward-button {
     right: max(24px, calc((100vw - 1120px) / 2 + 24px));

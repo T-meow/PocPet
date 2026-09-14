@@ -96,10 +96,17 @@ const noop = () => {};
 for (const mode of ['development', 'toy']) {
   const server = await createServer({ mode, server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
   try {
-    const paths = ['core/pet', 'i18n/index', 'assets', 'ui/HomePageV2', 'ui/CompanionStatus', 'ui/GardenPage', 'ui/PartnerSchedulePage', 'ui/BoostCardModal', 'ui/GoldenAppleGachaModal', 'ui/SettingsModal', 'ui/MemoryAlbum', 'ui/RolePicker', 'ui/CommonDreamsPage', 'ui/NoticeCenter', 'ui/YearReviewModal', 'ui/App', 'ui/EditionNoticeDialog'];
+    const paths = ['core/pet', 'i18n/index', 'assets', 'ui/HomePageV2', 'ui/CompanionStatus', 'ui/GardenPage', 'ui/PartnerSchedulePage', 'ui/BoostCardModal', 'ui/GoldenAppleGachaModal', 'ui/SettingsModal', 'ui/MemoryAlbum', 'ui/RolePicker', 'ui/CommonDreamsPage', 'ui/NoticeCenter', 'ui/YearReviewModal', 'ui/App', 'ui/EditionNoticeDialog', 'ui/ItemStorageModal', 'ui/ItemRecoveryPreview'];
     const modules = await Promise.all(paths.map((path) => server.ssrLoadModule(`/src/${path}.${path.startsWith('ui/') ? 'tsx' : 'ts'}`)));
-    const [core, locale, assets, home, status, garden, schedule, cards, gacha, settings, album, roles, dreams, notices, annual, app, editionNotice] = modules;
+    const [core, locale, assets, home, status, garden, schedule, cards, gacha, settings, album, roles, dreams, notices, annual, app, editionNotice, storage, recovery] = modules;
     const textFiles = await server.ssrLoadModule('/src/platform/saveTextFile.ts');
+    const gachaPresentation = await server.ssrLoadModule('/src/ui/gachaRewards.ts');
+    const gachaPoster = await server.ssrLoadModule('/src/platform/sharePoster.ts');
+    const [giftBubble, giftCore, rewardController] = await Promise.all([
+      server.ssrLoadModule('/src/ui/FloatingRewardBubble.tsx'),
+      server.ssrLoadModule('/src/core/communityWorkGift.ts'),
+      server.ssrLoadModule('/src/ui/app/useRewardController.ts'),
+    ]);
     const edition = await server.ssrLoadModule('/src/platform/edition.ts');
     assert.equal(edition.features.saveFileDownload, mode !== 'toy');
     assert.equal(edition.requiresAuthorFollowVerification(), mode === 'toy', 'Bilibili still requires verification even before its SDK loads');
@@ -176,6 +183,38 @@ for (const mode of ['development', 'toy']) {
     };
     for (const language of ['zh-CN', 'en-US']) {
       locale.setLanguage(language);
+      let giftPet = core.normalizePet({ ...rich, saveMetadata: { ...rich.saveMetadata, communityWorkGift: undefined } }, now);
+      const pendingGift = rewardController.getAvailableFloatingReward(giftPet);
+      assert.equal(pendingGift.id, giftCore.communityWorkGiftRewardId, 'the returning-player gift appears before the existing starter gift');
+      assert.notEqual(rewardController.getAvailableFloatingReward(rich)?.id, giftCore.communityWorkGiftRewardId);
+      const giftHtml = render(giftBubble.FloatingRewardBubble, { reward: pendingGift, onClaim: noop });
+      assert.ok(giftHtml.includes(locale.t('ui.rewards.communityWorkGiftTickets', { count: 10 })));
+      assert.ok(giftHtml.includes(`aria-label="${locale.t('ui.rewards.communityWorkGiftClaim', { count: 10 })}"`));
+      assert.ok(giftHtml.includes('floating-reward-button--labeled') && !giftHtml.includes('ui.rewards.'));
+      const beforeTickets = giftPet.goldenAppleGacha.tickets;
+      let giftController: any;
+      const GiftHarness = () => {
+        giftController = rewardController.useRewardController({ pet: giftPet,
+          setPet: (update: any) => {
+            const before = giftPet;
+            const first = update(before);
+            const replay = update(before);
+            assert.deepEqual(first, replay, 'replaying the UI reward updater preserves a single gift');
+            giftPet = replay;
+          },
+          commitPet: (pet: any) => pet, hasLoadedModRef: { current: true }, playAfterUnlock: noop,
+        });
+        return null;
+      };
+      renderToStaticMarkup(createElement(GiftHarness));
+      assert.equal(giftPet.goldenAppleGacha.tickets, beforeTickets, 'rendering the bubble does not claim the gift');
+      giftController.claimFloatingReward(pendingGift);
+      giftController.claimFloatingReward(pendingGift);
+      assert.equal(giftPet.goldenAppleGacha.tickets, beforeTickets + 10, 'rapid duplicate clicks grant exactly ten tickets');
+      assert.notEqual(rewardController.getAvailableFloatingReward(giftPet)?.id, pendingGift.id);
+      const starterReward = rewardController.getAvailableFloatingReward(giftPet);
+      assert.ok(starterReward?.coins > 0, 'the earlier coin gift remains separately available');
+      assert.ok(!render(giftBubble.FloatingRewardBubble, { reward: starterReward, onClaim: noop }).includes('floating-reward-button__copy'));
       const announcementHtml = render(editionNotice.EditionNoticeDialog, { onAcknowledge: noop, onBackup: noop });
       for (const text of [locale.t('ui.editionNotice.backup'), locale.t('ui.editionNotice.backupAdvice'), locale.t('ui.editionNotice.formatTimeline'), locale.t('ui.editionNotice.kitchenAdvice'), locale.t('ui.editionNotice.playAdvice'), locale.t('ui.editionNotice.compensationAdvice'), locale.t('ui.editionNotice.boxAdvice')]) {
         const escaped = renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
@@ -195,6 +234,66 @@ for (const mode of ['development', 'toy']) {
       assert.ok(cardHtml.includes('dialog-shell--fullscreen') && cardHtml.includes('friend-card-expiry'));
       const gachaHtml = render(gacha.GoldenAppleGachaModal, { pet: rich, itemIconMap: assets.itemIcons, onClose: noop, onDraw: noop, onHeartDraw: noop, onClaimStarterGift: noop, onSaveResults: noop, onClearSaveFeedback: noop, onPlaySfx: noop, isSavingResults: false, saveFeedback: '' });
       assert.ok(gachaHtml.includes('dialog-shell--fullscreen'));
+      assert.ok(gachaHtml.includes('gacha-prize-preview') && gachaHtml.includes('10%'));
+      assert.ok(gachaHtml.includes('35%') && gachaHtml.includes('40%'), 'supply and coin group odds reflect the adjusted pool');
+      const fruitCrate = core.goldenAppleGachaRewards.find((reward: any) => reward.id === 'fruit_crate_v1');
+      const fruitResult = { ...fruitCrate, rewardId: fruitCrate.id, id: 'test-fruit', guaranteed: false, pityGuaranteed: false, drawnAt: now };
+      const fruitLabel = gachaPresentation.getGachaRewardLabel(fruitResult);
+      assert.ok(gachaHtml.includes(fruitLabel) && !/ui\.gacha\./.test(gachaHtml), 'box preview names and copy are translated');
+      for (const label of gachaPresentation.getGachaRewardContentLabels(fruitResult)) assert.ok(gachaHtml.includes(label), 'all three fixed contents appear before drawing');
+      const fruitArt = render(gacha.GachaRewardArtwork, { reward: fruitResult, itemIconMap: assets.itemIcons });
+      assert.equal((fruitArt.match(/<img /g) ?? []).length, 3, 'the crate displays all three existing item icons');
+      for (const kind of ['probabilities', 'history']) {
+        const details = render(gacha.GachaDetailDialog, { kind, machine: 'apple', results: [fruitResult], gachaState: rich.goldenAppleGacha, itemIconMap: assets.itemIcons, onClose: noop });
+        assert.ok(details.includes(fruitLabel));
+        for (const label of gachaPresentation.getGachaRewardContentLabels(fruitResult)) assert.ok(details.includes(label), 'probability and history views retain the box contents');
+      }
+      const summary = render(gacha.GachaResultsSummary, { results: [fruitResult, { ...fruitResult, id: 'test-fruit-2' }], itemIconMap: assets.itemIcons });
+      assert.equal((summary.match(/<strong>×12<\/strong>/g) ?? []).length, 3, 'two fruit crates summarize as twelve of each fruit');
+
+      const goldenPet = { ...structuredClone(rich), level: 99, hunger: 1, mood: 1, cleanliness: 1, health: 1, energy: 1, inventory: { golden_apple: 1 } };
+      for (const project of Object.values(goldenPet.classicEndgame.projects) as { completedStages: number }[]) project.completedStages = 5;
+      const goldenItems = core.getInventoryDefinitions(core.createBuiltinItemRegistry(), goldenPet.inventory);
+      const goldenBag = render(storage.ItemStorageModal, { mode: 'bag', pet: goldenPet, items: goldenItems, itemIconMap: assets.itemIcons,
+        browse: { category: 'all', query: '', selectedId: 'golden_apple', quantity: 1 }, onBrowseChange: noop, onClose: noop, onSwitch: noop, renderActions: () => null });
+      const goldenPreview = render(recovery.ItemRecoveryPreview, { pet: goldenPet, item: goldenItems[0] });
+      for (const key of ['hunger', 'mood', 'cleanliness', 'energy', 'health']) {
+        const label = `${locale.t(`ui.stats.${key}`)} +${key === 'energy' ? 370 : 295}`;
+        assert.ok(goldenBag.includes(label), `golden apple inventory badge: ${label}`);
+        assert.ok(goldenPreview.includes(label), `golden apple recovery preview: ${label}`);
+      }
+
+      // Exercise the real poster drawing path without a browser or a player save.
+      const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+      const previousImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+      const drawnTexts: string[] = [];
+      const drawnImages: number[][] = [];
+      const context = new Proxy<Record<string, any>>({}, { get: (target, key: string) => {
+        if (key === 'fillText') return (text: string, x: number, y: number) => { assert.ok(x >= 0 && y < 1440); drawnTexts.push(text); };
+        if (key === 'drawImage') return (_image: unknown, ...bounds: number[]) => { drawnImages.push(bounds); };
+        if (key === 'measureText') return (text: string) => ({ width: text.length * 8 });
+        if (key === 'createLinearGradient' || key === 'createRadialGradient') return () => ({ addColorStop: noop });
+        return target[key] ?? noop;
+      } });
+      Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => context, toDataURL: () => 'data:image/jpeg;base64,test' }) } });
+      Object.defineProperty(globalThis, 'Image', { configurable: true, value: class {
+        naturalWidth = 128; naturalHeight = 128; onload?: () => void;
+        set src(_url: string) { queueMicrotask(() => this.onload?.()); }
+      } });
+      try {
+        for (const count of [1, 10]) {
+          drawnTexts.length = 0;
+          drawnImages.length = 0;
+          await gachaPoster.createGachaPoster({ machine: 'apple', results: Array.from({ length: count }, (_, index) => ({ ...fruitResult, id: `fruit-${index}` })), itemIconMap: assets.itemIcons, petImageUrl: '', createdAt: now });
+          assert.equal(drawnTexts.filter((text) => text === fruitLabel).length, count);
+          for (const label of gachaPresentation.getGachaRewardContentLabels(fruitResult)) assert.equal(drawnTexts.filter((text) => text === label).length, count, 'single and ten-draw posters include every content amount');
+          assert.equal(drawnImages.length, count * 3);
+          for (const [x, y, width, height] of drawnImages) assert.ok(x >= 0 && y >= 0 && x + width <= 1080 && y + height < 1300, 'all prize icons stay above the poster footer');
+        }
+      } finally {
+        if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument); else Reflect.deleteProperty(globalThis, 'document');
+        if (previousImage) Object.defineProperty(globalThis, 'Image', previousImage); else Reflect.deleteProperty(globalThis, 'Image');
+      }
       for (const machine of ['apple', 'heart']) {
         const machineHtml = render(gacha.GachaMachineArt, { machine, phase: 'charging', itemIconMap: assets.itemIcons });
         assert.equal((machineHtml.match(/class="v2-gacha-prize"/g) ?? []).length, 5);
@@ -222,18 +321,48 @@ for (const mode of ['development', 'toy']) {
       for (const [index, state] of ['empty', 'growing', 'ready', 'withered', 'locked'].entries()) assert.ok(plots[index].includes(`garden-plot--${state}`));
       assert.ok(plots[0].includes(locale.t('ui.garden.chooseSapling')));
       assert.ok(plots[1].includes(locale.t('ui.garden.actions.water')) && plots[1].includes('1/8'));
-      assert.equal((plots[1].match(/class="garden-choice" disabled=""/g) ?? []).length, 3, 'daily watering and per-round fertilizer limits stay attached to each plot');
+      assert.equal((plots[1].match(/class="garden-choice" disabled=""/g) ?? []).length, 1, 'the plot disables watering already done today');
+      assert.ok(plots[1].includes('garden-manage-button') && !plots[1].includes(locale.t('ui.garden.actions.normalFertilizer')), 'fertilizer actions now live in the existing management dialog');
       assert.ok(!plots[1].includes(locale.t('ui.garden.actions.nutrient')), 'ordinary trees only offer watering and the two fertilizers');
-      assert.ok(plots[2].includes('garden-plot-drops') && plots[2].includes('+123') && plots[2].includes(locale.t('ui.garden.actions.harvest')));
+      assert.ok(plots[2].includes('garden-tree-fruits') && plots[2].includes('+123') && plots[2].includes(locale.t('ui.garden.actions.harvest')));
       assert.ok(plots[3].includes(locale.t('ui.garden.actions.clear', { coins: core.getGardenClearCost(mixedGarden.garden.tools, 'fruit_tree') })));
       assert.ok(plots[4].includes('disabled=""') && plots[4].includes(locale.t('ui.garden.unlockSlot', { coins: core.gardenSlotUnlockCosts[4] })));
       assert.ok(mixedGardenHtml.includes(locale.t('ui.garden.compensationGiftLabel', { coins: 100 })), 'compensation remains available on the board');
-      assert.ok(render(schedule.PartnerSchedulePage, { pet: rich, itemIconMap: assets.itemIcons, neighbors: [] }).includes('schedule-category-tabs'));
-      const started = core.startPartnerSchedule(rich, rich.partnerSchedule.offers[0].id, now);
+      const servicePet = { ...core.createDefaultPet(now), hearts: 20, energy: 100, hunger: 100, mood: 100, health: 100 };
+      const serviceProps = { itemIconMap: assets.itemIcons, neighbors: [], onBack: noop, onStart: noop, onCancel: noop, onClaim: noop, onRefresh: noop, onQuickWork: noop };
+      const idleService = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: servicePet });
+      const communityTitle = language === 'zh-CN' ? '社区工作' : 'Community work';
+      assert.ok(idleService.includes(`<h2>${communityTitle}</h2>`));
+      assert.ok(idleService.includes('schedule-category-tabs') && idleService.includes('community-quick-work'));
+      assert.equal((idleService.match(/class="community-offer"/g) ?? []).length, 4, 'four requests are shown from level 1');
+      assert.equal((idleService.match(/data-state="available"/g) ?? []).length, 4);
+      assert.ok(!/ui\.partnerSchedule\.|pet\.partnerSchedule\./.test(idleService), 'service copy is translated');
+      const newHome = render(home.HomePageV2, { ...homeProps, pet: servicePet });
+      const serviceEntry = newHome.match(/<button[^>]*home-quick schedule[\s\S]*?<\/button>/)?.[0];
+      assert.ok(serviceEntry && !serviceEntry.includes('disabled=""'), 'the community entry has no level gate');
+      assert.ok(serviceEntry.includes(communityTitle), 'home and the work page share the current name');
+      assert.ok(!newHome.includes('home-quick work'), 'quick work shares the community entrance');
+      const started = core.startPartnerSchedule(servicePet, servicePet.partnerSchedule.offers[1].id, now);
       assert.ok(started.partnerSchedule.active);
-      assert.ok(render(schedule.PartnerSchedulePage, { pet: started, itemIconMap: assets.itemIcons, neighbors: [] }).includes('partner-schedule-active'));
+      const activeHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: started });
+      assert.ok(activeHtml.includes('partner-schedule-active') && activeHtml.includes('community-active-facts'));
+      assert.ok(/community-refresh" disabled=""/.test(activeHtml), 'active requests block a paid refresh');
       const completed = core.advancePartnerSchedule(started, started.partnerSchedule.active.endsAt + 1);
-      assert.ok(render(schedule.PartnerSchedulePage, { pet: completed, itemIconMap: assets.itemIcons, neighbors: [] }).includes('partner-schedule-result'));
+      const fullHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: completed });
+      assert.ok(fullHtml.includes('partner-schedule-result') && fullHtml.includes('data-state="pending"'));
+      const settlement = fullHtml.match(/<div class="community-claim-options">([\s\S]*?)<\/section>/)?.[1] ?? '';
+      assert.equal((settlement.match(/<button/g) ?? []).length, 2, 'full standard service offers both reward choices');
+      const returned = core.cancelPartnerSchedule(started, now + 30 * 60000);
+      const partialHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: returned });
+      assert.ok(partialHtml.includes('community-settlement--early') && partialHtml.includes('data-state="ended"'));
+      const partialOptions = partialHtml.match(/<div class="community-claim-options">([\s\S]*?)<\/section>/)?.[1] ?? '';
+      assert.equal((partialOptions.match(/<button/g) ?? []).length, 1, 'early return only offers partial coin pay');
+      const exhaustedPet = { ...servicePet, partnerSchedule: { ...servicePet.partnerSchedule, completedOfferIds: servicePet.partnerSchedule.offers.map((offer: any) => offer.id) } };
+      const exhaustedHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: exhaustedPet });
+      assert.ok(exhaustedHtml.includes('community-board-empty'));
+      assert.equal((exhaustedHtml.match(/data-state="completed"/g) ?? []).length, 4);
+      const poorHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: { ...servicePet, hearts: 0 } });
+      assert.ok(/community-refresh" disabled=""/.test(poorHtml) && poorHtml.includes('community-refresh-hint'));
       for (const page of ['main', 'appearance', 'mod', 'save', 'share', 'updates', 'help']) {
         const html = render(settings.SettingsModal, { ...settingsProps, initialPage: page, language });
         assert.ok(html.includes('class="settings-page"') && !html.includes('role="dialog"'));
@@ -279,11 +408,11 @@ for (const mode of ['development', 'toy']) {
   } finally { await server.close(); }
 }
 
-const css = postcss.parse(readFileSync('src/styles/ui-v2.css', 'utf8'));
+const css = postcss.parse(readFileSync('src/styles/gacha.css', 'utf8') + '\n' + readFileSync('src/styles/ui-v2.css', 'utf8') + '\n' + readFileSync('src/styles/community-service.css', 'utf8'));
 const property = (selector: string, name: string, width: number, height: number) => {
   let result: string | undefined;
   css.walkRules((rule) => {
-    if (rule.selector !== selector) return;
+    if (!rule.selectors.includes(selector)) return;
     let parent: any = rule.parent;
     while (parent) {
       if (parent.type === 'atrule' && parent.name === 'media') {
@@ -306,7 +435,12 @@ for (const [width, height] of [[360, 640], [390, 844], [768, 1024], [1024, 768],
   assert.equal(property('.ui-v2-app .dialog-shell--fullscreen', 'max-height', width, height), '100dvh');
   assert.equal(property('.v2-notification', 'position', width, height), 'fixed');
   assert.ok(Number(property('.v2-notification', 'z-index', width, height)) > Number(property('.notice-history-backdrop', 'z-index', width, height)));
-  assert.equal(property('.garden-plot-actions button', 'min-height', width, height), '44px');
+  assert.equal(property('.garden-plot-actions>button', 'min-height', width, height), '44px');
+  assert.equal(property('.community-service-page button', 'min-height', width, height), '44px');
+  assert.equal(property('.community-layout', 'grid-template-columns', width, height), width >= 1024 ? 'minmax(0, 1fr) 290px' : 'minmax(0, 1fr)');
+  assert.equal(property('.community-offers', 'grid-template-columns', width, height), width >= 600 ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)');
+  assert.equal(property('.gacha-supply-layout', 'grid-template-columns', width, height), width > 820 ? 'minmax(0, 1.05fr) minmax(0, 1fr)' : 'minmax(0, 1fr)');
+  assert.equal(property('.gacha-supply-modal .gacha-results', 'grid-template-columns', width, height), `repeat(${width <= 600 ? 2 : width <= 1000 ? 3 : 5}, minmax(0, 1fr))`);
   if (width <= 767) assert.equal(property('.ui-v2-app .storage-body', 'overflow-y', width, height), 'auto');
 }
 css.walkDecls((decl) => assert.ok(!/var\(--notice-/.test(decl.value), 'notifications must not reserve page or dialog height'));

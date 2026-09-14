@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import JSZip from 'jszip';
-import { createDefaultPet } from '../src/core/pet';
+import { advancePet, cancelPartnerSchedule, claimPartnerScheduleResult, createDefaultPet, getPartnerScheduleRefreshPreview, refreshPartnerScheduleOffers, startPartnerSchedule } from '../src/core/pet';
 import { checksumText, createSaveFileText, UnsupportedSaveVersionError } from '../src/core/saveCodec';
 import { cloudSaveActiveKey, cloudSaveChunkSize, cloudSaveMaxEncodedLength, cloudSaveMaxPlainBytes, encodeCloudSave, getCloudContentChecksum, restoreCloudSave, uploadCloudSave, type CloudSaveGeneration } from '../src/core/cloudSave';
 import type { ToyCloudStorage } from '../src/platform/toySdk';
+import { claimCommunityWorkGift, isCommunityWorkGiftAvailable } from '../src/core/communityWorkGift';
 
 class CloudMock implements ToyCloudStorage {
   readonly values = new Map<string, string>();
@@ -72,6 +73,7 @@ for (const text of [legacyText, JSON.stringify(oldPet), currentText]) {
   const restored = await restoreCloudSave(cloud, now);
   assert.equal(restored.imported.pet.coins, pet.coins);
   assert.equal(restored.imported.pet.saveMetadata.compensation, text === currentText ? 'ineligible' : 'pending');
+  assert.equal(isCommunityWorkGiftAvailable(restored.imported.pet), text !== currentText);
   assert.equal(cloud.writes, 0, 'cloud preview must not migrate, award or upload');
 }
 const fullCloud = new CloudMock();
@@ -95,6 +97,36 @@ const newer = await uploadCloudSave(cloud, changed, null, now + 1000);
 assert.equal(newer.generation, 'b');
 assert.ok(cloud.writes > written);
 assert.equal(cloud.values.get('other-feature'), 'keep');
+
+const giftCloud = new CloudMock();
+await seedGeneration(giftCloud, legacyText, 'a');
+const pendingGift = (await restoreCloudSave(giftCloud, now)).imported.pet;
+const claimedGift = claimCommunityWorkGift(pendingGift);
+assert.ok(claimedGift.claimed);
+await uploadCloudSave(giftCloud, claimedGift.pet, null, now);
+const cloudGift = (await restoreCloudSave(giftCloud, now)).imported.pet;
+assert.equal(cloudGift.goldenAppleGacha.tickets, pendingGift.goldenAppleGacha.tickets + 10);
+assert.equal(cloudGift.saveMetadata.communityWorkGift, 'claimed');
+assert.equal(claimCommunityWorkGift(cloudGift).pet, cloudGift, 'the cloud carries the one-time receipt with the tickets');
+
+// Use mock cloud storage to round-trip a progressive ledger and an unclaimed partial result.
+const serviceCloud = new CloudMock();
+const serviceBase = { ...pet, hearts: 50, hunger: 100, mood: 100, health: 100, energy: 100 };
+const serviceBatch = refreshPartnerScheduleOffers(serviceBase, getPartnerScheduleRefreshPreview(serviceBase, now).boardKey, now);
+const serviceStarted = startPartnerSchedule(serviceBatch, serviceBatch.partnerSchedule.offers[1].id, now);
+const serviceMidAt = now + 30 * 60000;
+const serviceMid = advancePet(serviceStarted, serviceMidAt);
+await uploadCloudSave(serviceCloud, serviceMid, null, serviceMidAt);
+const serviceRestored = (await restoreCloudSave(serviceCloud, serviceMidAt)).imported.pet;
+assert.deepEqual(serviceRestored.partnerSchedule, serviceMid.partnerSchedule, 'cloud round-trip preserves costs, settled progress and batch metadata');
+assert.equal(advancePet(serviceRestored, serviceMidAt).energy, serviceMid.energy, 'restoring cannot debit the settled interval again');
+const serviceEarly = cancelPartnerSchedule(serviceRestored, serviceMidAt);
+await uploadCloudSave(serviceCloud, serviceEarly, null, serviceMidAt);
+const earlyRestored = (await restoreCloudSave(serviceCloud, serviceMidAt)).imported.pet;
+assert.deepEqual(earlyRestored.partnerSchedule.pendingResult, serviceEarly.partnerSchedule.pendingResult);
+const serviceClaimed = claimPartnerScheduleResult(earlyRestored, 'coins', serviceMidAt);
+assert.equal(serviceClaimed.partnerSchedule.dailyContributionMs, 30 * 60000);
+assert.equal(claimPartnerScheduleResult(serviceClaimed, 'coins', serviceMidAt).coins, serviceClaimed.coins);
 const dataChanged = { ...changed, coins: changed.coins + 10 };
 const originalValues = new Map(cloud.values);
 cloud.failRead = true;

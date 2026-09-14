@@ -1,0 +1,53 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const sharp = require('C:/Users/Ferris/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
+const project = 'D:/Projects/PocPet';
+const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+
+(async () => {
+  const items = JSON.parse(await fs.readFile(path.join(__dirname, 'items.json'), 'utf8'));
+  const sourceManifest = JSON.parse(await fs.readFile(path.join(__dirname, 'gpt/manifest.json'), 'utf8'));
+  const mapping = await fs.readFile(path.join(project, 'src/assets.ts'), 'utf8');
+  if (items.length !== 16 || new Set(items.map(item => item.file)).size !== 16) throw new Error('Expected 16 unique icons');
+  const prepared = [];
+  for (const item of items) {
+    if (path.basename(item.file) !== item.file || !mapping.includes(`'./assets/icon/${item.file}'`)) throw new Error(`Unexpected asset: ${item.file}`);
+    const destination = path.join(project, 'src/assets/icon', item.file);
+    const before = await fs.readFile(destination);
+    const source = await fs.readFile(path.join(__dirname, 'gpt/icons', item.file));
+    const expected = sourceManifest.items.find(entry => entry.file === item.file);
+    if (!expected || expected.sha256 !== hash(source)) throw new Error(`Source integrity mismatch: ${item.file}`);
+    const oldMetadata = await sharp(before).metadata();
+    if (oldMetadata.width !== 128 || oldMetadata.height !== 128) throw new Error(`Unexpected original size: ${item.file}`);
+    const output = await sharp(source).resize(128, 128, { kernel: 'lanczos3' }).ensureAlpha().png({ compressionLevel: 9 }).toBuffer();
+    const {data, info} = await sharp(output).raw().toBuffer({resolveWithObject:true});
+    if (info.width !== 128 || info.height !== 128 || info.channels !== 4) throw new Error(`Unexpected output: ${item.file}`);
+    let pixels = 0, minX = 128, minY = 128, maxX = -1, maxY = -1;
+    for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
+      if (data[(y * 128 + x) * 4 + 3] === 0) continue;
+      pixels++; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    const minMargin = Math.min(minX, minY, 127 - maxX, 127 - maxY);
+    if (!pixels || minMargin < 14) throw new Error(`Invalid transparent bounds: ${item.file}`);
+    prepared.push({ item, destination, output, beforeSha256:hash(before), sourceSha256:hash(source), afterSha256:hash(output), bytes:output.length, minMargin });
+  }
+  for (const entry of prepared) {
+    if (hash(await fs.readFile(entry.destination)) !== entry.beforeSha256) throw new Error(`Concurrent change: ${entry.item.file}`);
+  }
+  for (const entry of prepared) await fs.writeFile(entry.destination, entry.output);
+  for (const entry of prepared) {
+    if (hash(await fs.readFile(entry.destination)) !== entry.afterSha256) throw new Error(`Readback mismatch: ${entry.item.file}`);
+  }
+  const result = {
+    style: 'C / GPT 原画风',
+    baseRevision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd:project,encoding:'utf8'}).trim(),
+    outputSize: [128,128],
+    kernel: 'lanczos3',
+    count:prepared.length,
+    items:prepared.map(({item, beforeSha256, sourceSha256, afterSha256, bytes, minMargin}) => ({...item,beforeSha256,sourceSha256,afterSha256,bytes,minMargin})),
+  };
+  await fs.writeFile(path.join(__dirname, 'adoption-c-verification.json'), JSON.stringify(result,null,2)+'\n', 'utf8');
+  console.log(JSON.stringify({count:result.count,bytes:prepared.reduce((sum,entry)=>sum+entry.bytes,0),minTransparentMargin:Math.min(...prepared.map(entry=>entry.minMargin)),verified:'source hashes, PNG sizes, alpha bounds, destination readback'}));
+})().catch(error => {console.error(error);process.exit(1)});

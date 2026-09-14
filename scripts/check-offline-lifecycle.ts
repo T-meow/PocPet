@@ -186,6 +186,7 @@ try {
         skillXp: 2,
         trophyRewardMultiplier: 1,
         grantsMasterCompletion: false,
+        legacyPrepaid: true, // Isolate natural decay from the already paid service costs.
       },
     },
   };

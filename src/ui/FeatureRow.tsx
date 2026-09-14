@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarClock, Dices, Flag, PackageOpen, Sprout, Timer } from 'lucide-react';
-import { canClaimBoostCardDailyReward, classicEndgameUnlockLevel, classicEndgameUnlockSkillLevel, getActiveBoostCard, hasClassicEndgameUnlockNotice, isClassicEndgameComplete, isClassicEndgameUnlocked, partnerScheduleUnlockLevel, type PetState } from '../core/pet';
+import { canClaimBoostCardDailyReward, classicEndgameUnlockLevel, classicEndgameUnlockSkillLevel, getActiveBoostCard, hasClassicEndgameUnlockNotice, isClassicEndgameComplete, isClassicEndgameUnlocked, type PetState } from '../core/pet';
 import { t } from '../i18n';
 import { formatPomodoroTime } from './time';
 
@@ -44,10 +44,7 @@ export const FeatureRow = ({
     : gardenReminder === 'withered'
       ? t('ui.features.gardenWithered')
       : t('ui.features.gardenHint');
-  const isPartnerScheduleUnlocked = pet.level >= partnerScheduleUnlockLevel;
-  const partnerScheduleHint = !isPartnerScheduleUnlocked
-    ? t('ui.features.partnerScheduleLocked', { level: partnerScheduleUnlockLevel })
-    : pet.partnerSchedule.pendingResult
+  const partnerScheduleHint = pet.partnerSchedule.pendingResult
       ? t('ui.features.partnerScheduleReady')
       : pet.partnerSchedule.active
         ? t('ui.features.partnerScheduleActive')
@@ -119,7 +116,6 @@ export const FeatureRow = ({
       <button
         type="button"
         className={pet.partnerSchedule.active || pet.partnerSchedule.pendingResult ? 'feature-button feature-button--partner-schedule feature-button--active' : 'feature-button feature-button--partner-schedule'}
-        disabled={!isPartnerScheduleUnlocked}
         onClick={onOpenPartnerSchedule}
         title={partnerScheduleHint}
       >

@@ -490,7 +490,10 @@ export const advancePet = (pet: PetState, now = Date.now(), eventContext?: Neigh
       }
     : normalized;
   const prepared = advanceGarden(ensureDailyWishForDate(normalizedForSimulation, now), now);
-  const scheduleForInterval = prepared.partnerSchedule.active;
+  const pendingSchedule = prepared.partnerSchedule.pendingResult;
+  const scheduleForInterval = prepared.partnerSchedule.active ?? (pendingSchedule?.startedAt !== undefined
+    ? { startedAt: pendingSchedule.startedAt, endsAt: pendingSchedule.completedAt }
+    : undefined);
   const intervalStartedAt = Math.min(prepared.lastUpdatedAt, now);
   const deltaMs = Math.max(0, now - intervalStartedAt);
   const getProtectedScheduleMs = (from: number, to: number) => {
@@ -503,7 +506,8 @@ export const advancePet = (pet: PetState, now = Date.now(), eventContext?: Neigh
   const pomodoroWasRunning = prepared.pomodoro.isRunning;
   const pomodoroAdvanceOptions: AdvancePomodoroOptions = { historicalDateKeys: useHistoricalDateKeys };
 
-  if (deltaMs < 1000) {
+  // Finish even a sub-second protected interval before a result can be claimed and cleared.
+  if (deltaMs < 1000 && (!scheduleForInterval || deltaMs === 0)) {
     const current = withWeatherForTime(advancePartnerSchedule(prepared, now), now);
     return ensureYearlyStatsForDate(advancePomodoro(
       current.pomodoro.isRunning ? { ...current, lastInteractionAt: now } : current,

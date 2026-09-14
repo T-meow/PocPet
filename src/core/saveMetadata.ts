@@ -1,4 +1,5 @@
 import type { PetState } from './petTypes';
+import { communityWorkGiftRewardId } from './communityWorkGift';
 
 export const migrationCompensationRewardId = 'save_v2_migration_gift_v1';
 export const inventoryItemLimit = 9999;
@@ -9,12 +10,13 @@ export interface SaveMetadata {
   origin: 'new' | 'legacy';
   compensation: 'ineligible' | 'pending' | 'claimed';
   pendingItems: Partial<Record<MigrationItemId, number>>;
+  communityWorkGift?: 'ineligible' | 'pending' | 'claimed';
 }
 
 let saveSequence = 0;
 export const createNewSaveMetadata = (now: number): SaveMetadata => ({
   id: `save:${globalThis.crypto?.randomUUID?.() ?? `${now.toString(36)}-${(++saveSequence).toString(36)}`}`,
-  origin: 'new', compensation: 'ineligible', pendingItems: {},
+  origin: 'new', compensation: 'ineligible', pendingItems: {}, communityWorkGift: 'ineligible',
 });
 
 // Legacy identity survives renamed pets, changed appearances and repeated previews.
@@ -36,7 +38,11 @@ export const isSaveMetadata = (value: unknown): value is SaveMetadata => {
     && Boolean(raw.pendingItems) && typeof raw.pendingItems === 'object' && !Array.isArray(raw.pendingItems);
 };
 export const normalizeSaveMetadata = (value: unknown, rawPet: Record<string, unknown>): SaveMetadata => {
+  const giftClaimed = Array.isArray(rawPet.claimedRewardIds) && rawPet.claimedRewardIds.includes(communityWorkGiftRewardId);
   if (isSaveMetadata(value)) {
+    // Missing only in saves created before the community work gift was introduced.
+    const communityWorkGift = giftClaimed || value.communityWorkGift === 'claimed' ? 'claimed'
+      : value.communityWorkGift === 'ineligible' ? 'ineligible' : 'pending';
     const pendingItems: SaveMetadata['pendingItems'] = {};
     if (value.origin === 'legacy' && value.compensation === 'claimed') {
       for (const id of Object.keys(migrationCompensationItems) as MigrationItemId[]) {
@@ -44,7 +50,7 @@ export const normalizeSaveMetadata = (value: unknown, rawPet: Record<string, unk
         if (typeof amount === 'number' && Number.isFinite(amount) && amount > 0) pendingItems[id] = Math.min(migrationCompensationItems[id], Math.floor(amount));
       }
     }
-    return { id: value.id, origin: value.origin, compensation: value.origin === 'new' ? 'ineligible' : value.compensation, pendingItems };
+    return { id: value.id, origin: value.origin, compensation: value.origin === 'new' ? 'ineligible' : value.compensation, pendingItems, communityWorkGift };
   }
   const gacha = rawPet.goldenAppleGacha as { rngSeed?: unknown } | undefined;
   const legacyStartedAt = typeof rawPet.ageSeconds === 'number' && Number.isFinite(rawPet.ageSeconds) && rawPet.ageSeconds >= 0
@@ -55,7 +61,7 @@ export const normalizeSaveMetadata = (value: unknown, rawPet: Record<string, unk
     ? `created:${rawPet.createdAt}`
     : typeof gacha?.rngSeed === 'string' && gacha.rngSeed ? `rng:${gacha.rngSeed}`
       : legacyStartedAt !== undefined ? `legacy-start:${legacyStartedAt}` : JSON.stringify(legacyProgress);
-  return { id: `legacy:${legacyDigest(identity)}`, origin: 'legacy', compensation: 'pending', pendingItems: {} };
+  return { id: `legacy:${legacyDigest(identity)}`, origin: 'legacy', compensation: 'pending', pendingItems: {}, communityWorkGift: giftClaimed ? 'claimed' : 'pending' };
 };
 
 export const settlePendingMigrationItems = (pet: PetState): { pet: PetState; granted: SaveMetadata['pendingItems'] } => {

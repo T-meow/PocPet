@@ -4,6 +4,7 @@ import { createDefaultPet, normalizePet, buyItem, getItemPurchaseQuote, useInven
 import { createSaveFileText, decodeSaveSnapshot, loadStoredPetJson, parseSaveFileText, UnsupportedSaveVersionError } from '../src/core/saveCodec';
 import { loadPet, savePet, replacePetFromImport, takeStorageFeedback, formatBackupStoragePrefix, migrationLedgerStorageKey, getStoredRecoveryCopies } from '../src/core/storage';
 import { migrationCompensationRewardId } from '../src/core/saveMetadata';
+import { claimCommunityWorkGift, communityWorkGiftRewardId, communityWorkGiftTickets, isCommunityWorkGiftAvailable } from '../src/core/communityWorkGift';
 import { getPetPreferences } from '../src/core/petPreferences';
 import { actMiniGame, startMiniGame, resumeMiniGame, acknowledgeMiniGameResult } from '../src/core/miniGames';
 import { harvestTree } from '../src/core/garden';
@@ -88,6 +89,50 @@ assert.equal(JSON.stringify(drawn), sourceBefore, 'projection must not mutate ru
 parseSaveFileText(file, now);
 assert.equal(storage.writes, writesBefore, 'preview and conversion cannot write storage or award compensation');
 
+// Existing progress gets a claimable gift; new saves never become eligible just by aging.
+assert.equal(communityWorkGiftTickets, 10);
+for (const newPet of [fresh, normalizePet(fresh, now + 30 * 86400000), readLocal(createSaveFileText(fresh, null, now))]) {
+  assert.equal(newPet.saveMetadata.communityWorkGift, 'ineligible');
+  assert.equal(isCommunityWorkGiftAvailable(newPet), false);
+  assert.equal(claimCommunityWorkGift(newPet).pet, newPet);
+}
+const oldCurrentFile = JSON.parse(createSaveFileText(rich, null, now));
+delete oldCurrentFile.pet.saveMetadata.communityWorkGift;
+const oldGiftPet = readLocal(JSON.stringify(oldCurrentFile));
+assert.equal(oldGiftPet.saveMetadata.origin, 'new', 'an older V2 save qualifies even if it was originally created as new');
+assert.equal(oldGiftPet.saveMetadata.communityWorkGift, 'pending');
+assert.equal(oldGiftPet.goldenAppleGacha.tickets, rich.goldenAppleGacha.tickets, 'loading only exposes the gift; tickets arrive on claim');
+assert.equal(readLocal(createSaveFileText(oldGiftPet, null, now)).saveMetadata.communityWorkGift, 'pending');
+const oldGiftBefore = JSON.stringify(oldGiftPet);
+const gift = claimCommunityWorkGift(oldGiftPet);
+assert.ok(gift.claimed);
+assert.equal(gift.pet.goldenAppleGacha.tickets, oldGiftPet.goldenAppleGacha.tickets + 10);
+assert.equal(gift.pet.saveMetadata.communityWorkGift, 'claimed');
+assert.equal(gift.pet.claimedRewardIds.filter((id) => id === communityWorkGiftRewardId).length, 1);
+assert.equal(JSON.stringify(oldGiftPet), oldGiftBefore, 'claim does not mutate its input');
+assert.deepEqual(claimCommunityWorkGift(oldGiftPet), gift, 'replaying the same updater produces the same one-gift result');
+assert.equal(claimCommunityWorkGift(gift.pet).pet, gift.pet, 'a second click grants nothing');
+assert.deepEqual(gift.pet.goldenAppleGacha.dailyGrantedSources, oldGiftPet.goldenAppleGacha.dailyGrantedSources);
+assert.equal(gift.pet.goldenAppleGacha.dailyTicketsGranted, oldGiftPet.goldenAppleGacha.dailyTicketsGranted);
+assert.deepEqual(gift.pet.achievements, oldGiftPet.achievements);
+const quotaUsed = { ...oldGiftPet, goldenAppleGacha: { ...oldGiftPet.goldenAppleGacha, dailyTicketsGranted: 3 } };
+assert.ok(claimCommunityWorkGift(quotaUsed).claimed, 'the gift is independent of the daily random ticket quota');
+for (const tickets of [9990, 9999]) {
+  const full = { ...oldGiftPet, goldenAppleGacha: { ...oldGiftPet.goldenAppleGacha, tickets } };
+  const blocked = claimCommunityWorkGift(full);
+  assert.equal(blocked.claimed, false);
+  assert.equal(blocked.pet.goldenAppleGacha.tickets, tickets);
+  assert.ok(isCommunityWorkGiftAvailable(readLocal(createSaveFileText(blocked.pet, null, now))));
+}
+assert.equal(claimCommunityWorkGift({ ...oldGiftPet, goldenAppleGacha: { ...oldGiftPet.goldenAppleGacha, tickets: 9989 } }).pet.goldenAppleGacha.tickets, 9999);
+const restoredGift = readLocal(createSaveFileText(gift.pet, null, now));
+assert.equal(restoredGift.goldenAppleGacha.tickets, gift.pet.goldenAppleGacha.tickets);
+assert.equal(claimCommunityWorkGift(restoredGift).pet, restoredGift);
+const markerOnly = normalizePet({ ...oldGiftPet, claimedRewardIds: gift.pet.claimedRewardIds, saveMetadata: { ...oldGiftPet.saveMetadata, communityWorkGift: undefined } }, now);
+assert.equal(markerOnly.saveMetadata.communityWorkGift, 'claimed', 'the existing receipt also blocks an older metadata snapshot');
+assert.equal(claimCommunityWorkGift(markerOnly).pet, markerOnly);
+assert.equal(storage.writes, writesBefore, 'gift previews and pure claims never touch player storage');
+
 // Pending work keeps its real reward/snapshot; acknowledged displays keep receipts.
 let game = startMiniGame(rich, 'matching', 'gentle', 'official.mint', 'receipt-game', now);
 const deck = [...game.miniGames.active!.deck];
@@ -149,6 +194,7 @@ for (const text of [rawLegacy, legacyEnvelope, mintFile]) {
   const preview = parseSaveFileText(text, now);
   const before = structuredClone(preview.pet);
   const converted = replacePetFromImport(preview.pet, '', preview.activeMod, text, now);
+  assert.ok(isCommunityWorkGiftAvailable(converted), 'pre-V2 and Mint saves retain the separate, unclaimed community gift');
   assert.equal(converted.inventory.emergency_biscuit, (before.inventory.emergency_biscuit ?? 0) + 120);
   assert.equal(converted.inventory.strawberry_milk, (before.inventory.strawberry_milk ?? 0) + 10);
   assert.equal(converted.dailyBiscuitClaims, before.dailyBiscuitClaims);
@@ -168,6 +214,14 @@ assert.equal(loadCurrent().saveMetadata.compensation, 'ineligible');
 assert.equal(loadCurrent().inventory.emergency_biscuit, fresh.inventory.emergency_biscuit);
 assert.equal(storage.getItem(migrationLedgerStorageKey), null);
 assert.equal(takeStorageFeedback().length, 0);
+
+resetStorage();
+savePet(oldGiftPet);
+assert.ok(isCommunityWorkGiftAvailable(loadCurrent()));
+savePet(gift.pet);
+const savedGift = loadCurrent();
+assert.equal(savedGift.goldenAppleGacha.tickets, gift.pet.goldenAppleGacha.tickets);
+assert.equal(claimCommunityWorkGift(savedGift).pet, savedGift, 'saving and reopening cannot grant twice');
 
 resetStorage();
 storage.setItem(primaryKey, rawLegacy);
@@ -231,7 +285,7 @@ const current = JSON.parse(createSaveFileText(rich, null, now));
 const futureFiles = [
   { ...current, schemaVersion: 3 },
   { ...current, minimumReaderVersion: '2.0.0' },
-  { ...current, pet: { ...current.pet, garden: { ...current.pet.garden, schemaVersion: 5 } } },
+  { ...current, pet: { ...current.pet, garden: { ...current.pet.garden, schemaVersion: current.pet.garden.schemaVersion + 1 } } },
   { ...current, pet: { ...current.pet, adventure: { schemaVersion: 1, progress: 99 } } },
   { ...current, modules: { adventure: { schemaVersion: 1 } } },
 ].map((value) => JSON.stringify(value));
@@ -247,7 +301,7 @@ for (const text of futureFiles) {
 // Box transactions deliver units, charge boxes and check capacity before discounts.
 const shop = getShopDefinitions(createItemRegistry());
 for (const category of ['food', 'ingredients'] as const) assert.ok(filterBrowseItems(shop, category).some((item) => item.id === 'soda_biscuit_box'));
-assert.equal(getShopItem('soda_biscuit_box')?.price, 500);
+const boxPrice = getShopItem('soda_biscuit_box')!.price;
 const paid = buyItem(rich, 'soda_biscuit_box', now, { quantity: 3 });
 const quote = getItemPurchaseQuote(rich, 'soda_biscuit_box', 3, now);
 assert.equal(paid.coins, rich.coins - quote.totalPrice);
@@ -257,11 +311,11 @@ assert.equal(paid.dailyBiscuitClaims, rich.dailyBiscuitClaims);
 assert.equal(paid.achievements.counters.paidPurchaseCount, rich.achievements.counters.paidPurchaseCount + 3);
 const discountPet = { ...rich, dailyDiscountDate: getDailyResetDateKey(now), dailyDiscountItemIds: ['soda_biscuit_box', 'bento', 'rice'], dailyDiscountUsedItemIds: [], dailyDiscountUsed: false } as PetState;
 const discount = getItemPurchaseQuote(discountPet, 'soda_biscuit_box', 3, now);
-assert.ok(discount.discountApplied && discount.firstItemPrice < 500);
-assert.equal(discount.totalPrice, discount.firstItemPrice + 1000);
+assert.ok(discount.discountApplied && discount.firstItemPrice < boxPrice);
+assert.equal(discount.totalPrice, discount.firstItemPrice + boxPrice * 2);
 const discounted = buyItem(discountPet, 'soda_biscuit_box', now, { quantity: 3 });
 assert.equal(discounted.coins, rich.coins - discount.totalPrice);
-assert.equal(getItemPurchaseQuote(discounted, 'soda_biscuit_box', 1, now).totalPrice, 500);
+assert.equal(getItemPurchaseQuote(discounted, 'soda_biscuit_box', 1, now).totalPrice, boxPrice);
 for (const [count, quantity] of [[9960, 1], [9920, 2]] as const) {
   const nearFull = { ...discountPet, inventory: { ...rich.inventory, emergency_biscuit: count } };
   assert.equal(getItemPurchaseQuote(nearFull, 'soda_biscuit_box', quantity, now).reason, 'inventory_full');
@@ -276,7 +330,7 @@ assert.equal(exact.inventory.emergency_biscuit, 9999);
 const poor = { ...discountPet, coins: discount.firstItemPrice - 1 };
 assert.equal(buyItem(poor, 'soda_biscuit_box', now).coins, poor.coins);
 assert.deepEqual(buyItem(poor, 'soda_biscuit_box', now).dailyDiscountUsedItemIds, []);
-assert.equal(getItemPurchaseQuote({ ...rich, level: 19 }, 'soda_biscuit_box', 3, now).quantity, 1);
+assert.equal(getItemPurchaseQuote({ ...rich, level: 1 }, 'soda_biscuit_box', 3, now).quantity, 3, 'initial-level box purchases support batches');
 const fed = useInventoryItem({ ...paid, hunger: 0 }, 'emergency_biscuit', now);
 assert.equal(fed.inventory.emergency_biscuit, paid.inventory.emergency_biscuit - 1);
 const cooked = craftRecipe(paid, 'biscuit_cup', false, 1, 'box-cook', now);

@@ -2,11 +2,13 @@ import { t } from '../i18n';
 import { recordEarnedCoins, recordEarnedHearts } from './achievements';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
-import { addInventoryItem, getInventoryCount, isBuiltinItemId } from './items';
+import { addInventoryItem, getInventoryCount, getInventoryItem, isBuiltinItemId } from './items';
+import { inventoryItemLimit } from './saveMetadata';
 import { clampCoins, clampCount } from './petStats';
 import type {
   BuiltinItemId,
   GachaPaymentMethod,
+  GachaItemContent,
   GachaResult,
   GachaRewardRarity,
   GachaTicketSource,
@@ -39,12 +41,13 @@ interface BaseGachaRewardDefinition {
   kind: GachaResult['kind'];
   amount: number;
   itemId?: BuiltinItemId;
+  contents?: readonly GachaItemContent[];
   weight: number;
   rarity: GachaRewardRarity;
 }
 
 export interface GoldenAppleGachaRewardDefinition extends BaseGachaRewardDefinition {
-  kind: 'coins' | 'item';
+  kind: 'coins' | 'item' | 'bundle';
   value: number;
 }
 
@@ -70,27 +73,55 @@ const itemReward = (
   unitValue: number,
 ): GoldenAppleGachaRewardDefinition => ({ id, kind: 'item', itemId, amount, weight, rarity, value: amount * unitValue });
 
+const bundleReward = (
+  id: string,
+  contents: readonly GachaItemContent[],
+  weight: number,
+  rarity: GachaRewardRarity = 'common',
+): GoldenAppleGachaRewardDefinition => ({
+  id, kind: 'bundle', amount: 1, contents, weight, rarity,
+  value: contents.reduce((sum, { itemId, amount }) => {
+    // Free daily biscuits use their existing box purchase cost for the prize budget.
+    const price = itemId === 'emergency_biscuit'
+      ? (getInventoryItem('soda_biscuit_box')?.price ?? 0) / 40
+      : getInventoryItem(itemId)?.price ?? 0;
+    return sum + amount * price;
+  }, 0),
+});
+
+export const getGachaRewardItems = (
+  reward: Pick<GachaResult, 'kind' | 'itemId' | 'amount' | 'contents'>,
+): readonly GachaItemContent[] => reward.kind === 'bundle'
+  ? reward.contents ?? []
+  : reward.kind === 'item' && reward.itemId ? [{ itemId: reward.itemId, amount: reward.amount }] : [];
+
 export const goldenAppleGachaRewards: readonly GoldenAppleGachaRewardDefinition[] = [
-  coinReward(100, 10350, 'common'),
-  coinReward(200, 8000, 'common'),
-  coinReward(300, 7600, 'common'),
-  coinReward(500, 5200, 'uncommon'),
-  coinReward(888, 6000, 'uncommon'),
-  coinReward(1888, 2100, 'rare'),
-  coinReward(3888, 638, 'legendary'),
-  coinReward(8888, 112, 'legendary'),
-  itemReward('bento_5', 'bento', 5, 3200, 'common', 24),
-  itemReward('nutri_meal_5', 'nutri_meal', 5, 3200, 'common', 36),
-  itemReward('energy_drink_5', 'energy_drink', 5, 3200, 'common', 36),
-  itemReward('blanket_5', 'blanket', 5, 2800, 'common', 52),
-  itemReward('picture_book_5', 'picture_book', 5, 2000, 'common', 52),
-  itemReward('bento_10', 'bento', 10, 8000, 'common', 24),
-  itemReward('energy_drink_10', 'energy_drink', 10, 7600, 'common', 36),
-  itemReward('blanket_10', 'blanket', 10, 2600, 'uncommon', 52),
-  itemReward('picture_book_10', 'picture_book', 10, 2600, 'uncommon', 52),
-  itemReward('normal_fertilizer_20', 'normal_fertilizer', 20, 4800, 'uncommon', 15),
-  itemReward('harvest_nutrient_1', 'harvest_nutrient', 1, 5000, 'rare', 300),
-  itemReward('heart_fertilizer_30', 'heart_fertilizer', 30, 1000, 'rare', 30),
+  bundleReward('fruit_crate_v1', [
+    { itemId: 'apple', amount: 6 }, { itemId: 'orange', amount: 6 }, { itemId: 'banana', amount: 6 },
+  ], 10000),
+  bundleReward('strawberry_milk_crate_v1', [{ itemId: 'strawberry_milk', amount: 16 }], 4000),
+  bundleReward('home_cooking_crate_v1', [
+    { itemId: 'rice', amount: 10 }, { itemId: 'egg', amount: 10 }, { itemId: 'tomato', amount: 10 },
+  ], 5000),
+  bundleReward('baking_crate_v1', [
+    { itemId: 'apple', amount: 6 }, { itemId: 'flour', amount: 6 }, { itemId: 'ad_milk', amount: 6 },
+  ], 4000),
+  bundleReward('biscuit_crate_v1', [{ itemId: 'emergency_biscuit', amount: 40 }], 3000),
+  bundleReward('energy_crate_v1', [
+    { itemId: 'energy_drink', amount: 6 }, { itemId: 'blanket', amount: 3 },
+  ], 3000, 'uncommon'),
+  bundleReward('care_crate_v1', [
+    { itemId: 'wet_wipes', amount: 10 }, { itemId: 'vitamin_tablet', amount: 10 }, { itemId: 'medicine', amount: 3 },
+  ], 3000, 'uncommon'),
+  bundleReward('companion_gift_v1', [
+    { itemId: 'picture_book', amount: 4 }, { itemId: 'toy_ball', amount: 4 }, { itemId: 'ribbon_bell', amount: 4 },
+  ], 3000, 'uncommon'),
+  itemReward('normal_fertilizer_20', 'normal_fertilizer', 20, 6000, 'uncommon', 15),
+  itemReward('heart_fertilizer_15', 'heart_fertilizer', 15, 3000, 'uncommon', 30),
+  itemReward('harvest_nutrient_2', 'harvest_nutrient', 2, 2000, 'rare', 300),
+  coinReward(500, 34000, 'uncommon'),
+  coinReward(888, 5000, 'uncommon'),
+  coinReward(1888, 1000, 'rare'),
   itemReward('money_tree_sapling_1', 'money_tree_sapling', 1, 1180, 'rare', 3000),
   itemReward('golden_apple_tree_sapling_1', 'golden_apple_tree_sapling', 1, 320, 'legendary', 8888),
   itemReward('golden_apple_1', 'golden_apple', 1, 11632, 'rare', goldenAppleValue),
@@ -126,6 +157,22 @@ export const goldenAppleHeartGachaRewards: readonly GoldenAppleHeartGachaRewardD
 
 // Old result IDs retain the amounts actually awarded, without entering the active pool.
 const legacyGachaRewards = [
+  coinReward(100, 0, 'common'),
+  coinReward(200, 0, 'common'),
+  coinReward(300, 0, 'common'),
+  coinReward(3888, 0, 'legendary'),
+  coinReward(8888, 0, 'legendary'),
+  itemReward('bento_5', 'bento', 5, 0, 'common', 24),
+  itemReward('nutri_meal_5', 'nutri_meal', 5, 0, 'common', 36),
+  itemReward('energy_drink_5', 'energy_drink', 5, 0, 'common', 36),
+  itemReward('blanket_5', 'blanket', 5, 0, 'common', 52),
+  itemReward('picture_book_5', 'picture_book', 5, 0, 'common', 52),
+  itemReward('bento_10', 'bento', 10, 0, 'common', 24),
+  itemReward('energy_drink_10', 'energy_drink', 10, 0, 'common', 36),
+  itemReward('blanket_10', 'blanket', 10, 0, 'uncommon', 52),
+  itemReward('picture_book_10', 'picture_book', 10, 0, 'uncommon', 52),
+  itemReward('heart_fertilizer_30', 'heart_fertilizer', 30, 0, 'rare', 30),
+  itemReward('harvest_nutrient_1', 'harvest_nutrient', 1, 0, 'rare', 300),
   itemReward('normal_fertilizer_1', 'normal_fertilizer', 1, 0, 'uncommon', 300),
   itemReward('heart_fertilizer_1', 'heart_fertilizer', 1, 0, 'rare', 900),
 ];
@@ -188,6 +235,7 @@ const normalizeResult = (
     rewardId: definition.id,
     kind: definition.kind,
     itemId: definition.itemId,
+    ...(definition.contents ? { contents: definition.contents.map((content) => ({ ...content })) } : {}),
     amount: definition.amount,
     rarity: definition.rarity,
     guaranteed: !pityGuaranteed && Boolean(raw.guaranteed),
@@ -290,6 +338,7 @@ const createResult = (
   rewardId: definition.id,
   kind: definition.kind,
   itemId: definition.itemId,
+  ...(definition.contents ? { contents: definition.contents.map((content) => ({ ...content })) } : {}),
   amount: definition.amount,
   rarity: definition.rarity,
   guaranteed,
@@ -344,6 +393,7 @@ export type GoldenAppleGachaDrawError =
   | 'not_enough_coins'
   | 'not_enough_tickets'
   | 'not_enough_golden_apples'
+  | 'inventory_full'
   | 'invalid_count';
 
 export interface GoldenAppleGachaDrawOutcome {
@@ -437,9 +487,11 @@ export const drawGoldenAppleGacha = (
   }
 
   const coinRewardTotal = results.reduce((sum, result) => sum + (result.kind === 'coins' ? result.amount : 0), 0);
-  const inventory = results.reduce((next, result) =>
-    result.kind === 'item' && result.itemId ? addInventoryItem(next, result.itemId, result.amount) : next,
-  pet.inventory);
+  const itemRewards = results.flatMap(getGachaRewardItems);
+  const inventory = itemRewards.reduce((next, { itemId, amount }) => addInventoryItem(next, itemId, amount), pet.inventory);
+  if (itemRewards.some(({ itemId }) => getInventoryCount(inventory, itemId) > inventoryItemLimit)) {
+    return { pet, results: [], error: 'inventory_full' };
+  }
   const nextState: GoldenAppleGachaState = {
     ...state,
     tickets: payment === 'tickets' ? state.tickets - ticketCost : state.tickets,
@@ -457,7 +509,7 @@ export const drawGoldenAppleGacha = (
     coins: clampCoins(pet.coins - (payment === 'coins' ? coinCost : 0) + coinRewardTotal),
     inventory,
     goldenAppleGacha: nextState,
-    recentEvent: t('pet.gacha.drawn', { count, coins: coinRewardTotal }),
+    recentEvent: t('pet.gacha.drawn', { count, coins: coinRewardTotal, items: itemRewards.reduce((sum, item) => sum + item.amount, 0) }),
     lastInteractionAt: now,
   };
   return {

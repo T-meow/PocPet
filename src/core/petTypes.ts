@@ -53,13 +53,14 @@ export type GardenFertilizerId = 'normal' | 'heart';
 
 export type GardenCareActionId = 'water' | GardenFertilizerId;
 
-export type GardenCareBlockedReason = 'minimum_remaining' | 'round_limit' | 'wrong_tree' | 'fertilized_round';
+export type GardenCareBlockedReason = 'minimum_remaining' | 'round_limit' | 'wrong_tree' | 'fertilized_round' | 'daily_limit';
 
 export interface GardenCarePreview {
   percent: number;
   nominalReductionMs: number;
   actualReductionMs: number;
   remainingAfterMs: number;
+  quantity: number;
   blockedReason?: GardenCareBlockedReason;
 }
 
@@ -83,6 +84,7 @@ export interface GardenSlot {
   lastBoostedAt: number;
   lastWateredDateKey: string;
   lastFertilizedDateKey: string;
+  dailyAdvancedFertilizerReductionMs: number;
   lastBoostedDateKey: string;
   naturalReadyAt: number;
   careReductionMs: number;
@@ -104,7 +106,7 @@ export interface GardenTools {
 }
 
 export interface GardenState {
-  schemaVersion: 5;
+  schemaVersion: 6;
   activeSlotIndex: number;
   slots: GardenSlot[];
   dailyCareDateKey: string;
@@ -135,12 +137,18 @@ export type GachaPaymentMethod = 'coins' | 'tickets';
 
 export type GachaRewardRarity = 'common' | 'uncommon' | 'rare' | 'legendary' | 'jackpot';
 
+export interface GachaItemContent {
+  itemId: BuiltinItemId;
+  amount: number;
+}
+
 export interface GachaResult {
   id: string;
   rewardId: string;
-  kind: 'coins' | 'item' | 'hearts';
+  kind: 'coins' | 'item' | 'bundle' | 'hearts';
   amount: number;
   itemId?: BuiltinItemId;
+  contents?: readonly GachaItemContent[];
   rarity: GachaRewardRarity;
   guaranteed: boolean;
   pityGuaranteed: boolean;
@@ -342,6 +350,12 @@ export interface PartnerScheduleSkill {
   masterCompletions: number;
 }
 
+export interface PartnerScheduleCosts {
+  energy: number;
+  hunger: number;
+  mood: number;
+}
+
 export interface ActivePartnerSchedule {
   offerId: string;
   templateId: string;
@@ -354,6 +368,12 @@ export interface ActivePartnerSchedule {
   trophyRewardMultiplier: number;
   grantsMasterCompletion: boolean;
   neighbor?: NeighborReference;
+  costs?: PartnerScheduleCosts;
+  settledProgressMs?: number;
+  legacyPrepaid?: boolean;
+  extraRewardChancePercent?: number;
+  rewardSeed?: number;
+  statScale?: number;
 }
 
 export interface PartnerScheduleResult {
@@ -362,20 +382,34 @@ export interface PartnerScheduleResult {
   category: PartnerScheduleCategory;
   size: PartnerScheduleSize;
   completedAt: number;
+  startedAt?: number;
   coinReward: number;
   skillXp: number;
   trophyRewardMultiplier: number;
   grantsMasterCompletion: boolean;
   neighbor?: NeighborReference;
+  outcome?: 'completed' | 'early';
+  progressRatio?: number;
+  contributionMs?: number;
+  energyCost?: number;
+  legacyRewards?: boolean;
+  extraRewardChancePercent?: number;
+  rewardSeed?: number;
+  statScale?: number;
 }
 
 export interface PartnerScheduleState {
-  schemaVersion: 6;
+  schemaVersion: 7;
   boardDateKey: string;
+  boardRevision: number;
+  dailyRefreshCount: number;
+  dailyContributionMs: number;
+  dailyCompletedCount: number;
   boardOfferCount: number;
   offers: PartnerScheduleOffer[];
   neighborOfferId?: string;
   completedOfferIds: string[];
+  earlyEndedOfferIds: string[];
   active?: ActivePartnerSchedule;
   pendingResult?: PartnerScheduleResult;
   skills: Record<PartnerScheduleCategory, PartnerScheduleSkill>;

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   advanceGarden,
+  clearWitheredTree,
   fertilizeTree,
   gardenCareReductionLimitPercent,
   gardenSchemaVersion,
@@ -10,6 +11,7 @@ import {
   getGardenSaplingRecycleCoins,
   harvestTree,
   normalizeGardenState,
+  plantTree,
   recycleGardenSapling,
   waterTree,
 } from '../src/core/garden';
@@ -74,13 +76,72 @@ assert.equal(earlyWater.percent, 18);
 assert.equal(earlyWater.nominalReductionMs, gardenWaterReductionMaxMs);
 assert.equal(laterWater.nominalReductionMs, earlyWater.nominalReductionMs, 'watering value must not depend on action time');
 
-assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'normal', summerNoon).blockedReason, 'wrong_tree');
-assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'heart', summerNoon).actualReductionMs, 0);
+assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'normal', summerNoon).actualReductionMs, 0.96 * hourMs);
+assert.equal(getGardenCarePreview(longRoundPet, longRoundSlot, 'heart', summerNoon).actualReductionMs, 1.92 * hourMs);
 const ordinaryPet = createGrowingPet(summerNoon, 12 * hourMs);
 const normalPreview = getGardenCarePreview(ordinaryPet, ordinaryPet.garden.slots[0], 'normal', summerNoon);
 const heartPreview = getGardenCarePreview(ordinaryPet, ordinaryPet.garden.slots[0], 'heart', summerNoon);
 assert.equal(normalPreview.nominalReductionMs, 3.6 * hourMs);
 assert.equal(heartPreview.nominalReductionMs, 4.8 * hourMs);
+
+for (const treeId of ['money_tree', 'golden_apple_tree'] as const) {
+  const advanced = createGrowingPet(summerNoon, 48 * hourMs, { treeId });
+  advanced.inventory = { normal_fertilizer: 30, heart_fertilizer: 30 };
+  const batch = fertilizeTree(advanced, 0, 'normal', summerNoon, 30);
+  assert.equal(batch.inventory.normal_fertilizer, 20, 'only the ten effective doses are consumed');
+  assert.equal(batch.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs);
+  assert.equal(batch.garden.slots[0].nextReadyAt, summerNoon + 43.2 * hourMs);
+  assert.equal(batch.garden.slots[0].fertilizerType, undefined, 'advanced fertilizer does not grant ordinary-tree drop bonuses');
+  const atLimit = fertilizeTree(batch, 0, 'heart', summerNoon, 10);
+  assert.deepEqual(atLimit.inventory, batch.inventory, 'both fertilizers share the daily cap');
+  assert.deepEqual(atLimit.partnerSchedule.skills.garden, batch.partnerSchedule.skills.garden, 'blocked use grants no XP');
+  assert.equal(getGardenCarePreview(batch, batch.garden.slots[0], 'heart', summerNoon).blockedReason, 'daily_limit');
+
+  let singles = advanced;
+  for (let index = 0; index < 10; index += 1) singles = fertilizeTree(singles, 0, 'normal', summerNoon);
+  assert.deepEqual(singles.garden, batch.garden, 'batch and repeated use have the same timing and counters');
+  assert.deepEqual(singles.partnerSchedule.skills.garden, batch.partnerSchedule.skills.garden);
+
+  const mixed = fertilizeTree(fertilizeTree(advanced, 0, 'normal', summerNoon, 3), 0, 'heart', summerNoon, 30);
+  assert.equal(mixed.inventory.normal_fertilizer, 27);
+  assert.equal(mixed.inventory.heart_fertilizer, 26, 'the final dose is limited to the remaining daily allowance');
+  assert.equal(mixed.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs);
+  const imported = parseSaveFileText(createSaveFileText(mixed, null, summerNoon), summerNoon).pet;
+  assert.equal(imported.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs);
+  assert.deepEqual(fertilizeTree(imported, 0, 'normal', summerNoon).inventory, imported.inventory, 'save reload cannot reset the daily cap');
+  const beforeReset = new Date(2026, 6, 16, 4, 59, 59).getTime();
+  const afterReset = new Date(2026, 6, 16, 5, 0, 0).getTime();
+  assert.deepEqual(fertilizeTree(imported, 0, 'normal', beforeReset).inventory, imported.inventory);
+  const tomorrow = fertilizeTree(imported, 0, 'heart', afterReset, 2);
+  assert.equal(tomorrow.inventory.heart_fertilizer, imported.inventory.heart_fertilizer - 2);
+  assert.equal(tomorrow.garden.slots[0].dailyAdvancedFertilizerReductionMs, 1.92 * hourMs, 'daily usage resets at 05:00');
+
+  const ready = structuredClone(batch);
+  ready.garden.slots[0].state = 'ready';
+  ready.garden.slots[0].pendingDrops = [{ itemId: 'apple', amount: 1 }];
+  const harvested = harvestTree(ready, 0, summerNoon);
+  assert.equal(harvested.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs, 'harvesting does not reset daily usage');
+  const cleared = clearWitheredTree({ ...batch, coins: 1000 }, 0, summerNoon);
+  const clearedImported = parseSaveFileText(createSaveFileText(cleared, null, summerNoon), summerNoon).pet;
+  assert.equal(clearedImported.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs, 'an empty plot retains daily usage');
+  const replanted = plantTree({ ...clearedImported, inventory: { ...clearedImported.inventory, [treeId + '_sapling']: 1 } }, 0, treeId, summerNoon);
+  assert.equal(replanted.garden.slots[0].dailyAdvancedFertilizerReductionMs, 4.8 * hourMs, 'replanting retains daily usage');
+}
+const sixHourCapPet = { ...longRoundPet, inventory: { normal_fertilizer: 30, heart_fertilizer: 30 } };
+const unevenDurationPet = createGrowingPet(summerNoon, 48 * hourMs + 999, { treeId: 'money_tree' }, { inventory: { normal_fertilizer: 20 } });
+const unevenCap = fertilizeTree(unevenDurationPet, 0, 'normal', summerNoon, 20);
+assert.equal(unevenCap.inventory.normal_fertilizer, 10, 'fractional percentages must not require an extra dose for a few milliseconds');
+const sixHourCap = fertilizeTree(sixHourCapPet, 0, 'normal', summerNoon, 30);
+assert.equal(sixHourCap.garden.slots[0].dailyAdvancedFertilizerReductionMs, 6 * hourMs);
+assert.equal(sixHourCap.inventory.normal_fertilizer, 23, 'a partial seventh dose reaches the six-hour limit');
+const scarce = fertilizeTree({ ...longRoundPet, inventory: { normal_fertilizer: 2 } }, 0, 'normal', summerNoon, 20);
+assert.equal(scarce.inventory.normal_fertilizer ?? 0, 0);
+assert.equal(scarce.garden.slots[0].dailyAdvancedFertilizerReductionMs, 1.92 * hourMs);
+for (const quantity of [0, -1, NaN, Infinity]) assert.deepEqual(fertilizeTree(longRoundPet, 0, 'normal', summerNoon, quantity).inventory, longRoundPet.inventory);
+const legacyAdvanced = structuredClone(longRoundPet.garden) as unknown as Record<string, unknown>;
+legacyAdvanced.schemaVersion = 5;
+delete (legacyAdvanced.slots as Array<Record<string, unknown>>)[0].dailyAdvancedFertilizerReductionMs;
+assert.equal(normalizeGardenState(legacyAdvanced, summerNoon).slots[0].dailyAdvancedFertilizerReductionMs, 0, 'old advanced trees start with unused allowance');
 
 const wateredPet = waterTree(longRoundPet, 0, summerNoon);
 assert.equal(wateredPet.partnerSchedule.skills.garden.xp, 1);
@@ -111,6 +172,10 @@ const cappedPreview = getGardenCarePreview(cappedPet, cappedPet.garden.slots[0],
 assert.equal(cappedPreview.actualReductionMs, 0);
 assert.equal(cappedPreview.blockedReason, 'round_limit');
 assert.equal(waterTree(cappedPet, 0, summerNoon).partnerSchedule.skills.garden.xp, 0, 'ineffective care grants no XP');
+const advancedRoundCap = structuredClone(cappedPet);
+advancedRoundCap.garden.slots[0].treeId = 'golden_apple_tree';
+assert.equal(getGardenCarePreview(advancedRoundCap, advancedRoundCap.garden.slots[0], 'normal', summerNoon, 10).blockedReason, 'round_limit');
+assert.deepEqual(fertilizeTree(advancedRoundCap, 0, 'normal', summerNoon, 10).inventory, advancedRoundCap.inventory);
 
 const nearReadyNow = new Date(2026, 0, 15, 12, 0, 0, 0).getTime();
 const nearReadyPet = createGrowingPet(nearReadyNow - 59 * minuteMs, hourMs, {
@@ -141,6 +206,12 @@ assert.equal(minimumFertilizerResult.garden.slots[0].lastFertilizedAt, 0);
 assert.equal(minimumFertilizerResult.garden.dailyFertilizeCount, minimumPet.garden.dailyFertilizeCount);
 assert.equal(minimumWaterResult.partnerSchedule.skills.garden.xp, 0);
 assert.equal(minimumFertilizerResult.partnerSchedule.skills.garden.xp, 0);
+const advancedNearReady = structuredClone(nearReadyPet);
+advancedNearReady.garden.slots[0].treeId = 'money_tree';
+const advancedFloor = fertilizeTree(advancedNearReady, 0, 'heart', nearReadyNow, 3);
+assert.equal(advancedFloor.garden.slots[0].nextReadyAt - nearReadyNow, gardenMinimumCareRemainingMs);
+assert.equal(advancedFloor.inventory.heart_fertilizer, advancedNearReady.inventory.heart_fertilizer - 1);
+assert.deepEqual(fertilizeTree(advancedFloor, 0, 'normal', nearReadyNow, 3).inventory, advancedFloor.inventory);
 
 const heartFirstPet = fertilizeTree(createGrowingPet(nearReadyNow, 96 * hourMs), 0, 'heart', nearReadyNow);
 const normalNextDayPet = fertilizeTree(heartFirstPet, 0, 'normal', nearReadyNow + dayMs);

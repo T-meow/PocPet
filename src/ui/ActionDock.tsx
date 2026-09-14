@@ -1,4 +1,4 @@
-import { Bath, Bed, BriefcaseBusiness, Gamepad2 } from 'lucide-react';
+import { Bath, Bed, Gamepad2 } from 'lucide-react';
 import type { PetAction } from '../core/pet';
 import { t } from '../i18n';
 
@@ -33,16 +33,6 @@ export const ActionDock = ({
       <button type="button" className="action-button action-button--clean" disabled={isCriticallyHungry} title={lowHungerTitle} onClick={() => onAction('clean')}>
         <Bath size={20} aria-hidden="true" />
         <span>{t('ui.actionDock.clean')}</span>
-      </button>
-      <button
-        type="button"
-        className="action-button action-button--work"
-        disabled={isLowEnergy || isCriticallyHungry}
-        title={playWorkBlockedTitle}
-        onClick={() => onAction('work')}
-      >
-        <BriefcaseBusiness size={20} aria-hidden="true" />
-        <span>{t('ui.actionDock.work')}</span>
       </button>
       <button type="button" className="action-button action-button--sleep" onClick={() => onAction('sleep')}>
         <Bed size={20} aria-hidden="true" />

@@ -84,7 +84,7 @@ export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commit
     plantTree: (slotIndex: number, treeId: GardenTreeId) => commitAction((current) => plantTree(current, slotIndex, treeId), 'purchase'),
     recycleSapling: (treeId: GardenTreeId) => commitAction((current) => recycleGardenSapling(current, treeId), 'coin'),
     waterTree: (slotIndex: number) => commitAction((current) => waterTree(current, slotIndex), 'tap'),
-    fertilizeTree: (slotIndex: number, fertilizerId: GardenFertilizerId) => commitAction((current) => fertilizeTree(current, slotIndex, fertilizerId), fertilizerId === 'heart' ? 'pet_heart' : 'purchase'),
+    fertilizeTree: (slotIndex: number, fertilizerId: GardenFertilizerId, quantity = 1) => commitAction((current) => fertilizeTree(current, slotIndex, fertilizerId, Date.now(), quantity), fertilizerId === 'heart' ? 'pet_heart' : 'purchase'),
     useNutrient: (slotIndex: number) => commitAction((current) => useGardenNutrient(current, slotIndex), 'purchase'),
     harvestTree: (slotIndex: number) => commitAction((current) => harvestTree(current, slotIndex), 'coin'),
     requestClear,

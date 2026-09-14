@@ -155,7 +155,7 @@ for (const loaded of [loadValid(legacyActivitiesRaw), parseSaveFileText(JSON.str
   assert.deepEqual(loaded.kitchen.made, {});
   assert.equal(loaded.kitchen.starterClaimed, false);
   assert.ok(loaded.miniGames.unlocked.includes('catch'), 'existing toy balls remain usable for catch');
-  assert.equal(loaded.partnerSchedule.schemaVersion, 6);
+  assert.equal(loaded.partnerSchedule.schemaVersion, 7);
   const starter = claimKitchenStarter(loaded);
   assert.equal(starter.inventory.rice, 1);
   assert.equal(claimKitchenStarter(starter), starter, 'upgrade does not allow repeated starter claims');

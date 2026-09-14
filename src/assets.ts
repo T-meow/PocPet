@@ -4,6 +4,7 @@ import goodEndingCg1 from './assets/CG1.png';
 import iconAdMilk from './assets/icon/icon_ADmilk.png';
 import iconBeltedBell from './assets/icon/icon_belted_bell.png';
 import iconBerryCake from './assets/icon/icon_berry_cake.png';
+import itemBirthdayCake from './assets/icon/item_birthday_cake.png';
 import iconCloudPuff from './assets/icon/icon_cloud_puff.png';
 import iconFlowers from './assets/icon/icon_flowers.png';
 import iconPigTotters from './assets/icon/icon_pigtotters.png';
@@ -11,7 +12,7 @@ import iconShinyStickers from './assets/icon/icon_shiny_stickers.png';
 import itemBento from './assets/icon/item_bento.png';
 import itemBlanket from './assets/icon/item_blanket.png';
 import itemEmergencyBiscuit from './assets/icon/item_emergency_biscuit.png';
-import sodaBiscuitBox from './assets/soda-biscuit-box.svg';
+import sodaBiscuitBox from './assets/icon/item_soda_biscuit_box.png';
 import itemEnergyDrink from './assets/icon/item_energy_drink.png';
 import itemGiftBox from './assets/icon/item_gift_box1.png';
 import itemGoldenApple from './assets/icon/item_golden_apple.png';
@@ -78,7 +79,7 @@ export const itemIcons: Record<BuiltinItemId, string> = {
   nutri_meal: itemNutriMeal,
   pig_trotter: iconPigTotters,
   strawberry_cake: iconBerryCake,
-  birthday_cake: iconBerryCake,
+  birthday_cake: itemBirthdayCake,
   ad_milk: iconAdMilk,
   strawberry_milk: itemStrawberryMilk,
   small_bouquet: iconFlowers,

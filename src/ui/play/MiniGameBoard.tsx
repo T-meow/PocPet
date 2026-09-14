@@ -4,6 +4,7 @@ import { activityText as L } from '../../core/kitchenRecipes';
 import { bubbleHoldMs, bubbleSessionMs, canFinishMiniGame, type MiniGameAction } from '../../core/miniGames';
 import { CatchBoard } from './CatchBoard';
 import type { MiniGameFeedback } from './miniGameFeedback';
+import { matchingCardBack, matchingCardFaces } from '../../miniGameAssets';
 
 export const MiniGameBoard = ({ session, portrait, ballImage, style, feedback, onAct }: { session: MiniGameSession; portrait: string; ballImage: string; style: string; feedback?: MiniGameFeedback; onAct: (action: MiniGameAction) => void }) => {
   const [now, setNow] = useState(Date.now());
@@ -28,11 +29,11 @@ export const MiniGameBoard = ({ session, portrait, ballImage, style, feedback, o
     const timer = window.setTimeout(() => onAct({ type: 'release' }), Math.max(0, session.blowingAt + bubbleHoldMs - Date.now()));
     return () => window.clearTimeout(timer);
   }, [session.blowingAt]);
-  const faces = style === 'fruit' ? ['🍎', '🍌', '🍊', '🍉', '🥕', '🥚'] : style === 'night' ? ['⭐', '🌙', '☁️', '🪐', '☄️', '✨'] : ['🌻', '🌷', '🍀', '🍄', '🌿', '🦋'];
+  const faces = matchingCardFaces[style === 'fruit' || style === 'night' ? style : 'garden'];
   if (session.game === 'matching') return <div className={`matching-board play-theme--${style}`}><div className="game-companion"><img src={portrait} alt="" /><p>{L('慢慢翻，我们一起记。', 'Take your time. We’ll remember together.')}<small>{L(`已找到 ${session.matched.length / 2}/6 对 · ${session.moves} 次翻牌`, `${session.matched.length / 2}/6 pairs · ${session.moves} moves`)}</small></p></div><div className="matching-grid">{session.deck.map((face, index) => {
     const matched = session.matched.includes(index);
     const shown = matched || session.flipped.includes(index) || hint;
-    return <button key={index} className={`matching-card${shown ? ' revealed' : ''}${matched ? ' matched' : ''}`} disabled={matched || session.flipped.length === 2 || session.flipped.includes(index)} onClick={() => onAct({ type: 'flip', index })} aria-label={L(`第 ${index + 1} 张${shown ? `：${faces[face]}` : '，未翻开'}`, `Card ${index + 1}${shown ? `: ${faces[face]}` : ', face down'}`)}><span key={shown ? 'face' : 'back'} className="matching-card-face">{shown ? faces[face] : '✿'}</span>{matched && <span className="matching-spark" aria-hidden="true">✦</span>}</button>;
+    return <button key={index} className={`matching-card${shown ? ' revealed' : ''}${matched ? ' matched' : ''}`} disabled={matched || session.flipped.length === 2 || session.flipped.includes(index)} onClick={() => onAct({ type: 'flip', index })} aria-label={L(`第 ${index + 1} 张${shown ? `：${faces[face].name}` : '，未翻开'}`, `Card ${index + 1}${shown ? `: ${faces[face].en}` : ', face down'}`)}><span key={shown ? 'face' : 'back'} className="matching-card-face"><img className={shown ? 'matching-face-image' : 'matching-back-image'} src={shown ? faces[face].image : matchingCardBack} alt="" draggable={false} /></span>{matched && <span className="matching-spark" aria-hidden="true">✦</span>}</button>;
   })}</div>{session.mode === 'gentle' && <button className="activity-secondary" onClick={() => setHint(true)}>{L('一起看一眼牌面', 'A little peek together')}</button>}</div>;
   if (session.game === 'catch') return <CatchBoard session={session} portrait={portrait} ballImage={ballImage} now={now} feedback={feedback} onAct={onAct} />;
   const held = session.blowingAt ? Math.min(bubbleHoldMs, Math.max(0, now - session.blowingAt)) / 1000 : 0;

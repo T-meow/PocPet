@@ -397,7 +397,7 @@ const biscuitDefinition = shopDefinitions.find((item) => item.id === 'emergency_
 const defaultBrowse = createItemBrowseState();
 const appleBrowse: ItemBrowseState = { ...defaultBrowse, selectedId: 'apple', quantity: 10 };
 assert.equal(resolveItemBrowseState(appleBrowse, shopDefinitions, (item) => getItemBrowseLimit(storagePet, item, 'shop', now)), appleBrowse, 'a valid choice survives mode switches and refresh');
-assert.equal(resolveItemBrowseState(appleBrowse, shopDefinitions, (item) => getItemBrowseLimit(base, item, 'shop', now)).quantity, 1, 'before Lv.20 purchases are single');
+assert.equal(resolveItemBrowseState(appleBrowse, shopDefinitions, (item) => getItemBrowseLimit({ ...base, level: 1 }, item, 'shop', now)).quantity, 10, 'batch purchases are available from level 1');
 const lessStock = { ...storagePet, inventory: { apple: 3 } };
 assert.equal(resolveItemBrowseState(appleBrowse, getInventoryDefinitions(storageRegistry, lessStock.inventory), (item) => getItemBrowseLimit(lessStock, item, 'bag')).quantity, 3, 'consumption clamps the selected quantity');
 const afterAppleGone = { ...storagePet, inventory: { orange: 2 } };

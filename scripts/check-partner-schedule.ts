@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buyItem, interactWithPet, upgradePet, useInventoryItem, applyPetAction } from '../src/core/petActions';
+import { buyItem, interactWithPet, upgradePet, useInventoryItem, applyPetAction, getQuickWorkPreview, getWorkEnergyCost } from '../src/core/petActions';
 import { achievementDefinitions, claimAchievementReward, evaluateAchievements, getAchievementEffects, taskMasterCompletionRatio } from '../src/core/achievements';
 import {
   applyBoostCardWorkBonus,
@@ -11,6 +11,7 @@ import {
 } from '../src/core/boostCards';
 import { claimAvailableDateRewards } from '../src/core/dateRewards';
 import { getDailyResetDateKey } from '../src/core/dailyReset';
+import { shiftPetRuntimeTimestamps } from '../src/core/gameClock';
 import { claimDailyWishReward, getDailyWishView } from '../src/core/dailyWishes';
 import { advancePet, advancePomodoro } from '../src/core/petLifecycle';
 import { plantTree, selectGardenSlot } from '../src/core/garden';
@@ -18,6 +19,11 @@ import { getEnergyRecoveryIntervalMs, scalePetStatDelta } from '../src/core/petS
 import { getSeasonForDate } from '../src/core/season';
 import {
   advancePartnerSchedule,
+  defaultPartnerScheduleState,
+  cancelPartnerSchedule,
+  getPartnerScheduleEndPreview,
+  getPartnerScheduleRefreshPreview,
+  refreshPartnerScheduleOffers,
   claimPartnerScheduleResult,
   getPartnerScheduleClaimPreview,
   getPartnerScheduleDefinition,
@@ -41,10 +47,10 @@ import {
   getPartnerScheduleCrossSystemEffects,
   getPartnerScheduleGlobalCoinBonusPercent,
   getPartnerScheduleUnlockedOfferCount,
-  partnerScheduleDailyCompletionLimit,
+  partnerScheduleDailyContributionTargetMs,
 } from '../src/core/partnerScheduleEffects';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
-import { loadStoredPetJson } from '../src/core/saveCodec';
+import { loadStoredPetJson, createSaveFilePlainText } from '../src/core/saveCodec';
 import { startPomodoro } from '../src/core/petActions';
 import { normalizePetModLibraryState, petModLibraryLimit } from '../src/core/modStorage';
 import { ensureYearlyStatsForDate } from '../src/core/yearlyStats';
@@ -60,6 +66,7 @@ const createReadyPet = (level: number, createdAt = now - 10 * 24 * 60 * minuteMs
     ...pet,
     level,
     createdAt,
+    partnerSchedule: defaultPartnerScheduleState({ level, createdAt }, now),
     energy: 100,
     hunger: 100,
     mood: 100,
@@ -83,10 +90,11 @@ const withCategorySkill = (
 });
 
 const level2 = createReadyPet(2);
-assert.equal(level2.partnerSchedule.offers.length, 0, 'Lv2 should remain locked');
+assert.equal(level2.partnerSchedule.offers.length, 4, 'community service is available below Lv3');
+assert.equal(createReadyPet(1).partnerSchedule.offers.length, 4, 'community service starts with four slots');
 
 const level3 = createReadyPet(3);
-assert.equal(level3.partnerSchedule.offers.length, 3, 'Lv3 should receive three offers');
+assert.equal(level3.partnerSchedule.offers.length, 4, 'Lv3 should receive four offers');
 const sameBoard = createReadyPet(3, level3.createdAt);
 assert.deepEqual(sameBoard.partnerSchedule.offers, level3.partnerSchedule.offers, 'same-day board should be deterministic');
 
@@ -99,7 +107,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   ['short', 'standard', 'long'].map((size) => getPartnerScheduleSkillXpReward(size as 'short' | 'standard' | 'long')),
-  [10, 23, 50],
+  [9, 21, 45],
   'skill XP should use the unified reward values',
 );
 const xpCurve = Array.from({ length: 9 }, (_, index) => getPartnerScheduleSkillXpNeeded(index + 1));
@@ -114,10 +122,10 @@ const allLevel3 = {
   },
 };
 assert.equal(getPartnerScheduleGlobalCoinBonusPercent(allLevel3.partnerSchedule.skills), 5);
-assert.equal(getPartnerScheduleUnlockedOfferCount(allLevel3.partnerSchedule.skills), 4);
-assert.equal(allLevel3.partnerSchedule.offers.length, 3, 'new choice count should wait for the next board reset');
+assert.equal(getPartnerScheduleUnlockedOfferCount(allLevel3.partnerSchedule.skills), 5);
+assert.equal(allLevel3.partnerSchedule.offers.length, 4, 'new choice count should wait for the next board reset');
 const level3MilestoneNextDay = advancePartnerSchedule(allLevel3, now + 24 * 60 * minuteMs);
-assert.equal(level3MilestoneNextDay.partnerSchedule.offers.length, 4);
+assert.equal(level3MilestoneNextDay.partnerSchedule.offers.length, 5);
 assert.equal(new Set(level3MilestoneNextDay.partnerSchedule.offers.map((item) => getPartnerScheduleDefinition(item.templateId)?.category)).size, 4);
 
 const allLevel6 = {
@@ -128,10 +136,10 @@ const allLevel6 = {
   },
 };
 assert.equal(getPartnerScheduleGlobalCoinBonusPercent(allLevel6.partnerSchedule.skills), 15);
-assert.equal(getPartnerScheduleUnlockedOfferCount(allLevel6.partnerSchedule.skills), 5);
-assert.equal(allLevel6.partnerSchedule.offers.length, 3);
+assert.equal(getPartnerScheduleUnlockedOfferCount(allLevel6.partnerSchedule.skills), 6);
+assert.equal(allLevel6.partnerSchedule.offers.length, 4);
 const level6MilestoneNextDay = advancePartnerSchedule(allLevel6, now + 24 * 60 * minuteMs);
-assert.equal(level6MilestoneNextDay.partnerSchedule.offers.length, 5);
+assert.equal(level6MilestoneNextDay.partnerSchedule.offers.length, 6);
 assert.equal(new Set(level6MilestoneNextDay.partnerSchedule.offers.slice(0, 4).map((item) => getPartnerScheduleDefinition(item.templateId)?.category)).size, 4);
 const expandedSameDay = normalizePartnerScheduleState({
   ...allLevel6.partnerSchedule,
@@ -139,21 +147,21 @@ const expandedSameDay = normalizePartnerScheduleState({
   offers: [],
 }, { level: allLevel6.level, createdAt: allLevel6.createdAt }, now);
 assert.deepEqual(
-  expandedSameDay.offers.slice(0, 3).map((item) => item.templateId),
+  expandedSameDay.offers.slice(0, 4).map((item) => item.templateId),
   allLevel6.partnerSchedule.offers.map((item) => item.templateId),
-  'expanding a board should preserve the original first three deterministic offers',
+  'expanding a board should preserve the original first four deterministic offers',
 );
 const dailyLimitState = {
   ...allLevel6,
   partnerSchedule: {
     ...expandedSameDay,
-    completedOfferIds: expandedSameDay.offers.slice(0, partnerScheduleDailyCompletionLimit).map((item) => item.id),
+    completedOfferIds: expandedSameDay.offers.slice(0, 3).map((item) => item.id),
   },
 };
-assert.equal(getPartnerScheduleStartCheck(dailyLimitState, expandedSameDay.offers[3].id, now).reason, 'daily_limit');
+assert.equal(getPartnerScheduleStartCheck(dailyLimitState, expandedSameDay.offers[3].id, now).canStart, true, 'completing three services does not block a fourth');
 const resetDailyLimitState = advancePartnerSchedule(dailyLimitState, now + 24 * 60 * minuteMs);
 assert.equal(resetDailyLimitState.partnerSchedule.completedOfferIds.length, 0, 'daily completion limit should reset with the board');
-assert.equal(resetDailyLimitState.partnerSchedule.offers.length, 5);
+assert.equal(resetDailyLimitState.partnerSchedule.offers.length, 6);
 
 const offer = level3.partnerSchedule.offers[0];
 const definition = getPartnerScheduleDefinition(offer.templateId);
@@ -264,7 +272,10 @@ const startStats = {
   health: started.health,
   energy: started.energy,
 };
-const halfway = advancePet(started, now + 20 * minuteMs);
+assert.equal(started.energy, level3.energy, 'new services do not prepay energy');
+const halfwayAt = now + (started.partnerSchedule.active.endsAt - now) / 2;
+const halfway = advancePet(started, halfwayAt);
+const halfwayCosts = getPartnerScheduleEndPreview(started, halfwayAt)!.consumed;
 assert.deepEqual(
   {
     hunger: halfway.hunger,
@@ -273,10 +284,10 @@ assert.deepEqual(
     health: halfway.health,
     energy: halfway.energy,
   },
-  startStats,
-  'natural stats and energy recovery should freeze during the schedule',
+  { ...startStats, energy: startStats.energy - halfwayCosts.energy, hunger: startStats.hunger - halfwayCosts.hunger, mood: startStats.mood - halfwayCosts.mood },
+  'only progressive service costs apply during the protected interval',
 );
-assert.equal(halfway.ageSeconds - started.ageSeconds, 20 * 60, 'age should continue during the schedule');
+assert.equal(halfway.ageSeconds - started.ageSeconds, (halfwayAt - now) / 1000, 'age should continue during the schedule');
 
 const pomodoroStarted = startPomodoro(started, now + minuteMs);
 const pomodoroAdvanced = advancePet(pomodoroStarted, now + 6 * minuteMs);
@@ -308,7 +319,7 @@ const completed = advancePet(started, completedAt + 30 * minuteMs);
 assert.equal(completed.partnerSchedule.active, undefined, 'expired schedule should stop');
 assert(completed.partnerSchedule.pendingResult, 'expired schedule should become claimable');
 assert(completed.hunger < started.hunger, 'post-schedule offline time should decay hunger');
-assert(completed.hunger > started.hunger - 5, 'only post-schedule offline time should decay hunger');
+assert(completed.hunger > started.hunger - started.partnerSchedule.active.costs!.hunger - 5, 'natural hunger decay only applies after the service, in addition to its cost');
 assert(completed.lastEnergyRecoveryAt >= completedAt, 'energy recovery baseline should resume at schedule end');
 const loadedAfterCompletion = loadStoredPetJson(JSON.stringify(started), completedAt + 30 * minuteMs);
 assert.equal(loadedAfterCompletion.status, 'ok');
@@ -566,7 +577,7 @@ for (const category of ['study', 'cooking', 'garden', 'exercise'] as const) {
   const categoryBonusClaimed = claimPartnerScheduleResult(categoryBonusState, 'category', now);
   assert.equal(categoryBonusClaimed.coins - categoryBonusState.coins, categoryPreview.coins * 2, `${category} should duplicate category coins`);
   assert.equal(categoryBonusClaimed.partnerSchedule.skills[category].xp, categoryPreview.skillXp * 2, `${category} should duplicate category skill XP`);
-  assert.equal(categoryBonusClaimed.energy, categoryBonusState.energy + (categoryPreview.energy ?? 0) * 2, `${category} should duplicate energy recovery`);
+  assert.equal(categoryBonusClaimed.energy, categoryBonusState.energy + (categoryPreview.energy ?? 0), `${category} must not multiply energy recovery`);
   assert.equal(categoryBonusClaimed.health, categoryBonusState.health + (categoryPreview.health ?? 0) * 2, `${category} should duplicate health recovery`);
   assert.equal(categoryBonusClaimed.mood, categoryBonusState.mood + (categoryPreview.mood ?? 0) * 2, `${category} should duplicate mood recovery`);
   if (categoryPreview.itemId) {
@@ -744,6 +755,7 @@ const fullBoardState = evaluateAchievements({
   partnerSchedule: {
     ...level8.partnerSchedule,
     completedOfferIds: level8.partnerSchedule.offers.map((item) => item.id),
+    dailyCompletedCount: 3,
   },
 }, now);
 assert(fullBoardState.achievements.unlockedAtById.schedule_daily_three, 'finishing all daily offers should unlock the hidden full-board achievement');
@@ -800,7 +812,7 @@ const migratedV2Active = normalizePartnerScheduleState({
   },
 }, { level: level8.level, createdAt: level8.createdAt }, now);
 assert.equal(migratedV2Active.schemaVersion, partnerScheduleSchemaVersion);
-assert.equal(migratedV2Active.boardOfferCount, 3, 'schema v2 should preserve the current three-choice board until reset');
+assert.equal(migratedV2Active.boardOfferCount, 4, 'schema v2 keeps its existing offers with at least four slots');
 assert.equal(migratedV2Active.skills.study.level, 5);
 assert.equal(migratedV2Active.skills.study.masterCompletions, 0);
 assert.equal(migratedV2Active.active?.grantsMasterCompletion, false);
@@ -864,6 +876,10 @@ assert.equal(
   'v1 together activity should convert focus ratio to real-time remaining duration',
 );
 assert.equal(migratedTogether.active?.coinReward, 88, 'migration should preserve reward snapshots');
+assert.equal(getPartnerScheduleProgress(migratedTogether.active!, now).percent, 50, 'legacy focus progress counts toward an early return');
+const legacyTogetherReturn = cancelPartnerSchedule({ ...level3, energy: 88, partnerSchedule: migratedTogether }, now);
+assert.equal(legacyTogetherReturn.energy, 94, 'half-finished legacy focus activity only refunds half of its prepaid energy');
+assert.equal(getPartnerScheduleClaimPreview(legacyTogetherReturn.partnerSchedule.pendingResult!, 'coins').coins, 35);
 
 const expiredLegacy = normalizeLegacy({
   ...legacyCommon,
@@ -894,7 +910,7 @@ assert((missingFields.active?.coinReward ?? 0) > 0);
 
 const nextDayBoard = advancePartnerSchedule(level3, now + 24 * 60 * minuteMs);
 assert.notEqual(nextDayBoard.partnerSchedule.boardDateKey, level3.partnerSchedule.boardDateKey, 'the board should refresh after the daily boundary');
-assert.equal(nextDayBoard.partnerSchedule.offers.length, 3);
+assert.equal(nextDayBoard.partnerSchedule.offers.length, 4);
 
 const migratedV3Board = normalizePartnerScheduleState({
   ...level3.partnerSchedule,
@@ -1344,4 +1360,203 @@ const schemaCheck: PartnerScheduleState['schemaVersion'] = partnerScheduleSchema
 const stateCheck: PetState = { ...level3, partnerSchedule: migratedTogether };
 assert.equal(schemaCheck, stateCheck.partnerSchedule.schemaVersion);
 
-console.log('partner schedule core checks passed');
+// Community service: batches, progressive settlement, migrations and quick work.
+{
+const community = { ...createReadyPet(1), hearts: 1000 };
+assert.deepEqual(community.partnerSchedule.offers.map((entry) => getPartnerScheduleDefinition(entry.templateId)!.size), ['short', 'standard', 'standard', 'long']);
+assert.deepEqual(['short', 'standard', 'long'].map((size) => getPartnerScheduleOfferPreview(community, partnerScheduleDefinitions.find((entry) => entry.size === size)!, now).coinReward), [40, 104, 211], 'new timed services use the reduced coin budget');
+const standardOffer = community.partnerSchedule.offers[1];
+const standardDefinition = getPartnerScheduleDefinition(standardOffer.templateId)!;
+const standardQuote = getPartnerScheduleOfferPreview(community, standardDefinition, now);
+const communityStarted = startPartnerSchedule(community, standardOffer.id, now);
+assert.equal(communityStarted.energy, community.energy);
+const midTime = now + standardQuote.durationMs / 2;
+const midQuote = getPartnerScheduleEndPreview(communityStarted, midTime)!;
+assert.equal(midQuote.consumed.energy, 15);
+assert.equal(midQuote.reward.coins, Math.floor(standardQuote.coinReward * .4));
+assert.equal(midQuote.reward.skillXp, Math.floor(standardQuote.skillXp * .4));
+const earlyHome = cancelPartnerSchedule(communityStarted, midTime);
+assert.equal(earlyHome.energy, community.energy - 15);
+assert.equal(earlyHome.hunger, community.hunger - standardQuote.hungerCost / 2);
+assert.equal(earlyHome.partnerSchedule.pendingResult?.outcome, 'early');
+assert.ok(earlyHome.partnerSchedule.earlyEndedOfferIds.includes(standardOffer.id));
+assert.equal(earlyHome.partnerSchedule.active, undefined);
+assert.equal(cancelPartnerSchedule(earlyHome, midTime).energy, earlyHome.energy, 'duplicate early return cannot debit or refund again');
+assert.equal(getPartnerScheduleExtraRewardCopies(earlyHome, earlyHome.partnerSchedule.pendingResult!), 0);
+const earlyClaim = claimPartnerScheduleResult(earlyHome, 'category', midTime);
+assert.equal(earlyClaim.coins - earlyHome.coins, midQuote.reward.coins, 'partial claims always use the base coin reward');
+assert.deepEqual(earlyClaim.inventory, earlyHome.inventory, 'partial claims give no items');
+assert.equal(earlyClaim.partnerSchedule.skills[standardDefinition.category].xp, midQuote.reward.skillXp);
+assert.equal(earlyClaim.partnerSchedule.dailyContributionMs, 30 * minuteMs);
+assert.equal(earlyClaim.partnerSchedule.dailyCompletedCount, 0);
+assert.equal(earlyClaim.achievements.counters.partnerScheduleClaimCount, 0);
+assert.equal(getPartnerScheduleStartCheck(earlyClaim, standardOffer.id, midTime).reason, 'ended');
+assert.equal(claimPartnerScheduleResult(earlyClaim, 'coins', midTime).coins, earlyClaim.coins);
+
+const oneMsHome = cancelPartnerSchedule(communityStarted, now + 1);
+assert.equal(oneMsHome.energy, community.energy - 1, 'positive work time rounds cumulative energy up');
+assert.equal(oneMsHome.lastUpdatedAt, now + 1, 'sub-second protection is settled before clearing the active request');
+assert.equal(getPartnerScheduleClaimPreview(oneMsHome.partnerSchedule.pendingResult!, 'coins').coins, 0, 'tiny progress does not mint a minimum coin reward');
+const immediateHome = cancelPartnerSchedule(communityStarted, now);
+assert.equal(immediateHome.energy, community.energy, 'zero elapsed time costs no energy');
+assert.equal(immediateHome.partnerSchedule.pendingResult?.contributionMs, 0);
+const exactFinish = cancelPartnerSchedule(communityStarted, now + standardQuote.durationMs);
+assert.equal(exactFinish.partnerSchedule.pendingResult?.outcome, 'completed', 'returning at the deadline earns the full reward');
+assert.equal(getPartnerScheduleClaimPreview(exactFinish.partnerSchedule.pendingResult!, 'coins').coins, standardQuote.coinReward);
+
+let online = communityStarted;
+for (let time = now + minuteMs; time <= now + standardQuote.durationMs; time += minuteMs) online = advancePet(online, time);
+const offline = advancePet(communityStarted, now + standardQuote.durationMs);
+for (const key of ['energy', 'hunger', 'mood', 'cleanliness', 'health'] as const) assert.ok(Math.abs(online[key] - offline[key]) < 1e-8, `${key}: online and offline costs match`);
+assert.deepEqual(online.partnerSchedule.pendingResult, offline.partnerSchedule.pendingResult);
+const bonusSnapshot = { ...offline, partnerSchedule: { ...offline.partnerSchedule, pendingResult: { ...offline.partnerSchedule.pendingResult!, extraRewardChancePercent: 50 } } };
+const originalCopies = getPartnerScheduleExtraRewardCopies(bonusSnapshot, bonusSnapshot.partnerSchedule.pendingResult);
+for (const shiftMinutes of [-120, -60, 60, 120]) {
+  const shifted = shiftPetRuntimeTimestamps(bonusSnapshot, shiftMinutes * minuteMs);
+  assert.equal(shifted.partnerSchedule.pendingResult!.rewardSeed, bonusSnapshot.partnerSchedule.pendingResult.rewardSeed);
+  assert.equal(getPartnerScheduleExtraRewardCopies(shifted, shifted.partnerSchedule.pendingResult!), originalCopies, 'rebasing the clock cannot reroll a pending bonus');
+}
+const halfAdvanced = advancePet(communityStarted, midTime);
+const halfRoundTrip = loadStoredPetJson(createSaveFilePlainText(halfAdvanced, undefined, midTime), midTime);
+assert.equal(halfRoundTrip.status, 'ok');
+if (halfRoundTrip.status === 'ok') {
+  assert.equal(halfRoundTrip.pet.energy, halfAdvanced.energy, 'load does not charge an already settled interval again');
+  const loadedFinish = advancePet(halfRoundTrip.pet, now + standardQuote.durationMs);
+  assert.equal(loadedFinish.energy, offline.energy);
+  assert.deepEqual(loadedFinish.partnerSchedule.pendingResult, offline.partnerSchedule.pendingResult);
+}
+const expiredButUnsettled = normalizePet(communityStarted, now + standardQuote.durationMs);
+assert.ok(expiredButUnsettled.partnerSchedule.active, 'normalization retains an expired activity until its costs can be settled');
+assert.equal(expiredButUnsettled.energy, communityStarted.energy);
+assert.equal(advancePet(expiredButUnsettled, now + standardQuote.durationMs).energy, offline.energy);
+
+const quote1 = getPartnerScheduleRefreshPreview(earlyClaim, midTime);
+const refreshed1 = refreshPartnerScheduleOffers(earlyClaim, quote1.boardKey, midTime);
+assert.equal(earlyClaim.hearts - refreshed1.hearts, 1);
+assert.equal(refreshed1.partnerSchedule.dailyContributionMs, 30 * minuteMs);
+assert.equal(refreshed1.partnerSchedule.earlyEndedOfferIds.length, 0);
+assert.ok(refreshed1.partnerSchedule.offers.some((entry, index) => entry.templateId !== earlyClaim.partnerSchedule.offers[index].templateId));
+assert.equal(refreshPartnerScheduleOffers(refreshed1, quote1.boardKey, midTime).hearts, refreshed1.hearts, 'a repeated batch token cannot spend again');
+const rolledRefresh = advancePet(refreshed1, now);
+assert.equal(rolledRefresh.partnerSchedule.dailyRefreshCount, 1, 'clock rollback cannot reset paid refresh prices');
+assert.equal(rolledRefresh.partnerSchedule.dailyContributionMs, refreshed1.partnerSchedule.dailyContributionMs);
+assert.equal(getPartnerScheduleRefreshPreview(rolledRefresh, now).cost, 2);
+let escalating = refreshed1;
+for (const cost of [2, 4, 6, 8, 10]) {
+  const quote = getPartnerScheduleRefreshPreview(escalating, midTime);
+  assert.equal(quote.cost, cost);
+  const next = refreshPartnerScheduleOffers(escalating, quote.boardKey, midTime);
+  assert.equal(escalating.hearts - next.hearts, cost);
+  assert.notDeepEqual(next.partnerSchedule.offers.map((entry) => entry.templateId).sort(), escalating.partnerSchedule.offers.map((entry) => entry.templateId).sort(), 'refresh changes templates, not merely their order');
+  escalating = next;
+}
+const poor = { ...community, hearts: 0 };
+const poorQuote = getPartnerScheduleRefreshPreview(poor, now);
+assert.equal(poorQuote.reason, 'hearts');
+assert.equal(refreshPartnerScheduleOffers(poor, poorQuote.boardKey, now).hearts, 0);
+assert.equal(getPartnerScheduleRefreshPreview(communityStarted, now).reason, 'busy');
+assert.equal(getPartnerScheduleRefreshPreview(earlyHome, midTime).reason, 'pending');
+assert.equal(refreshPartnerScheduleOffers(communityStarted, getPartnerScheduleRefreshPreview(communityStarted, now).boardKey, now).hearts, communityStarted.hearts);
+const expandedPaid = refreshPartnerScheduleOffers({ ...allLevel6, hearts: 100 }, getPartnerScheduleRefreshPreview(allLevel6, now).boardKey, now);
+assert.equal(expandedPaid.partnerSchedule.offers.length, 6, 'paid batches apply unlocked slots immediately');
+
+const fourthBase = { ...fullBoardPet, energy: 100, hunger: 100, mood: 100, health: 100, hearts: 100 };
+const fourthBatch = refreshPartnerScheduleOffers(fourthBase, getPartnerScheduleRefreshPreview(fourthBase, fullBoardNow).boardKey, fullBoardNow);
+const fourthStarted = startPartnerSchedule(fourthBatch, fourthBatch.partnerSchedule.offers[0].id, fullBoardNow);
+assert.ok(fourthStarted.partnerSchedule.active, 'a new batch permits a fourth daily service');
+const fourthClaim = claimPartnerScheduleResult(fourthStarted, 'coins', fourthStarted.partnerSchedule.active!.endsAt);
+assert.equal(fourthClaim.partnerSchedule.dailyCompletedCount, 4);
+assert.equal(fourthClaim.partnerSchedule.completedOfferIds.length, 1, 'batch completion is independent of daily totals');
+assert.ok(evaluateAchievements(fourthClaim, fourthStarted.partnerSchedule.active!.endsAt).achievements.unlockedAtById.schedule_daily_three);
+assert.equal(fourthClaim.goldenAppleGacha.tickets, fullBoardPet.goldenAppleGacha.tickets, 'refreshing and completing more requests cannot grant another daily ticket');
+
+const longOffer = earlyClaim.partnerSchedule.offers.find((entry) => getPartnerScheduleDefinition(entry.templateId)!.size === 'long')!;
+const longStarted = startPartnerSchedule(earlyClaim, longOffer.id, midTime);
+assert.ok(longStarted.partnerSchedule.active);
+const thirtyMoreAt = midTime + (longStarted.partnerSchedule.active!.endsAt - midTime) / 4;
+const sixtyClaim = claimPartnerScheduleResult(cancelPartnerSchedule(longStarted, thirtyMoreAt), 'coins', thirtyMoreAt);
+assert.equal(sixtyClaim.partnerSchedule.dailyContributionMs, partnerScheduleDailyContributionTargetMs);
+assert.equal(sixtyClaim.goldenAppleGacha.tickets, community.goldenAppleGacha.tickets + 1, 'partial contributions also earn the daily ticket');
+assert.equal(sixtyClaim.partnerSchedule.dailyCompletedCount, 0);
+const skilledCommunity = withCategorySkill(community, standardDefinition.category, skill(9));
+const skilledService = startPartnerSchedule(skilledCommunity, standardOffer.id, now);
+assert.equal(skilledService.partnerSchedule.active!.endsAt - now, 54 * minuteMs);
+const skilledClaim = claimPartnerScheduleResult(skilledService, 'coins', skilledService.partnerSchedule.active!.endsAt);
+assert.equal(skilledClaim.partnerSchedule.dailyContributionMs, 60 * minuteMs, 'skill speed-up keeps the full base-duration contribution');
+const quotaUsedService = { ...communityStarted, goldenAppleGacha: { ...communityStarted.goldenAppleGacha, tickets: 3, dailyTicketsGranted: 3 } };
+const guaranteedClaim = claimPartnerScheduleResult(quotaUsedService, 'coins', now + standardQuote.durationMs);
+assert.equal(guaranteedClaim.goldenAppleGacha.tickets, 4, 'the fixed daily contribution ticket survives an exhausted random-reward quota');
+const alreadyTicketedService = { ...communityStarted, goldenAppleGacha: { ...communityStarted.goldenAppleGacha, tickets: 3, dailyTicketsGranted: 3, dailyProcessedSources: ['partner_schedule' as const], dailyGrantedSources: ['partner_schedule' as const] } };
+assert.equal(claimPartnerScheduleResult(alreadyTicketedService, 'coins', now + standardQuote.durationMs).goldenAppleGacha.tickets, 3, 'a ticket recorded in an old save must not be granted again');
+
+const crossStartAt = new Date(2026, 6, 21, 4, 40).getTime();
+const crossBase = { ...createDefaultPet(crossStartAt), energy: 100, hunger: 100, mood: 100, health: 100, hearts: 100 };
+const crossPaid = refreshPartnerScheduleOffers(crossBase, getPartnerScheduleRefreshPreview(crossBase, crossStartAt).boardKey, crossStartAt);
+const crossStarted = startPartnerSchedule(crossPaid, crossPaid.partnerSchedule.offers[1].id, crossStartAt);
+const crossMidnight = advancePet(crossStarted, crossStartAt + 30 * minuteMs);
+assert.ok(crossMidnight.partnerSchedule.active);
+assert.equal(crossMidnight.partnerSchedule.dailyRefreshCount, 0);
+assert.equal(getPartnerScheduleRefreshPreview(crossMidnight, crossStartAt + 30 * minuteMs).cost, 1);
+assert.notEqual(crossMidnight.partnerSchedule.boardDateKey, crossPaid.partnerSchedule.boardDateKey);
+const crossFull = claimPartnerScheduleResult(crossMidnight, 'coins', crossStarted.partnerSchedule.active!.endsAt);
+assert.equal(crossFull.partnerSchedule.dailyContributionMs, 60 * minuteMs);
+assert.equal(crossFull.partnerSchedule.completedOfferIds.length, 0, 'an old-batch result cannot mark a new request complete');
+assert.equal(crossFull.partnerSchedule.dailyCompletedCount, 1);
+const delayedAt = new Date(2026, 6, 22, 5, 1).getTime();
+const delayedClaim = claimPartnerScheduleResult(offline, 'coins', delayedAt);
+assert.equal(delayedClaim.partnerSchedule.boardDateKey, getDailyResetDateKey(delayedAt));
+assert.equal(delayedClaim.partnerSchedule.dailyContributionMs, 60 * minuteMs, 'an unclaimed result contributes to its claim day');
+
+const oldRawActive = { ...communityStarted.partnerSchedule.active, coinReward: 116, skillXp: 23, costs: undefined, settledProgressMs: undefined, legacyPrepaid: undefined, extraRewardChancePercent: undefined, statScale: undefined };
+const oldPrepaid = normalizePet({ ...communityStarted,
+  energy: community.energy - standardQuote.energyCost, hunger: community.hunger - standardQuote.hungerCost, mood: community.mood - standardQuote.moodCost,
+  partnerSchedule: { ...communityStarted.partnerSchedule, schemaVersion: 6, active: oldRawActive },
+}, now);
+assert.equal(oldPrepaid.partnerSchedule.active?.legacyPrepaid, true);
+assert.equal(advancePet(oldPrepaid, now + standardQuote.durationMs).energy, oldPrepaid.energy, 'old activities must not pay twice');
+const oldEarly = cancelPartnerSchedule(oldPrepaid, midTime);
+assert.equal(oldEarly.energy, community.energy - 15, 'legacy cancellation refunds the unused prepaid energy');
+assert.equal(oldEarly.hunger, community.hunger - standardQuote.hungerCost / 2);
+assert.equal(getPartnerScheduleClaimPreview(oldEarly.partnerSchedule.pendingResult!, 'coins').coins, 46, 'old activities keep the original reward snapshot');
+const oldBoard = normalizePartnerScheduleState({ ...community.partnerSchedule, schemaVersion: 6, completedOfferIds: community.partnerSchedule.offers.slice(0, 2).map((entry) => entry.id) }, community, now);
+assert.equal(oldBoard.dailyCompletedCount, 2);
+assert.equal(oldBoard.dailyContributionMs, 80 * minuteMs);
+const legacyThreeOffers = community.partnerSchedule.offers.slice(0, 3).map((entry, index) => ({ ...entry, id: `legacy-offer-${index}` }));
+const expandedLegacy = normalizePartnerScheduleState({ ...community.partnerSchedule, schemaVersion: 6, boardOfferCount: 3, offers: legacyThreeOffers, completedOfferIds: [legacyThreeOffers[0].id], neighborOfferId: legacyThreeOffers[1].id }, community, now);
+assert.equal(expandedLegacy.offers.length, 4, 'old three-slot boards gain the new initial slot');
+assert.deepEqual(expandedLegacy.offers.slice(0, 3), legacyThreeOffers, 'migration retains existing identities and templates');
+assert.deepEqual(expandedLegacy.completedOfferIds, [legacyThreeOffers[0].id]);
+assert.equal(expandedLegacy.neighborOfferId, legacyThreeOffers[1].id);
+assert.deepEqual(normalizePartnerScheduleState(expandedLegacy, community, now), expandedLegacy, 'filling legacy slots runs only once');
+const exerciseLong = partnerScheduleDefinitions.find((entry) => entry.category === 'exercise' && entry.size === 'long')!;
+const exerciseResult: PartnerScheduleResult = { offerId: 'exercise-cap', templateId: exerciseLong.id, category: 'exercise', size: 'long', completedAt: now, coinReward: 100, skillXp: 50, trophyRewardMultiplier: 2.5, grantsMasterCompletion: true, energyCost: 47 };
+assert.equal(getPartnerScheduleClaimPreview(exerciseResult, 'category', 5, community).energy, 20, 'reward multipliers cannot create a self-sustaining energy loop');
+assert.equal(getPartnerScheduleClaimPreview({ ...exerciseResult, energyCost: 11 }, 'category', 5, community).energy, 5);
+assert.equal(getPartnerScheduleClaimPreview({ ...exerciseResult, legacyRewards: true }, 'category', 0, community).energy, 50, 'old pending rewards retain their original amounts');
+
+const quickQuote = getQuickWorkPreview(community, now);
+const quickWorked = applyPetAction(community, 'work', now);
+assert.equal(quickWorked.energy, community.energy - getWorkEnergyCost(community));
+assert.equal(quickWorked.hunger, community.hunger);
+assert.equal(quickWorked.mood, community.mood);
+assert.equal(quickWorked.health, community.health);
+assert.equal(quickWorked.cleanliness, community.cleanliness);
+assert.ok(quickWorked.coins - community.coins >= quickQuote.minimumCoins && quickWorked.coins - community.coins <= quickQuote.maximumCoins);
+assert.equal(quickWorked.partnerSchedule.dailyContributionMs, 0);
+assert.equal(quickWorked.partnerSchedule.dailyCompletedCount, 0);
+assert.deepEqual(quickWorked.partnerSchedule.offers, community.partnerSchedule.offers);
+assert.equal(quickWorked.achievements.counters.careActionCounts.work, 1);
+let repeatWork = community;
+for (let count = 0; count < 4; count++) repeatWork = applyPetAction(repeatWork, 'work', now);
+assert.equal(repeatWork.health, community.health, 'quick work has no hidden injury or fatigue cost');
+assert.equal(repeatWork.mood, community.mood);
+const sleepingWorker = { ...community, isSleeping: true };
+assert.equal(getQuickWorkPreview(sleepingWorker, now).reason, 'sleeping');
+assert.equal(applyPetAction(sleepingWorker, 'work', now).isSleeping, true, 'work cannot wake a sleeping companion');
+const tiredWorker = { ...community, energy: getWorkEnergyCost(community) - 1 };
+assert.equal(getQuickWorkPreview(tiredWorker, now).reason, 'energy');
+assert.equal(applyPetAction(tiredWorker, 'work', now).coins, tiredWorker.coins);
+assert.equal(getQuickWorkPreview(communityStarted, now).reason, 'busy');
+}
+
+console.log('partner schedule core checks passed, including community service batches, progressive and legacy settlement, daily contribution and quick work');

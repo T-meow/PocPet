@@ -193,11 +193,11 @@ closeTo(stepped.mood, oneHour.mood, 'one-second mood decay matches one-hour sett
 closeTo(stepped.cleanliness, oneHour.cleanliness, 'one-second cleanliness decay matches one-hour settlement');
 closeTo(stepped.health, oneHour.health, 'one-second health decay matches one-hour settlement');
 
-const levelNineteenUse = useInventoryItem(atLevel(19, {
+const initialBatchUse = useInventoryItem(atLevel(1, {
   hunger: 0,
   inventory: { emergency_biscuit: 99 },
 }), 'emergency_biscuit', now, { quantity: 99 });
-assert.equal(levelNineteenUse.inventory.emergency_biscuit, 98, 'batch use is locked before level 20');
+assert.equal(initialBatchUse.inventory.emergency_biscuit, undefined, 'batch use is available from level 1');
 
 const levelTwentyUse = useInventoryItem(atLevel(20, {
   hunger: 0,
@@ -242,7 +242,7 @@ const rejectedUse = useInventoryItem(insufficientInventory, 'emergency_biscuit',
 assert.equal(rejectedUse.inventory.emergency_biscuit, 2);
 assert.equal(rejectedUse.hunger, 0, 'insufficient inventory must reject the entire batch');
 
-const discountPet = atLevel(20, { coins: 100000 });
+const discountPet = atLevel(1, { coins: 100000 });
 const discountInfo = getDailyShopDiscountInfo(discountPet, now);
 assert(discountInfo?.items[0], 'daily discount should exist');
 const discountItem = getShopItem(discountInfo.items[0].itemId);

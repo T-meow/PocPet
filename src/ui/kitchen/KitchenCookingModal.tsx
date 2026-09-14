@@ -6,6 +6,9 @@ import { formatPracticeSkillXp } from '../../core/partnerSchedule';
 import { activityText as L, dishName, getDishId, getRecipe, getRecipeIngredients } from '../../core/kitchenRecipes';
 import { playSfx } from '../../core/audio';
 import { unknownItemIcon } from '../../assets';
+import { kitchenEquipmentImages } from '../../kitchenEquipmentAssets';
+import { kitchenSceneImages } from '../../kitchenSceneAssets';
+import { DishArtwork } from './DishArtwork';
 import { DialogShell } from '../DialogShell';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActionText, getCookingActions, isCookingComplete, type KitchenCraftRequest } from './cookingProcess';
 
@@ -60,7 +63,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   return <DialogShell className="activity-modal cooking-modal" labelId="cooking-title" onClose={back}>
     <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><div><small>MADE WITH LOVE</small><h2 id="cooking-title">{result ? L('一起做好啦', 'Freshly made together') : L('亲手做一道小料理', 'A little hands-on cooking')}</h2></div></div><button className="icon-button" onClick={back} aria-label={L('返回食谱', 'Back to recipes')}><X /></button></header>
     <div className="cooking-body">{result ? <section className="cooking-reward" aria-live="polite">
-      <div className={`dish-plate dish-plate--${pet.kitchen.plating} cooking-finished-dish`}><img src={icons[result.dishId] ?? unknownItemIcon} alt="" /></div>
+      <DishArtwork id={result.dishId} image={icons[result.dishId] ?? unknownItemIcon} plating={pet.kitchen.plating} className="cooking-finished-dish" />
       <small>{L('已收入背包', 'SAVED IN YOUR BAG')}</small><h3>{dishName(result.dishId)} × {result.quantity}</h3>
       <p className="cooking-reward-hearts"><Heart /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></p>
       {baseTotal !== undefined && skillTotal !== undefined && <p className="cooking-reward-breakdown">{L(`基础 ${baseTotal} · 料理 Lv.${result.skillLevel} +${skillTotal}`, `Base ${baseTotal} · Cooking Lv.${result.skillLevel} +${skillTotal}`)}{result.hearts > baseTotal + skillTotal && L(` · 其他加成 +${result.hearts - baseTotal - skillTotal}`, ` · Other bonuses +${result.hearts - baseTotal - skillTotal}`)}</p>}
@@ -72,8 +75,19 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
       <ol className="cooking-steps">{actions.map((action, index) => <li key={action} className={completedSteps > index ? 'done' : completedSteps === index ? 'current' : ''}><span>{completedSteps > index ? '✓' : index + 1}</span>{getCookingActionText(action)}</li>)}</ol>
       <div key={`${progress.step}-${progress.action ?? 'idle'}`} className={`cooking-stage cooking-method--${recipe.method} cooking-technique--${recipe.technique ?? recipe.method} cooking-action--${progress.action ?? 'idle'}`} aria-hidden="true">
         <img className="cooking-companion" src={portrait} alt="" draggable={false} />
-        <div className="cooking-appliance"><div className="cooking-vessel"><i className="cooking-heat" /><span className="cooking-ingredients">{ingredients.map((id, index) => <img key={id} src={icons[id] ?? unknownItemIcon} alt="" draggable={false} style={{ '--ingredient-index': index } as CSSProperties} />)}</span></div><span className="cooking-spoon" /><span className="cooking-steam">〰　〰　〰</span></div>
-        {progress.action === 'serve' && <img className="cooking-plated" src={icons[dishId] ?? unknownItemIcon} alt="" />}
+        <div className="cooking-appliance">
+          <div className="cooking-vessel">
+            <img className="cooking-equipment-image" src={kitchenEquipmentImages[recipe.method].image} alt="" draggable={false} />
+            <div className="cooking-chamber">
+              <i className="cooking-heat" />
+              <span className="cooking-ingredients">{ingredients.map((id, index) => <img key={id} src={icons[id] ?? unknownItemIcon} alt="" draggable={false} style={{ '--ingredient-index': index } as CSSProperties} />)}</span>
+              <img className="cooking-spoon" src={kitchenSceneImages.cookingSpoon} alt="" draggable={false} />
+            </div>
+            <img className="cooking-equipment-front" src={kitchenEquipmentImages[recipe.method].foreground} alt="" draggable={false} />
+          </div>
+          <span className="cooking-steam">〰　〰　〰</span>
+        </div>
+        {progress.action === 'serve' && <DishArtwork id={dishId} image={icons[dishId] ?? unknownItemIcon} plating={pet.kitchen.plating} className="cooking-plated" />}
         <span className="cooking-counter" />
       </div>
       <div className="cooking-controls"><p className="activity-heart"><Heart size={16} />{L(`完成收获 ${request.quantity} 份料理，${reward.heartsPerServing * request.quantity} 心心`, `${request.quantity} servings and ${reward.heartsPerServing * request.quantity} hearts`)}</p>

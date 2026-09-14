@@ -173,9 +173,16 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number): PetS
         active: pet.partnerSchedule.active
           ? {
               ...pet.partnerSchedule.active,
+              rewardSeed: pet.partnerSchedule.active.rewardSeed ?? pet.partnerSchedule.active.endsAt,
               startedAt: shiftTimestamp(pet.partnerSchedule.active.startedAt, offsetMs),
               endsAt: shiftTimestamp(pet.partnerSchedule.active.endsAt, offsetMs),
             }
+          : undefined,
+        pendingResult: pet.partnerSchedule.pendingResult
+          ? { ...pet.partnerSchedule.pendingResult,
+              rewardSeed: pet.partnerSchedule.pendingResult.rewardSeed ?? pet.partnerSchedule.pendingResult.completedAt,
+              startedAt: pet.partnerSchedule.pendingResult.startedAt === undefined ? undefined : shiftTimestamp(pet.partnerSchedule.pendingResult.startedAt, offsetMs),
+              completedAt: shiftTimestamp(pet.partnerSchedule.pendingResult.completedAt, offsetMs) }
           : undefined,
       }
     : pet.partnerSchedule;

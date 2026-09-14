@@ -20,7 +20,7 @@
     "editionNotice": {
       "title": "1.8 更新公告",
       "featuresTitle": "换上新的日常界面",
-      "uiAdvice": "小窝、状态圆环、花园、伙伴日程、商店与纪念册采用新版界面，朋友卡和扭蛋也有了新样式。操作结果会通过浮动消息告诉你。",
+      "uiAdvice": "小窝、状态圆环、花园、社区工作、商店与纪念册采用新版界面，朋友卡和扭蛋也有了新样式。操作结果会通过浮动消息告诉你。",
       "kitchenTitle": "一起下厨",
       "kitchenAdvice": "厨房新增 14 道食谱、16 种料理，支持批量制作、厨具解锁和初尝回忆。把食材变成伙伴喜欢的家常味道吧。",
       "playTitle": "一起玩耍",
@@ -109,8 +109,8 @@
       "close": "关闭背包",
       "use": "使用",
       "unavailable": "不可使用",
-      "partnerScheduleBusy": "伙伴正在进行日程，暂时不能使用这件道具。",
-      "partnerScheduleBusyShort": "日程进行中",
+      "partnerScheduleBusy": "伙伴正在进行计时工作，暂时不能使用这件道具。",
+      "partnerScheduleBusyShort": "计时工作进行中",
       "goGarden": "前往种植园",
       "emptyCategory": "这一分类暂时没有道具。",
       "openCategoryShop": "去商店看看",
@@ -316,9 +316,9 @@
         ],
         "growth": [
           "每日内容在本地时间 5:00 刷新；生日、纪念日和节日奖励可在 3 天内补领。",
-          "每日愿望、番茄钟和伙伴日程提供日常奖励；伙伴日程在 Lv.3 解锁。",
+          "社区工作从初始开放：快速工作即时消耗体力换金币，计时工作可提前回家。每天累计 60 分钟工作贡献可获得一张扭蛋券。",
           "花园用于种植和收获；金苹果也用于伙伴梦想，请谨慎消耗。",
-          "Lv.20 且四项日程技能均达到 Lv.6 后，可推进伙伴梦想并解锁奖杯。"
+          "Lv.20 且四项计时工作技能均达到 Lv.6 后，可推进伙伴梦想并解锁奖杯。"
         ]
       },
       "back": "返回"
@@ -385,7 +385,7 @@
         "sleepCount": "睡眠次数",
         "itemUseCount": "使用道具",
         "achievements": "成就进度",
-        "schedule": "伙伴日程",
+        "schedule": "社区工作",
         "garden": "花园收获",
         "focus": "专注次数",
         "gacha": "扭蛋次数",
@@ -401,7 +401,7 @@
         "gacha": "扭蛋",
         "garden": "花园",
         "focus": "专注",
-        "schedule": "伙伴日程"
+        "schedule": "社区工作"
       },
       "tags": {
         "care": "最常做：{action}（{count} 次）",
@@ -459,7 +459,7 @@
       "statusAlt": "{name} {status}",
       "sceneAria": "宠物状态",
       "interactAria": "和宠物互动",
-      "partnerScheduleBusy": "伙伴正在进行日程",
+      "partnerScheduleBusy": "伙伴正在进行计时工作",
       "expandWeather": "展开天气详情",
       "collapseWeather": "收起天气详情",
       "expandSeason": "展开季节详情",
@@ -502,12 +502,12 @@
       "gardenHint": "种下与收获",
       "gardenReady": "有树可收获",
       "gardenWithered": "有枯树待清理",
-      "partnerSchedule": "伙伴日程",
+      "partnerSchedule": "社区工作",
       "partnerScheduleLocked": "Lv.{level} 解锁",
       "partnerScheduleReady": "有活动收获待领取",
-      "partnerScheduleActive": "日程进行中",
+      "partnerScheduleActive": "计时工作进行中",
       "gacha": "金苹果扭蛋",
-      "gachaHint": "用金币或扭蛋券试试手气",
+      "gachaHint": "抽取水果、料理补给和金苹果",
       "gachaTickets": "扭蛋券 {count} 张",
       "commonDreams": "伙伴梦想",
       "commonDreamsLocked": "需 Lv.{level} · 全技能 Lv.{skill}（当前最低 {currentSkill}）",
@@ -516,12 +516,12 @@
     },
     "gacha": {
       "title": "金苹果扭蛋",
-      "subtitle": "奖励以道具和金苹果为主。",
+      "subtitle": "把水果、料理材料和日常补给带回家。",
       "heartSubtitle": "消耗金苹果抽取小心心，十连保底 100+。",
       "close": "关闭金苹果扭蛋",
       "machineAria": "选择扭蛋机",
-      "machineOne": "扭蛋机 1",
-      "machineTwo": "扭蛋机 2 · 小心心",
+      "machineOne": "补给扭蛋",
+      "machineTwo": "心心扭蛋",
       "walletAria": "扭蛋余额",
       "paymentAria": "选择扭蛋支付方式",
       "payCoins": "金币",
@@ -532,6 +532,35 @@
       "notEnoughCoins": "金币不足，无法完成这次扭蛋。",
       "notEnoughTickets": "扭蛋券不足，无法完成这次扭蛋。",
       "notEnoughGoldenApples": "金苹果不足，无法完成这次扭蛋。",
+      "inventoryFull": "部分奖品超出库存上限，请先使用一些物品再抽取。本次未扣费。",
+      "previewTitle": "奖池一览",
+      "bundleDelivery": "补给箱内物品固定，获得后自动拆分放入背包。",
+      "heartPreviewNote": "每抽获得一份小心心奖励，以下为基础概率。",
+      "resultsTitle": "本次收获 · {count} 抽",
+      "arrivalTitle": "已到账合计",
+      "backToPool": "回到奖池",
+      "heartsLabel": "小心心",
+      "supplyMachineCaption": "为下一次陪伴添点补给",
+      "heartMachineCaption": "把金苹果化作成长的心意",
+      "supplyTopPrize": "终极大奖 · 金苹果 ×100",
+      "heartTopPrize": "最高单份奖励 · 小心心 ×888",
+      "groups": {
+        "supplies": "补给箱",
+        "garden": "园艺",
+        "coins": "金币",
+        "apples": "金苹果",
+        "saplings": "珍稀树苗"
+      },
+      "bundles": {
+        "fruit_crate_v1": { "name": "水果拼箱" },
+        "strawberry_milk_crate_v1": { "name": "草莓牛奶箱" },
+        "home_cooking_crate_v1": { "name": "家常食材箱" },
+        "baking_crate_v1": { "name": "烘焙材料箱" },
+        "biscuit_crate_v1": { "name": "苏打饼干箱" },
+        "energy_crate_v1": { "name": "元气补给箱" },
+        "care_crate_v1": { "name": "日常护理箱" },
+        "companion_gift_v1": { "name": "陪伴礼盒" }
+      },
       "charging": "扭蛋机正在蓄力",
       "burst": "扭蛋结果即将揭晓",
       "skip": "跳过演出",
@@ -590,7 +619,7 @@
       "stageProgress": "阶段完成度",
       "fundingProgress": "目标资金进度",
       "levelLocked": "伙伴达到 Lv.{targetLevel} 后解锁伙伴梦想目标（当前 Lv.{level}）。",
-      "lockedProgress": "四项日程技能均达到 Lv.{targetSkill} 后可投入目标（当前最低 Lv.{skill}）。",
+      "lockedProgress": "四项计时工作技能均达到 Lv.{targetSkill} 后可投入目标（当前最低 Lv.{skill}）。",
       "finalComplete": "终极梦想已经实现，照顾与养成仍可继续。",
       "stage": "第 {stage} 阶段",
       "stageNamed": "第 {stage} 阶段 · {name}",
@@ -599,13 +628,13 @@
       "goldTrophyPreview": "同时解锁：{trophy}",
       "projectComplete": "目标已经达成",
       "requirementSkill": "技能 Lv.{current}/{target}",
-      "requirementSchedule": "分类日程 {current}/{target}",
+      "requirementSchedule": "分类计时工作 {current}/{target}",
       "requirementMaster": "大师完成 {current}/{target}",
       "requirementApples": "金苹果 {current}/{target}",
       "funding": "金币投入",
       "nextRequirementCoins": "金币 {target}",
       "nextRequirementSkill": "技能 Lv.{target}",
-      "nextRequirementSchedule": "分类日程 {target} 次",
+      "nextRequirementSchedule": "分类计时工作 {target} 次",
       "nextRequirementMaster": "大师完成 {target} 次",
       "nextRequirementApples": "金苹果 {target} 个",
       "completeStage": "完成当前阶段",
@@ -642,11 +671,11 @@
           "diamond": "钻石友谊奖杯"
         },
         "effects": {
-          "schedule": "日程全部结算奖励 ×{value}",
+          "schedule": "计时工作全部结算奖励 ×{value}",
           "food": "普通食物正面属性效果 ×{value}",
           "garden": "花园额外产物率 +{value} 个百分点",
           "energy": "体力上限 +{value}",
-          "diamond": "日程与食物 ×2.5 · 花园额外产物率 +150 个百分点 · 体力上限 +150"
+          "diamond": "计时工作与食物 ×2.5 · 花园额外产物率 +150 个百分点 · 体力上限 +150"
         }
       },
       "exchange": {
@@ -694,20 +723,20 @@
       }
     },
     "partnerSchedule": {
-      "aria": "伙伴日程",
+      "aria": "社区工作",
       "back": "返回首页",
-      "title": "伙伴日程",
-      "summary": "日程进行时，宠物状态暂停自然变化。",
+      "title": "社区工作",
+      "summary": "快速工作即时换取金币；计时工作按进度消耗状态，全程完成另有谢礼。",
       "skillsAria": "活动熟练度",
       "skillLevel": "熟练度 Lv.{level}",
       "skillProgress": "Lv.{level} · {xp}/{needed}",
       "kitchenHearts": "当前制作心心 +{percent}% · 每级增加 10%",
       "passives": {
-        "level2": "Lv.2：该分类日程体力消耗 -10%",
+        "level2": "Lv.2：该分类计时工作体力消耗 -10%",
         "level4": "Lv.4：饱腹与心情消耗 -10%",
         "level5": "Lv.5：活动时间 -5%",
         "level7": "Lv.7：熟练度收益 +15%",
-        "level8": "Lv.8：该分类日程金币 +5%",
+        "level8": "Lv.8：该分类计时工作金币 +5%",
         "level9": "Lv.9：活动时间总计 -10%",
         "level10": "Lv.10：解锁大师技能"
       },
@@ -731,11 +760,11 @@
         "level3Title": "全技能 Lv.3",
         "level6Title": "全技能 Lv.6",
         "progress": "{count}/4 项达到 Lv.{level}",
-        "level3Locked": "全部达到后：金币 +5%，次日 4 项可选",
-        "level6Locked": "全部达到后：金币总加成 15%，次日 5 项可选",
-        "level3Active": "4 项可选已生效 · 金币 +5%",
-        "level6Active": "5 项可选已生效 · 金币总加成 15%",
-        "nextReset": "金币已生效，次日调整为 {count} 项可选",
+        "level3Locked": "全部达到后：金币 +5%，下次换批 5 项可选",
+        "level6Locked": "全部达到后：金币总加成 15%，下次换批 6 项可选",
+        "level3Active": "5 项可选已解锁 · 金币 +5%",
+        "level6Active": "6 项可选已解锁 · 金币总加成 15%",
+        "nextReset": "金币已生效，下次换批调整为 {count} 项可选",
         "income": "当前里程碑金币 +{percent}%"
       },
       "categories": {
@@ -749,17 +778,17 @@
         "standard": "标准活动",
         "long": "长活动"
       },
-      "todayTitle": "今天的活动",
-      "dailyCount": "今日 {count}/{limit}",
-      "dailyTicketHint": "完成今日 {limit} 项日程，可获得 1 张扭蛋券",
+      "todayTitle": "社区公告板",
+      "dailyCount": "本批 {count}/{limit}",
+      "dailyTicketHint": "每日累计 60 分钟工作贡献，可获得 1 张扭蛋券",
       "dailyTicketClaimed": "今日完成奖励已领取 · 扭蛋券 +1",
       "activeAria": "进行中的活动",
-      "activeKicker": "日程进行中",
-      "homeDockAria": "当前伙伴日程",
-      "homeDockKicker": "伙伴日程",
-      "open": "查看伙伴日程",
-      "busyShort": "日程进行中",
-      "busyHint": "伙伴正在进行日程，暂时不能进行照顾操作。",
+      "activeKicker": "计时工作进行中",
+      "homeDockAria": "当前社区工作",
+      "homeDockKicker": "社区工作",
+      "open": "查看社区工作",
+      "busyShort": "计时工作进行中",
+      "busyHint": "伙伴正在进行计时工作，暂时不能进行照顾操作。",
       "remaining": "还需 {time}",
       "progress": "活动进度 {percent}%",
       "cancel": "提前结束",
@@ -773,11 +802,10 @@
         "mood": "心情 -{amount}"
       },
       "blocked": {
-        "locked": "尚未解锁",
         "busy": "已有活动",
         "pending": "先领取收获",
         "completed": "已完成",
-        "daily_limit": "今日已完成 3 项",
+        "ended": "本项已结束",
         "sleeping": "正在睡觉",
         "energy": "体力不足",
         "hunger": "饱腹不足",
@@ -813,27 +841,34 @@
       },
       "cancelDialog": {
         "title": "提前结束活动？",
-        "message": "当前进度会清空，开始时消耗的状态不会返还。",
+        "message": "按已投入时间结算消耗与基础报酬，本项将标记为已结束，不获得全程谢礼。",
         "keep": "继续活动",
         "confirm": "提前结束"
       },
       "activities": {
-        "study_notes": { "title": "整理随手笔记", "summary": "把零散记录重新分类，顺便复习今天学到的内容。" },
-        "study_archive": { "title": "整理旧书", "summary": "清点书页和标签，完成一份可以长期使用的目录。" },
-        "study_research": { "title": "专题研究", "summary": "安静地完成一段深入阅读，并整理完整结论。" },
-        "cooking_snack": { "title": "准备小点心", "summary": "用现有食材做一份简单点心，练习掌握火候。" },
-        "cooking_lunch": { "title": "准备午餐", "summary": "规划搭配并完成一份营养均衡的便当。" },
-        "cooking_feast": { "title": "筹备丰盛餐点", "summary": "处理多种食材，完成一次更有挑战的料理。" },
-        "garden_seedlings": { "title": "照看果苗", "summary": "检查新芽和土壤，让幼苗保持良好状态。" },
-        "garden_orchard": { "title": "整理果园", "summary": "逐一检查树木并记录下一轮养护安排。" },
-        "garden_field_day": { "title": "全天园艺计划", "summary": "集中完成修整、浇水和土壤管理。" },
-        "exercise_walk": { "title": "轻快散步", "summary": "用舒服的节奏活动身体，顺便熟悉周围环境。" },
-        "exercise_training": { "title": "体能训练", "summary": "完成一组循序渐进的练习，保持稳定节奏。" },
-        "exercise_challenge": { "title": "耐力挑战", "summary": "为一个更长的目标分配体力并坚持到底。" }
+        "study_notes": { "title": "整理共享书架", "summary": "把归还的书放回原位，让下一位邻居读到喜欢的故事。" },
+        "study_archive": { "title": "给社区图书贴标签", "summary": "清点书页、整理分类，做一份方便大家查阅的目录。" },
+        "study_research": { "title": "筹备社区读书会", "summary": "准备阅读材料和讨论笔记，陪邻居们度过一段书香时光。" },
+        "cooking_snack": { "title": "分装邻里点心", "summary": "在社区厨房搭把手，把刚出炉的点心分成暖暖的小份。" },
+        "cooking_lunch": { "title": "准备社区午餐", "summary": "搭配蔬菜与主食，为来帮忙的邻居准备营养午餐。" },
+        "cooking_feast": { "title": "筹备邻里聚餐", "summary": "和厨房的伙伴一起备菜、掌勺，迎接一桌热闹的邻居。" },
+        "garden_seedlings": { "title": "照看公共花苗", "summary": "看看新芽和土壤，给社区花圃里的小苗补一点水。" },
+        "garden_orchard": { "title": "养护社区果园", "summary": "检查树木、整理枝叶，让共享果园继续长出甜甜的果实。" },
+        "garden_field_day": { "title": "整理街角花园", "summary": "一起修整花坛、浇水和松土，让街角多一处舒服的绿意。" },
+        "exercise_walk": { "title": "派送邻里物资", "summary": "沿着熟悉的小路走一走，把轻便物资送到需要的地方。" },
+        "exercise_training": { "title": "布置活动场地", "summary": "搬好桌椅、整理器材，为邻里的活动留出宽敞空间。" },
+        "exercise_challenge": { "title": "协助社区运动会", "summary": "布置场地、照看补给点，陪大家完成一场有趣的运动会。" }
       }
     },
     "rewards": {
       "claim": "领取奖励",
+      "communityWorkGiftBubble": "老朋友礼物",
+      "communityWorkGiftTickets": "抽卡券 ×{count}",
+      "communityWorkGiftClaim": "领取老朋友礼物：{count} 张抽卡券",
+      "communityWorkGiftTitle": "给老朋友的小礼物",
+      "communityWorkGiftMessage": "谢谢你一直陪在这里。社区工作焕新啦，送你 {count} 张抽卡券，去试试手气吧！",
+      "communityWorkGiftReceived": "老朋友礼物已领取，抽卡券 +{count}！",
+      "communityWorkGiftFull": "抽卡券快满啦，先用掉一些再来领取 {count} 张。礼物会一直为你保留。",
       "kicker": "收到礼物",
       "birthdayTitle": "{name} 生日快乐",
       "festivalTitle": "{festival} 礼物",
@@ -950,7 +985,7 @@
         "all": "全部",
         "companion": "陪伴",
         "life": "生活",
-        "schedule": "日程",
+        "schedule": "计时工作",
         "care": "照顾",
         "daily": "日常",
         "garden": "种植园",
@@ -1078,7 +1113,7 @@
       "needSapling": "商店购买 · {coins} 金币",
       "itemOwned": "背包 x{count}",
       "waterPreview": "免费 · 预计缩短 {time}",
-      "fertilizerPreview": "背包 x{count} · 预计缩短 {time}",
+      "fertilizerPreview": "背包 x{count} · 使用 {quantity} 份 · 预计缩短 {time}",
       "careMinimumRemaining": "剩余时间已达最低 10 秒",
       "careReductionLimitReached": "本轮加速已达上限",
       "coinDropTitle": "收获 {coins} 金币",
@@ -1106,7 +1141,7 @@
         },
         "best_friend_pass": {
           "name": "挚友证",
-          "summary": "每日邻居礼物与 50 金币，伙伴日程金币 +10%，植物成长时间减少 12%，额外小心心概率 30%。"
+          "summary": "每日邻居礼物与 50 金币，社区工作金币 +10%，植物成长时间减少 12%，额外小心心概率 30%。"
         }
       }
     },
@@ -1224,7 +1259,7 @@
         },
         "golden_apple": {
           "name": "金苹果",
-          "summary": "种植获得的特殊苹果，全属性恢复并带来小心心"
+          "summary": "五项状态各恢复其上限的 50%（不超过上限），体力计入奖杯加成，并获得随机小心心"
         },
         "fruit_tree_sapling": {
           "name": "食材树树苗",
@@ -1248,11 +1283,11 @@
         },
         "normal_fertilizer": {
           "name": "普通肥料",
-          "summary": "普通树专用，每轮与爱心肥料二选一。减时 30%，升级肥料箱后为 35%／40%，并有机会多收 1 件普通产物。"
+          "summary": "普通树每轮与爱心肥料二选一：减时 30%，升级后 35%／40%，有机会多收 1 件普通产物。高级树每份仅减时 1%，可多份使用；两种肥每块地每天合计最多减时 10%，且不超过 6 小时。"
         },
         "heart_fertilizer": {
           "name": "爱心肥料",
-          "summary": "普通树专用，每轮与普通肥料二选一。减时 40%，升级后为 45%／50%；保底多 1 件普通产物，并提高稀有产物权重。"
+          "summary": "普通树每轮与普通肥料二选一：减时 40%，升级后 45%／50%，保底多 1 件普通产物并提高稀有权重。高级树每份仅减时 2%，可多份使用；两种肥每块地每天合计最多减时 10%，且不超过 6 小时。"
         },
         "harvest_nutrient": {
           "name": "丰收营养剂",
@@ -1500,7 +1535,7 @@
       "play": "{name} 玩得很开心。",
       "clean": "{name} 变干净了，也放松了一点。饱腹 -{hunger}，心情 +{mood}，体力 -{energy}。",
       "lowEnergyWork": "体力不足，睡觉或使用道具恢复后再打工。",
-      "work": "{name} 陪你打工，赚到 {coins} 金币。",
+      "work": "{name} 帮社区整理了物资，快速工作赚到 {coins} 金币。",
       "sleep": {
         "pomodoroPaused": "{name} 开始休息，计时继续进行。",
         "lowMood": "{name} 心情很低，可能会睡得不太安稳。",
@@ -1545,8 +1580,8 @@
         "giftHeart": "礼物带来了 {hearts} 个小心心。",
         "birthdayCake": "{name} 吃下了{item}，全属性回满。",
         "birthdayCakeWoke": "{name} 醒来吃下了{item}，全属性回满。",
-        "goldenApple": "{name} 吃下了{item}，全属性恢复 30，并获得 {hearts} 个小心心。",
-        "goldenAppleWoke": "{name} 醒来吃下了{item}，全属性恢复 30，并获得 {hearts} 个小心心。"
+        "goldenApple": "{name} 吃下了{item}，五项状态各恢复其上限的 {percent}%（不超过上限），并获得 {hearts} 个小心心。",
+        "goldenAppleWoke": "{name} 醒来吃下了{item}，五项状态各恢复其上限的 {percent}%（不超过上限），并获得 {hearts} 个小心心。"
       },
       "unknown": {
         "name": "未知 Mod 道具",
@@ -1688,7 +1723,7 @@
         "cleanCooldown": "清洁冷却 {seconds} 秒",
         "extraHeartChance": "额外小心心概率 +{percent}%",
         "gardenExtraDropChance": "收获时额外产物概率 +{percent}%",
-        "partnerScheduleExtraRewardChance": "伙伴日程完整奖励额外一份概率 +{percent}%",
+        "partnerScheduleExtraRewardChance": "社区工作完整奖励额外一份概率 +{percent}%",
         "dailyStipend": "每日成就津贴 +{coins} 金币",
         "careStatBonus": "喂食和清洁恢复 +{amount}",
         "cg": "解锁纪念内容",
@@ -1830,27 +1865,27 @@
         },
         "schedule_first": {
           "title": "初次出发",
-          "description": "领取 1 次伙伴日程奖励。"
+          "description": "完整完成并领取 1 次计时社区工作报酬。"
         },
         "schedule_10": {
-          "title": "日程渐入佳境",
-          "description": "累计领取 10 次伙伴日程奖励。"
+          "title": "计时工作渐入佳境",
+          "description": "累计完整完成并领取 10 次计时社区工作报酬。"
         },
         "schedule_50": {
-          "title": "日程达人",
-          "description": "累计领取 50 次伙伴日程奖励。"
+          "title": "计时工作达人",
+          "description": "累计完整完成并领取 50 次计时社区工作报酬。"
         },
         "schedule_all_categories": {
           "title": "多面手",
-          "description": "学习、烹饪、种植和锻炼日程各领取至少 1 次奖励。"
+          "description": "学习、料理、园艺和运动计时工作各完整完成并领取至少 1 次报酬。"
         },
         "schedule_long_5": {
           "title": "长线计划",
-          "description": "累计完成并领取 5 次长日程奖励。"
+          "description": "累计完成并领取 5 次长计时工作奖励。"
         },
         "schedule_long_all_categories": {
           "title": "四路远行",
-          "description": "四类长日程各完成并领取至少 1 次奖励。"
+          "description": "四类长计时工作各完成并领取至少 1 次奖励。"
         },
         "schedule_category_reward_10": {
           "title": "专业有回报",
@@ -1858,23 +1893,23 @@
         },
         "schedule_daily_three": {
           "title": "行程满满",
-          "description": "同一天完成 3 项伙伴日程。"
+          "description": "同一天完整完成并领取 3 项计时社区工作报酬。"
         },
         "schedule_all_skills_3": {
           "title": "四项熟练",
-          "description": "四项伙伴日程技能全部达到 3 级。"
+          "description": "四项社区工作技能全部达到 3 级。"
         },
         "schedule_all_skills_6": {
           "title": "四项精进",
-          "description": "四项伙伴日程技能全部达到 6 级。"
+          "description": "四项社区工作技能全部达到 6 级。"
         },
         "schedule_all_skills_max": {
           "title": "全能伙伴",
-          "description": "四项伙伴日程技能全部达到 10 级。"
+          "description": "四项社区工作技能全部达到 10 级。"
         },
         "schedule_all_master_10": {
           "title": "四艺大师",
-          "description": "四项伙伴日程技能达到 10 级后，每类各完成 10 次大师日程。"
+          "description": "四项社区工作技能达到 10 级后，每类各完成 10 次大师计时工作。"
         },
         "first_purchase": {
           "title": "第一次采购",
@@ -2131,7 +2166,7 @@
       }
     },
     "gacha": {
-      "drawn": "完成了 {count} 次金苹果扭蛋，直接获得 {coins} 金币。",
+      "drawn": "完成了 {count} 次补给扭蛋，金币 +{coins}，物品 +{items} 件。",
       "heartsDrawn": "消耗 {apples} 个金苹果完成了 {count} 次心心扭蛋，获得 {hearts} 颗小心心。",
       "ticketGranted": "额外获得 1 张扭蛋券。",
       "starterGiftClaimed": "领取了初始礼物，获得 {count} 张扭蛋券。"
@@ -2143,7 +2178,7 @@
       "stageFunded": "当前阶段的金币已经投入完毕。",
       "invested": "向伙伴梦想投入了 {coins} 金币。",
       "stageNeedsCoins": "需要先补足当前阶段的金币。",
-      "requirementsMissing": "技能、日程或大师次数尚未满足当前阶段要求。",
+      "requirementsMissing": "技能、计时工作或大师次数尚未满足当前阶段要求。",
       "applesMissing": "完成时需要 {apples} 个金苹果。",
       "rewardInventoryFull": "背包空间不足，腾出位置后可继续领取奖励。",
       "supplySupplementClaimed": "领取了{project}的阶段补给，普通肥料 +{amount}。",
@@ -2161,13 +2196,12 @@
     },
     "partnerSchedule": {
       "completed": "{name} 完成了今天的活动，可以去看看收获。",
-      "started": "{name} 开始进行今天的伙伴日程。",
+      "started": "{name} 开始进行今天的社区工作。",
       "startBlocked": {
-        "locked": "伙伴日程会在 Lv.3 解锁。",
         "busy": "{name} 已经有正在进行的活动。",
         "pending": "先领取上一次活动的收获。",
-        "completed": "这个活动今天已经完成了。",
-        "daily_limit": "今天已经完成 3 项伙伴日程了。",
+        "completed": "本批中的这项工作已经完成了。",
+        "ended": "本批中的这项工作已经结束，请选择其他事务或换一批。",
         "sleeping": "{name} 还在睡觉，醒来后再安排活动吧。",
         "energy": "{name} 的体力还不足以开始这项活动。",
         "hunger": "{name} 需要先吃点东西。",
@@ -2175,11 +2209,18 @@
         "health": "{name} 需要先恢复健康。",
         "missing": "这个活动已经不可用了。"
       },
-      "busyAction": "{name} 正在进行伙伴日程，现在不能进行宠物照顾。",
-      "cancelled": "{name} 提前结束了活动，已经完成的进度没有保留。",
+      "busyAction": "{name} 正在进行社区工作，现在不能进行宠物照顾。",
+      "cancelled": "{name} 提前回家了，可以领取已经帮忙的这部分报酬。",
+      "claimedEarly": "领取了本次工作报酬，金币 +{coins}，技能经验 +{xp}。",
+      "refreshed": "消耗 {hearts} 颗小心心，社区公告板换上了新事务。",
+      "refreshBlocked": {
+        "busy": "伙伴正在帮忙，回家并领取报酬后再换一批吧。",
+        "pending": "先收下本次报酬，再换一批吧。",
+        "hearts": "小心心不足，凌晨 5 点也会免费换一批。"
+      },
       "noResult": "现在没有可以领取的活动收获。",
       "masterCompletion": " 大师完成次数 +1（累计 {count} 次）。",
-      "extraRewardTriggered": "成就加成触发，额外获得 {count} 份完整日程奖励。",
+      "extraRewardTriggered": "成就加成触发，额外获得 {count} 份完整计时工作奖励。",
       "claimed": {
         "coins": "领取了活动收获，金币 +{coins}。",
         "category": "带回了活动成果，金币 +{coins}。"
@@ -2206,6 +2247,7 @@
       "cannotFertilize": "这棵树现在不能施肥。",
       "fertilizedToday": "这个栏位今天已经施肥了。",
       "fertilizedRound": "这棵树本轮已经施肥，收获后可再次使用。",
+      "fertilizerDailyLimit": "这块地今天的施肥减时已达上限，明天可继续。",
       "fertilizerOrdinaryOnly": "普通肥料和爱心肥料用于食材树、护理之树和礼物树。",
       "nutrientAdvancedOnly": "丰收营养剂用于摇钱树和金苹果树。",
       "boostedRound": "这棵树本轮已经使用营养剂，收获后可再次使用。",
@@ -2223,7 +2265,7 @@
       "toolMaxLevel": "这个工具已经满级。",
       "toolUpgradeSuccess": "{tool} 升到 Lv.{level}，花费 {coins} 金币。",
       "missingGardenItem": "背包里没有{item}。",
-      "fertilizeSuccess": "使用了{item}，成长时间缩短 {time}。",
+      "fertilizeSuccess": "使用了{item} ×{count}，成长时间缩短 {time}。",
       "harvestCoinsSuccess": "收获金币 +{coins}。",
       "harvestMixedSuccess": "收获了 {count} 件道具，金币 +{coins}。",
       "harvestCoinsWithered": "收获金币 +{coins}，这棵树寿命耗尽枯萎了。",

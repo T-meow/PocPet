@@ -68,6 +68,9 @@ import { getInventoryItem, shopItems } from '../src/core/items';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import type { GardenSlot, PartnerScheduleCategory, PetState } from '../src/core/petTypes';
 import { hashString } from '../src/core/utils';
+import { inventoryItemLimit } from '../src/core/saveMetadata';
+import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
+import { summarizeGachaResults } from '../src/ui/gachaRewards';
 
 const dayMs = 24 * 60 * 60 * 1000;
 const now = new Date(2026, 6, 22, 12, 0, 0).getTime();
@@ -182,26 +185,20 @@ assert.equal(goldenAppleGachaRewards.reduce((sum, reward) => sum + reward.weight
 assert(!goldenAppleGachaRewards.some((reward) => reward.itemId === 'shampoo'), 'shampoo must not be in the pool');
 const gachaWeights = new Map(goldenAppleGachaRewards.map((reward) => [reward.id, reward.weight]));
 const expectedGachaWeights: Record<string, number> = {
-  coins_100: 10350,
-  coins_200: 8000,
-  coins_300: 7600,
-  coins_500: 5200,
-  coins_888: 6000,
-  coins_1888: 2100,
-  coins_3888: 638,
-  coins_8888: 112,
-  bento_5: 3200,
-  nutri_meal_5: 3200,
-  energy_drink_5: 3200,
-  blanket_5: 2800,
-  picture_book_5: 2000,
-  bento_10: 8000,
-  energy_drink_10: 7600,
-  blanket_10: 2600,
-  picture_book_10: 2600,
-  normal_fertilizer_20: 4800,
-  harvest_nutrient_1: 5000,
-  heart_fertilizer_30: 1000,
+  fruit_crate_v1: 10000,
+  strawberry_milk_crate_v1: 4000,
+  home_cooking_crate_v1: 5000,
+  baking_crate_v1: 4000,
+  biscuit_crate_v1: 3000,
+  energy_crate_v1: 3000,
+  care_crate_v1: 3000,
+  companion_gift_v1: 3000,
+  coins_500: 34000,
+  coins_888: 5000,
+  coins_1888: 1000,
+  normal_fertilizer_20: 6000,
+  harvest_nutrient_2: 2000,
+  heart_fertilizer_15: 3000,
   money_tree_sapling_1: 1180,
   golden_apple_tree_sapling_1: 320,
   golden_apple_1: 11632,
@@ -217,23 +214,16 @@ Object.entries(expectedGachaWeights).forEach(([rewardId, weight]) => {
 
 const totalWeightFor = (predicate: (reward: typeof goldenAppleGachaRewards[number]) => boolean) =>
   goldenAppleGachaRewards.reduce((sum, reward) => sum + (predicate(reward) ? reward.weight : 0), 0);
-const basicConsumables = new Set(['bento', 'nutri_meal', 'energy_drink', 'blanket', 'picture_book']);
 const gardenConsumables = new Set(['normal_fertilizer', 'harvest_nutrient', 'heart_fertilizer']);
 const saplings = new Set(['money_tree_sapling', 'golden_apple_tree_sapling']);
 assert.equal(totalWeightFor((reward) => reward.kind === 'coins'), 40000);
-assert.equal(totalWeightFor((reward) => Boolean(reward.itemId && basicConsumables.has(reward.itemId))), 35200);
-assert.equal(totalWeightFor((reward) => Boolean(reward.itemId && gardenConsumables.has(reward.itemId))), 10800);
+assert.equal(totalWeightFor((reward) => reward.kind === 'bundle'), 35000);
+assert.equal(totalWeightFor((reward) => Boolean(reward.itemId && gardenConsumables.has(reward.itemId))), 11000);
 assert.equal(totalWeightFor((reward) => Boolean(reward.itemId && saplings.has(reward.itemId))), 1500);
 assert.equal(totalWeightFor((reward) => reward.itemId === 'golden_apple'), 12500);
-assert.equal(gachaWeights.get('coins_200'), gachaWeights.get('bento_10'));
-assert.equal(gachaWeights.get('coins_300'), gachaWeights.get('energy_drink_10'));
-assert.equal(
-  gachaWeights.get('coins_500'),
-  (gachaWeights.get('blanket_10') ?? 0) + (gachaWeights.get('picture_book_10') ?? 0),
-);
 assert.equal(gachaWeights.get('golden_apple_tree_sapling_1'), (gachaWeights.get('golden_apple_100') ?? 0) * 160);
 
-const expectedRarityWeights = { common: 55950, uncommon: 21200, rare: 20912, legendary: 1936, jackpot: 2 } as const;
+const expectedRarityWeights = { common: 26000, uncommon: 57000, rare: 15812, legendary: 1186, jackpot: 2 } as const;
 Object.entries(expectedRarityWeights).forEach(([rarity, weight]) => {
   assert.equal(totalWeightFor((reward) => reward.rarity === rarity), weight, `${rarity} rarity weight must match the plan`);
 });
@@ -248,14 +238,14 @@ const tenDrawWhiteGreenCount = whiteGreenProbability * 10
 const coinExpectedValue = getGoldenAppleGachaCoinExpectedValue();
 const tenDrawCoinExpectedValue = coinExpectedValue * 10
   - tenDrawFallbackProbability * coinExpectedValue / (1 - appleProbability);
-near(getGoldenAppleGachaExpectedValue(), 542.74768, 0.00001, 'single expected value');
-near(coinExpectedValue, 202.838, 0.00001, 'coin expected value');
-near(getGoldenAppleGachaTenExpectedValue(), 5538.864623, 0.00001, 'ten draw expected value');
-near(tenDrawCoinExpectedValue, 1967.395173, 0.00001, 'ten draw coin expected value');
+near(getGoldenAppleGachaExpectedValue(), 598.34968, 0.00001, 'single expected value');
+near(coinExpectedValue, 233.28, 0.00001, 'coin expected value');
+near(getGoldenAppleGachaTenExpectedValue(), 6078.167447, 0.00001, 'ten draw expected value');
+near(tenDrawCoinExpectedValue, 2262.662548, 0.00001, 'ten draw coin expected value');
 near(tenDrawFallbackProbability, 0.2630755762, 0.0000000001, 'ten draw fallback probability');
 near(appleCountExpected, 0.15341, 0.0000001, 'single golden apple count');
 near(appleCountExpected * 10 + tenDrawFallbackProbability, 1.7971755762, 0.0000000001, 'ten draw golden apple count');
-near(tenDrawWhiteGreenCount, 7.4830425063, 0.0000000001, 'ten draw white and green result count');
+near(tenDrawWhiteGreenCount, 8.0504540249, 0.0000000001, 'ten draw white and green result count');
 assert.equal(getInventoryItem('golden_apple')?.price, 888);
 assert(!shopItems.some((item) => item.id === 'golden_apple'), 'golden apples must not enter the normal shop');
 
@@ -326,6 +316,87 @@ assert.equal(ticketDraw.error, undefined);
 assert.equal(ticketDraw.pet.goldenAppleGacha.tickets, 0);
 assert.equal(ticketDraw.pet.goldenAppleGacha.ticketsSpent, 10);
 assert.equal(ticketDraw.pet.coins, ticketPet.coins + ticketDraw.results.reduce((sum, result) => sum + (result.kind === 'coins' ? result.amount : 0), 0));
+
+const approvedBundles: Record<string, Record<string, number>> = {
+  fruit_crate_v1: { apple: 6, orange: 6, banana: 6 },
+  strawberry_milk_crate_v1: { strawberry_milk: 16 },
+  home_cooking_crate_v1: { rice: 10, egg: 10, tomato: 10 },
+  baking_crate_v1: { apple: 6, flour: 6, ad_milk: 6 },
+  biscuit_crate_v1: { emergency_biscuit: 40 },
+  energy_crate_v1: { energy_drink: 6, blanket: 3 },
+  care_crate_v1: { wet_wipes: 10, vitamin_tablet: 10, medicine: 3 },
+  companion_gift_v1: { picture_book: 4, toy_ball: 4, ribbon_bell: 4 },
+};
+const bundleDrawInputs = new Map<string, PetState>();
+for (let counter = 0; counter < 1000 && bundleDrawInputs.size < Object.keys(approvedBundles).length; counter++) {
+  const candidate: PetState = { ...fundedPet, inventory: {}, goldenAppleGacha: { ...fundedPet.goldenAppleGacha, rngCounter: counter, tickets: 10 } };
+  const reward = drawGoldenAppleGacha(candidate, 'coins', 1, now).results[0];
+  if (reward.kind === 'bundle') bundleDrawInputs.set(reward.rewardId, candidate);
+}
+assert.equal(bundleDrawInputs.size, 8, 'all eight fixed bundles must be reachable');
+for (const [rewardId, input] of bundleDrawInputs) {
+  const before = JSON.stringify(input);
+  const drawn = drawGoldenAppleGacha(input, 'coins', 1, now);
+  const expectedItems = approvedBundles[rewardId];
+  assert.deepEqual(drawn.pet.inventory, expectedItems, `${rewardId} must deliver its contents without a box inventory entry`);
+  assert.equal(drawn.pet.coins, input.coins - 500);
+  assert.equal(drawn.pet.hearts, input.hearts, 'opening a box gives no extra hearts');
+  assert.deepEqual(drawn.pet.kitchen, input.kitchen, 'opening ingredients does not count as cooking');
+  assert.equal(JSON.stringify(input), before, 'a draw must not mutate the input save');
+  const result = drawn.results[0];
+  const normalized = normalizeGoldenAppleGachaState({ ...drawn.pet.goldenAppleGacha, recentResults: [
+    { ...result, contents: [{ itemId: 'golden_apple', amount: 9999 }] },
+  ] }, input.createdAt, now);
+  assert.deepEqual(normalized.recentResults[0].contents, result.contents, 'result contents come from their versioned reward, not untrusted metadata');
+  const restored = parseSaveFileText(createSaveFileText(drawn.pet, null, now), now).pet;
+  assert.deepEqual(restored.inventory, expectedItems, 'save round trips retain the delivered items without opening them again');
+  assert.equal(restored.goldenAppleGacha.rngCounter, drawn.pet.goldenAppleGacha.rngCounter);
+  for (const [itemId, amount] of Object.entries(expectedItems)) {
+    const fullInput = { ...input, inventory: { [itemId]: inventoryItemLimit - amount + 1 } };
+    for (const payment of ['coins', 'tickets'] as const) {
+      const blocked = drawGoldenAppleGacha(fullInput, payment, 1, now);
+      assert.equal(blocked.error, 'inventory_full');
+      assert.equal(blocked.pet, fullInput, 'a full ingredient rejects the entire payment, rewards and RNG advancement');
+      assert.deepEqual(blocked.results, []);
+    }
+    const exactInput = { ...input, inventory: { [itemId]: inventoryItemLimit - amount } };
+    const exact = drawGoldenAppleGacha(exactInput, 'coins', 1, now);
+    assert.equal(exact.error, undefined);
+    assert.equal(exact.pet.inventory[itemId], inventoryItemLimit, 'exact capacity must accept the whole box');
+  }
+}
+
+let bundleFallbackChecked = false;
+for (let counter = 0; counter < 1000 && !bundleFallbackChecked; counter += 10) {
+  const input: PetState = { ...fundedPet, inventory: {}, goldenAppleGacha: { ...fundedPet.goldenAppleGacha, rngCounter: counter } };
+  const draw = drawGoldenAppleGacha(input, 'coins', 10, now);
+  const tenthBase = drawGoldenAppleGacha({ ...input, goldenAppleGacha: { ...input.goldenAppleGacha, rngCounter: counter + 9 } }, 'coins', 1, now);
+  if (!draw.results[9].guaranteed || tenthBase.results[0].kind !== 'bundle') continue;
+  const expectedItems: Record<string, number> = {};
+  for (const reward of draw.results) {
+    const contents = reward.kind === 'bundle' ? approvedBundles[reward.rewardId] : reward.itemId ? { [reward.itemId]: reward.amount } : {};
+    for (const [itemId, amount] of Object.entries(contents)) expectedItems[itemId] = (expectedItems[itemId] ?? 0) + amount;
+  }
+  assert.deepEqual(draw.pet.inventory, expectedItems, 'ten-draw fallback must not deliver the replaced box as well');
+  const summary = summarizeGachaResults(draw.results);
+  assert.deepEqual(Object.fromEntries(summary.items.map(({ itemId, amount }) => [itemId, amount])), expectedItems, 'the result summary includes every box and combines repeated items');
+  assert.equal(summary.coins, draw.pet.coins - input.coins + 5000);
+  const repeated = Object.entries(expectedItems).find(([itemId, total]) => total > Math.max(...draw.results.map((reward) => reward.kind === 'bundle' ? approvedBundles[reward.rewardId][itemId] ?? 0 : reward.itemId === itemId ? reward.amount : 0)));
+  if (repeated) {
+    const [itemId, total] = repeated;
+    const crowdedInput = { ...input, inventory: { [itemId]: inventoryItemLimit - total + 1 } };
+    assert.equal(drawGoldenAppleGacha(crowdedInput, 'coins', 10, now).pet, crowdedInput, 'capacity is checked across the whole ten-draw batch');
+    const exactInput = { ...input, inventory: { [itemId]: inventoryItemLimit - total } };
+    assert.equal(drawGoldenAppleGacha(exactInput, 'coins', 10, now).pet.inventory[itemId], inventoryItemLimit);
+    bundleFallbackChecked = true;
+  }
+}
+assert(bundleFallbackChecked, 'cover a replaced bundle and repeated ingredients in the same ten-draw batch');
+
+const oldRewardIds = ['coins_100', 'coins_200', 'coins_300', 'coins_3888', 'coins_8888', 'bento_5', 'nutri_meal_5', 'energy_drink_5', 'blanket_5', 'picture_book_5', 'bento_10', 'energy_drink_10', 'blanket_10', 'picture_book_10', 'heart_fertilizer_30', 'harvest_nutrient_1'];
+const oldHistory = normalizeGoldenAppleGachaState({ ...fundedPet.goldenAppleGacha, recentResults: oldRewardIds.map((rewardId) => ({ rewardId, drawnAt: now })) }, fundedPet.createdAt, now);
+assert.deepEqual(oldHistory.recentResults.map((result) => result.rewardId), oldRewardIds, 'retired prizes remain readable in old history');
+assert.deepEqual(oldHistory.recentResults.map((result) => result.amount), [100, 200, 300, 3888, 8888, 5, 5, 5, 5, 5, 10, 10, 10, 10, 30, 1]);
 
 const heartGachaBase: PetState = {
   ...createDefaultPet(now),
@@ -669,24 +740,24 @@ assert.match(fullAuthorGift.pet.recentEvent, /0/);
 
 let samplePet = { ...createDefaultPet(now), coins: 100_000_000 };
 const sampleCounts = { coins: 0, consumables: 0, garden: 0, saplings: 0, apples: 0 };
-const consumableIds = new Set(['bento', 'nutri_meal', 'energy_drink', 'blanket', 'picture_book']);
 const gardenIds = new Set(['normal_fertilizer', 'harvest_nutrient', 'heart_fertilizer']);
 const saplingIds = new Set(['money_tree_sapling', 'golden_apple_tree_sapling']);
 const sampleSize = 30000;
 for (let index = 0; index < sampleSize; index += 1) {
   const outcome = drawGoldenAppleGacha(samplePet, 'coins', 1, now + index);
   assert.equal(outcome.error, undefined);
-  samplePet = outcome.pet;
+  // This sample measures rates; capacity and delivery are covered independently above.
+  samplePet = { ...outcome.pet, inventory: {} };
   const result = outcome.results[0];
   if (result.kind === 'coins') sampleCounts.coins += 1;
   else if (result.itemId === 'golden_apple') sampleCounts.apples += 1;
-  else if (result.itemId && consumableIds.has(result.itemId)) sampleCounts.consumables += 1;
+  else if (result.kind === 'bundle') sampleCounts.consumables += 1;
   else if (result.itemId && gardenIds.has(result.itemId)) sampleCounts.garden += 1;
   else if (result.itemId && saplingIds.has(result.itemId)) sampleCounts.saplings += 1;
 }
 near(sampleCounts.coins / sampleSize, 0.4, 0.012, 'fixed-seed coin sample');
-near(sampleCounts.consumables / sampleSize, 0.352, 0.012, 'fixed-seed consumable sample');
-near(sampleCounts.garden / sampleSize, 0.108, 0.008, 'fixed-seed garden sample');
+near(sampleCounts.consumables / sampleSize, 0.35, 0.012, 'fixed-seed supply box sample');
+near(sampleCounts.garden / sampleSize, 0.11, 0.008, 'fixed-seed garden sample');
 near(sampleCounts.saplings / sampleSize, 0.015, 0.004, 'fixed-seed sapling sample');
 near(sampleCounts.apples / sampleSize, 0.125, 0.008, 'fixed-seed golden apple sample');
 
@@ -782,7 +853,7 @@ assert.equal(monthlyRewards.rewards.find((reward) => reward.kind === 'daily_logi
 assert.equal(monthlyRewards.pet.goldenAppleGacha.tickets, 3);
 assert.equal(monthlyRewards.pet.inventory.golden_apple, 2);
 
-assert.equal(gardenSchemaVersion, 5);
+assert.equal(gardenSchemaVersion, 6);
 assert.equal(gardenTreeDefinitions.golden_apple_tree.growDurationMs, 3 * dayMs);
 assert.equal(gardenTreeDefinitions.golden_apple_tree.harvestCooldownMs, 48 * 60 * 60 * 1000);
 assert.equal(gardenTreeDefinitions.golden_apple_tree.maxHarvests, 10);
@@ -1077,7 +1148,7 @@ const migratedV4Schedule = normalizePartnerScheduleState(rawV4Schedule, {
   level: startedSchedule.level,
   createdAt: startedSchedule.createdAt,
 }, now, false);
-assert.equal(partnerScheduleSchemaVersion, 6);
+assert.equal(partnerScheduleSchemaVersion, 7);
 assert.equal(migratedV4Schedule.schemaVersion, partnerScheduleSchemaVersion);
 assert.equal(migratedV4Schedule.active?.trophyRewardMultiplier, 1, 'v4 active schedules must default to multiplier 1');
 if (migratedV4Schedule.active) {
@@ -1135,7 +1206,7 @@ const specialApplePet = withGoalStages({
   hunger: 0,
   inventory: { golden_apple: 1 },
 }, { cooking: 5 });
-assert.equal(useInventoryItem(specialApplePet, 'golden_apple', now).hunger, 30, 'golden apples must ignore food trophy multipliers');
+assert.equal(useInventoryItem(specialApplePet, 'golden_apple', now).hunger, 50, 'golden apples must ignore food trophy multipliers');
 
 const readyGardenSlot: GardenSlot = {
   ...defaultGardenState(now).slots[0],

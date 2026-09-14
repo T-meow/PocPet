@@ -33,7 +33,7 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
   const { pendingReviewNotice: _notice, ...achievements } = current.achievements;
   return {
     ...base,
-    garden: { ...garden, slots: garden.slots.map((slot) => slot.state === 'empty' ? { unlocked: slot.unlocked } : slot) },
+    garden: { ...garden, slots: garden.slots.map((slot) => slot.state === 'empty' && slot.dailyAdvancedFertilizerReductionMs === 0 ? { unlocked: slot.unlocked } : slot) },
     goldenAppleGacha, kitchen, achievements,
     miniGames: { ...miniGames, lastSettledSessionId: miniGames.lastSettledSessionId || lastResult?.id || '', lastResult: lastResult?.pending ? lastResult : undefined },
   };

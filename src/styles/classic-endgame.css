@@ -215,6 +215,7 @@
   gap: 14px;
   padding: 22px 0 4px;
   border-top: 1px solid var(--line);
+  background: #f7e5ca url('../assets/trophies/cabinet.webp') center/100% 100% no-repeat;
 }
 
 .classic-trophy-cabinet__header {
@@ -225,6 +226,7 @@
 }
 
 .classic-trophy-cabinet__header > div { display: grid; gap: 3px; }
+.classic-trophy-cabinet__header { padding: 10px; border-radius: 12px; background: #fffaf0e8; }
 .classic-trophy-cabinet__header h2 { margin: 0; font-size: 1.15rem; }
 .classic-trophy-cabinet__header p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
 .classic-trophy-cabinet__header > strong { flex: 0 0 auto; color: #286451; font-size: 1.2rem; }
@@ -237,38 +239,42 @@
 
 .classic-trophy {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
   gap: 9px;
   min-width: 0;
   padding: 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface);
+  background: #fffaf0ed;
 }
 
 .classic-trophy__icon {
+  position: relative;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 96px;
+  height: 96px;
   place-items: center;
   border-radius: 6px;
   color: #75808a;
-  background: #edf0f2;
+  background: url('../assets/trophies/shelf.png') center bottom/100% 13px no-repeat;
 }
+.classic-trophy__icon img { width: 96px; height: 96px; object-fit: contain; pointer-events: none; }
+.classic-trophy__lock { position: absolute; right: 3px; bottom: 4px; box-sizing: content-box; padding: 5px; border-radius: 50%; color: #fffaf0; background: #786c62; }
+.classic-trophy.is-locked .classic-trophy__icon img { filter: brightness(0) opacity(.3); }
+.classic-trophy.is-unlocked .classic-trophy__icon img { filter: drop-shadow(0 0 5px #efd3a766); }
 
 .classic-trophy > div { display: grid; gap: 3px; min-width: 0; }
 .classic-trophy h3 { margin: 0; font-size: 0.82rem; overflow-wrap: anywhere; }
 .classic-trophy p { margin: 0; color: var(--text-muted); font-size: 0.7rem; line-height: 1.4; }
 .classic-trophy small { color: #7b858e; font-size: 0.64rem; line-height: 1.35; }
-.classic-trophy.is-locked { opacity: 0.7; }
+.classic-trophy.is-locked { border-style: dashed; }
 .classic-trophy.is-unlocked { border-color: color-mix(in srgb, currentColor 30%, var(--line)); }
 .classic-trophy.is-unlocked small { color: #28734f; font-weight: 800; }
-.classic-trophy--bronze.is-unlocked .classic-trophy__icon { color: #8c4f2f; background: #f6e1d5; }
-.classic-trophy--silver.is-unlocked .classic-trophy__icon { color: #596873; background: #e4eaee; }
-.classic-trophy--gold.is-unlocked .classic-trophy__icon { color: #946600; background: #fff0b8; }
-.classic-trophy--diamond { grid-template-columns: 42px minmax(0, 1fr); border-color: #9acbd1; background: #f1fbfc; }
-.classic-trophy--diamond .classic-trophy__icon { width: 40px; height: 40px; color: #187787; background: #d6f2f5; }
+.classic-trophy--bronze.is-unlocked { border-color: #c89b7b; }
+.classic-trophy--silver.is-unlocked { border-color: #a9b6c5; }
+.classic-trophy--gold.is-unlocked { border-color: #dec076; }
+.classic-trophy--diamond { border-color: #9acbd1; background: #f1fbfced; }
 .classic-trophy--diamond h3 { font-size: 0.9rem; }
 
 .classic-apple-exchange {
@@ -338,12 +344,19 @@
 
 .classic-apple-exchange__actions button { width: 100%; min-width: 0; }
 
+@media (max-width: 960px) {
+  .classic-trophy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 760px) {
   .classic-endgame-page { width: min(100% - 20px, 680px); }
   .classic-dream-grid { grid-template-columns: minmax(0, 1fr); }
-  .classic-trophy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .classic-apple-exchange__header { grid-template-columns: 42px minmax(0, 1fr); }
   .classic-apple-exchange__header > strong { grid-column: 2; justify-self: start; }
+}
+
+@media (max-width: 600px) {
+  .classic-trophy-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 430px) {
@@ -354,7 +367,6 @@
   .classic-legacy__requirements,
   .classic-dream__actions { grid-template-columns: minmax(0, 1fr); }
   .classic-endgame-overview__metrics,
-  .classic-trophy-grid,
   .classic-apple-exchange__summary,
   .classic-apple-exchange__actions { grid-template-columns: minmax(0, 1fr); }
   .classic-trophy-cabinet__header { align-items: start; }
