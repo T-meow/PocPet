@@ -58,7 +58,7 @@ export const DialogShell = ({
       dialogLayers.set(dialogId, layer);
     }
     const focusTarget = dialog?.querySelector<HTMLElement>(focusableSelector) ?? dialog;
-    window.requestAnimationFrame(() => focusTarget?.focus());
+    window.requestAnimationFrame(() => focusTarget?.focus({ preventScroll: true }));
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (dialogStack[dialogStack.length - 1] !== dialogId) return;
@@ -103,7 +103,7 @@ export const DialogShell = ({
       } else {
         document.body.style.overflow = 'hidden';
       }
-      window.requestAnimationFrame(() => previousFocus?.focus());
+      window.requestAnimationFrame(() => previousFocus?.focus({ preventScroll: true }));
     };
   }, [closeOnEscape]);
 

@@ -21,7 +21,7 @@ export const MiniGameResultModal = ({ result, portrait, canReplay, onClose, onBa
       : L(`一起吹了 ${result.score} 个泡泡`, `${result.score} bubbles together`);
   const bonus = result.baseHearts === undefined ? 0 : Math.max(0, result.hearts - result.baseHearts);
   const skillCategory = getMiniGameSkillCategory(result.game);
-  return <DialogShell className="activity-modal play-reward-modal" labelId="play-reward-title" onClose={onClose}>
+  return <DialogShell className="activity-modal play-reward-modal" backdropClassName="activity-backdrop" labelId="play-reward-title" onClose={onClose}>
     <button className="icon-button play-reward-close" onClick={onClose} aria-label={L('关闭并回到小窝', 'Close and return home')}><X /></button>
     <div className="play-reward-art" aria-hidden="true">
       {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ '--spark-index': index } as CSSProperties}>{index % 2 ? '✦' : '♥'}</i>)}

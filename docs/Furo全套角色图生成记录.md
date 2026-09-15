@@ -66,3 +66,50 @@
 - 交付：[第1张：基础状态](../output/imagegen/furo-standard-20260914-batch-01/01-states-raw.png)、[第2张：休息与心情](../output/imagegen/furo-standard-20260914-batch-01/02-rest-emotion-raw.png)、[第3张：爱心与日常动作](../output/imagegen/furo-standard-20260914-batch-01/03-affection-care-raw.png)。完整尺寸、哈希和任务号见 [验证记录](../output/imagegen/furo-standard-20260914-batch-01/verification.json)。
 - 阶段状态：生成已停止，等待用户检查本批3张；第4–9组尚未按新三视图重生成。后续仍按每批3张执行，不自动开始下一批。
 - 禁止：切分、裁切、去底、缩放、合成预览、接入；无论生成观感如何均先交用户检查，不自行追加重绘。
+
+## 第1批前两张：简洁可爱修订
+
+- 用户最新要求：“要细节更少一点，更可爱风一点，重画前两张”。本轮仅生成第1、2组两张原图，共8个画面；第三张及后续组不在本轮范围。
+- 使用对应上一版原图作为各自唯一参考，维持动作、格位和新三视图确定的角色造型。输入是 `furo-standard-20260914-batch-01/01-states-raw.png` 与 `02-rest-emotion-raw.png`，不制作拼接参考板。
+- 方向：减少渐变与高光、头发内部线条、眼睛层叠反光和身体灰色阴影；泥点、盘沿、温度计、被子等简化为少量清楚色块与线条。轮廓更圆润、表情更柔和，保留可读性和必要造型。
+- 模型与规格继续使用 mxai / `gpt-image-2.5-sunburst` / 1K / high / count=1，不用降低生成质量参数代替美术简化。
+- 产物目录：`output/imagegen/furo-standard-20260914-batch-01-cute-r1/`；可复用提示词与清单：[本次修订](art/furo-standard-20260914-batch-01-cute-r1.json)。旧稿和运行素材保留。
+- 进度：两张均已完成，实际均为1280×1280原始PNG，共2,950,856字节（约2.81 MiB）。仅正式提交两次，第1组任务 `2099511270574133248`，第2组任务 `2099511274940403712`，终态均为status=2。两次 dry_run 报价共14积分（非核实实扣）。
+- 验证：原图文件结构与压缩像素数据可读，逐图字节数和SHA-256一致；两张分别使用对应上一版原图，提示词、参考图及已确认三视图哈希已核对。已只读查看原图，简化了高光、身体阴影和道具线条；两图之间仍有线条粗细、发饰细节和脸颊画法差异，效果待用户判断，不追加重绘。
+- 交付：[第1张：日常／饥饿／难过／脏污](../output/imagegen/furo-standard-20260914-batch-01-cute-r1/01-states-raw.png)、[第2张：困倦／生病／睡眠／开心](../output/imagegen/furo-standard-20260914-batch-01-cute-r1/02-rest-emotion-raw.png)；完整元数据见 [验证记录](../output/imagegen/furo-standard-20260914-batch-01-cute-r1/verification.json)。本轮生成已停止，等待用户检查。
+- 交付边界：只保存并展示模型原图，不切分、去底、缩放、合成预览或接入。完成两张后停止，等待用户检查。
+
+## 全白身体新标准：日常图一，中质量
+
+- 用户最新授权：本项目Sunburst请求质量为中；使用新版全白身体三视图再生成日常图一。本轮仅1张四格原图，依次为日常／饥饿／难过／脏污，生成后交用户检查。
+- 项目默认已记录为 `quality: "medium"`，同步AGENTS.md、总作图流程及新对话入口；历史请求保留真实的high参数，不追改旧任务。
+- 唯一输入：`output/imagegen/furo-standing-turnaround-white-20260914/standing-turnaround-white-raw.png`，SHA-256 `aefdb743c5834d3c16f9bdad21b577858aa7d8dca03b324d34880f6e63e32f9f`。用户已指定采用此新标准，不再输入棕色脚部旧稿。
+- 画面：四格均为紧凑自然坐姿，身体与脚部全白；粉发、黑发饰和红粉眼保留，减少渐变、高光、内部细线与零碎泥点，表情柔和。脏污仅用少量明显泥块表达，脚部仍保持白色。
+- 参数：mxai / `gpt-image-2.5-sunburst` / 1K / medium / 1:1 / count=1。
+- 路径：`output/imagegen/furo-daily-01-white-medium-20260914/`；提示词和清单分别为 `docs/art/prompts/furo-daily-01-white-medium-20260914.txt`、`docs/art/furo-daily-01-white-medium-20260914.json`。
+- 进度：仅正式提交一次，任务 `2099519755525296128` 已确认status=2。请求与dry_run返回参数均确认为1K／medium／count=1，报价3积分（非核实实扣）。
+- 成品：[日常图一原图](../output/imagegen/furo-daily-01-white-medium-20260914/01-states-raw.png)，实际PNG 1280×1280、1,495,290字节，SHA-256 `6e2cb72fbda937bbd05d54a388f02cc102c76ac08a5c908dccea4961ab970087`。原图文件结构、压缩像素数据、哈希、参考来源、提示词及中质量参数均通过核对，详见 [验证记录](../output/imagegen/furo-daily-01-white-medium-20260914/verification.json)。
+- 只读画面检查：四格内容与顺序正确，均为坐姿、脚部白色；粉发和黑发饰保留，脏污以少量泥块表达。头发仍有少量高光与轻渐变，原始效果留给用户检查。本轮生成已停止，不加工、不接入、不自动追加；旧稿、备份、运行素材和其他任务改动均保留。
+
+## 2026-09-15：日常图一 Nano 比较
+
+- 用户授权：“用nano生成一张我看看”。本轮使用 mxai / `nano-2.0`，1K、1:1，仅1张四格原图（日常／饥饿／难过／脏污），生成后直接展示。
+- 使用与上一张Sunburst图一逐字相同的提示词，SHA-256 `4ab5a07670f6b8e586bf399bdb6cd53200263ae7ece12b38e9986931214d52b6`；唯一参考仍为新版全白身体三视图，SHA-256 `aefdb743c5834d3c16f9bdad21b577858aa7d8dca03b324d34880f6e63e32f9f`。
+- Nano按已用接口省略GPT专用的quality、count参数，预期返回1张；本项目Sunburst默认quality=medium不变。
+- 路径：`output/imagegen/furo-daily-01-white-nano-20260915/`；提示词和清单在 `docs/art/` 的同名文件，旧稿、备份与运行素材保留。
+- 校验／报价：参考上传成功；可选dry_run返回HTTP 502，原文 `参数校验或积分报价失败: 不支持的类型`，没有任务号，错误原样保存在 `01-states-quote-error.json`，未重试报价查询。
+- 正式生成：已通过只读模型查询确认 `nano-2.0` 仍为image模型且接受1张参考；既有Nano 1K请求任务 `2098964485367664640` 已成功。本轮仅正式提交一次，任务 `2099649517044371456` 已确认status=2。可选报价失败不记为正式生图失败，没有可用报价，不伪造价格。
+- 成品：[Nano版日常图一原图](../output/imagegen/furo-daily-01-white-nano-20260915/01-states-raw.png)，实际PNG 1024×1024，1,142,051字节，SHA-256 `97a0aff918691c2af35a6d3a6a4151f859d0c50c61d09fd8975516be8d3d3341`。文件结构、压缩像素数据、请求参数及哈希均通过；提示词与参考图哈希和Sunburst版相同，详情见 [验证记录](../output/imagegen/furo-daily-01-white-nano-20260915/verification.json)。
+- 只读画面检查：四格内容与顺序正确，脚部保持白色；Nano版坐姿更扁圆、餐盘较大、泥块更多更大，原图保留供用户比较。本轮生成已停止，等待检查。
+- 边界：不切分、去底、缩放、合成预览、接入或追加生成；完成后等待用户检查。
+
+## 2026-09-15：重写提示词，略侧转的日常图一
+
+- 用户最新授权：继续Sunburst，但不要旧提示词；查看原版角色图，坐姿视角稍偏侧面。本次仍只生成1张四格日常图一，生成后交用户检查。
+- 已只读查看原版 `pet_idle_sit.png`、`pet_hungry.png`、`pet_little_dirty.png`、`pet_dirty_sad.png`。原版头脸略朝画面右侧，日常前爪靠近地面，后脚收在身体两侧；这次以原版日常坐姿直接作为唯一输入参考。
+- 新写中文提示词：头与胸腹一起朝画面右侧转约25–30度，双眼仍可见，以近远脸颊、眼睛、发夹与四肢的不对称体现角度；前爪落地，后脚收在侧后方。避免正面对称坐姿和双大椭圆脚掌朝前。四格依次为日常／饥饿／难过／脏污。
+- 继续沿用最新配色和风格：身体及脚部全白，参考旧图中的棕色脚部改白；画法简洁可爱。参数为 mxai / `gpt-image-2.5-sunburst` / 1K / medium / 1:1 / count=1。
+- 路径：`output/imagegen/furo-daily-01-angle-20260915/`；新提示词 `docs/art/prompts/furo-daily-01-angle-20260915.txt`，新清单 `docs/art/furo-daily-01-angle-20260915.json`。不改写或复用上一版正坐提示词。
+- 进度：仅正式提交一次，任务 `2099657200464039936` 已确认status=2。dry_run校验通过，报价3积分（非核实实扣）；请求为Sunburst／1K／medium／count=1。
+- 成品：[略侧转日常图一原图](../output/imagegen/furo-daily-01-angle-20260915/01-states-raw.png)，实际PNG 1280×1280、1,547,664字节，SHA-256 `d4f6d152cc98d966e716d69745845efecb8402b021c35d2bf816fe3bba0839c4`。新提示词SHA-256为 `34488e4631b1501e5e5d03a59f5f28447c6192ccbcf9395f68d9c94545649aa6`，不同于旧正坐提示词；文件结构、压缩像素数据、原图和原参考哈希均通过，见 [验证记录](../output/imagegen/furo-daily-01-angle-20260915/verification.json)。
+- 只读画面检查：四格体现朝画面右侧的转角、落地前爪和白色脚部。模型在身体后方多画了疑似尾巴的小白色凸起，不视为已通过角色轮廓验收；原样交用户检查，本轮生成停止。原图、备份、旧稿及其他任务改动保留；不加工、不接入、不追加生成。

@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "channel": "mxai",
+  "models": [
+    "gpt-image-2.5-sunburst",
+    "gpt-image-2.5-flare"
+  ],
+  "quality": "medium",
+  "resolution": "1K",
+  "status": "comparison_archived_first_round_selected",
+  "reviewWorkflow": "originals_only_until_explicit_user_approval",
+  "referenceImages": [],
+  "designCount": 13,
+  "rawImageCount": 4,
+  "style": "matte_cartoon",
+  "previousCatalog": "docs/art/festival-food-20260915.json",
+  "sheets": [
+    {
+      "id": "sunburst-foods",
+      "title": "六款节日食物 · sunburst 哑光卡通",
+      "model": "gpt-image-2.5-sunburst",
+      "comparisonGroup": "foods",
+      "aspectRatio": "3:2",
+      "columns": 3,
+      "rows": 2,
+      "promptPath": "docs/art/prompts/festival-food-20260915-foods-matte.txt",
+      "rawPath": "output/imagegen/festival-food-matte-20260915/sunburst-foods-raw.png",
+      "items": [
+        {
+          "id": "dumplings_pork_cabbage",
+          "name": "白菜猪肉饺",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "dumplings_vegetable",
+          "name": "香菇蔬菜素饺",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "zongzi_braised_pork",
+          "name": "烧肉粽",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "zongzi_red_bean",
+          "name": "豆沙粽",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "mooncake_mixed_nuts",
+          "name": "五仁月饼",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "mooncake_red_bean",
+          "name": "豆沙月饼",
+          "row": 2,
+          "column": 3
+        }
+      ],
+      "result": {
+        "id": "sunburst-foods",
+        "title": "六款节日食物 · sunburst 哑光卡通",
+        "serial": "2099865549981880320",
+        "status": 2,
+        "path": "output/imagegen/festival-food-matte-20260915/sunburst-foods-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "3:2",
+        "format": "png",
+        "width": 1536,
+        "height": 1024,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1661410,
+        "sha256": "79bb06d9d83b77ea56b3bec83761acfd2e75e704b6980288e5c8cc6e094fe57a",
+        "postprocessing": "none",
+        "review": "not_selected_for_integration"
+      }
+    },
+    {
+      "id": "flare-foods",
+      "title": "六款节日食物 · flare 哑光卡通",
+      "model": "gpt-image-2.5-flare",
+      "comparisonGroup": "foods",
+      "aspectRatio": "3:2",
+      "columns": 3,
+      "rows": 2,
+      "promptPath": "docs/art/prompts/festival-food-20260915-foods-matte.txt",
+      "rawPath": "output/imagegen/festival-food-matte-20260915/flare-foods-raw.png",
+      "items": [
+        {
+          "id": "dumplings_pork_cabbage",
+          "name": "白菜猪肉饺",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "dumplings_vegetable",
+          "name": "香菇蔬菜素饺",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "zongzi_braised_pork",
+          "name": "烧肉粽",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "zongzi_red_bean",
+          "name": "豆沙粽",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "mooncake_mixed_nuts",
+          "name": "五仁月饼",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "mooncake_red_bean",
+          "name": "豆沙月饼",
+          "row": 2,
+          "column": 3
+        }
+      ],
+      "result": {
+        "id": "flare-foods",
+        "title": "六款节日食物 · flare 哑光卡通",
+        "serial": "2099865551990951936",
+        "status": 2,
+        "path": "output/imagegen/festival-food-matte-20260915/flare-foods-raw.png",
+        "model": "gpt-image-2.5-flare",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "3:2",
+        "format": "png",
+        "width": 1536,
+        "height": 1024,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1452893,
+        "sha256": "df873882475c81aa46775aeeed70877a6de716635418eb705423fa0731c5df33",
+        "postprocessing": "none",
+        "review": "not_selected_for_integration"
+      }
+    },
+    {
+      "id": "sunburst-ingredients",
+      "title": "七种节日食材 · sunburst 哑光卡通",
+      "model": "gpt-image-2.5-sunburst",
+      "comparisonGroup": "ingredients",
+      "aspectRatio": "1:1",
+      "columns": 3,
+      "rows": 3,
+      "promptPath": "docs/art/prompts/festival-food-20260915-ingredients-matte.txt",
+      "rawPath": "output/imagegen/festival-food-matte-20260915/sunburst-ingredients-raw.png",
+      "items": [
+        {
+          "id": "pork",
+          "name": "鲜猪肉",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "cabbage",
+          "name": "白菜",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "shiitake",
+          "name": "香菇",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "glutinous_rice",
+          "name": "糯米",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "braised_pork",
+          "name": "烧肉",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "red_bean_paste",
+          "name": "红豆沙",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "id": "mixed_nuts",
+          "name": "混合果仁",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "result": {
+        "id": "sunburst-ingredients",
+        "title": "七种节日食材 · sunburst 哑光卡通",
+        "serial": "2099865553660284928",
+        "status": 2,
+        "path": "output/imagegen/festival-food-matte-20260915/sunburst-ingredients-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "1:1",
+        "format": "png",
+        "width": 1280,
+        "height": 1280,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1427440,
+        "sha256": "c2ac1e2781f709a25432789476b5a9478be7f3143251b25884e0bda0942d4274",
+        "postprocessing": "none",
+        "review": "not_selected_for_integration"
+      }
+    },
+    {
+      "id": "flare-ingredients",
+      "title": "七种节日食材 · flare 哑光卡通",
+      "model": "gpt-image-2.5-flare",
+      "comparisonGroup": "ingredients",
+      "aspectRatio": "1:1",
+      "columns": 3,
+      "rows": 3,
+      "promptPath": "docs/art/prompts/festival-food-20260915-ingredients-matte.txt",
+      "rawPath": "output/imagegen/festival-food-matte-20260915/flare-ingredients-raw.png",
+      "items": [
+        {
+          "id": "pork",
+          "name": "鲜猪肉",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "cabbage",
+          "name": "白菜",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "shiitake",
+          "name": "香菇",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "glutinous_rice",
+          "name": "糯米",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "braised_pork",
+          "name": "烧肉",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "red_bean_paste",
+          "name": "红豆沙",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "id": "mixed_nuts",
+          "name": "混合果仁",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "result": {
+        "id": "flare-ingredients",
+        "title": "七种节日食材 · flare 哑光卡通",
+        "serial": "2099865555224760320",
+        "status": 2,
+        "path": "output/imagegen/festival-food-matte-20260915/flare-ingredients-raw.png",
+        "model": "gpt-image-2.5-flare",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "1:1",
+        "format": "png",
+        "width": 1280,
+        "height": 1280,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1362077,
+        "sha256": "26317f299d404bed044f008d5b91b9b2f919f1cc2b144474be7793e9b88611ee",
+        "postprocessing": "none",
+        "review": "not_selected_for_integration"
+      }
+    }
+  ]
+}

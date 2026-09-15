@@ -4,7 +4,7 @@ import { buyItem, getItemPurchaseQuote, useInventoryItem } from '../src/core/pet
 import { createBuiltinItemRegistry, getDailyShopDiscountInfo, getInventoryDefinitions, getShopDefinitions, inventoryItems } from '../src/core/items';
 import { achievementDefinitions, evaluateAchievementUnlocks } from '../src/core/achievements';
 import { buyKitchenEquipment, claimKitchenStarter, craftRecipe, getCraftLimit, getKitchenHeartReward, normalizeKitchenState, recordDishTaste } from '../src/core/kitchen';
-import { allDishes, getRecipe, getRecipeIngredientEntries, getRecipeIngredients, recipes } from '../src/core/kitchenRecipes';
+import { allDishes, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeIngredients, kitchenMaterials, recipes } from '../src/core/kitchenRecipes';
 import { abandonMiniGame, acknowledgeMiniGameResult, actMiniGame, bubbleHoldMs, bubbleSessionMs, buyBubbleWand, catchFlightMs, getCatchPetX, getMiniGameBaseHearts, normalizeMiniGameState, pauseMiniGame, resumeMiniGame, startMiniGame, unlockBallGame, type MiniGameAction } from '../src/core/miniGames';
 import { getMiniGameFeedback } from '../src/ui/play/miniGameFeedback';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActions, isCookingComplete } from '../src/ui/kitchen/cookingProcess';
@@ -135,6 +135,48 @@ const purchased = buyItem(base, 'rice', now);
 assert.equal(purchased.inventory.rice, 1);
 assert.equal(purchased.coins, base.coins - getItemPurchaseQuote(base, 'rice', 1, now).totalPrice, 'ingredient purchases honor the current daily discount catalogue');
 
+const festivalRecipeIds = ['dumplings_pork_cabbage', 'dumplings_vegetable', 'zongzi_braised_pork', 'zongzi_red_bean', 'mooncake_mixed_nuts', 'mooncake_red_bean'] as const;
+const ordinaryDay = new Date(2026, 6, 15, 12).getTime();
+for (const recipeId of festivalRecipeIds) {
+  const recipe = getRecipe(recipeId)!;
+  assert.ok(recipe, recipeId);
+  const dishId = getDishId(recipe);
+  let pet: PetState = { ...createDefaultPet(ordinaryDay), coins: 10000, inventory: {}, hunger: 5, mood: 5, energy: 5, isSleeping: false };
+  for (const { id, quantity } of getRecipeIngredientEntries(recipe)) {
+    const edible = id === 'braised_pork' || id === 'mixed_nuts';
+    const purchaseQuantity = 2 * quantity + (edible ? 1 : 0);
+    const quote = getItemPurchaseQuote(pet, id, purchaseQuantity, ordinaryDay);
+    const bought = buyItem(pet, id, ordinaryDay, { quantity: purchaseQuantity });
+    assert.equal(bought.inventory[id], purchaseQuantity, `${recipeId}: ingredients are purchasable outside festivals`);
+    assert.equal(pet.coins - bought.coins, quote.totalPrice);
+    const triedRaw = useInventoryItem(bought, id, ordinaryDay);
+    if (edible) {
+      assert.equal(triedRaw.inventory[id], bought.inventory[id]! - 1, 'eating and cooking share the same ingredient stock');
+      assert.ok(triedRaw.hunger > bought.hunger, 'edible ingredients restore hunger');
+      pet = triedRaw;
+    } else {
+      assert.equal(triedRaw.inventory[id], bought.inventory[id], 'dedicated raw materials are not directly edible');
+      pet = bought;
+    }
+  }
+  if (recipe.method === 'oven') {
+    assert.equal(craftRecipe(pet, recipeId, false, 2, `locked-${recipeId}`, ordinaryDay), pet, 'mooncakes still require an oven');
+    pet = { ...pet, kitchen: { ...pet.kitchen, equipment: [...pet.kitchen.equipment, 'oven'] } };
+  } else assert.deepEqual(getCookingActions(recipe.method, recipe.technique), ['add', 'simmer', 'serve']);
+  const made = craftRecipe(pet, recipeId, false, 2, `festival-${recipeId}`, ordinaryDay);
+  assert.deepEqual(made.inventory, { [dishId]: 2 }, 'one batch consumes every ingredient and creates the selected flavor');
+  assert.equal(made.kitchen.made[recipeId], 2);
+  const tasted = useInventoryItem(made, dishId, ordinaryDay, { actorId: actor });
+  assert.equal(tasted.inventory[dishId], 1);
+  assert.ok(tasted.hunger > made.hunger);
+  assert.equal(tasted.kitchen.tasted[actor]?.[dishId], ordinaryDay);
+  const reloaded = parseSaveFileText(createSaveFileText(tasted, null, ordinaryDay), ordinaryDay).pet;
+  assert.equal(reloaded.inventory[dishId], 1);
+  assert.equal(reloaded.kitchen.made[recipeId], 2);
+  assert.equal(reloaded.kitchen.tasted[actor]?.[dishId], ordinaryDay);
+  assert.ok(reloaded.companionMemories.entries.some(entry => entry.kind === 'first_taste' && entry.subject === dishId));
+}
+
 let catalogue = stocked();
 for (const recipe of recipes.filter((recipe) => recipe.method === 'pan' || recipe.method === 'mix')) catalogue = craftRecipe(catalogue, recipe.id, false, 1, `cook-${recipe.id}`, now);
 catalogue = buyKitchenEquipment(buyKitchenEquipment(catalogue, 'blender'), 'oven');
@@ -146,8 +188,8 @@ for (const { recipe, banana, id } of allDishes) {
   catalogue = craftRecipe(catalogue, recipe.id, banana, 1, `all-${id}`, now);
   catalogue = recordDishTaste(catalogue, id, actor, now);
 }
-assert.equal(Object.keys(catalogue.kitchen.made).length, 16);
-assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, 18);
+assert.equal(Object.keys(catalogue.kitchen.made).length, 22);
+assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, 24);
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'menu_page'));
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'fruit_comparison'));
 const registered = getInventoryDefinitions(createBuiltinItemRegistry(), catalogue.inventory);
@@ -377,16 +419,16 @@ assert.deepEqual(imported.miniGames.active?.flipped, [0]);
 assert.equal(imported.miniGames.active?.paused, true);
 assert.equal(imported.miniGames.active?.elapsedMs, 0);
 Math.random = originalRandom;
-console.log('Companion activities: cooking process, skill hearts, all 18 dishes, weighted ingredients, memories, three games, rewards, and save compatibility passed.');
+console.log('Companion activities: cooking process, skill hearts, all 24 dishes, year-round festival recipes, weighted ingredients, memories, three games, rewards, and save compatibility passed.');
 
 const storagePet = { ...stocked(), level: 20 };
 const storageRegistry = createBuiltinItemRegistry();
 const shopDefinitions = getShopDefinitions(storageRegistry);
 const ingredients = filterBrowseItems(shopDefinitions, 'ingredients');
 const food = filterBrowseItems(shopDefinitions, 'food');
-assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'tomato', 'greens', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'pig_trotter', 'emergency_biscuit', 'soda_biscuit_box'].sort());
-for (const id of ['rice', 'egg', 'flour', 'carrot', 'tomato', 'greens']) assert.ok(!food.some((item) => item.id === id), 'dedicated materials leave the food tab');
-for (const id of ['apple', 'banana', 'ad_milk', 'strawberry_milk', 'emergency_biscuit']) assert.equal(food.find((item) => item.id === id), ingredients.find((item) => item.id === id), 'both categories reference the same item');
+assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'tomato', 'greens', 'pork', 'cabbage', 'shiitake', 'glutinous_rice', 'braised_pork', 'red_bean_paste', 'mixed_nuts', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'pig_trotter', 'emergency_biscuit', 'soda_biscuit_box'].sort());
+for (const { id } of kitchenMaterials) assert.equal(food.some((item) => item.id === id), id === 'braised_pork' || id === 'mixed_nuts', 'only edible materials also appear in the food tab');
+for (const id of ['apple', 'banana', 'ad_milk', 'strawberry_milk', 'emergency_biscuit', 'braised_pork', 'mixed_nuts']) assert.equal(food.find((item) => item.id === id), ingredients.find((item) => item.id === id), 'both categories reference the same item');
 assert.equal(filterBrowseItems([...shopDefinitions, ...ingredients], 'all').length, shopDefinitions.length, 'All deduplicates shared ingredients');
 const futureMaterial = { ...shopDefinitions[0], id: 'sample:herb' as const, displayName: 'Herb', displaySummary: 'Fresh cooking LEAVES', tags: ['kitchen_material'], source: 'mod' as const };
 assert.equal(filterBrowseItems([futureMaterial], 'ingredients', ' leaves ')[0], futureMaterial, 'tagged future materials and case-insensitive description search work');
@@ -439,7 +481,7 @@ try {
   const noop = () => {};
   const kitchenHtml = renderToStaticMarkup(createElement(KitchenModal, { pet: catalogue, actorId: actor, portrait: assets.petStatusImages.content, workingPortrait: assets.petActivityImages.work_food, icons: assets.itemIcons, registry: createBuiltinItemRegistry(), recipeId: 'egg_rice', banana: false, quantity: 1, onRecipe: noop, onBanana: noop, onQuantity: noop, update: noop, onClose: noop, onShop: noop, onFeed: noop }));
   assert.ok(kitchenHtml.includes('id="kitchen-title"'));
-  assert.equal((kitchenHtml.match(/class="recipe-card/g) ?? []).length, 16);
+  assert.equal((kitchenHtml.match(/class="recipe-card/g) ?? []).length, 22);
   assert.ok(kitchenHtml.includes('白米饭') && kitchenHtml.includes('草莓饼干千层'));
   const cookingProps = { pet: catalogue, request: { id: 'render-cook', recipeId: 'egg_rice', banana: false, quantity: 1 }, portrait: assets.petActivityImages.work_food, icons: assets.itemIcons, update: noop, onBack: noop, onFeed: noop };
   for (const recipe of recipes) {
@@ -447,6 +489,10 @@ try {
     assert.ok(cookingHtml.includes('id="cooking-title"') && !cookingHtml.includes('id="kitchen-title"'));
     assert.ok(cookingHtml.includes(`cooking-method--${recipe.method}`));
     assert.ok(!cookingHtml.includes('src="undefined"') && !cookingHtml.includes('cooking-reward-hearts'));
+    for (const id of [getDishId(recipe), ...getRecipeIngredients(recipe)]) {
+      assert.ok(assets.itemIcons[id], `${id}: item art is registered`);
+      assert.ok(cookingHtml.includes(assets.itemIcons[id]), `${id}: the cooking screen renders its item art`);
+    }
   }
   const cookingResultHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, pet: cooked, request: { ...cookingProps.request, id: 'first' } }));
   assert.ok(cookingResultHtml.includes('一起做好啦') && cookingResultHtml.includes('料理 Lv.1 +0'));
@@ -515,7 +561,7 @@ try {
   assert.ok(tiles.length > 1);
   assert.equal(tiles.filter((tile) => tile.includes('data-tone=')).length, 1, 'category color is assigned only to the selected tile');
   assert.ok(tiles.find((tile) => tile.includes('data-tone='))?.includes('aria-pressed="true"'));
-  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, 15);
+  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, 22);
   assert.ok(!shopHtml.includes('storage-detail') && !shopHtml.includes('storage-exchange') && !shopHtml.includes('data-buy-item='));
   assert.ok(tiles.every((tile) => tile.includes('aria-haspopup="dialog"') && tile.includes('aria-expanded="false"')));
   assert.ok(!inventoryHtml.includes('storage-detail') && !inventoryHtml.includes('data-use-item='));
@@ -528,6 +574,10 @@ try {
   assert.ok(inventoryActions.includes('喂食 ×5') && inventoryActions.includes('留着做菜'));
   const rawMaterialHtml = renderStorageActions(InventoryModal, { ...inventoryProps, browse: { ...defaultBrowse, category: 'ingredients', selectedId: 'rice' } });
   assert.ok(rawMaterialHtml.includes('去厨房') && !rawMaterialHtml.includes('data-use-item="rice"'));
+  for (const id of ['braised_pork', 'mixed_nuts']) {
+    const edibleMaterialHtml = renderStorageActions(InventoryModal, { ...inventoryProps, browse: { ...defaultBrowse, category: 'ingredients', selectedId: id, quantity: 2 } });
+    assert.ok(edibleMaterialHtml.includes(`data-use-item="${id}"`) && edibleMaterialHtml.includes('喂食 ×2') && edibleMaterialHtml.includes('留着做菜'));
+  }
   const busyHtml = renderStorageActions(InventoryModal, { ...inventoryProps, isPetBusy: true });
   assert.ok(busyHtml.includes('data-use-item="apple" disabled=""'));
   const emptyHtml = renderToStaticMarkup(createElement(InventoryModal, { ...inventoryProps, pet: { ...storagePet, inventory: {} }, items: [] }));

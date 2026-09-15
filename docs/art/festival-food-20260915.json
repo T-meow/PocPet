@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "channel": "mxai",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "medium",
+  "resolution": "1K",
+  "status": "food_and_ingredients_adopted_cg_pending_review",
+  "reviewWorkflow": "originals_only_until_explicit_user_approval",
+  "referenceImages": [],
+  "designCount": 14,
+  "rawImageCount": 3,
+  "sheets": [
+    {
+      "id": "foods",
+      "title": "六款节日食物",
+      "aspectRatio": "3:2",
+      "columns": 3,
+      "rows": 2,
+      "promptPath": "docs/art/prompts/festival-food-20260915-foods.txt",
+      "rawPath": "output/imagegen/festival-food-20260915/foods-raw.png",
+      "items": [
+        {
+          "id": "dumplings_pork_cabbage",
+          "name": "白菜猪肉饺",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "dumplings_vegetable",
+          "name": "香菇蔬菜素饺",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "zongzi_braised_pork",
+          "name": "烧肉粽",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "zongzi_red_bean",
+          "name": "豆沙粽",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "mooncake_mixed_nuts",
+          "name": "五仁月饼",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "mooncake_red_bean",
+          "name": "豆沙月饼",
+          "row": 2,
+          "column": 3
+        }
+      ],
+      "result": {
+        "id": "foods",
+        "title": "六款节日食物",
+        "serial": "2099862378706374656",
+        "status": 2,
+        "path": "output/imagegen/festival-food-20260915/foods-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "3:2",
+        "format": "png",
+        "width": 1536,
+        "height": 1024,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1763743,
+        "sha256": "052dc602411d0d76e7ae548f19150eb50d006a39fc80b5558a7dbc02cae67355",
+        "postprocessing": "none",
+        "review": "selected_by_user_for_game_integration"
+      },
+      "adoptionManifest": "docs/art/festival-food-adoption-20260915.json"
+    },
+    {
+      "id": "ingredients",
+      "title": "七种节日食材",
+      "aspectRatio": "1:1",
+      "columns": 3,
+      "rows": 3,
+      "promptPath": "docs/art/prompts/festival-food-20260915-ingredients.txt",
+      "rawPath": "output/imagegen/festival-food-20260915/ingredients-raw.png",
+      "items": [
+        {
+          "id": "pork",
+          "name": "鲜猪肉",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "id": "cabbage",
+          "name": "白菜",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "id": "shiitake",
+          "name": "香菇",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "id": "glutinous_rice",
+          "name": "糯米",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "id": "braised_pork",
+          "name": "烧肉",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "id": "red_bean_paste",
+          "name": "红豆沙",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "id": "mixed_nuts",
+          "name": "混合果仁",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "result": {
+        "id": "ingredients",
+        "title": "七种节日食材",
+        "serial": "2099862380618977280",
+        "status": 2,
+        "path": "output/imagegen/festival-food-20260915/ingredients-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "1:1",
+        "format": "png",
+        "width": 1280,
+        "height": 1280,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1555215,
+        "sha256": "2b2bed37931c1c18aad77459651c4ade57271905204b3c3151f879aadf0e7714",
+        "postprocessing": "none",
+        "review": "adopted_to_match_selected_first_round_food_style"
+      },
+      "adoptionManifest": "docs/art/festival-food-adoption-20260915.json"
+    },
+    {
+      "id": "midautumn-cg",
+      "title": "中秋通用 CG：把月光留一份",
+      "aspectRatio": "16:9",
+      "promptPath": "docs/art/prompts/festival-food-20260915-midautumn-cg.txt",
+      "rawPath": "output/imagegen/festival-food-20260915/midautumn-cg-raw.png",
+      "characterFree": true,
+      "result": {
+        "id": "midautumn-cg",
+        "title": "中秋通用 CG：把月光留一份",
+        "serial": "2099862382246367232",
+        "status": 2,
+        "path": "output/imagegen/festival-food-20260915/midautumn-cg-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "16:9",
+        "format": "png",
+        "width": 1920,
+        "height": 1088,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 2695656,
+        "sha256": "36ce110dee2575502609bf19a3b3e48e5f4f212a6ed084ff22241371f5efba38",
+        "postprocessing": "none",
+        "review": "pending_user_review"
+      }
+    }
+  ]
+}

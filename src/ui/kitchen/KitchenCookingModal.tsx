@@ -60,7 +60,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   const ingredients = getRecipeIngredients(recipe, request.banana);
   const baseTotal = result?.baseHearts;
   const skillTotal = result?.skillHearts;
-  return <DialogShell className="activity-modal cooking-modal" labelId="cooking-title" onClose={back}>
+  return <DialogShell className="activity-modal cooking-modal" backdropClassName="activity-backdrop" labelId="cooking-title" onClose={back}>
     <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><div><small>MADE WITH LOVE</small><h2 id="cooking-title">{result ? L('一起做好啦', 'Freshly made together') : L('亲手做一道小料理', 'A little hands-on cooking')}</h2></div></div><button className="icon-button" onClick={back} aria-label={L('返回食谱', 'Back to recipes')}><X /></button></header>
     <div className="cooking-body">{result ? <section className="cooking-reward" aria-live="polite">
       <DishArtwork id={result.dishId} image={icons[result.dishId] ?? unknownItemIcon} plating={pet.kitchen.plating} className="cooking-finished-dish" />

@@ -1,0 +1,917 @@
+{
+  "schemaVersion": 1,
+  "status": "adopted",
+  "approvedFoodSource": "output/imagegen/festival-food-20260915/foods-raw.png",
+  "ingredientChoice": "matching_first_round_style",
+  "processing": {
+    "background": "four-neighbor edge-connected white only",
+    "minimumWhite": 238,
+    "maximumColorSpread": 24,
+    "edgeRefinement": "exterior-only white matte correction against nearby dark outline",
+    "kernel": "lanczos3",
+    "masterSize": 256,
+    "masterLongestSide": 184,
+    "runtimeSize": 128
+  },
+  "sheets": [
+    {
+      "id": "foods",
+      "source": "output/imagegen/festival-food-20260915/foods-raw.png",
+      "sourceSha256": "052dc602411d0d76e7ae548f19150eb50d006a39fc80b5558a7dbc02cae67355",
+      "width": 1536,
+      "height": 1024,
+      "cuts": {
+        "rows": [
+          0,
+          494,
+          1024
+        ],
+        "columnsByRow": [
+          [
+            0,
+            512,
+            1024,
+            1536
+          ],
+          [
+            0,
+            512,
+            1024,
+            1536
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ingredients",
+      "source": "output/imagegen/festival-food-20260915/ingredients-raw.png",
+      "sourceSha256": "2b2bed37931c1c18aad77459651c4ade57271905204b3c3151f879aadf0e7714",
+      "width": 1280,
+      "height": 1280,
+      "cuts": {
+        "rows": [
+          0,
+          428,
+          848,
+          1280
+        ],
+        "columnsByRow": [
+          [
+            0,
+            452,
+            837,
+            1280
+          ],
+          [
+            0,
+            423,
+            858,
+            1280
+          ],
+          [
+            0,
+            446,
+            854,
+            1280
+          ]
+        ]
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "dish_dumplings_pork_cabbage",
+      "name": "白菜猪肉饺",
+      "sheet": "foods",
+      "row": 1,
+      "column": 1,
+      "sourceRect": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 494
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          88,
+          496,
+          437
+        ],
+        "pixels": 125131,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 127797,
+        "unmattedPixels": 825
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_dumplings_pork_cabbage.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 52750,
+        "sha256": "1b11a3a912c6b1ffccebf577e902454472db29880f32e1ccfcb12ad2a5623f0e",
+        "bounds": [
+          36,
+          61,
+          220,
+          195
+        ],
+        "pixels": 18996,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_dumplings_pork_cabbage.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 15497,
+        "sha256": "e62aa7718022c2c02ff6cbd2a9631a7f7097bfc044400e1157a11f9430b46791",
+        "bounds": [
+          15,
+          28,
+          113,
+          100
+        ],
+        "pixels": 4995,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_dumplings_pork_cabbage.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "25.78%"
+      },
+      "adoptedSha256": "e62aa7718022c2c02ff6cbd2a9631a7f7097bfc044400e1157a11f9430b46791"
+    },
+    {
+      "id": "dish_dumplings_vegetable",
+      "name": "香菇蔬菜素饺",
+      "sheet": "foods",
+      "row": 1,
+      "column": 2,
+      "sourceRect": {
+        "left": 512,
+        "top": 0,
+        "width": 512,
+        "height": 494
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          88,
+          496,
+          437
+        ],
+        "pixels": 125093,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 127835,
+        "unmattedPixels": 813
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_dumplings_vegetable.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 52758,
+        "sha256": "151997595ff79cf89571553a969e27e9999082b98181dd9e341dd4843cd73a0d",
+        "bounds": [
+          36,
+          61,
+          220,
+          195
+        ],
+        "pixels": 18994,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_dumplings_vegetable.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 15491,
+        "sha256": "c2f6266d3ec167e939b3f9638f9ae05f93376ee4868e466f5321b09caaac35c1",
+        "bounds": [
+          15,
+          28,
+          113,
+          100
+        ],
+        "pixels": 4993,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_dumplings_vegetable.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "25.78%"
+      },
+      "adoptedSha256": "c2f6266d3ec167e939b3f9638f9ae05f93376ee4868e466f5321b09caaac35c1"
+    },
+    {
+      "id": "dish_zongzi_braised_pork",
+      "name": "烧肉粽",
+      "sheet": "foods",
+      "row": 1,
+      "column": 3,
+      "sourceRect": {
+        "left": 1024,
+        "top": 0,
+        "width": 512,
+        "height": 494
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          44,
+          496,
+          437
+        ],
+        "pixels": 127393,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 125535,
+        "unmattedPixels": 854
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_zongzi_braised_pork.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 61120,
+        "sha256": "f9f67eb72b542dc0acfa510a700cd7d8228c046d28e19e2ef49821e7dacffa32",
+        "bounds": [
+          36,
+          52,
+          220,
+          203
+        ],
+        "pixels": 19363,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_zongzi_braised_pork.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 17296,
+        "sha256": "bb3997271154fd619c1aceb0a6dbeb4b50034722fa06651f11c020e0c3afa5c8",
+        "bounds": [
+          15,
+          23,
+          113,
+          104
+        ],
+        "pixels": 5089,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_zongzi_braised_pork.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "22.66%"
+      },
+      "adoptedSha256": "bb3997271154fd619c1aceb0a6dbeb4b50034722fa06651f11c020e0c3afa5c8"
+    },
+    {
+      "id": "dish_zongzi_red_bean",
+      "name": "豆沙粽",
+      "sheet": "foods",
+      "row": 2,
+      "column": 1,
+      "sourceRect": {
+        "left": 0,
+        "top": 494,
+        "width": 512,
+        "height": 530
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          58,
+          496,
+          452
+        ],
+        "pixels": 127508,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 143852,
+        "unmattedPixels": 865
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_zongzi_red_bean.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 59681,
+        "sha256": "6ba54c2a34e93d176ddeba236596c727c99927d2ffc791f091ae2b39d9a507be",
+        "bounds": [
+          36,
+          52,
+          220,
+          203
+        ],
+        "pixels": 19353,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_zongzi_red_bean.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 17217,
+        "sha256": "f754daeef090b233f3db29ae77432fe3b193e82c5b4bd931280dfb9e6b7d443b",
+        "bounds": [
+          15,
+          23,
+          113,
+          104
+        ],
+        "pixels": 5087,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_zongzi_red_bean.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "22.66%"
+      },
+      "adoptedSha256": "f754daeef090b233f3db29ae77432fe3b193e82c5b4bd931280dfb9e6b7d443b"
+    },
+    {
+      "id": "dish_mooncake_mixed_nuts",
+      "name": "五仁月饼",
+      "sheet": "foods",
+      "row": 2,
+      "column": 2,
+      "sourceRect": {
+        "left": 512,
+        "top": 494,
+        "width": 512,
+        "height": 530
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          91,
+          496,
+          452
+        ],
+        "pixels": 132045,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 139315,
+        "unmattedPixels": 880
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_mooncake_mixed_nuts.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 60868,
+        "sha256": "ee112a68bbc8d4134bd28bf862841e3dd4eace587b843f9664ffe2b49564e682",
+        "bounds": [
+          36,
+          59,
+          220,
+          197
+        ],
+        "pixels": 20001,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_mooncake_mixed_nuts.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 17373,
+        "sha256": "f4ac132e8bfebf62ae3b57cf9b96ca37988b5fd12a31d80b4cad1cef334962f0",
+        "bounds": [
+          15,
+          27,
+          113,
+          101
+        ],
+        "pixels": 5260,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_mooncake_mixed_nuts.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "25.00%"
+      },
+      "adoptedSha256": "f4ac132e8bfebf62ae3b57cf9b96ca37988b5fd12a31d80b4cad1cef334962f0"
+    },
+    {
+      "id": "dish_mooncake_red_bean",
+      "name": "豆沙月饼",
+      "sheet": "foods",
+      "row": 2,
+      "column": 3,
+      "sourceRect": {
+        "left": 1024,
+        "top": 494,
+        "width": 512,
+        "height": 530
+      },
+      "cutout": {
+        "bounds": [
+          16,
+          91,
+          496,
+          452
+        ],
+        "pixels": 131965,
+        "edgePixels": 0,
+        "minMargin": 16,
+        "removedBackgroundPixels": 139395,
+        "unmattedPixels": 869
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_dish_mooncake_red_bean.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 59415,
+        "sha256": "52cc7ca8e0b4897f39d6d239d0697c268291a2d712be536feae2866de6d2103f",
+        "bounds": [
+          36,
+          59,
+          220,
+          197
+        ],
+        "pixels": 19985,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_dish_mooncake_red_bean.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 17147,
+        "sha256": "34ff6c8f190db6d4d9458bf14f5159ccf0825587c560496eadbb0737a2ffbc3b",
+        "bounds": [
+          15,
+          27,
+          113,
+          101
+        ],
+        "pixels": 5262,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_dish_mooncake_red_bean.png",
+      "previousSha256": null,
+      "presentation": {
+        "container": "fixed_plate",
+        "rimBottom": "25.00%"
+      },
+      "adoptedSha256": "34ff6c8f190db6d4d9458bf14f5159ccf0825587c560496eadbb0737a2ffbc3b"
+    },
+    {
+      "id": "pork",
+      "name": "鲜猪肉",
+      "sheet": "ingredients",
+      "row": 1,
+      "column": 1,
+      "sourceRect": {
+        "left": 0,
+        "top": 0,
+        "width": 452,
+        "height": 428
+      },
+      "cutout": {
+        "bounds": [
+          37,
+          93,
+          412,
+          371
+        ],
+        "pixels": 78220,
+        "edgePixels": 0,
+        "minMargin": 37,
+        "removedBackgroundPixels": 115236,
+        "unmattedPixels": 653
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_pork.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 55101,
+        "sha256": "1fa8680146f1625fc6d90f1a98c7d975c82bb9b1134f0be4901a137f3315309d",
+        "bounds": [
+          36,
+          60,
+          220,
+          196
+        ],
+        "pixels": 19482,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_pork.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 16198,
+        "sha256": "0787f343fb443f468a426601d417bed7a802e503fc974254e80bec3528f39552",
+        "bounds": [
+          15,
+          27,
+          113,
+          101
+        ],
+        "pixels": 5125,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_pork.png",
+      "previousSha256": null,
+      "adoptedSha256": "0787f343fb443f468a426601d417bed7a802e503fc974254e80bec3528f39552"
+    },
+    {
+      "id": "cabbage",
+      "name": "白菜",
+      "sheet": "ingredients",
+      "row": 1,
+      "column": 2,
+      "sourceRect": {
+        "left": 452,
+        "top": 0,
+        "width": 385,
+        "height": 428
+      },
+      "cutout": {
+        "bounds": [
+          44,
+          47,
+          335,
+          396
+        ],
+        "pixels": 77927,
+        "edgePixels": 0,
+        "minMargin": 32,
+        "removedBackgroundPixels": 86853,
+        "unmattedPixels": 673
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_cabbage.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 65797,
+        "sha256": "9f2698bc9e8cdb729a369adc2d682650d938294792bb6c5a3fa6d10875800666",
+        "bounds": [
+          51,
+          36,
+          204,
+          220
+        ],
+        "pixels": 22308,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_cabbage.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 19055,
+        "sha256": "54f5f4a891608a2a14794d1268f62286bbf5931a54988f4f12f3b13bd5e9d37f",
+        "bounds": [
+          23,
+          15,
+          105,
+          113
+        ],
+        "pixels": 5852,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_cabbage.png",
+      "previousSha256": null,
+      "adoptedSha256": "54f5f4a891608a2a14794d1268f62286bbf5931a54988f4f12f3b13bd5e9d37f"
+    },
+    {
+      "id": "shiitake",
+      "name": "香菇",
+      "sheet": "ingredients",
+      "row": 1,
+      "column": 3,
+      "sourceRect": {
+        "left": 837,
+        "top": 0,
+        "width": 443,
+        "height": 428
+      },
+      "cutout": {
+        "bounds": [
+          48,
+          109,
+          408,
+          368
+        ],
+        "pixels": 65521,
+        "edgePixels": 0,
+        "minMargin": 35,
+        "removedBackgroundPixels": 124083,
+        "unmattedPixels": 603
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_shiitake.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 48779,
+        "sha256": "0418cfcca0ec7ea89ddadee37f0a080e2e10fa4b67598cdeda533ba1c3a4d0f6",
+        "bounds": [
+          36,
+          62,
+          220,
+          194
+        ],
+        "pixels": 17741,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_shiitake.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 14796,
+        "sha256": "4395e2c78f420837f6c029a40cdf0670a1667c80a336f4510e2aa53e8f720269",
+        "bounds": [
+          15,
+          28,
+          113,
+          100
+        ],
+        "pixels": 4682,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_shiitake.png",
+      "previousSha256": null,
+      "adoptedSha256": "4395e2c78f420837f6c029a40cdf0670a1667c80a336f4510e2aa53e8f720269"
+    },
+    {
+      "id": "glutinous_rice",
+      "name": "糯米",
+      "sheet": "ingredients",
+      "row": 2,
+      "column": 1,
+      "sourceRect": {
+        "left": 0,
+        "top": 428,
+        "width": 423,
+        "height": 420
+      },
+      "cutout": {
+        "bounds": [
+          40,
+          33,
+          396,
+          373
+        ],
+        "pixels": 90945,
+        "edgePixels": 0,
+        "minMargin": 27,
+        "removedBackgroundPixels": 86715,
+        "unmattedPixels": 760
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_glutinous_rice.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 60831,
+        "sha256": "409238ee315d52292d374d01a52ed34de600028d86d304bf498bd03ebe44fbb1",
+        "bounds": [
+          36,
+          40,
+          220,
+          216
+        ],
+        "pixels": 25127,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_glutinous_rice.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 18218,
+        "sha256": "46dbd10c8aee7ea2643e15ca01516bf73db8a2a8b4ec657c231c3108f78f1836",
+        "bounds": [
+          15,
+          17,
+          113,
+          110
+        ],
+        "pixels": 6550,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_glutinous_rice.png",
+      "previousSha256": null,
+      "adoptedSha256": "46dbd10c8aee7ea2643e15ca01516bf73db8a2a8b4ec657c231c3108f78f1836"
+    },
+    {
+      "id": "braised_pork",
+      "name": "烧肉",
+      "sheet": "ingredients",
+      "row": 2,
+      "column": 2,
+      "sourceRect": {
+        "left": 423,
+        "top": 428,
+        "width": 435,
+        "height": 420
+      },
+      "cutout": {
+        "bounds": [
+          27,
+          56,
+          408,
+          348
+        ],
+        "pixels": 83511,
+        "edgePixels": 0,
+        "minMargin": 27,
+        "removedBackgroundPixels": 99189,
+        "unmattedPixels": 655
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_braised_pork.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 63875,
+        "sha256": "97289c56ec4fa379a91d6c9be2558673861f7edd68a82cc27ffd5331509fa0f0",
+        "bounds": [
+          36,
+          57,
+          220,
+          198
+        ],
+        "pixels": 20095,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_braised_pork.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 18080,
+        "sha256": "0edb374b8fb6ddacdafaae28a984e5bb12e8dafe7f22b083a532997120988f8b",
+        "bounds": [
+          15,
+          26,
+          113,
+          102
+        ],
+        "pixels": 5265,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_braised_pork.png",
+      "previousSha256": null,
+      "adoptedSha256": "0edb374b8fb6ddacdafaae28a984e5bb12e8dafe7f22b083a532997120988f8b"
+    },
+    {
+      "id": "red_bean_paste",
+      "name": "红豆沙",
+      "sheet": "ingredients",
+      "row": 2,
+      "column": 3,
+      "sourceRect": {
+        "left": 858,
+        "top": 428,
+        "width": 422,
+        "height": 420
+      },
+      "cutout": {
+        "bounds": [
+          27,
+          50,
+          378,
+          367
+        ],
+        "pixels": 85224,
+        "edgePixels": 0,
+        "minMargin": 27,
+        "removedBackgroundPixels": 92016,
+        "unmattedPixels": 792
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_red_bean_paste.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 64052,
+        "sha256": "da930b55f2e954c43c01277a03fdf8a884542251e233e96df05da5df92fa728d",
+        "bounds": [
+          36,
+          45,
+          220,
+          211
+        ],
+        "pixels": 24198,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_red_bean_paste.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 19623,
+        "sha256": "ac99371ac9489af51755075fe44c1ed9c8389f1d99b039b8c7b4506116b39b37",
+        "bounds": [
+          15,
+          20,
+          113,
+          108
+        ],
+        "pixels": 6325,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_red_bean_paste.png",
+      "previousSha256": null,
+      "adoptedSha256": "ac99371ac9489af51755075fe44c1ed9c8389f1d99b039b8c7b4506116b39b37"
+    },
+    {
+      "id": "mixed_nuts",
+      "name": "混合果仁",
+      "sheet": "ingredients",
+      "row": 3,
+      "column": 1,
+      "sourceRect": {
+        "left": 0,
+        "top": 848,
+        "width": 446,
+        "height": 432
+      },
+      "cutout": {
+        "bounds": [
+          34,
+          47,
+          401,
+          342
+        ],
+        "pixels": 85678,
+        "edgePixels": 0,
+        "minMargin": 34,
+        "removedBackgroundPixels": 106994,
+        "unmattedPixels": 632
+      },
+      "master": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/masters/item_mixed_nuts.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 68935,
+        "sha256": "bd713bbdd99960b0202728b5b43c5edfbe8779268768980cbfd6004548cb90a8",
+        "bounds": [
+          36,
+          54,
+          220,
+          202
+        ],
+        "pixels": 22135,
+        "edgePixels": 0,
+        "minMargin": 36
+      },
+      "runtime": {
+        "path": "output/imagegen/festival-food-20260915/adoption/refined/runtime/item_mixed_nuts.png",
+        "width": 128,
+        "height": 128,
+        "bytes": 19440,
+        "sha256": "fb30ff6f6dda2fe717208933da39943680c80625fedaa21c7201a8de32db249b",
+        "bounds": [
+          15,
+          24,
+          113,
+          103
+        ],
+        "pixels": 5787,
+        "edgePixels": 0,
+        "minMargin": 15
+      },
+      "target": "src/assets/icon/item_mixed_nuts.png",
+      "previousSha256": null,
+      "adoptedSha256": "fb30ff6f6dda2fe717208933da39943680c80625fedaa21c7201a8de32db249b"
+    }
+  ],
+  "adoptedAt": "2026-09-15T14:41:14.601Z",
+  "baselineCommit": "e1845a5205544a12ff4a64f78dacf73053292ba5",
+  "validation": {
+    "typescript": "tsc --noEmit passed",
+    "companionActivities": "check:companion-activities passed, including all 24 dishes and 6 new recipes: purchase/craft/feed/save/load/SSR",
+    "itemBalance": "check:item-balance passed",
+    "visual": "PNG previews inspected on light/dark backgrounds at 256/128/64/48 px; white interiors preserved",
+    "livePreview": {
+      "base": "http://127.0.0.1:5173",
+      "project": "pocpet",
+      "version": "1.8.5",
+      "liveRecipes": 6,
+      "verifiedLiveIcons": 13,
+      "imagesMatchWorkspace": true
+    },
+    "inGameManualReview": "available_for_user_review; no Computer Use or player-save edits"
+  }
+}

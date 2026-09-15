@@ -1274,6 +1274,7 @@
 }
 
 .ui-v2-app .storage-modal {
+  max-height: 780px;
   background: #fff;
   color: #28364a;
   border-color: #dce4ed;
@@ -1319,16 +1320,21 @@
 }
 
 .storage-modal .storage-tile-picture {
+  position: relative;
   flex: none;
   width: 100%;
-  aspect-ratio: 1;
+  height: 0;
+  aspect-ratio: auto;
   box-sizing: border-box;
-  padding: .5em;
+  padding: 100% 0 0;
 }
 
 .storage-modal .storage-tile-picture img {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: .5em;
+  left: .5em;
+  width: calc(100% - 1em);
+  height: calc(100% - 1em);
   max-height: none;
 }
 
@@ -1362,11 +1368,16 @@
 }
 
 .storage-tile-tags {
+  position: absolute;
+  top: 26px;
+  left: .5em;
+  right: .5em;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
-  align-self: stretch;
-  margin: 26px .5em 0;
+  margin: 0;
   gap: 3px;
+  pointer-events: none;
 }
 
 .storage-tile-tag {
@@ -2294,6 +2305,12 @@
   padding: 14px 0;
 }
 
+/* 覆盖通用 dialog-shell 的 dvh 限高，兼容较旧的内嵌浏览器。 */
+.ui-v2-app .activity-modal {
+  max-height: 100%;
+  max-height: min(100%, 960px);
+}
+
 .activity-modal .activity-body {
   background: #f9fbfd;
 }
@@ -2306,7 +2323,7 @@
 .ui-v2-app .storage-modal.storage-item-modal {
   width: min(560px,100%);
   height: auto;
-  max-height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
+  max-height: 100%;
 }
 .storage-item-header {
   display: flex;
@@ -2327,6 +2344,8 @@
   border: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 .storage-item-modal .storage-detail-copy { flex: none; overflow: visible; }
 .storage-item-modal .storage-detail-actions { border-left: 0; border-top: 1px solid var(--storage-line); overflow: visible; }
@@ -2980,19 +2999,18 @@
 @media (max-width:767px) {
   .ui-v2-app .storage-modal {
     width: 100%;
-    height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
-    max-height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
+    height: 100%;
+    max-height: 100%;
   }
   .ui-v2-app .storage-body {
     display: flex;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
   }
   .storage-modal .storage-grid-scroll {
     min-height: 0;
   }
-  .storage-modal .storage-item-grid {
+  .ui-v2-app .storage-modal .storage-item-grid {
     grid-template-columns: repeat(3,minmax(0,1fr));
   }
   .storage-detail .storage-detail-actions {
@@ -3005,6 +3023,12 @@
   }
   .storage-detail .storage-quantity-row {
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width:359px) {
+  .ui-v2-app .storage-modal .storage-item-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
   }
 }
 

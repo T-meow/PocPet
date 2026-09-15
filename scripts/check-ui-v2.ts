@@ -363,7 +363,7 @@ for (const mode of ['development', 'toy']) {
       assert.equal((exhaustedHtml.match(/data-state="completed"/g) ?? []).length, 4);
       const poorHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: { ...servicePet, hearts: 0 } });
       assert.ok(/community-refresh" disabled=""/.test(poorHtml) && poorHtml.includes('community-refresh-hint'));
-      for (const page of ['main', 'appearance', 'mod', 'save', 'share', 'updates', 'help']) {
+      for (const page of ['main', 'appearance', 'mod', 'save', 'share', 'updates', 'help', 'acknowledgements']) {
         const html = render(settings.SettingsModal, { ...settingsProps, initialPage: page, language });
         assert.ok(html.includes('class="settings-page"') && !html.includes('role="dialog"'));
         assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
@@ -441,7 +441,7 @@ for (const [width, height] of [[360, 640], [390, 844], [768, 1024], [1024, 768],
   assert.equal(property('.community-offers', 'grid-template-columns', width, height), width >= 600 ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)');
   assert.equal(property('.gacha-supply-layout', 'grid-template-columns', width, height), width > 820 ? 'minmax(0, 1.05fr) minmax(0, 1fr)' : 'minmax(0, 1fr)');
   assert.equal(property('.gacha-supply-modal .gacha-results', 'grid-template-columns', width, height), `repeat(${width <= 600 ? 2 : width <= 1000 ? 3 : 5}, minmax(0, 1fr))`);
-  if (width <= 767) assert.equal(property('.ui-v2-app .storage-body', 'overflow-y', width, height), 'auto');
+  if (width <= 767) assert.equal(property('.ui-v2-app .storage-body', 'overflow', width, height), 'hidden');
 }
 css.walkDecls((decl) => assert.ok(!/var\(--notice-/.test(decl.value), 'notifications must not reserve page or dialog height'));
 console.log('UI v2 CSS contracts: five requested viewports, fixed message height, neutral tiles, plot columns and scrollable mobile actions passed (no browser visual automation).');

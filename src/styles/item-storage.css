@@ -1,5 +1,7 @@
 /* v2 物品目录：颜色仅作用于主界面的商店／背包弹窗。 */
-.storage-modal { --storage-ink: #a46c46; --storage-soft: #fff7ef; --storage-selected: #fbe9d9; --storage-line: #ead5c2; --storage-muted: #82776b; width: min(1000px, calc(100vw - 32px)); max-width: 1000px; height: min(780px, calc(100vh - 36px)); height: min(780px, calc(100dvh - 36px)); max-height: calc(100dvh - 36px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #eee5d8; border-radius: 24px; background: #fffdf9; color: #514a42; }
+/* fixed 遮罩的 inset 确定可用高度，目录与详情均在容器内部滚动。 */
+.modal-backdrop.storage-backdrop { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.storage-modal { --storage-ink: #a46c46; --storage-soft: #fff7ef; --storage-selected: #fbe9d9; --storage-line: #ead5c2; --storage-muted: #82776b; width: min(1000px, calc(100vw - 32px)); max-width: 1000px; height: 100%; max-height: 780px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #eee5d8; border-radius: 24px; background: #fffdf9; color: #514a42; }
 .storage-modal--bag { --storage-ink: #907438; --storage-soft: #fffbeb; --storage-selected: #f8edc7; --storage-line: #e6d9af; }
 .storage-modal [data-tone="peach"] { --storage-ink: #a46c46; --storage-soft: #fff7ef; --storage-selected: #fbe9d9; --storage-line: #ead5c2; }
 .storage-modal [data-tone="mint"] { --storage-ink: #487c5e; --storage-soft: #f2f9f1; --storage-selected: #e1efdd; --storage-line: #cbdfc6; }
@@ -26,8 +28,8 @@
 .storage-stat i { display: block; height: 4px; margin-top: 6px; background: #ece9df; border-radius: 6px; overflow: hidden; }
 .storage-stat b { display: block; height: 100%; background: currentColor; border-radius: inherit; }
 .storage-stat--mood { color: #bd7b94; }.storage-stat--cleanliness { color: #6e9fb4; }.storage-stat--energy { color: #b39546; }.storage-stat--health { color: #79a280; }
-.storage-body { display: grid; grid-template-columns: minmax(0,1fr); min-height: 0; flex: 1; }
-.storage-catalogue { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 18px 20px 14px; }
+.storage-body { display: grid; grid-template-columns: minmax(0,1fr); min-height: 0; flex: 1; overflow: hidden; }
+.storage-catalogue { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 18px 20px 14px; overflow: hidden; }
 .storage-tools { display: flex; flex-direction: column; gap: 11px; padding-bottom: 14px; flex-shrink: 0; }
 .storage-tabs { display: flex; gap: 3px; flex-wrap: wrap; }
 .storage-tabs button { display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 8px 9px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--storage-muted); font-size: 12px; white-space: nowrap; }
@@ -36,7 +38,7 @@
 .storage-search { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 39px; padding: 7px 10px; border: 1px solid #e7e3d8; background: #faf9f4; border-radius: 10px; color: var(--storage-muted); }
 .storage-search input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 12px; color: inherit; }
 .storage-search button { display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: inherit; }
-.storage-grid-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ddd5c6 transparent; padding: 3px 3px 14px; }
+.storage-grid-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: #ddd5c6 transparent; padding: 3px 3px 14px; }
 .storage-item-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; align-content: start; }
 .storage-item-tile { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; aspect-ratio: 1 / 1.12; padding: 8px; border: 1.5px solid var(--storage-line); border-radius: 14px; background: var(--storage-soft); color: #615447; }
 .storage-item-tile:hover { background: var(--storage-selected); }
@@ -90,7 +92,7 @@
 }
 @media (max-width: 767px) {
   .modal-backdrop.storage-backdrop { padding: 8px; }
-  .storage-modal { width: 100%; height: calc(100vh - 16px); height: calc(100dvh - 16px - env(safe-area-inset-top,0px)); max-height: calc(100dvh - 16px - env(safe-area-inset-top,0px)); border-radius: 18px; }
+  .storage-modal { width: 100%; height: 100%; max-height: 100%; border-radius: 18px; }
   .storage-header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; padding: 12px 14px; }
   .storage-title { gap: 7px; }.storage-title-icon { width: 32px; height: 32px; border-radius: 10px; }.storage-title-icon svg { width: 20px; }
   .storage-title small { font-size: 7px; letter-spacing: 1px; }.storage-title h2 { font-size: 17px; }

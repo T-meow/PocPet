@@ -1,7 +1,7 @@
 ﻿import { ArrowLeft, Download, FileText, RotateCcw, Upload } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Check, RefreshCw, Trash2 } from 'lucide-react';
-import { Cloud, Copy, FileImage, Play, Share2 } from 'lucide-react';
+import { ChevronRight, Cloud, Copy, FileImage, Heart, Play, Share2 } from 'lucide-react';
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
 import { cloudSaveMaxEncodedLength, type CloudSaveManifestV1 } from '../core/cloudSave';
@@ -17,6 +17,7 @@ import { ClientUpdatePanel } from './ClientUpdatePanel';
 import type { ClientUpdateController } from './app/useClientUpdates';
 import { canShareTextFile } from '../platform/saveTextFile';
 import { AppearancePanel } from './AppearancePanel';
+import { AcknowledgementsPage } from './AcknowledgementsPage';
 import type { Appearance } from './appearance';
 import type { PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
@@ -92,7 +93,7 @@ interface SettingsModalProps {
   onImportSaveFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates' | 'appearance' | 'help';
+export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates' | 'appearance' | 'help' | 'acknowledgements';
 
 const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
 
@@ -204,9 +205,10 @@ export const SettingsModal = ({
         <header className="v2-page-heading"><button className="icon-button" onClick={onClose} aria-label={L('返回小窝', 'Back home')}><ArrowLeft /></button><div><p className="eyebrow">YOUR LITTLE PREFERENCES</p><h2 id="settings-title">{L('把小窝调成喜欢的样子', 'Make yourself at home')}</h2></div></header>
         <div className="settings-layout"><nav className="settings-nav v2-card" aria-label={L('设置分类', 'Setting categories')}>{([
           ['main', L('基本设置', 'General'), Settings], ['appearance', L('外观与环境', 'Appearance & environment'), Palette], ['save', L('存档与恢复', 'Saves & recovery'), Save], ['share', L('分享与名片', 'Sharing & cards'), Image], ['updates', L('更新', 'Updates'), RefreshCw], ['help', L('帮助与关于', 'Help & about'), Info],
-        ] as const).map(([id, label, Icon]) => <button key={id} aria-current={(page === id || (page === 'mod' && id === 'main')) ? 'page' : undefined} onClick={() => id === 'help' ? handleOpenHelp() : setPage(id)}><Icon size={18} />{label}</button>)}</nav><div className="settings-content">
+        ] as const).map(([id, label, Icon]) => <button key={id} aria-current={(page === id || (page === 'mod' && id === 'main') || (page === 'acknowledgements' && id === 'help')) ? 'page' : undefined} onClick={() => id === 'help' ? handleOpenHelp() : setPage(id)}><Icon size={18} />{label}</button>)}</nav><div className="settings-content">
         <div className="settings-modal__body">
           {page === 'appearance' && <AppearancePanel pet={pet} appearance={appearance} onChange={onAppearanceChange} />}
+          {page === 'acknowledgements' && <AcknowledgementsPage onBack={() => setPage('help')} />}
           {page === 'main' && (
             <>
               <h3>{L('认识彼此', 'Getting to know each other')}</h3>
@@ -505,6 +507,11 @@ export const SettingsModal = ({
               </span>
             </button>
           </div>
+          <button type="button" className="acknowledgements-entry" onClick={() => setPage('acknowledgements')}>
+            <span className="acknowledgements-entry-icon" aria-hidden="true"><Heart size={22} /></span>
+            <span><strong>{L('致谢名单', 'Acknowledgements')}</strong><small>{L('感谢支持 PocPet 开发的伙伴', 'Meet the supporters behind PocPet')}</small></span>
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
           {modMessage && <p className="settings-message" role="status">{modMessage}</p>}
           <div className="help-content">
             {helpSections.map((section) => (

@@ -23,7 +23,13 @@ export const giftItemIds: readonly ItemId[] = ['small_bouquet', 'shiny_sticker',
 export const giftItemIdSet = new Set<ItemId>(giftItemIds);
 
 export const shopItems: readonly ShopItem[] = [
-  ...kitchenMaterials.map((material): ShopItem => ({ id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price, effect: {}, usable: false, tags: ['kitchen_material'], summary: activityText('厨房食材，用于制作料理。', 'An ingredient for cooking recipes.') })),
+  ...kitchenMaterials.map((material): ShopItem => ({
+    id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price,
+    effect: material.edibleEffect ?? {}, usable: material.edibleEffect !== undefined, tags: ['kitchen_material'],
+    summary: material.edibleEffect
+      ? activityText('可直接喂给伙伴，也可留作厨房食材。', 'Feed it to your companion or save it for cooking.')
+      : activityText('厨房食材，用于制作料理。', 'An ingredient for cooking recipes.'),
+  })),
   {
     id: 'emergency_biscuit',
     name: t('pet.shop.items.emergency_biscuit.name'),

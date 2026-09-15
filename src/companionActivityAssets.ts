@@ -5,6 +5,13 @@ import flour from './assets/icon/item_flour.png';
 import carrot from './assets/icon/item_carrot.png';
 import tomato from './assets/icon/item_tomato.png';
 import greens from './assets/icon/item_greens.png';
+import pork from './assets/icon/item_pork.png';
+import cabbage from './assets/icon/item_cabbage.png';
+import shiitake from './assets/icon/item_shiitake.png';
+import glutinousRice from './assets/icon/item_glutinous_rice.png';
+import braisedPork from './assets/icon/item_braised_pork.png';
+import redBeanPaste from './assets/icon/item_red_bean_paste.png';
+import mixedNuts from './assets/icon/item_mixed_nuts.png';
 import dishPlainRice from './assets/icon/item_dish_plain_rice.png';
 import dishFruitSalad from './assets/icon/item_dish_fruit_salad.png';
 import dishBananaShake from './assets/icon/item_dish_banana_shake.png';
@@ -23,6 +30,12 @@ import dishApplePie from './assets/icon/item_dish_apple_pie.png';
 import dishBiscuitLayerCake from './assets/icon/item_dish_biscuit_layer_cake.png';
 import dishTomatoEggBowl from './assets/icon/item_dish_tomato_egg_bowl.png';
 import dishPorkRiceBowl from './assets/icon/item_dish_pork_rice_bowl.png';
+import dishDumplingsPorkCabbage from './assets/icon/item_dish_dumplings_pork_cabbage.png';
+import dishDumplingsVegetable from './assets/icon/item_dish_dumplings_vegetable.png';
+import dishZongziBraisedPork from './assets/icon/item_dish_zongzi_braised_pork.png';
+import dishZongziRedBean from './assets/icon/item_dish_zongzi_red_bean.png';
+import dishMooncakeMixedNuts from './assets/icon/item_dish_mooncake_mixed_nuts.png';
+import dishMooncakeRedBean from './assets/icon/item_dish_mooncake_red_bean.png';
 
 export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
   rice: rice,
@@ -31,6 +44,13 @@ export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
   carrot: carrot,
   tomato: tomato,
   greens: greens,
+  pork,
+  cabbage,
+  shiitake,
+  glutinous_rice: glutinousRice,
+  braised_pork: braisedPork,
+  red_bean_paste: redBeanPaste,
+  mixed_nuts: mixedNuts,
   dish_plain_rice: dishPlainRice,
   dish_fruit_salad: dishFruitSalad,
   dish_banana_shake: dishBananaShake,
@@ -49,6 +69,12 @@ export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
   dish_biscuit_layer_cake: dishBiscuitLayerCake,
   dish_tomato_egg_bowl: dishTomatoEggBowl,
   dish_pork_rice_bowl: dishPorkRiceBowl,
+  dish_dumplings_pork_cabbage: dishDumplingsPorkCabbage,
+  dish_dumplings_vegetable: dishDumplingsVegetable,
+  dish_zongzi_braised_pork: dishZongziBraisedPork,
+  dish_zongzi_red_bean: dishZongziRedBean,
+  dish_mooncake_mixed_nuts: dishMooncakeMixedNuts,
+  dish_mooncake_red_bean: dishMooncakeRedBean,
 };
 
 // Bottom offsets come from the approved food-and-plate silhouette in its 256 px master.
@@ -71,4 +97,10 @@ export const dishPresentation: Record<DishId, { container: string; rimBottom: st
   dish_biscuit_layer_cake: { container: 'fixed_plate', rimBottom: '17.82%' },
   dish_tomato_egg_bowl: { container: 'fixed_plate', rimBottom: '24.47%' },
   dish_pork_rice_bowl: { container: 'fixed_plate', rimBottom: '22.63%' },
+  dish_dumplings_pork_cabbage: { container: 'fixed_plate', rimBottom: '25.78%' },
+  dish_dumplings_vegetable: { container: 'fixed_plate', rimBottom: '25.78%' },
+  dish_zongzi_braised_pork: { container: 'fixed_plate', rimBottom: '22.66%' },
+  dish_zongzi_red_bean: { container: 'fixed_plate', rimBottom: '22.66%' },
+  dish_mooncake_mixed_nuts: { container: 'fixed_plate', rimBottom: '25.00%' },
+  dish_mooncake_red_bean: { container: 'fixed_plate', rimBottom: '25.00%' },
 };

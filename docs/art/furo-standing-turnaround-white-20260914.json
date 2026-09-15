@@ -1,0 +1,70 @@
+{
+  "createdAt": "2026-09-14T15:00:40.628Z",
+  "status": "generated_raw_waiting_user_review",
+  "authorization": "用户要求修改三视图，不要棕色脚底，身体与四肢全部白色；只生成一张原图供检查。",
+  "model": "gpt-image-2.5-sunburst",
+  "resolution": "1K",
+  "quality": "high",
+  "countPerRequest": 1,
+  "sheetCount": 1,
+  "artworkCount": 3,
+  "reference": {
+    "path": "output/imagegen/furo-standing-turnaround-20260914/standing-turnaround-raw.png",
+    "bytes": 1287249,
+    "sha256": "9fdcc4be89a2942cf127d235d3866f2178dee89ef14a8c9a46c6512d0a714e44",
+    "width": 1536,
+    "height": 1024
+  },
+  "sheets": [
+    {
+      "id": "standing-turnaround-white",
+      "title": "Furo 全白身体站立三视图",
+      "aspectRatio": "3:2",
+      "promptPath": "docs/art/prompts/furo-standing-turnaround-white-20260914.txt",
+      "promptSha256": "66286a5a85ade59ff3ffe7049f7ca8d82efffe2dfb88fe0ec3572bdacce74070",
+      "rawPath": "output/imagegen/furo-standing-turnaround-white-20260914/standing-turnaround-white-raw.png",
+      "cells": [
+        {
+          "id": "front",
+          "name": "正面：白色身体及脚部"
+        },
+        {
+          "id": "left_profile",
+          "name": "朝左侧面：白色身体及脚部"
+        },
+        {
+          "id": "back",
+          "name": "背面：白色身体及脚部"
+        }
+      ]
+    }
+  ],
+  "outputPostprocessing": "none",
+  "preservedSource": "output/imagegen/furo-standing-turnaround-20260914/standing-turnaround-raw.png",
+  "generation": {
+    "quotePoints": 7,
+    "quoteIsActualCharge": false,
+    "serial": "2099514008368320512",
+    "result": {
+      "id": "standing-turnaround-white",
+      "title": "Furo 全白身体站立三视图",
+      "serial": "2099514008368320512",
+      "status": 2,
+      "path": "output/imagegen/furo-standing-turnaround-white-20260914/standing-turnaround-white-raw.png",
+      "imageUrl": "https://cdn.qihuiai.com/attachment/gpt_image/outputs/40589436/202609/2099514008368320512230240_1.png?auth_key=1789398462-02ca55de31b5485889604f02e8488c58-0-028f5e992e92fdf2da6b365e29c9ec9c",
+      "model": "gpt-image-2.5-sunburst",
+      "format": "png",
+      "width": 1536,
+      "height": 1024,
+      "bitDepth": 8,
+      "colorType": 2,
+      "interlace": 0,
+      "compressedDataReadable": true,
+      "bytes": 1283206,
+      "sha256": "aefdb743c5834d3c16f9bdad21b577858aa7d8dca03b324d34880f6e63e32f9f",
+      "postprocessing": "none"
+    },
+    "verificationPath": "output/imagegen/furo-standing-turnaround-white-20260914/verification.json"
+  },
+  "completedAt": "2026-09-14T15:05:04.243Z"
+}
