@@ -4,7 +4,7 @@
   "model": "gpt-image-2.5-sunburst",
   "quality": "medium",
   "resolution": "1K",
-  "status": "food_and_ingredients_adopted_cg_pending_review",
+  "status": "food_ingredients_and_midautumn_cg_adopted",
   "reviewWorkflow": "originals_only_until_explicit_user_approval",
   "referenceImages": [],
   "designCount": 14,
@@ -183,8 +183,9 @@
         "bytes": 2695656,
         "sha256": "36ce110dee2575502609bf19a3b3e48e5f4f212a6ed084ff22241371f5efba38",
         "postprocessing": "none",
-        "review": "pending_user_review"
-      }
+        "review": "adopted_for_midautumn_story_per_user_request_20260916"
+      },
+      "adoptionManifest": "docs/art/midautumn-cg-adoption-20260916.json"
     }
   ]
 }

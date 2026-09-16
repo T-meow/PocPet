@@ -219,7 +219,7 @@ const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<strin
     if (required[index] > current[index]) throw new UnsupportedSaveVersionError(t('ui.settings.save.requiresVersion', { version: minimum }));
     if (required[index] < current[index]) break;
   }
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, kitchen: 1, miniGames: 1, companionMemories: 1 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));

@@ -151,7 +151,7 @@ import { getLanguage, setLanguage, t, type LanguageCode } from '../i18n';
 import { createSaveFileName, saveTextFile, shareTextFile, saveFileResultMessage } from '../platform/saveTextFile';
 import { createShareImageFileName, saveShareImage, type SaveImageFileResult } from '../platform/saveImageFile';
 import { createGachaPoster, createPetProfilePoster, createYearReviewPoster, getToyPosterQrCode, type GachaMachine } from '../platform/sharePoster';
-import { useAppNavigation } from './app/useAppNavigation';
+import { getInitialFestival, useAppNavigation } from './app/useAppNavigation';
 import { useInventoryController } from './app/useInventoryController';
 import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
@@ -169,6 +169,12 @@ import { SaveRecovery } from './SaveRecovery';
 import { useAppearance } from './app/useAppearance';
 import { NoticeCenter, useNotices } from './NoticeCenter';
 import { MemoryAlbum } from './MemoryAlbum';
+import { FestivalStoryPage } from './FestivalStories';
+import { advanceMidautumnStory, getActiveFestivalRun, startMidautumnStory } from '../core/festivalStories';
+import { SeasonalStoryPage } from './SeasonalStoryPage';
+import { advanceSeasonalStory, startSeasonalStory } from '../core/seasonalStories';
+import type { FestivalId } from '../core/festivalCalendar';
+import type { RecipeId } from '../core/companionActivityTypes';
 import { isAlbumArtworkUnlocked } from './albumData';
 
 const getPomodoroRemainingMs = (pet: PetState) =>
@@ -313,6 +319,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     closeUtilityDialog,
   } = useAppNavigation();
   const [isPomodoroOpen, setPomodoroOpen] = useState(false);
+  const [festivalReplayId, setFestivalReplayId] = useState<string | null>(null);
+  const [selectedFestival, setSelectedFestival] = useState<{ festival: FestivalId; runId: string } | null>(() => {
+    const festival = getInitialFestival();
+    return festival ? { festival, runId: getActiveFestivalRun(initialPet, festival)?.id ?? `${festival}:${new Date().getFullYear()}` } : null;
+  });
+  const [festivalFromAlbum, setFestivalFromAlbum] = useState(false);
   const [isAudioEnabled, setAudioEnabledState] = useState(() => getAudioEnabled());
   const [language, setLanguageState] = useState<LanguageCode>(() => getLanguage());
   const activityReturnRef = useRef<'kitchen' | 'play' | null>(null);
@@ -465,6 +477,22 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   } = rewardController;
   const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPetWithEventFeedback, commitPet);
   const openKitchen = () => { activityReturnRef.current = null; setActivePage('home'); activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); };
+  const selectedFestivalRunId = festivalReplayId ?? selectedFestival?.runId;
+  const festivalRun = selectedFestivalRunId ? pet.festivalStories.runs[selectedFestivalRunId] : undefined;
+  const viewedFestival = festivalRun?.festival ?? selectedFestival?.festival;
+  const openFestival = (festival: FestivalId, fromAlbum = false) => {
+    setFestivalReplayId(null);
+    setSelectedFestival({ festival, runId: getActiveFestivalRun(pet, festival)?.id ?? `${festival}:${new Date().getFullYear()}` });
+    setFestivalFromAlbum(fromAlbum);
+    setActivePage('festival');
+  };
+  const festivalBackToAlbum = Boolean(festivalReplayId) || festivalFromAlbum;
+  const festivalProps = {
+    pet, replay: Boolean(festivalReplayId), backToAlbum: festivalBackToAlbum, blocked: Boolean(persistenceError || pendingImportedSave || isImportingSave),
+    onBack: () => setActivePage(festivalBackToAlbum ? 'memories' : 'home'),
+    onAlbum: () => setActivePage('memories'),
+    onKitchen: (recipe: RecipeId) => { activityReturnRef.current = null; activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); },
+  };
   const openPlay = () => {
     setActivePage('home');
     activities.update((current) => resumeMiniGame(current, actorId, Date.now()));
@@ -1627,6 +1655,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onCompleteLegacy={() => commitEndgameAction((current) => completeClassicLegacyLevel(current))}
           onExchangeGoldenApples={(apples: number) => commitEndgameAction((current) => exchangeClassicGoldenApplesForHearts(current, apples))}
         />
+      ) : activePage === 'festival' && viewedFestival ? (
+        viewedFestival === 'midautumn' ? <FestivalStoryPage {...festivalProps} key={`${festivalRun?.id ?? 'new'}:${festivalReplayId ? 'replay' : 'live'}`} run={festivalRun?.festival === 'midautumn' ? festivalRun : undefined}
+          onStart={() => activities.update((current) => startMidautumnStory(current, actorId, getSharePetName()))}
+          onAction={(action) => { if (!festivalReplayId && festivalRun) activities.update((current) => advanceMidautumnStory(current, festivalRun.year, action)); }}
+        /> : <SeasonalStoryPage {...festivalProps} key={`${festivalRun?.id ?? viewedFestival}:${festivalReplayId ? 'replay' : 'live'}`} festival={viewedFestival} run={festivalRun && festivalRun.festival !== 'midautumn' ? festivalRun : undefined}
+          onStart={() => activities.update((current) => startSeasonalStory(current, viewedFestival, actorId, getSharePetName()))}
+          onAction={(action) => { if (!festivalReplayId && festivalRun) activities.update((current) => advanceSeasonalStory(current, festivalRun.id, action)); }}
+        />
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
@@ -1637,6 +1673,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenKitchen={openKitchen}
           onOpenPlay={openPlay}
           onOpenMemories={() => setActivePage('memories')}
+          onOpenFestival={openFestival}
           onOpenNotices={() => notices.setHistoryOpen(true)}
           onOpenAppearance={() => openSettings('appearance')}
           memoryImage={memoryArt ?? activityHappyPortrait}
@@ -1726,7 +1763,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       )}
       {utilityDialog === 'kitchen' && <KitchenModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} />}
       {utilityDialog === 'play' && <PlayModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} happyPortrait={activityHappyPortrait} ballImage={itemIconMap.toy_ball} onClose={() => { activities.update(pauseMiniGame); closeUtilityDialog(); }} onShop={() => handleOpenShop('item')} onQuickPlay={() => handleAction('play')} update={activities.update} onAct={activities.act} />}
-      {activePage === 'memories' && <MemoryAlbum pet={{ ...pet, name: getSharePetName() }} actorId={actorId} portrait={activityHappyPortrait} art={memoryArt} onBack={() => setActivePage('home')} onOpenArt={() => { if (memoryAchievement) handleOpenAchievementCg(memoryAchievement); }} onSave={(imageUrl) => requestImageSave({ kind: 'album', fileName: createShareImageFileName(`${getSharePetName()}-memories`).replace(/\.jpg$/, '.png'), imageUrl })} onError={(message) => notices.notify(message, 'error')} />}
+      {activePage === 'memories' && <MemoryAlbum onReplayFestival={(id) => { setFestivalReplayId(id); setActivePage('festival'); }} onContinueFestival={(id) => { const run = pet.festivalStories.runs[id]; if (run) openFestival(run.festival, true); }} pet={{ ...pet, name: getSharePetName() }} actorId={actorId} portrait={activityHappyPortrait} art={memoryArt} onBack={() => setActivePage('home')} onOpenArt={() => { if (memoryAchievement) handleOpenAchievementCg(memoryAchievement); }} onSave={(imageUrl) => requestImageSave({ kind: 'album', fileName: createShareImageFileName(`${getSharePetName()}-memories`).replace(/\.jpg$/, '.png'), imageUrl })} onError={(message) => notices.notify(message, 'error')} />}
       <NoticeCenter controller={notices} recentEvent={pet.recentEvent} />
       {isInventoryOpen && (
         <InventoryModal

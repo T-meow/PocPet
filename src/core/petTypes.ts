@@ -1,5 +1,6 @@
 import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionMemoryState } from './companionActivityTypes';
 import type { SaveMetadata } from './saveMetadata';
+import type { FestivalStoryState } from './festivalStories';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
@@ -530,6 +531,7 @@ export interface PetState {
   kitchen: KitchenState;
   miniGames: MiniGameState;
   companionMemories: CompanionMemoryState;
+  festivalStories: FestivalStoryState;
 }
 
 export type PetAction = 'play' | 'clean' | 'sleep' | 'work';

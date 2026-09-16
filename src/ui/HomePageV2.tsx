@@ -9,6 +9,8 @@ import { PetDisplay } from './PetDisplay';
 import { PartnerScheduleDock } from './PartnerScheduleDock';
 import { CompanionStatus } from './CompanionStatus';
 import { MemoryCover } from './MemoryCover';
+import { FestivalEntry } from './FestivalStories';
+import type { FestivalId } from '../core/festivalCalendar';
 import type { HomePageProps } from './HomePage';
 
 interface Props extends HomePageProps {
@@ -18,6 +20,7 @@ interface Props extends HomePageProps {
   onOpenKitchen: () => void;
   onOpenPlay: () => void;
   onOpenMemories: () => void;
+  onOpenFestival?: (festival: FestivalId) => void;
   onOpenShop: () => void;
   onOpenAchievements: () => void;
   onOpenNotices?: () => void;
@@ -75,6 +78,7 @@ export const HomePageV2 = (props: Props) => {
           </button>
           <button className="home-quick focus" onClick={onOpenPomodoro}><Timer /><strong>{L('专注时光', 'Focus')}</strong><small>{pet.pomodoro.isRunning ? L('正在专注中', 'Focus in progress') : L('陪你完成一件小事', 'One small thing together')}</small></button>
         </div>
+        {props.onOpenFestival && <FestivalEntry pet={pet} onOpen={props.onOpenFestival} />}
         <AdventureEntry entry={props.adventure} />
         {companionWish && <p className="home-companion-wish"><span>💭</span>{companionWish}</p>}
       </section>
