@@ -1,34 +1,30 @@
 # PocPet Agent Rules
 
-## 生图规则
+## 语言与生图
 
-- 本项目使用 `gpt-image-2.5-sunburst` 生成或编辑图片时，请求质量默认设为 `quality: "medium"`（中），除非用户明确另行指定。新请求与 dry_run 使用一致参数；历史任务记录保留当时实际质量。详细流程见 `docs/美术规范与作图流程.md`。
+- 日常功能先接中文，英文界面可回退中文并保留已有翻译；英文 i18n 仅随 1.9.0 这类大版本统一补充，不为翻译升版本。
+- `gpt-image-2.5-sunburst` 生图／编辑默认 `quality: "medium"`，用户指定优先；正式请求与 dry_run 参数一致，历史质量记录不改。流程见 `docs/美术规范与作图流程.md`。
 
 ## 发布规则
 
-- 发布依据用户的明确指令，不按“大版本／小版本”、版本尾号或版本白名单限制发布。
-- 用户明确要求推送、发布或更新时，按指定范围直接完成；已有授权不重复确认，小版本同样可以发布。仅要求修改代码或本地测试时，不自动推送或发布。
-- 正式发布使用与 `package.json` 一致的 `v<version>` 标签；所有正式版本标签均触发 CI 全平台构建、GitHub Release、客户端更新清单和对应网页部署，小版本与其他版本使用同一流程。
-- 推送 GitHub 远端时，确认推送成功后即可反馈结果，无需等待远端 CI 打包完成，也不自动轮询等待；只有用户明确要求跟进构建结果或获取产物时，才继续处理对应远端任务。
-- 单独要求部署 GitHub Pages 时，使用 `pages.yml` 的 `source=main` 并指定推送后的版本和提交；网页构建／部署独立执行，无需等待原生打包。正式 Release 的网页部署继续使用默认 `source=release`。
+- 明确要求推送、发布或更新时，按授权范围直接完成，不重复确认，不按版本大小、尾号或白名单设限；仅改代码／本地测试不自动推送或发布。
+- 正式标签为与 `package.json` 一致的 `v<version>`；所有正式标签均触发 CI 全平台构建、GitHub Release、客户端更新清单及网页部署。
+- GitHub 推送成功即反馈；仅在用户明确要求跟进构建或获取产物时等待／轮询 CI。
+- 单独部署 GitHub Pages：`pages.yml` 使用 `source=main`，指定推送后的版本与提交，独立执行、不等原生打包；正式 Release 网页使用默认 `source=release`。
 
 ## 打包规则
 
-- 当前版本来源以 `package.json` 为准；打包前同步确认 Tauri 和 Cargo 版本字段。
-- 本地打包仅限 Windows 和 Android，默认只生成以下简名测试包：
-  - Windows x64：`release/pocket<version>.exe`
-  - Android arm64：`release/pocket<version>.apk`
-- 本地不生成 Web、macOS 或 Linux 产物；本地“全量打包”“完整包”仍限上述两个平台，构建范围与版本号无关。Windows 32 位、Android 32 位仅在用户明确指定时生成。
-- 本地流程：核对版本并运行 `npm.cmd run check:release`；已有同名产物先备份，再依次运行 `npm.cmd run package:win:portable` 和 `npm.cmd run package:android:arm64`；完成后核对版本、架构、内嵌资源与 APK 签名，记录文件大小和 SHA-256。
-- CI 按 `.github/workflows/release.yml` 执行；正式版本标签一律全量构建。手动运行默认生成 Windows x64 和 Android arm64 测试包，明确选择 `full_build` 时全量构建；手动构建本身不公开 Release。本地打包不自动启动 CI。
-- CI 全量构建及明确指定的额外架构产物命名：
-  - Windows x64：`release/pocket<version>.exe`
-  - Windows 32 位 x86：`release/pocket<version>-win32.exe`
-  - Android arm64：`release/pocket<version>.apk`
-  - Android 32 位 ARMv7 / `armeabi-v7a`：`release/pocket<version>-32bit.apk`
-  - Web 部署包：`release/pocket<version>-web.zip`
-  - macOS 图形桌面包：`release/pocket<version>-mac.dmg`
-  - Ubuntu/Linux 图形桌面包：优先 `release/pocket<version>-ubuntu.AppImage`，如 CI/runner 支持也保留 `release/pocket<version>-ubuntu.deb`
-- Android 测试包默认使用 debug keystore 签名；正式商店签名必须由用户明确要求。
-- macOS/Linux 包需要在对应系统或 CI runner 上构建；Windows 本机不要强行生成这些平台产物。
-- `release/` 是本地交付产物目录，打包产物不提交到 git。
+- 版本以 `package.json` 为准，打包前核对并同步 Tauri、Cargo 版本。
+- 本地默认仅 Windows x64、Android arm64 测试包；“全量／完整包”同此范围，不随版本变化。32 位仅按明确要求生成；本地不构建 Web、macOS、Linux，也不自动启动 CI。
+- 本地顺序：核对版本 → `npm.cmd run check:release` → 备份同名产物 → `npm.cmd run package:win:portable` → `npm.cmd run package:android:arm64` → 核验版本、架构、内嵌资源、APK 签名，记录大小及 SHA-256。
+- CI 遵循 `.github/workflows/release.yml`；手动构建默认 Windows x64、Android arm64，显式 `full_build` 才全量，手动构建不公开 Release。macOS／Linux 在对应系统或 CI runner 构建。
+- Android 测试包默认 debug keystore 签名；正式商店签名须用户明确要求。
+- 产物不提交 Git，统一命名为 `release/pocket<version><后缀>`；本地及 CI 使用下表：
+
+| 平台／架构 | 后缀 |
+|---|---|
+| Windows x64／x86（32 位） | `.exe`／`-win32.exe` |
+| Android arm64／ARMv7（`armeabi-v7a`） | `.apk`／`-32bit.apk` |
+| Web | `-web.zip` |
+| macOS 图形桌面包 | `-mac.dmg` |
+| Ubuntu／Linux 图形桌面包 | 优先 `-ubuntu.AppImage`，CI/runner 支持时也保留 `-ubuntu.deb` |
