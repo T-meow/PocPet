@@ -1,4 +1,8 @@
 import { t } from '../i18n';
+import { adventureBusyMessage } from './adventureData';
+import { getAdventureTreasureValue, isAdventureTreasure } from './adventureItems';
+import { activityText as L } from './kitchenRecipes';
+import { getAdventureItemPurchaseCapacity } from './adventureState';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, dailyBiscuitClaimLimit, favoriteFoodIdSet, getDailyHeartExchangeInfo, getDailyShopDiscountInfo, getInventoryCount, getInventoryItem, getShopItem, giftItemIdSet, heartExchangeCoins, removeInventoryItem } from './items';
 import { applyBoostCardWorkBonus } from './boostCards';
@@ -78,7 +82,7 @@ export const getItemPurchaseQuote = (
   const discountApplied = Boolean(discountEntry && !discountEntry.used);
   const firstItemPrice = discountApplied ? discountEntry?.price ?? item.price : item.price;
   const totalPrice = firstItemPrice + item.price * (quantity - 1);
-  const hasCapacity = quantity <= getPurchaseCapacity(pet, item);
+  const hasCapacity = quantity <= getPurchaseCapacity(pet, item) && quantity <= getAdventureItemPurchaseCapacity(pet, itemId);
   return {
     quantity,
     totalPrice,
@@ -114,7 +118,7 @@ const getWorkQuote = (pet: PetState, now: number, energyCost: number) => {
 export const getQuickWorkPreview = (pet: PetState, now = Date.now()) => {
   const quote = getWorkQuote(pet, now, getWorkEnergyCost(pet));
   const minimumCoins = quote.baseCoins + quote.achievementBonusCoins + quote.boostBonus.bonusCoins;
-  const reason = pet.partnerSchedule.active ? 'busy' : pet.isSleeping ? 'sleeping'
+  const reason = pet.partnerSchedule.active || pet.adventure.active ? 'busy' : pet.isSleeping ? 'sleeping'
     : isPetCriticallyHungry(pet) ? 'hunger' : pet.energy < quote.energyCost ? 'energy' : undefined;
   return { energyCost: quote.energyCost, minimumCoins, maximumCoins: minimumCoins + Math.max(1, Math.floor(quote.baseCoins * 0.15)),
     boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
@@ -142,6 +146,7 @@ export const getWorkReward = (pet: PetState, now = Date.now(), energyCost = getW
 
 export const upgradePet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -202,6 +207,7 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
   const advanced = markInteraction(advancePet(pet, now), now);
   const current = action === 'sleep' ? advanced : clearLowCleanlinessSleepConfirm(advanced);
 
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return {
       ...current,
@@ -418,6 +424,7 @@ export const useInventoryItem = (
   options: UseInventoryItemOptions = {},
 ): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -432,6 +439,12 @@ export const useInventoryItem = (
   const quantity = isSingleUseItem ? 1 : getEffectiveBatchQuantity(current, options.quantity);
   if (count < quantity) {
     return { ...current, recentEvent: t('pet.item.empty', { item: displayItemName }) };
+  }
+
+  if (isAdventureTreasure(itemId)) {
+    const coins = getAdventureTreasureValue(itemId) * quantity;
+    return recordEarnedCoins({ ...current, coins: clampCoins(current.coins + coins), inventory: removeInventoryItem(current.inventory, itemId, quantity),
+      recentEvent: L(`${displayItemName}已兑换为 ${coins} 金币。`, `Exchanged ${displayItemName} for ${coins} coins.`) }, coins);
   }
 
   const wokePet = current.isSleeping;
@@ -573,6 +586,7 @@ export const useInventoryItem = (
 
 export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }

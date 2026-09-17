@@ -1,5 +1,6 @@
 import { getItemRecoveryPreview, getPictureBookReward } from '../core/itemEffects';
 import { activityText as L } from '../core/kitchenRecipes';
+import { getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
 import { formatPracticeSkillXp } from '../core/partnerSchedule';
 import type { ItemDefinition, ItemId, PetState } from '../core/pet';
 import { getItemEffectBadges } from './itemEffectBadges';
@@ -8,6 +9,7 @@ export const ItemRecoveryPreview = ({ pet, item, quantity = 1, favoriteFoodIds }
   pet: PetState; item: ItemDefinition; quantity?: number; favoriteFoodIds?: readonly ItemId[];
 }) => {
   if (!item.usable || item.kind === 'garden') return null;
+  if (isAdventureTreasure(item.id)) return <div className="item-recovery-preview"><p>{L(`兑换后获得 ${getAdventureTreasureValue(item.id) * quantity} 金币，不恢复状态。`, `Exchange for ${getAdventureTreasureValue(item.id) * quantity} coins. Does not restore stats.`)}</p></div>;
   const preview = getItemRecoveryPreview(pet, item, quantity, favoriteFoodIds);
   const actual = getItemEffectBadges(preview.actual);
   const overflow = getItemEffectBadges(preview.overflow);

@@ -1,0 +1,71 @@
+{
+  "date": "2026-09-17",
+  "channel": "mxai",
+  "model": "gpt-image-2.5-sunburst",
+  "resolution": "1K",
+  "quality": "medium",
+  "status": "originals_ready_pending_user_review",
+  "inputImages": [],
+  "referencePolicy": "Text-to-image using project art direction; no existing images uploaded.",
+  "reviewPolicy": "Original images only; human review before any postprocessing or adoption.",
+  "sheets": [
+    {
+      "id": "outpost-hall",
+      "title": "前哨基地大厅背景",
+      "aspectRatio": "16:9",
+      "promptPath": "docs/art/prompts/adventure-outpost-hall.txt",
+      "rawPath": "output/imagegen/adventure-backgrounds-20260917/outpost-hall-raw.png",
+      "result": {
+        "id": "outpost-hall",
+        "title": "前哨基地大厅背景",
+        "serial": "2100376416146165760",
+        "status": 2,
+        "path": "output/imagegen/adventure-backgrounds-20260917/outpost-hall-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "16:9",
+        "format": "png",
+        "width": 1920,
+        "height": 1088,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 2494436,
+        "sha256": "d3dc436212f9e69b4f19a4235a0f965ddc4ee9feb42c649c63f6642719b15f7d",
+        "postprocessing": "none",
+        "review": "pending_user_review"
+      }
+    },
+    {
+      "id": "valley",
+      "title": "首期溪谷探索背景",
+      "aspectRatio": "16:9",
+      "promptPath": "docs/art/prompts/adventure-valley.txt",
+      "rawPath": "output/imagegen/adventure-backgrounds-20260917/valley-raw.png",
+      "result": {
+        "id": "valley",
+        "title": "首期溪谷探索背景",
+        "serial": "2100376418083934208",
+        "status": 2,
+        "path": "output/imagegen/adventure-backgrounds-20260917/valley-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "16:9",
+        "format": "png",
+        "width": 1920,
+        "height": 1088,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 3100287,
+        "sha256": "454c16fc04a683f2c9e5344cf62116474b627080eb8648b1c8ed33c1a6139f2a",
+        "postprocessing": "none",
+        "review": "pending_user_review"
+      }
+    }
+  ]
+}

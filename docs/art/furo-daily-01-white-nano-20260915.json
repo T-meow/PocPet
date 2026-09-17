@@ -21,7 +21,7 @@
       "id": "01-states",
       "title": "Furo 日常图一·全白身体·Nano 2.0",
       "aspectRatio": "1:1",
-      "promptPath": "docs/art/prompts/furo-daily-01-white-nano-20260915.txt",
+      "promptPath": "docs/art/prompts/furo-daily-01-white-medium-20260914.txt",
       "promptSha256": "4ab5a07670f6b8e586bf399bdb6cd53200263ae7ece12b38e9986931214d52b6",
       "rawPath": "output/imagegen/furo-daily-01-white-nano-20260915/01-states-raw.png",
       "cells": [

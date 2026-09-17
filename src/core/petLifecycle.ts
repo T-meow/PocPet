@@ -544,7 +544,7 @@ export const advancePet = (pet: PetState, now = Date.now(), eventContext?: Neigh
     while (transitionCount < 3) {
       transitionCount += 1;
       const idleAtNight = isNightTime(time) && time - next.lastInteractionAt >= autoSleepIdleMs;
-      if (!next.isSleeping && !next.pomodoro.isRunning && idleAtNight) {
+      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && idleAtNight) {
         next = startSleepSnapshot({
           ...next,
           isSleeping: true,

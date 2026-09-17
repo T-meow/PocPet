@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Apple, ChefHat, Droplets, Heart, HeartPulse, PackageOpen, ShoppingBag, Smile, Sprout, X, Zap } from 'lucide-react';
-import { batchActionUnlockLevel, getPetEnergyCap, getPetStatCap, type InventoryItemDefinition, type ItemId, type PetState } from '../core/pet';
+import { batchActionUnlockLevel, getPetEnergyCap, getPetStatCap, type Inventory, type InventoryItemDefinition, type ItemId, type PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
 import { getItemStatEffect } from '../core/itemEffects';
 import { currencyIcon, unknownItemIcon } from '../assets';
@@ -12,10 +12,23 @@ import { formatCompactNumber } from './numberFormat';
 import { getItemEffectBadges } from './itemEffectBadges';
 import { ItemRecoveryPreview } from './ItemRecoveryPreview';
 import { playSfx } from '../core/audio';
-import { filterBrowseItems, getItemBrowseCategories, getItemBrowseLimit, getItemBrowseTone, getCategoryBrowseTone, isKitchenIngredient, resolveItemBrowseState, sortBagItems, type ItemBrowseState, type ItemStorageMode } from './itemBrowse';
+import { filterBrowseItems, getItemBrowseCategories, getItemBrowseLimit, getItemBrowseTone, getCategoryBrowseTone, isKitchenIngredient, resolveItemBrowseState, sortBagItems, type ItemBrowseCategory, type ItemBrowseState, type ItemStorageMode } from './itemBrowse';
 
 const effectIcons = { hunger: Apple, mood: Smile, cleanliness: Droplets, energy: Zap, health: HeartPulse };
 
+export interface ItemStorageContext {
+  title: string;
+  inventory: Inventory;
+  quantityLimit: (item: InventoryItemDefinition) => number;
+  backdropClassName?: string;
+  categories?: ItemBrowseCategory[];
+  switchLabel?: string;
+  countLabel?: string;
+  note?: string;
+  showRecovery?: boolean;
+  showStats?: boolean;
+  perform?: (action: () => void) => void;
+}
 interface Props {
   mode: ItemStorageMode;
   pet: PetState;
@@ -24,7 +37,8 @@ interface Props {
   browse: ItemBrowseState;
   onBrowseChange: (state: ItemBrowseState) => void;
   onClose: () => void;
-  onSwitch: () => void;
+  onSwitch?: () => void;
+  context?: ItemStorageContext;
   quantityDisabled?: boolean;
   footer?: ReactNode;
   tileInfo?: (item: InventoryItemDefinition) => { price: ReactNode; mark?: string };
@@ -32,53 +46,58 @@ interface Props {
   favoriteFoodIds?: readonly ItemId[];
 }
 
-export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds }: Props) => {
+export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds }: Props) => {
   const [detailItemId, setDetailItemId] = useState<string>();
+  const perform = context?.perform ?? ((action: () => void) => action());
   const now = Date.now();
-  const availableItems = useMemo(() => items.filter((item) => mode === 'shop' ? item.shop : (pet.inventory[item.id] ?? 0) > 0), [items, mode, pet.inventory]);
+  const inventory = context?.inventory ?? pet.inventory;
+  const hasContext = Boolean(context);
+  const availableItems = useMemo(() => items.filter((item) => mode === 'shop' ? hasContext || item.shop : (inventory[item.id] ?? 0) > 0), [items, mode, inventory, hasContext]);
   const visible = useMemo(() => {
     const filtered = filterBrowseItems(availableItems, browse.category);
     return mode === 'bag' ? sortBagItems(filtered, items) : filtered;
   }, [availableItems, browse.category, items, mode]);
-  const resolved = resolveItemBrowseState(browse.query ? { ...browse, query: '' } : browse, visible, (item) => getItemBrowseLimit(pet, item, mode, now));
+  const quantityLimit = (entry: InventoryItemDefinition) => context ? context.quantityLimit(entry) : getItemBrowseLimit(pet, entry, mode, now);
+  const resolved = resolveItemBrowseState(browse.query ? { ...browse, query: '' } : browse, visible, quantityLimit);
   const item = visible.find((entry) => entry.id === resolved.selectedId);
   const isDetailOpen = Boolean(item && detailItemId === item.id);
-  const closeDetail = () => { playSfx('close'); setDetailItemId(undefined); };
+  const closeDetail = () => perform(() => { playSfx('close'); setDetailItemId(undefined); });
   // Consuming the last item closes its dialog instead of switching to another item.
   useEffect(() => { if (detailItemId !== item?.id) setDetailItemId(undefined); }, [detailItemId, item?.id]);
   useEffect(() => { setDetailItemId(undefined); }, [mode, browse.category]);
   // Selection and quantities also reconcile after purchases, consumption, and mode changes.
   useEffect(() => { if (resolved !== browse) onBrowseChange(resolved); }, [browse, resolved.selectedId, resolved.quantity, resolved.query, onBrowseChange]);
-  const categories = getItemBrowseCategories();
+  const categories = getItemBrowseCategories().filter(category => !context?.categories || context.categories.includes(category.id));
   const iconFor = (entry: InventoryItemDefinition) => itemIconMap[entry.id] ?? entry.imageUrl ?? unknownItemIcon;
   const titleId = mode === 'shop' ? 'shop-title' : 'inventory-title';
-  const maxQuantity = item ? getItemBrowseLimit(pet, item, mode, now) : 0;
+  const maxQuantity = item ? quantityLimit(item) : 0;
   const effectBadgesFor = (entry: InventoryItemDefinition) => getItemEffectBadges(entry.id === 'golden_apple' ? getItemStatEffect(pet, entry) : entry.effect);
   const effects = item ? effectBadgesFor(item) : [];
-  const ownedCount = (entry: InventoryItemDefinition) => pet.inventory[entry.purchaseContents?.length === 1 ? entry.purchaseContents[0].itemId : entry.id] ?? 0;
+  const ownedCount = (entry: InventoryItemDefinition) => inventory[entry.purchaseContents?.length === 1 ? entry.purchaseContents[0].itemId : entry.id] ?? 0;
   const stats = ['hunger', 'mood', 'cleanliness', 'energy', 'health'] as const;
-  const canBatch = pet.level >= batchActionUnlockLevel && item && (mode === 'shop' || (item.usable && item.kind !== 'garden' && item.id !== 'golden_apple' && item.id !== 'birthday_cake'));
-  return <><DialogShell className={`storage-modal storage-modal--${mode}`} backdropClassName="storage-backdrop" labelId={titleId} onClose={onClose}>
+  const canBatch = item && (context ? maxQuantity > 1 : pet.level >= batchActionUnlockLevel && (mode === 'shop' || (item.usable && item.kind !== 'garden' && item.id !== 'golden_apple' && item.id !== 'birthday_cake')));
+  const backdropClassName = `storage-backdrop${context?.backdropClassName ? ` ${context.backdropClassName}` : ''}`;
+  return <><DialogShell className={`storage-modal storage-modal--${mode}`} backdropClassName={backdropClassName} labelId={titleId} onClose={() => perform(onClose)}>
     <header className="storage-header">
-      <div className="storage-title"><span className="storage-title-icon">{mode === 'shop' ? <ShoppingBag /> : <PackageOpen />}</span><div><small>{mode === 'shop' ? 'LITTLE SHOP' : 'LITTLE TREASURES'}</small><h2 id={titleId}>{mode === 'shop' ? t('ui.shop.title') : t('ui.inventory.modalTitle')}</h2></div></div>
+      <div className="storage-title"><span className="storage-title-icon">{mode === 'shop' ? <ShoppingBag /> : <PackageOpen />}</span><div><small>{mode === 'shop' ? 'LITTLE SHOP' : 'LITTLE TREASURES'}</small><h2 id={titleId}>{context?.title ?? (mode === 'shop' ? t('ui.shop.title') : t('ui.inventory.modalTitle'))}</h2></div></div>
       <div className="storage-wallet"><span title={t('ui.shop.wallet', { coins: pet.coins })} aria-label={t('ui.shop.wallet', { coins: pet.coins })}><img src={currencyIcon} alt="" /><strong>{formatCompactNumber(pet.coins)}</strong></span><span title={t('ui.top.heartsAria', { hearts: pet.hearts })} aria-label={t('ui.top.heartsAria', { hearts: pet.hearts })}><Heart size={15} /><strong>{formatCompactNumber(pet.hearts)}</strong></span></div>
-      <div className="storage-header-actions"><button className="storage-switch" onClick={onSwitch}>{mode === 'shop' ? <PackageOpen size={17} /> : <ShoppingBag size={17} />}{mode === 'shop' ? L('去背包', 'Bag') : L('去商店', 'Shop')}</button><button className="icon-button" onClick={onClose} aria-label={mode === 'shop' ? t('ui.shop.close') : t('ui.inventory.close')}><X size={20} /></button></div>
+      <div className="storage-header-actions">{onSwitch && <button className="storage-switch" onClick={() => onSwitch && perform(onSwitch)}>{mode === 'shop' ? <PackageOpen size={17} /> : <ShoppingBag size={17} />}{context?.switchLabel ?? (mode === 'shop' ? L('去背包', 'Bag') : L('去商店', 'Shop'))}</button>}<button className="icon-button" onClick={() => perform(onClose)} aria-label={mode === 'shop' ? t('ui.shop.close') : t('ui.inventory.close')}><X size={20} /></button></div>
     </header>
-    {mode === 'bag' && <div className="storage-stats" role="group" aria-label={t('ui.inventory.currentStats')}>{stats.map((key) => {
+    {mode === 'bag' && context?.showStats !== false && <div className="storage-stats" role="group" aria-label={t('ui.inventory.currentStats')}>{stats.map((key) => {
       const max = Math.round(key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet));
       const value = Math.max(0, Math.min(max, Math.round(pet[key])));
       return <div className={`storage-stat storage-stat--${key}`} key={key}><span>{t(`ui.stats.${key}`)}</span><strong>{value}<small>/{max}</small></strong><i role="progressbar" aria-label={t(`ui.stats.${key}`)} aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}><b style={{ width: `${value / max * 100}%` }} /></i></div>;
     })}</div>}
     <div className="storage-body">
       <section className="storage-catalogue" aria-label={L('物品目录', 'Item catalogue')}>
-        <div className="storage-tools"><div className="storage-tabs" role="group" aria-label={t('ui.shop.tabsAria')}>{categories.map((category) => <button key={category.id} data-tone={getCategoryBrowseTone(category.id)} aria-pressed={browse.category === category.id} onClick={() => onBrowseChange({ ...browse, category: category.id, selectedId: undefined, quantity: 1 })}>{category.label}<small>{filterBrowseItems(availableItems, category.id).length}</small></button>)}</div>
+        <div className="storage-tools"><div className="storage-tabs" role="group" aria-label={t('ui.shop.tabsAria')}>{categories.map((category) => <button key={category.id} data-tone={getCategoryBrowseTone(category.id)} aria-pressed={browse.category === category.id} onClick={() => perform(() => onBrowseChange({ ...browse, category: category.id, selectedId: undefined, quantity: 1 }))}>{category.label}<small>{filterBrowseItems(availableItems, category.id).length}</small></button>)}</div>
         </div>
         <div className="storage-grid-scroll"><div className="storage-item-grid">{visible.map((entry) => {
           const info = tileInfo?.(entry);
           const owned = ownedCount(entry);
           const tileEffects = effectBadgesFor(entry);
           const ingredient = isKitchenIngredient(entry);
-          return <button className="storage-item-tile" data-item-id={entry.id} data-tone={entry.id === item?.id ? getItemBrowseTone(entry) : undefined} key={entry.id} aria-pressed={entry.id === item?.id} aria-haspopup="dialog" aria-expanded={isDetailOpen && detailItemId === entry.id} onClick={() => { playSfx('open'); onBrowseChange({ ...browse, selectedId: entry.id, quantity: 1 }); setDetailItemId(entry.id); }} title={entry.displayName}>
+          return <button className="storage-item-tile" data-item-id={entry.id} data-tone={entry.id === item?.id ? getItemBrowseTone(entry) : undefined} key={entry.id} aria-pressed={entry.id === item?.id} aria-haspopup="dialog" aria-expanded={isDetailOpen && detailItemId === entry.id} onClick={() => perform(() => { playSfx('open'); onBrowseChange({ ...browse, selectedId: entry.id, quantity: 1 }); setDetailItemId(entry.id); })} title={entry.displayName}>
             <span className="storage-tile-tags">
               {tileEffects.map((effect) => {
                 const Icon = effectIcons[effect.key];
@@ -87,20 +106,20 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
               {ingredient && <span className="storage-tile-tag storage-tile-tag--ingredient" title={L('厨房食材', 'Cooking ingredient')} role="img" aria-label={L('厨房食材', 'Cooking ingredient')}><ChefHat size={12} aria-hidden="true" /></span>}
               {!tileEffects.length && !ingredient && <span className={`storage-tile-tag storage-tile-tag--${entry.kind}`} title={categories.find((category) => category.id === entry.kind)?.label} role="img" aria-label={categories.find((category) => category.id === entry.kind)?.label}>{entry.kind === 'garden' ? <Sprout size={12} aria-hidden="true" /> : <PackageOpen size={12} aria-hidden="true" />}</span>}
             </span>
-            <span className="storage-tile-count" title={L(`持有 ${owned} 件`, `${owned} owned`)}>{mode === 'shop' ? L('有 ', 'Have ') : '×'}{formatCompactNumber(owned)}</span>
+            <span className="storage-tile-count" title={L(`持有 ${owned} 件`, `${owned} owned`)}>{context?.countLabel ?? (mode === 'shop' ? L('有 ', 'Have ') : '×')}{formatCompactNumber(owned)}</span>
             {info?.mark && <span className="storage-tile-mark">{info.mark}</span>}
             <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{entry.displayName}</strong>{info && <span className="storage-tile-price">{info.price}</span>}
           </button>;
-        })}</div>{!visible.length && <div className="storage-empty"><PackageOpen size={32} /><p>{t('ui.inventory.emptyCategory')}</p>{mode === 'bag' && <button className="storage-primary" onClick={onSwitch}>{t('ui.inventory.openCategoryShop')}</button>}</div>}</div>
+        })}</div>{!visible.length && <div className="storage-empty"><PackageOpen size={32} /><p>{t('ui.inventory.emptyCategory')}</p>{mode === 'bag' && onSwitch && <button className="storage-primary" onClick={() => onSwitch && perform(onSwitch)}>{context?.switchLabel ?? t('ui.inventory.openCategoryShop')}</button>}</div>}</div>
         <footer className="storage-catalogue-footer"><span>{L(`${visible.length} 种物品`, `${visible.length} items`)}</span>{footer}</footer>
       </section>
     </div>
   </DialogShell>
-  {isDetailOpen && item && <DialogShell className={`storage-modal storage-modal--${mode} storage-item-modal`} backdropClassName="storage-backdrop" labelId="storage-item-title" onClose={closeDetail}>
+  {isDetailOpen && item && <DialogShell className={`storage-modal storage-modal--${mode} storage-item-modal`} backdropClassName={backdropClassName} labelId="storage-item-title" onClose={closeDetail}>
     <header className="storage-item-header"><h2 id="storage-item-title">{L('物品详情', 'Item details')}</h2><button className="icon-button" onClick={closeDetail} aria-label={L('关闭并返回物品列表', 'Close and return to items')}><X size={20} /></button></header>
     <section className="storage-detail" data-tone={getItemBrowseTone(item)}>
-        <div className="storage-detail-copy"><div className="storage-detail-hero"><div className="storage-detail-art"><img src={iconFor(item)} alt="" draggable={false} /></div><div><h3>{item.displayName}</h3><span className="storage-category-label">{isKitchenIngredient(item) ? L('厨房食材', 'Cooking ingredient') : categories.find((category) => category.id === item.kind)?.label}</span></div></div><p className="storage-detail-description">{item.displaySummary}</p>{effects.length > 0 && <><p className="storage-effects-title">{L('每份基础效果', 'Base effects per item')}</p><div className="storage-effects">{effects.map((effect) => <span key={effect.key}>{effect.label}</span>)}</div></>}{isKitchenIngredient(item) && <p className="storage-ingredient-note">{item.usable ? L('可以喂给伙伴，也可以留着做菜。两处显示的是同一份库存。', 'Feed your companion or save it for cooking. Both categories share this stock.') : L('留给厨房的原料，选一道菜就能派上用场。', 'An ingredient for the kitchen. Pick a recipe to use it.')}</p>}</div>
-          <div className="storage-detail-actions"><div className="storage-quantity"><div className="storage-owned"><span>{item.purchaseContents ? L('饼干库存', 'Biscuits owned') : L('持有', 'Owned')}</span><strong>{ownedCount(item)}</strong></div>{canBatch && <><div className="storage-quantity-row"><span>{L('数量', 'Quantity')}</span><QuantityStepper value={resolved.quantity} max={Math.max(1, maxQuantity)} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => onBrowseChange({ ...resolved, quantity })} /></div><QuantityPresets value={resolved.quantity} max={maxQuantity} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => onBrowseChange({ ...resolved, quantity })} /></>}</div>{mode === 'bag' && <ItemRecoveryPreview pet={pet} item={item} quantity={resolved.quantity} favoriteFoodIds={favoriteFoodIds} />}<div className="storage-transaction">{renderActions(item, resolved.quantity)}</div></div>
+        <div className="storage-detail-copy"><div className="storage-detail-hero"><div className="storage-detail-art"><img src={iconFor(item)} alt="" draggable={false} /></div><div><h3>{item.displayName}</h3><span className="storage-category-label">{isKitchenIngredient(item) ? L('厨房食材', 'Cooking ingredient') : categories.find((category) => category.id === item.kind)?.label}</span></div></div><p className="storage-detail-description">{item.displaySummary}</p>{effects.length > 0 && <><p className="storage-effects-title">{L('每份基础效果', 'Base effects per item')}</p><div className="storage-effects">{effects.map((effect) => <span key={effect.key}>{effect.label}</span>)}</div></>}{!context && isKitchenIngredient(item) && <p className="storage-ingredient-note">{item.usable ? L('可以喂给伙伴，也可以留着做菜。两处显示的是同一份库存。', 'Feed your companion or save it for cooking. Both categories share this stock.') : L('留给厨房的原料，选一道菜就能派上用场。', 'An ingredient for the kitchen. Pick a recipe to use it.')}</p>}{context?.note && <p className="storage-ingredient-note">{context.note}</p>}</div>
+          <div className="storage-detail-actions"><div className="storage-quantity"><div className="storage-owned"><span>{context?.countLabel ?? (item.purchaseContents ? L('饼干库存', 'Biscuits owned') : L('持有', 'Owned'))}</span><strong>{ownedCount(item)}</strong></div>{canBatch && <><div className="storage-quantity-row"><span>{L('数量', 'Quantity')}</span><QuantityStepper value={resolved.quantity} max={Math.max(1, maxQuantity)} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} onInputChange={context ? quantity => onBrowseChange({ ...resolved, quantity }) : undefined} /></div><QuantityPresets value={resolved.quantity} max={maxQuantity} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} /></>}</div>{(context?.showRecovery ?? mode === 'bag') && <ItemRecoveryPreview pet={pet} item={item} quantity={resolved.quantity} favoriteFoodIds={favoriteFoodIds} />}<div className="storage-transaction">{renderActions(item, resolved.quantity)}</div></div>
     </section>
   </DialogShell>}</>;
 };

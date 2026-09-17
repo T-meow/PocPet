@@ -664,7 +664,7 @@ export const getPartnerScheduleStartCheck = (
 ): PartnerScheduleStartCheck => {
   const current = advancePartnerSchedule(pet, now);
   if (current.partnerSchedule.pendingResult) return { canStart: false, reason: 'pending' };
-  if (current.partnerSchedule.active) return { canStart: false, reason: 'busy' };
+  if (current.partnerSchedule.active || current.adventure.active) return { canStart: false, reason: 'busy' };
   if (current.partnerSchedule.completedOfferIds.includes(offerId)) return { canStart: false, reason: 'completed' };
   if (current.partnerSchedule.earlyEndedOfferIds.includes(offerId)) return { canStart: false, reason: 'ended' };
   if (current.isSleeping) return { canStart: false, reason: 'sleeping' };

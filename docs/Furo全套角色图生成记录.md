@@ -96,7 +96,7 @@
 - 用户授权：“用nano生成一张我看看”。本轮使用 mxai / `nano-2.0`，1K、1:1，仅1张四格原图（日常／饥饿／难过／脏污），生成后直接展示。
 - 使用与上一张Sunburst图一逐字相同的提示词，SHA-256 `4ab5a07670f6b8e586bf399bdb6cd53200263ae7ece12b38e9986931214d52b6`；唯一参考仍为新版全白身体三视图，SHA-256 `aefdb743c5834d3c16f9bdad21b577858aa7d8dca03b324d34880f6e63e32f9f`。
 - Nano按已用接口省略GPT专用的quality、count参数，预期返回1张；本项目Sunburst默认quality=medium不变。
-- 路径：`output/imagegen/furo-daily-01-white-nano-20260915/`；提示词和清单在 `docs/art/` 的同名文件，旧稿、备份与运行素材保留。
+- 路径：`output/imagegen/furo-daily-01-white-nano-20260915/`；清单在 `docs/art/` 的同名 JSON。提示词去重后复用 `docs/art/prompts/furo-daily-01-white-medium-20260914.txt`，与当时 Nano 输入逐字节一致；旧稿、备份与运行素材保留。
 - 校验／报价：参考上传成功；可选dry_run返回HTTP 502，原文 `参数校验或积分报价失败: 不支持的类型`，没有任务号，错误原样保存在 `01-states-quote-error.json`，未重试报价查询。
 - 正式生成：已通过只读模型查询确认 `nano-2.0` 仍为image模型且接受1张参考；既有Nano 1K请求任务 `2098964485367664640` 已成功。本轮仅正式提交一次，任务 `2099649517044371456` 已确认status=2。可选报价失败不记为正式生图失败，没有可用报价，不伪造价格。
 - 成品：[Nano版日常图一原图](../output/imagegen/furo-daily-01-white-nano-20260915/01-states-raw.png)，实际PNG 1024×1024，1,142,051字节，SHA-256 `97a0aff918691c2af35a6d3a6a4151f859d0c50c61d09fd8975516be8d3d3341`。文件结构、压缩像素数据、请求参数及哈希均通过；提示词与参考图哈希和Sunburst版相同，详情见 [验证记录](../output/imagegen/furo-daily-01-white-nano-20260915/verification.json)。

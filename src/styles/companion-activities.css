@@ -74,13 +74,15 @@
 .home-quick.schedule { background: #edf3fa; border-color: #dde7f0; color: #5b809f; }
 .home-quick.focus { background: #f4eef9; border-color: #e8dff0; color: #8a6aa0; }
 .home-quick.work { background: #f9f0df; border-color: #e9dfc9; color: #9e8454; }
-.home-adventure { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 15px; text-align: left; border: 1px dashed #c9d5ce; border-radius: 16px; background: linear-gradient(115deg, #eef2ee, #f7f5ed); color: #697e73; }
+.home-adventure { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 102px; margin-top: 12px; padding: 16px; text-align: left; border: 1px solid #6f8863; border-radius: 16px; background: #354b38; color: #fff9e7; box-shadow: 0 4px 12px #3e4c3420; }
+.home-adventure-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 57%; z-index: 0; pointer-events: none; }
+.home-adventure::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg,#19392ae8,#233c30c9 48%,#243c3033); pointer-events: none; }.home-adventure > span { position: relative; z-index: 2; }
 .home-v2 .home-adventure:disabled { opacity: 1; cursor: default; }
-.home-adventure-icon { flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #fff9; }
+.home-adventure-icon { flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #fff5; background: #fff2; }
 .home-adventure-copy { flex: 1; min-width: 0; display: grid; gap: 5px; }
-.home-adventure-copy strong { font-size: 13px; }
-.home-adventure-copy small { font-size: 10px; line-height: 1.6; color: #85948b; }
-.home-adventure-status { flex-shrink: 0; display: flex; align-items: center; gap: 4px; font-size: 10px; color: #7b8b80; }
+.home-adventure-copy strong { font-size: 15px; text-shadow: 0 1px 3px #162b2866; }
+.home-adventure-copy small { font-size: 10px; line-height: 1.6; color: #f4eed6; }
+.home-adventure-status { flex-shrink: 0; display: flex; align-items: center; gap: 4px; font-size: 10px; color: #fff9e7; }
 .home-tools,.home-record-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .home-tools { padding: 10px 6px; border: 1px solid #e5e6dd; border-radius: 15px; background: #fffdf7; }
 .home-tools button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; padding: 8px 4px; border: 0; border-radius: 10px; background: transparent; color: #82734f; font-size: 12px; font-weight: 700; }

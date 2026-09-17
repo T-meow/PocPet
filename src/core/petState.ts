@@ -4,6 +4,7 @@ import { defaultKitchenState, normalizeKitchenState } from './kitchen';
 import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultFestivalStories, normalizeFestivalStories } from './festivalStories';
+import { defaultAdventureState, normalizeAdventureState } from './adventureState';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
@@ -122,6 +123,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   miniGames: defaultMiniGameState(),
   companionMemories: defaultCompanionMemories(),
   festivalStories: defaultFestivalStories(),
+  adventure: defaultAdventureState(),
   lastDailyRewardAt: now,
   lastDailyEncounterAt: now,
   dailyEncounterDateKey: getDailyResetDateKey(now),
@@ -457,6 +459,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: options.preserveMiniGameSession, level }),
     companionMemories: normalizeCompanionMemories(raw.companionMemories),
     festivalStories: normalizeFestivalStories(raw.festivalStories),
+    adventure: normalizeAdventureState(raw.adventure),
     lastDailyRewardAt: isNumber(raw.lastDailyRewardAt) ? raw.lastDailyRewardAt : now,
     lastDailyEncounterAt: isNumber(raw.lastDailyEncounterAt)
       ? raw.lastDailyEncounterAt

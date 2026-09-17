@@ -130,6 +130,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { GardenPage } from './GardenPage';
 import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
+import { AdventurePage } from './AdventurePage';
 import { KitchenModal } from './KitchenModal';
 import { PlayModal } from './PlayModal';
 import { DialogShell } from './DialogShell';
@@ -1538,7 +1539,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     />
   ) : undefined;
   return (
-    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}`}>
+    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}`}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); setActivePage('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
@@ -1644,6 +1645,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onRefresh={handleRefreshPartnerSchedule}
           onQuickWork={() => handleAction('work')}
         />
+      ) : activePage === 'adventure' ? (
+        <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} icons={itemIconMap} registry={itemRegistry}
+          update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
+          onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
+          onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
           pet={pet}
@@ -1666,7 +1672,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
-          adventure={{ status: 'locked' }}
+          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending), onOpen: () => { playAfterUnlock('open'); setActivePage('adventure'); } }}
           hasAchievementNotice={hasAchievementNotice}
           onOpenShop={() => handleOpenShop()}
           onOpenAchievements={handleOpenAchievements}
@@ -1772,7 +1778,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
           itemIconMap={itemIconMap}
           browse={inventoryController.browse}
-          isPetBusy={Boolean(pet.partnerSchedule.active)}
+          isPetBusy={Boolean(pet.partnerSchedule.active || pet.adventure.active)}
           onBrowseChange={inventoryController.setBrowse}
           onClose={handleCloseInventory}
           onOpenShop={() => handleOpenShop()}

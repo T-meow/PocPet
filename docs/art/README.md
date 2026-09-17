@@ -12,6 +12,13 @@
 
 ## 提示词与清单
 
+近期批次另见：
+
+- 节日料理：[来源](festival-food-20260915.json)、[接入清单](festival-food-adoption-20260915.json)。
+- 节日 CG：[四节日来源](festival-cg-20260916.json)、[四节日接入](festival-cg-adoption-20260916.json)、[中秋接入](midautumn-cg-adoption-20260916.json)。
+- 冒险：[背景来源](adventure-backgrounds-20260917.json)、[背景接入](adventure-background-adoption.json)、[待选图标](adventure-icons-20260917.json)。
+- Furo：[最新略侧转试稿](furo-daily-01-angle-20260915.json)与[完整制作记录](../Furo全套角色图生成记录.md)；尚未替换现役角色。
+
 下一阶段范围与排期见 [美术素材扩展计划](../美术素材扩展计划.md)，包含厨房摆放、奖杯柜和小游戏。先确定该阶段清单，不能将总目标数量视为已授权的生图订单。
 
 第一阶段的初版提示词为 [12 道具](prompts/phase-a-items-c.txt)及 [4 厨具](prompts/phase-a-equipment-c.txt)。以下各轮保留作历史追溯，当前选定结果以本页顶部为准；旧派生图片和预览页已清理，原图、任务与必要参考保留。
@@ -29,28 +36,19 @@
 | [shop-icons-c-original.txt](prompts/shop-icons-c-original.txt) | 已采用 C 组的完整原画风提示词；扩展同风格时作为文字基准 |
 | [shop-icons-pixel.txt](prompts/shop-icons-pixel.txt) | A/B 像素图标历史完整提示词 |
 | [shop-icons-16-items.json](shop-icons-16-items.json) | 16 个道具的行优先顺序、ID、名称、文件名 |
-| [furo-common.txt](prompts/furo-common.txt) | Furo 身份、坐姿、三视角与构图约束 |
-| [furo-style-pixel.txt](prompts/furo-style-pixel.txt) | Furo 像素风格段 |
-| [furo-style-original.txt](prompts/furo-style-original.txt) | Furo 原画风格段 |
 | [furo-pixel-full.txt](prompts/furo-pixel-full.txt) | 历史 GPT / Nano 像素三视图实际使用的完整提示词 |
 | [furo-original-full.txt](prompts/furo-original-full.txt) | 历史 GPT / Nano 原画三视图实际使用的完整提示词 |
 
 这些文件为原始归档，不为新批次直接覆盖。新提示词另存本轮目录；仍可复用的最终版本再按任务归档到 `docs/art/`。
 
-## 历史脚本文本
+## 去重与历史脚本
 
-| 文件 | 已做过的处理 |
-|---|---|
-| [shop-icons-original-finish.cjs.txt](reference/shop-icons-original-finish.cjs.txt) | 原画图标安全切线、连通去白、Lanczos3 归一化、透明图与比较页 |
-| [shop-icons-pixel-finish.cjs.txt](reference/shop-icons-pixel-finish.cjs.txt) | 像素图标同类处理，使用 nearest |
-| [furo-prepare.cjs.txt](reference/furo-prepare.cjs.txt) | 复制唯一参考、记录哈希、拼接两种完整提示词 |
-| [furo-finish.cjs.txt](reference/furo-finish.cjs.txt) | 三栏切分、整体比例预览、四组比较 |
-| [adopt-c-style.cjs.txt](reference/adopt-c-style.cjs.txt) | 已采用 C 单图从 256 缩到 128，检查映射、输入和写回哈希 |
+2026-09-17 已移除早期一次性脚本的 `.cjs.txt` 副本、已合入全文的 Furo 提示词片段；日常图一的 Nano 对照清单复用逐字节相同的 [Sunburst 提示词](prompts/furo-daily-01-white-medium-20260914.txt)。历史模型、质量与任务结果不改。
 
-`.cjs.txt` 是便于阅读的历史归档，不是通用 CLI。执行前必须按新批次调整本机 sharp 路径、`__dirname`、依赖的旧 `items.json` 与输出目录；旧 manifest 会导致复用旧结果。Furo 的 `contentTop: 190` 是特定原图的裁标题参数，不能当作统一规则。接入脚本会写 `src/assets/icon/`，仅在对应素材替换已授权时使用。
+通用处理步骤保留在总规范第 5–7 节。原脚本仍在对应 `output/imagegen/` 批次；仓库旧副本可用 `git show aa51d17:docs/art/reference/<文件名>` 读取。它们依赖历史路径与参数，不是通用 CLI；复用前核对本轮输入、输出、切线及接入授权。
 
 ## 完整性与存放范围
 
-[archive-manifest.json](archive-manifest.json) 仅列出上述 13 份原始附件，记录来源、字节数与 SHA-256；本 README、开场提示词和总规范是新写的说明，不冒充历史原文。13 份原始附件共 56,692 字节，2026-09-13 已验证与本机来源逐字节一致。
+[archive-manifest.json](archive-manifest.json) 保留去重后 5 份原始附件的来源、字节数与 SHA-256；最初 13 份记录可从 Git 历史恢复。本 README、开场提示词和总规范是说明文档，不冒充原始请求。
 
-测试图、原始返回、裁切中间图、比较页、视频和 ZIP 保留在 Git 忽略的 `output/`，没有为归档新增追踪图片。这里不保存密钥、认证头或参考图 base64。换机器后 `output/` 可能不存在，按总规范里的文字和受版本控制的正式素材继续，不伪造缺失的试稿。
+原始返回、请求、必要母版、最终比较图、视频和 ZIP 保留在 Git 忽略的 `output/`。已清理旧 HTML 预览及重复／被替代的少量加工产物，恢复清单见 [美术文件清理记录](../美术文件清理记录.md)。这里不保存密钥、认证头或参考图 base64；换机器后 `output/` 可能不存在，不伪造缺失的试稿。

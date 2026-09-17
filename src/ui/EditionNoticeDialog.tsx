@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Bell, Check, Download, ChefHat, Gamepad2, Gift, Palette, RefreshCw } from 'lucide-react';
+import { Bell, Check, Download, Compass, Backpack, Gift, RefreshCw } from 'lucide-react';
 import { t } from '../i18n';
 import { appBuild, features } from '../platform/edition';
 import { recordEditionNoticeShown } from '../core/editionNotice';
@@ -12,9 +12,8 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenUpdates }: 
 }) => {
   useEffect(() => { recordEditionNoticeShown(); }, []);
   const sections = [
-    { key: 'features', Icon: Palette, paragraphs: ['uiAdvice'] },
-    { key: 'kitchen', Icon: ChefHat, paragraphs: ['kitchenAdvice'] },
-    { key: 'play', Icon: Gamepad2, paragraphs: ['playAdvice'] },
+    { key: 'adventure', Icon: Compass, paragraphs: ['adventureAdvice'] },
+    { key: 'supplies', Icon: Backpack, paragraphs: ['suppliesAdvice'] },
     { key: 'backup', Icon: Download, paragraphs: ['backupAdvice', 'formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
     { key: 'compensation', Icon: Gift, paragraphs: ['compensationAdvice', 'boxAdvice'] },
   ];

@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-09-13",
-  "purpose": "PocPet art workflow documentation; historical prompts and scripts, not runtime code",
+  "purpose": "PocPet art workflow documentation; retained historical prompts and item mapping, not runtime code",
   "files": [
     {
       "file": "prompts/shop-icons-c-original.txt",
@@ -13,24 +13,6 @@
       "source": "output/imagegen/shop-icons-20260913-textonly/prompt.txt",
       "bytes": 3984,
       "sha256": "d05209210c200b5663b5dfe680248ed9900110ecd2e0f4bc7770823cb6d70c9b"
-    },
-    {
-      "file": "prompts/furo-common.txt",
-      "source": "output/imagegen/furo-turnaround-20260913/prompt-common.txt",
-      "bytes": 2690,
-      "sha256": "1dc8c5fb1e1787f70c4af72909c4347db221c384a4def414c428d6aa37476a7f"
-    },
-    {
-      "file": "prompts/furo-style-pixel.txt",
-      "source": "output/imagegen/furo-turnaround-20260913/style-pixel.txt",
-      "bytes": 825,
-      "sha256": "782214e5570dbd4548fb706e4d1654695b82c2bed3ee59b83c2377ebbe4b3e24"
-    },
-    {
-      "file": "prompts/furo-style-original.txt",
-      "source": "output/imagegen/furo-turnaround-20260913/style-original.txt",
-      "bytes": 759,
-      "sha256": "5cb4b418da4bfbbc6c329c22aaf5017ce26c47dad7f438b466fc939017fb9cff"
     },
     {
       "file": "prompts/furo-pixel-full.txt",
@@ -49,36 +31,8 @@
       "source": "output/imagegen/shop-icons-20260913-character-style/items.json",
       "bytes": 1440,
       "sha256": "05dff592bb7898f2974944d3cce074d04f9bb39d4f64d04b24b1db26ea2ced3f"
-    },
-    {
-      "file": "reference/shop-icons-original-finish.cjs.txt",
-      "source": "output/imagegen/shop-icons-20260913-character-style/finish.cjs",
-      "bytes": 12055,
-      "sha256": "8aeb0adaef8fcb085ee0fcca44d2ceeac8cf416f5f194d2a4a1f89a30bd2fc4e"
-    },
-    {
-      "file": "reference/shop-icons-pixel-finish.cjs.txt",
-      "source": "output/imagegen/shop-icons-20260913-textonly/finish.cjs",
-      "bytes": 11098,
-      "sha256": "daf3627d97a249ac3f590d3fb9b5e498a50218eb979c28920131b2a00f9b786b"
-    },
-    {
-      "file": "reference/furo-prepare.cjs.txt",
-      "source": "output/imagegen/furo-turnaround-20260913/prepare.cjs",
-      "bytes": 1172,
-      "sha256": "eb2004f927178b38676fdb3c385f2788ee31440683e8c108548e6b14f4c8f977"
-    },
-    {
-      "file": "reference/furo-finish.cjs.txt",
-      "source": "output/imagegen/furo-turnaround-20260913/finish.cjs",
-      "bytes": 7568,
-      "sha256": "cdcda9f11fb9cb32cacc437fede2b4e727e2239bf70074daa25042dcbac045fb"
-    },
-    {
-      "file": "reference/adopt-c-style.cjs.txt",
-      "source": "output/imagegen/shop-icons-20260913-character-style/adopt-c-style.cjs",
-      "bytes": 3867,
-      "sha256": "77a03e9cbb43fc0088764eb6e1f1d4c9530939c30739893a77b2171740c6059e"
     }
-  ]
+  ],
+  "prunedAt": "2026-09-17",
+  "cleanupRecord": "docs/美术文件清理记录.md"
 }

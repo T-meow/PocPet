@@ -7,7 +7,7 @@ import { hydratePersistedPet, persistentPetKeys, toPersistedPet, type PersistedP
 export type { PersistedPetStateV2 } from './persistedPet';
 
 export const saveFileSchemaVersion = 2;
-export const minimumSaveReaderVersion = '1.8.0';
+export const minimumSaveReaderVersion = '1.9.0';
 export class UnsupportedSaveVersionError extends Error {}
 class InvalidSaveSyntaxError extends Error {}
 export const pocPetSaveAppId = 'PocPet' as const;

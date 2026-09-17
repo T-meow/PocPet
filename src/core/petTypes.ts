@@ -1,10 +1,12 @@
 import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionMemoryState } from './companionActivityTypes';
 import type { SaveMetadata } from './saveMetadata';
 import type { FestivalStoryState } from './festivalStories';
+import type { AdventureItemId, AdventureState } from './adventureTypes';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
 export type BuiltinItemId =
+  | AdventureItemId
   | DishId
   | KitchenMaterialId
   | 'emergency_biscuit'
@@ -532,6 +534,7 @@ export interface PetState {
   miniGames: MiniGameState;
   companionMemories: CompanionMemoryState;
   festivalStories: FestivalStoryState;
+  adventure: AdventureState;
 }
 
 export type PetAction = 'play' | 'clean' | 'sleep' | 'work';

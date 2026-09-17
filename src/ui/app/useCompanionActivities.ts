@@ -17,7 +17,7 @@ export const useCompanionActivities = (pet: PetState, actorId: string, playOpen:
   }, [setPet]);
   const session = pet.miniGames.active;
   useEffect(() => {
-    if (!playOpen || blocked || pet.level < miniGameUnlockLevel || pet.isSleeping || pet.partnerSchedule.active || (session && session.actorId !== actorId)) {
+    if (!playOpen || blocked || pet.level < miniGameUnlockLevel || pet.isSleeping || pet.partnerSchedule.active || pet.adventure.active || (session && session.actorId !== actorId)) {
       setPet((current) => pauseMiniGame(current));
       return;
     }
@@ -36,7 +36,7 @@ export const useCompanionActivities = (pet: PetState, actorId: string, playOpen:
       });
     }, 100);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('blur', pause); };
-  }, [playOpen, blocked, actorId, pet.level, pet.isSleeping, Boolean(pet.partnerSchedule.active), session?.actorId, setPet]);
+  }, [playOpen, blocked, actorId, pet.level, pet.isSleeping, Boolean(pet.partnerSchedule.active), Boolean(pet.adventure.active), session?.actorId, setPet]);
   const act = (id: string, action: MiniGameAction) => update((current) => actMiniGame(current, id, action, Date.now()));
   return { recipeId, setRecipeId, banana, setBanana, quantity, setQuantity, update, act };
 };

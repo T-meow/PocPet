@@ -7,6 +7,7 @@ interface QuantityStepperProps {
   max?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
+  onInputChange?: (value: number) => void;
 }
 
 export const QuantityStepper = ({
@@ -15,6 +16,7 @@ export const QuantityStepper = ({
   max = 99,
   disabled = false,
   onChange,
+  onInputChange,
 }: QuantityStepperProps) => {
   const clamp = (next: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(next) ? next : min)));
   const update = (next: number) => onChange(clamp(next));
@@ -40,7 +42,7 @@ export const QuantityStepper = ({
         step={1}
         value={value}
         disabled={disabled}
-        onChange={(event) => update(Number(event.currentTarget.value))}
+        onChange={(event) => (onInputChange ?? onChange)(clamp(Number(event.currentTarget.value)))}
         aria-label={t('ui.quantity.value')}
       />
       <button

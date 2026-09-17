@@ -1,4 +1,10 @@
 import coin from './assets/icon/coin.png';
+import trailMix from './assets/adventure/trail-mix.svg';
+import berryBait from './assets/adventure/berry-bait.svg';
+import trailRope from './assets/adventure/trail-rope.svg';
+import coinHoard from './assets/adventure/coin-hoard.svg';
+import valleyAmber from './assets/adventure/valley-amber.svg';
+import ancientGoldBar from './assets/adventure/ancient-gold-bar.svg';
 import { kitchenItemIcons } from './companionActivityAssets';
 import goodEndingCg1 from './assets/CG1.png';
 import iconAdMilk from './assets/icon/icon_ADmilk.png';
@@ -68,6 +74,12 @@ export const goodEndingImage = goodEndingCg1;
 export const treeStageImages = [tree1, tree2, tree3, tree4, tree5] as const;
 
 export const itemIcons: Record<BuiltinItemId, string> = {
+  trail_mix: trailMix,
+  berry_bait: berryBait,
+  trail_rope: trailRope,
+  coin_hoard: coinHoard,
+  valley_amber: valleyAmber,
+  ancient_gold_bar: ancientGoldBar,
   ...kitchenItemIcons,
   emergency_biscuit: itemEmergencyBiscuit,
   soda_biscuit_box: sodaBiscuitBox,

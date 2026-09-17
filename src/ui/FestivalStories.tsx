@@ -10,6 +10,7 @@ import { FestivalArtwork, festivalTitle } from './FestivalArtwork';
 import midautumnCg from '../assets/story/midautumn-moonlight.webp';
 import nutsMooncake from '../assets/icon/item_dish_mooncake_mixed_nuts.png';
 import beanMooncake from '../assets/icon/item_dish_mooncake_red_bean.png';
+import { ClaimNotice } from './ClaimNotice';
 
 const dateLabel = (date: string) => {
   const [year, month, day] = date.split('-').map(Number);
@@ -25,7 +26,7 @@ export const FestivalEntry = ({ pet, onOpen, now = Date.now() }: { pet: PetState
     const run = active ?? pet.festivalStories.runs[`${festival}:${new Date(now).getFullYear()}`];
     const subtitle = active ? active.stage === 'complete' ? '十张扭蛋券待领取' : `继续 ${active.year} 年的故事`
       : run?.stage === 'complete' ? '这一年的回忆已收藏' : '节日到了，一起留下一段回忆';
-    return <button key={festival} className="festival-entry" data-festival={festival} onClick={() => onOpen(festival)}><span className="festival-entry-moon"><Sparkles size={24} /></span><span><small>{festivalNames[festival]}</small><strong>{festivalTitle(festival)}</strong><span>{subtitle}</span></span><ArrowRight size={19} /></button>;
+    return <button key={festival} className="festival-entry" data-festival={festival} onClick={() => onOpen(festival)}><span className="festival-entry-moon"><Sparkles size={24} /></span><span><small>{festivalNames[festival]}</small><strong>{festivalTitle(festival)}</strong><span>{subtitle}</span></span><ArrowRight size={19} /><ClaimNotice show={active?.stage === 'complete'} /></button>;
   })}</>;
 };
 

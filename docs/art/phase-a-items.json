@@ -308,7 +308,7 @@
     "usage": "existing phase A artwork and latest meat shape; reused for requested full phase A originals"
   },
   "updatedAt": "2026-09-14T00:25:32.456Z",
-  "delivery": "output/imagegen/phase-a-raw-review-20260914/adopted/review.html",
+  "delivery": "docs/第一阶段美术执行记录.md",
   "verification": "output/imagegen/phase-a-raw-review-20260914/adopted/integration.json",
   "cleanup": "output/imagegen/phase-a-raw-review-20260914/adopted/cleanup-manifest.json",
   "userApproval": {

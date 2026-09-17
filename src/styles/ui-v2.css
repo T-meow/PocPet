@@ -678,6 +678,9 @@
   color: #6c6075;
 }
 
+.home-tools button,.home-record-grid button,.home-todo,.festival-entry { position: relative; }
+.claim-notice-dot { position: absolute; z-index: 5; top: 7px; right: 8px; width: 11px; height: 11px; border: 2px solid #fff; border-radius: 50%; background: #df4d61; box-shadow: 0 1px 4px #922a3940; pointer-events: none; }
+
 .memory-cover {
   position: relative;
   width: 100%;

@@ -1,6 +1,6 @@
 import { appBuild } from '../platform/edition';
 
-export const editionNoticeRevision = 'save-v2-kitchen-play';
+export const editionNoticeRevision = 'outpost-entrance-scouting';
 export const editionNoticeKey = `pocpet.edition-notice.${appBuild.version}.${editionNoticeRevision}`;
 const launchId = `${Date.now()}-${Math.random()}`;
 export const localDateKey = (now = Date.now()) => {

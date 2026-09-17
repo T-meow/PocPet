@@ -216,7 +216,7 @@ for (const mode of ['development', 'toy']) {
       assert.ok(starterReward?.coins > 0, 'the earlier coin gift remains separately available');
       assert.ok(!render(giftBubble.FloatingRewardBubble, { reward: starterReward, onClaim: noop }).includes('floating-reward-button__copy'));
       const announcementHtml = render(editionNotice.EditionNoticeDialog, { onAcknowledge: noop, onBackup: noop });
-      for (const text of [locale.t('ui.editionNotice.backup'), locale.t('ui.editionNotice.backupAdvice'), locale.t('ui.editionNotice.formatTimeline'), locale.t('ui.editionNotice.kitchenAdvice'), locale.t('ui.editionNotice.playAdvice'), locale.t('ui.editionNotice.compensationAdvice'), locale.t('ui.editionNotice.boxAdvice')]) {
+      for (const text of [locale.t('ui.editionNotice.backup'), locale.t('ui.editionNotice.backupAdvice'), locale.t('ui.editionNotice.formatTimeline'), locale.t('ui.editionNotice.adventureAdvice'), locale.t('ui.editionNotice.suppliesAdvice'), locale.t('ui.editionNotice.compensationAdvice'), locale.t('ui.editionNotice.boxAdvice')]) {
         const escaped = renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
         assert.ok(announcementHtml.includes(escaped), `announcement ${mode}/${language}: ${text}`);
       }
@@ -230,6 +230,32 @@ for (const mode of ['development', 'toy']) {
       assert.ok(render(home.HomePageV2, { ...homeProps, pet: subscribed }).includes('class="home-today"'));
       const claimed = core.claimBoostCardDailyReward(subscribed, undefined, now).pet;
       assert.ok(!render(home.HomePageV2, { ...homeProps, pet: claimed }).includes('class="home-today"'));
+      const hasClaimDot = (pet: any, buttonMarker: string, extra = {}) => {
+        const html = render(home.HomePageV2, { ...homeProps, pet, gardenReminder: core.getGardenReminder(pet, now), ...extra });
+        const button = html.match(/<button\b[\s\S]*?<\/button>/g)?.find(entry => entry.includes(buttonMarker));
+        assert.ok(button, `missing home button: ${buttonMarker}`);
+        return button.includes('claim-notice-dot');
+      };
+      assert.equal(hasClaimDot(subscribed, 'data-tone="rose"'), true);
+      assert.equal(hasClaimDot(claimed, 'data-tone="rose"'), false, 'friend card dot clears after claiming');
+      assert.equal(hasClaimDot(allDone, 'data-tone="lilac"'), true);
+      assert.equal(hasClaimDot(core.claimGoldenAppleGachaStarterGift(allDone).pet, 'data-tone="lilac"'), false, 'welcome gift dot clears after claiming');
+      const gardenGiftClaimed = { ...allDone, claimedRewardIds: [...allDone.claimedRewardIds, core.gardenCompensationRewardId] };
+      assert.equal(hasClaimDot(allDone, 'home-quick garden'), true, 'garden compensation is claimable too');
+      assert.equal(hasClaimDot(gardenGiftClaimed, 'home-quick garden', { gardenReminder: 'withered' }), false, 'withered plants alone do not imply a reward');
+      const rewardView = core.getAchievementViews(allDone).find((view: any) => view.reward.coins && !view.claimed);
+      assert.ok(rewardView);
+      const achievementReady = { ...allDone, achievements: { ...allDone.achievements, unlockedAtById: { [rewardView.id]: now } } };
+      assert.equal(hasClaimDot(achievementReady, 'data-tone="gold"'), true);
+      assert.equal(hasClaimDot(core.claimAllAchievementRewards(achievementReady, now).pet, 'data-tone="gold"'), false, 'achievement reward dot clears after claiming');
+      const dreamSupplement = { ...allDone, classicEndgame: { ...allDone.classicEndgame, projects: { ...allDone.classicEndgame.projects, study: { ...allDone.classicEndgame.projects.study, completedStages: 3 } } } };
+      assert.equal(hasClaimDot(dreamSupplement, 'data-tone="sky"'), true);
+      assert.equal(hasClaimDot(core.claimDreamProjectSupplySupplement(dreamSupplement, 'study', now), 'data-tone="sky"'), false, 'dream supply dot clears after claiming');
+      const entryProps = { adventure: { status: 'available', onOpen: noop } };
+      assert.equal(hasClaimDot(allDone, 'class="home-adventure"', entryProps), true, 'the outpost starter supply is available');
+      assert.equal(hasClaimDot({ ...allDone, adventure: { ...allDone.adventure, starterClaimed: true, starterMealsClaimed: true } }, 'class="home-adventure"', entryProps), false);
+      const adventureHome = render(home.HomePageV2, { ...homeProps, ...entryProps });
+      assert.ok(adventureHome.includes('home-adventure-background') && adventureHome.includes('outpost-hall.webp'));
       const cardHtml = render(cards.BoostCardModal, { pet: subscribed, onClose: noop, onBuyCard: noop, onClaimDailyReward: noop });
       assert.ok(cardHtml.includes('dialog-shell--fullscreen') && cardHtml.includes('friend-card-expiry'));
       const gachaHtml = render(gacha.GoldenAppleGachaModal, { pet: rich, itemIconMap: assets.itemIcons, onClose: noop, onDraw: noop, onHeartDraw: noop, onClaimStarterGift: noop, onSaveResults: noop, onClearSaveFeedback: noop, onPlaySfx: noop, isSavingResults: false, saveFeedback: '' });
@@ -316,6 +342,9 @@ for (const mode of ['development', 'toy']) {
         pendingDrops: index === 2 ? [{ kind: 'coins', amount: 123 }] : [],
       })) } };
       const mixedGardenHtml = render(garden.GardenPage, { pet: mixedGarden, itemIconMap: assets.itemIcons, compensationCoins: 100, onClaimCompensation: noop });
+      const harvestPet = { ...mixedGarden, claimedRewardIds: [...mixedGarden.claimedRewardIds, core.gardenCompensationRewardId] };
+      assert.equal(hasClaimDot(harvestPet, 'home-quick garden'), true);
+      assert.equal(hasClaimDot(core.harvestTree(harvestPet, 2, now), 'home-quick garden'), false, 'garden dot clears after the last ripe plot is harvested');
       const plots = mixedGardenHtml.match(/<article class="garden-plot [\s\S]*?<\/article>/g)!;
       assert.equal(plots.length, 5);
       for (const [index, state] of ['empty', 'growing', 'ready', 'withered', 'locked'].entries()) assert.ok(plots[index].includes(`garden-plot--${state}`));
@@ -348,6 +377,8 @@ for (const mode of ['development', 'toy']) {
       assert.ok(activeHtml.includes('partner-schedule-active') && activeHtml.includes('community-active-facts'));
       assert.ok(/community-refresh" disabled=""/.test(activeHtml), 'active requests block a paid refresh');
       const completed = core.advancePartnerSchedule(started, started.partnerSchedule.active.endsAt + 1);
+      assert.equal(hasClaimDot(completed, 'home-quick schedule'), true);
+      assert.equal(hasClaimDot(core.claimPartnerScheduleResult(completed, 'coins', now), 'home-quick schedule'), false, 'work dot clears after settlement');
       const fullHtml = render(schedule.PartnerSchedulePage, { ...serviceProps, pet: completed });
       assert.ok(fullHtml.includes('partner-schedule-result') && fullHtml.includes('data-state="pending"'));
       const settlement = fullHtml.match(/<div class="community-claim-options">([\s\S]*?)<\/section>/)?.[1] ?? '';

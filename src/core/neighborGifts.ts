@@ -22,7 +22,11 @@ export const selectNeighborGift = (
   candidates: readonly NeighborGiftCandidate[],
   random: () => number = Math.random,
 ): NeighborGiftCandidate => {
-  const available = candidates.filter((item) => item.itemId !== 'golden_apple' && !getInventoryItem(item.itemId)?.purchaseContents);
+  const available = candidates.filter((item) => {
+    const definition = getInventoryItem(item.itemId);
+    // Outpost supplies use capacity-aware purchases; random gifts must not fill reserved return space.
+    return item.itemId !== 'golden_apple' && !definition?.purchaseContents && !definition?.tags?.some(tag => tag === 'adventure_supply' || tag === 'adventure_tool');
+  });
   if (available.length === 0) {
     return {
       itemId: 'emergency_biscuit',

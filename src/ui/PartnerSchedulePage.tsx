@@ -80,6 +80,8 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
       <span className="community-wallet" aria-label={L(`${pet.hearts} 颗小心心`, `${pet.hearts} hearts`)}><Heart size={19} fill="currentColor" />{pet.hearts}</span>
     </header>
 
+    {pet.adventure.active && <p className="community-refresh-hint">{L('伙伴正在溪谷探查，返回前哨基地后就能继续社区工作。', 'Your companion is scouting the valley. Return to the outpost before starting community work.')}</p>}
+
     {result && coinClaim && <section className={`community-settlement partner-schedule-result${complete ? '' : ' community-settlement--early'}`} aria-label={L('工作结算', 'Work rewards')}>
       <div className="community-settlement-heading"><span className="community-large-icon">{complete ? <Gift /> : <Home />}</span><div><span className="community-eyebrow">{complete ? L('谢谢你来帮忙', 'THANK YOU FOR HELPING') : L('今天先回家啦', 'A LITTLE HELP COUNTS')}</span><h3>{getPartnerScheduleDisplayTitle(result.templateId, result.neighbor, neighbors)}</h3><p>{complete ? L('这份工作已经完成，收下报酬与全程谢礼吧。', 'All done! Collect your pay and completion gift.') : L('已经做过的部分也有收获，领取后可以继续选择其他工作。', 'Collect the pay for your contribution, then choose another job.')}</p></div></div>
       <div className="community-claim-options"><div><strong>{complete ? L('领取金币报酬', 'Take the coin reward') : L('领取本次报酬', 'Collect your pay')}</strong><RewardList reward={coinClaim} icons={itemIconMap} /><button type="button" className="primary-button" onClick={() => onClaim('coins')}>{L('收下报酬', 'Collect reward')}</button></div>

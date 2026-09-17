@@ -1,0 +1,90 @@
+{
+  "date": "2026-09-17",
+  "channel": "mxai",
+  "model": "gpt-image-2.5-sunburst",
+  "resolution": "1K",
+  "quality": "medium",
+  "status": "originals_ready_pending_user_review",
+  "inputImages": [],
+  "referencePolicy": "Text-to-image following the approved shop C art direction; no reference images uploaded.",
+  "reviewPolicy": "Generate and show the original sheet. Human style approval precedes postprocessing or game adoption.",
+  "sheets": [
+    {
+      "id": "adventure-icons",
+      "title": "六个冒险道具图标原图",
+      "aspectRatio": "3:2",
+      "promptPath": "docs/art/prompts/adventure-icons-20260917.txt",
+      "rawPath": "output/imagegen/adventure-icons-20260917/adventure-icons-raw.png",
+      "layout": {
+        "columns": 3,
+        "rows": 2
+      },
+      "items": [
+        {
+          "row": 1,
+          "column": 1,
+          "id": "trail_mix",
+          "name": "便携坚果包",
+          "plannedRuntimePath": "src/assets/icon/item_trail_mix.png"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "id": "berry_bait",
+          "name": "野果诱饵包",
+          "plannedRuntimePath": "src/assets/icon/item_berry_bait.png"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "id": "trail_rope",
+          "name": "探路绳",
+          "plannedRuntimePath": "src/assets/icon/item_trail_rope.png"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "id": "coin_hoard",
+          "name": "一堆金币",
+          "plannedRuntimePath": "src/assets/icon/item_coin_hoard.png"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "id": "valley_amber",
+          "name": "溪谷琥珀",
+          "plannedRuntimePath": "src/assets/icon/item_valley_amber.png"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "id": "ancient_gold_bar",
+          "name": "古老金条",
+          "plannedRuntimePath": "src/assets/icon/item_ancient_gold_bar.png"
+        }
+      ],
+      "result": {
+        "id": "adventure-icons",
+        "title": "六个冒险道具图标原图",
+        "serial": "2100604126357360640",
+        "status": 2,
+        "path": "output/imagegen/adventure-icons-20260917/adventure-icons-raw.png",
+        "model": "gpt-image-2.5-sunburst",
+        "requestedQuality": "medium",
+        "requestedResolution": "1K",
+        "requestedAspectRatio": "3:2",
+        "format": "png",
+        "width": 1536,
+        "height": 1024,
+        "bitDepth": 8,
+        "colorType": 2,
+        "interlace": 0,
+        "compressedDataReadable": true,
+        "bytes": 1654724,
+        "sha256": "7411c474247b816e965446fa77a3cd5c083036f662fbd3048775b477b998f456",
+        "postprocessing": "none",
+        "review": "pending_user_review"
+      }
+    }
+  ]
+}

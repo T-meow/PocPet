@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-17",
+  "authorization": "User requested implementation of the 1.9 hall and entrance scouting with these backgrounds and neighbor portraits.",
+  "results": [
+    {
+      "source": "output/imagegen/adventure-backgrounds-20260917/outpost-hall-raw.png",
+      "sourceSha256": "d3dc436212f9e69b4f19a4235a0f965ddc4ee9feb42c649c63f6642719b15f7d",
+      "target": "src/assets/adventure/outpost-hall.webp",
+      "width": 1920,
+      "height": 1088,
+      "bytes": 174564,
+      "sha256": "67339b8e0a16362ed2ed4b9b20b5fea1cf65a8fce21cb8e2f7b05b6e9055463f",
+      "operation": "WebP quality 85, original dimensions, no crop",
+      "visualReview": "pending_user_review"
+    },
+    {
+      "source": "output/imagegen/adventure-backgrounds-20260917/valley-raw.png",
+      "sourceSha256": "454c16fc04a683f2c9e5344cf62116474b627080eb8648b1c8ed33c1a6139f2a",
+      "target": "src/assets/adventure/valley.webp",
+      "width": 1920,
+      "height": 1088,
+      "bytes": 287008,
+      "sha256": "d080f9589d4a08ed422b1f3e0255256ddc8d1238476fcd78a91eb3ff18023b81",
+      "operation": "WebP quality 85, original dimensions, no crop",
+      "visualReview": "pending_user_review"
+    }
+  ]
+}
