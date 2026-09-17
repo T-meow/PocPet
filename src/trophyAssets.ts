@@ -1,17 +1,17 @@
 import type { ClassicTrophyId } from './core/classicTrophies';
-import studyBronze from './assets/trophies/study_bronze.png';
-import studySilver from './assets/trophies/study_silver.png';
-import studyGold from './assets/trophies/study_gold.png';
-import cookingBronze from './assets/trophies/cooking_bronze.png';
-import cookingSilver from './assets/trophies/cooking_silver.png';
-import cookingGold from './assets/trophies/cooking_gold.png';
-import gardenBronze from './assets/trophies/garden_bronze.png';
-import gardenSilver from './assets/trophies/garden_silver.png';
-import gardenGold from './assets/trophies/garden_gold.png';
-import exerciseBronze from './assets/trophies/exercise_bronze.png';
-import exerciseSilver from './assets/trophies/exercise_silver.png';
-import exerciseGold from './assets/trophies/exercise_gold.png';
-import diamond from './assets/trophies/diamond.png';
+import studyBronze from './assets/trophies/study_bronze.webp';
+import studySilver from './assets/trophies/study_silver.webp';
+import studyGold from './assets/trophies/study_gold.webp';
+import cookingBronze from './assets/trophies/cooking_bronze.webp';
+import cookingSilver from './assets/trophies/cooking_silver.webp';
+import cookingGold from './assets/trophies/cooking_gold.webp';
+import gardenBronze from './assets/trophies/garden_bronze.webp';
+import gardenSilver from './assets/trophies/garden_silver.webp';
+import gardenGold from './assets/trophies/garden_gold.webp';
+import exerciseBronze from './assets/trophies/exercise_bronze.webp';
+import exerciseSilver from './assets/trophies/exercise_silver.webp';
+import exerciseGold from './assets/trophies/exercise_gold.webp';
+import diamond from './assets/trophies/diamond.webp';
 
 export const trophyImages: Record<ClassicTrophyId | 'diamond', string> = {
   study_bronze: studyBronze,

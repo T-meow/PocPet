@@ -139,7 +139,7 @@
 .activity-heart small { display: block; width: 100%; font-size: 10px; font-weight: 400; color: #a09397; }
 
 .kitchen-scene { position: relative; min-height: 185px; border-radius: 18px; overflow: hidden; isolation: isolate; background: linear-gradient(90deg,#fffaf0d9,transparent 80%),url('../assets/kitchen/background.webp') center 44%/cover; margin-bottom: 22px; }
-.kitchen-scene::before { content: ''; position: absolute; inset: auto -2px -2px; height: 42px; background: url('../assets/kitchen/countertop.png') center/100% 100% no-repeat; pointer-events: none; }
+.kitchen-scene::before { content: ''; position: absolute; inset: auto -2px -2px; height: 42px; background: url('../assets/kitchen/countertop.webp') center/100% 100% no-repeat; pointer-events: none; }
 .kitchen-scene-copy { position: relative; z-index: 1; padding: 24px; width: 67%; }
 .kitchen-scene-copy>small { color: #a69374; font-size: 10px; letter-spacing: 1px; }
 .kitchen-scene-copy h3 { margin: 10px 0; font-size: 19px; }

@@ -8,8 +8,8 @@ import { festivalIds, festivalNames, getMidautumnWindow, isFestivalOpen, isMidau
 import { getActiveFestivalRun, getFestivalMemories, getMidautumnHistory, hasMidautumnReward, midautumnDish, midautumnRecipe, midautumnTitle, mooncakeOptions, moonlightSettings, moonlightWishes, storyText, type MidautumnAction, type MidautumnRun, type MooncakeFlavour, type MoonlightSetting, type MoonlightWish } from '../core/festivalStories';
 import { FestivalArtwork, festivalTitle } from './FestivalArtwork';
 import midautumnCg from '../assets/story/midautumn-moonlight.webp';
-import nutsMooncake from '../assets/icon/item_dish_mooncake_mixed_nuts.png';
-import beanMooncake from '../assets/icon/item_dish_mooncake_red_bean.png';
+import nutsMooncake from '../assets/icon/item_dish_mooncake_mixed_nuts.webp';
+import beanMooncake from '../assets/icon/item_dish_mooncake_red_bean.webp';
 import { ClaimNotice } from './ClaimNotice';
 
 const dateLabel = (date: string) => {

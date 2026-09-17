@@ -257,7 +257,7 @@
   place-items: center;
   border-radius: 6px;
   color: #75808a;
-  background: url('../assets/trophies/shelf.png') center bottom/100% 13px no-repeat;
+  background: url('../assets/trophies/shelf.webp') center bottom/100% 13px no-repeat;
 }
 .classic-trophy__icon img { width: 96px; height: 96px; object-fit: contain; pointer-events: none; }
 .classic-trophy__lock { position: absolute; right: 3px; bottom: 4px; box-sizing: content-box; padding: 5px; border-radius: 50%; color: #fffaf0; background: #786c62; }

@@ -1,17 +1,17 @@
 import { itemIcons } from './assets';
-import matchingCardBack from './assets/play/matching_card_back.png';
-import nightStar from './assets/play/night_star.png';
-import nightMoon from './assets/play/night_moon.png';
-import nightCloud from './assets/play/night_cloud.png';
-import nightPlanet from './assets/play/night_planet.png';
-import nightComet from './assets/play/night_comet.png';
-import nightSparkle from './assets/play/night_sparkle.png';
-import gardenSunflower from './assets/play/garden_sunflower.png';
-import gardenTulip from './assets/play/garden_tulip.png';
-import gardenClover from './assets/play/garden_clover.png';
-import gardenMushroom from './assets/play/garden_mushroom.png';
-import gardenLeaf from './assets/play/garden_leaf.png';
-import gardenButterfly from './assets/play/garden_butterfly.png';
+import matchingCardBack from './assets/play/matching_card_back.webp';
+import nightStar from './assets/play/night_star.webp';
+import nightMoon from './assets/play/night_moon.webp';
+import nightCloud from './assets/play/night_cloud.webp';
+import nightPlanet from './assets/play/night_planet.webp';
+import nightComet from './assets/play/night_comet.webp';
+import nightSparkle from './assets/play/night_sparkle.webp';
+import gardenSunflower from './assets/play/garden_sunflower.webp';
+import gardenTulip from './assets/play/garden_tulip.webp';
+import gardenClover from './assets/play/garden_clover.webp';
+import gardenMushroom from './assets/play/garden_mushroom.webp';
+import gardenLeaf from './assets/play/garden_leaf.webp';
+import gardenButterfly from './assets/play/garden_butterfly.webp';
 
 export { matchingCardBack };
 export const matchingCardFaces: Record<'garden' | 'fruit' | 'night', readonly { image: string; name: string; en: string }[]> = {

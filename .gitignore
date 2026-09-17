@@ -37,6 +37,9 @@ src-tauri/gen/android/app/proguard-tauri.pro
 *.swo
 # Private development notes
 docs/dev/
+# Local art records and prototypes
+/docs/art/
+/docs/prototypes/
 
 # Environment files
 .env

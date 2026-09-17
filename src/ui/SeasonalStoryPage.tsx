@@ -8,10 +8,10 @@ import { hasSeasonalReward, type SeasonalAction } from '../core/seasonalStories'
 import { canSpendCompanionTime } from '../core/kitchen';
 import { getRecipe } from '../core/kitchenRecipes';
 import { FestivalArtwork } from './FestivalArtwork';
-import porkDumplings from '../assets/icon/item_dish_dumplings_pork_cabbage.png';
-import vegetableDumplings from '../assets/icon/item_dish_dumplings_vegetable.png';
-import porkZongzi from '../assets/icon/item_dish_zongzi_braised_pork.png';
-import beanZongzi from '../assets/icon/item_dish_zongzi_red_bean.png';
+import porkDumplings from '../assets/icon/item_dish_dumplings_pork_cabbage.webp';
+import vegetableDumplings from '../assets/icon/item_dish_dumplings_vegetable.webp';
+import porkZongzi from '../assets/icon/item_dish_zongzi_braised_pork.webp';
+import beanZongzi from '../assets/icon/item_dish_zongzi_red_bean.webp';
 
 const dishImages: Partial<Record<RecipeId, string>> = { dumplings_pork_cabbage: porkDumplings, dumplings_vegetable: vegetableDumplings, zongzi_braised_pork: porkZongzi, zongzi_red_bean: beanZongzi };
 interface SeasonalStoryProps {

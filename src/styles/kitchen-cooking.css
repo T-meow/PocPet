@@ -4,7 +4,7 @@
 .cooking-steps { list-style: none; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 0; margin: 19px 0 0; }
 .cooking-steps li { display: flex; align-items: center; gap: 6px; padding: 9px 6px; color: #9b958a; font-size: 12px; border-bottom: 2px solid #eeeadf; }.cooking-steps li>span { display: grid; place-items: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: #f0ede3; }.cooking-steps .current { color: #a66c39; border-color: #d9b886; }.cooking-steps .current>span { background: #f9e6bf; }.cooking-steps .done { color: #719564; border-color: #c4d9b8; }.cooking-steps .done>span { background: #e3efd9; }
 .cooking-stage { position: relative; height: 240px; margin: 18px 0; border-radius: 20px; background: url('../assets/kitchen/background.webp') center/cover; overflow: hidden; isolation: isolate; }
-.cooking-counter { position: absolute; bottom: -2px; left: -2px; right: -2px; height: 48px; z-index: -1; background: url('../assets/kitchen/countertop.png') center/100% 100% no-repeat; pointer-events: none; }
+.cooking-counter { position: absolute; bottom: -2px; left: -2px; right: -2px; height: 48px; z-index: -1; background: url('../assets/kitchen/countertop.webp') center/100% 100% no-repeat; pointer-events: none; }
 .cooking-companion { position: absolute; width: 152px; height: 152px; right: 7px; bottom: 34px; object-fit: contain; }
 /* Artwork and overlays share a 512 px canvas. Insets place the painted feet on the counter. */
 .cooking-appliance { position: absolute; bottom: 5px; left: 36%; width: 210px; height: 210px; transform: translateX(-50%); }
