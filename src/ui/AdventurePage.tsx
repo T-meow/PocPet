@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Backpack, BookOpen, Check, Compass, Eye, Heart, LockKeyhole, Map, PackageOpen, RotateCw, ShoppingBag, Sparkles, Truck, Utensils, X, Zap } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, Backpack, BookOpen, Check, Compass, Ellipsis, Eye, Heart, LockKeyhole, Map, PackageOpen, RotateCw, ShoppingBag, Sparkles, Truck, Utensils, X, Zap } from 'lucide-react';
 import { resolvePetStatusImages, unknownItemIcon } from '../assets';
 import { adventureHallScene, getAdventureNodeScene } from './adventureScenes';
 import { getBuiltinPetMod } from '../core/builtinPetMods';
@@ -23,7 +23,7 @@ interface Props {
   onBack: () => void; onKitchen: () => void;
   onBuy: (id: ItemId, quantity: number) => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
 }
-type Panel = AdventureStoragePanel | 'map' | 'journal' | 'result';
+type Panel = AdventureStoragePanel | 'map' | 'journal' | 'result' | 'task';
 const actorNameFor = (id: string) => id === 'official.furo' ? 'Furo' : id === 'official.doro' ? 'Doro' : id === 'official.mint' ? 'mint' : L('伙伴', 'Companion');
 const builtinPortrait = (id: string) => adventureActorIds.some(actor => actor === id) ? resolvePetStatusImages(getBuiltinPetMod(id)).content : undefined;
 
@@ -41,6 +41,7 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
   const [panel, setPanelNow] = useState<Panel | undefined>(() => pending ? 'result' : getAdventureBagCount(trip?.loot ?? {}) ? 'loot' : undefined);
   const [landscape, setLandscape] = useState(false);
   const [panorama, setPanorama] = useState(false);
+  const moreRef = useRef<HTMLDetailsElement>(null);
   const [selection, setSelection] = useState<AdventureMapSelection | 'tutorial'>();
   const mapSelection = selection === 'tutorial' ? undefined : selection;
   const destination = selection === 'tutorial' ? 'tutorial' : mapSelection?.node === 'entrance' ? mapSelection.region : undefined;
@@ -54,6 +55,12 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
   const setPanel = (value: Panel | undefined) => { action.run(() => setPanelNow(value), 'sway', animateActions && value !== 'map'); };
   const onBack = () => perform(leave);
   const onKitchen = () => perform(kitchen);
+  const closeMore = () => {
+    if (!moreRef.current?.open) return;
+    moreRef.current.open = false;
+    moreRef.current.querySelector('summary')?.focus({ preventScroll: true });
+  };
+  const fromMore = (callback: () => void) => { closeMore(); callback(); };
   const [bag, setBag] = useState<Inventory>({});
   const [tool, setTool] = useState(false);
   const [greeting, setGreeting] = useState('');
@@ -92,11 +99,11 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
     <header><h3 id="adventure-dialog-title">{title}</h3><button className="icon-button" onClick={close} aria-label={L('关闭，返回场景', 'Close and return to the scene')}><X size={20} /></button></header>
     <div className="adventure-dialog-body">{contents}</div>
   </DialogShell>;
-  const storagePanel = panel && !['map', 'journal', 'result'].includes(panel) ? panel as AdventureStoragePanel : undefined;
+  const storagePanel = panel && !['map', 'journal', 'result', 'task'].includes(panel) ? panel as AdventureStoragePanel : undefined;
   const travelingPortrait = !trip || trip.actorId === actorId ? portrait : builtinPortrait(trip.actorId);
   const shownPortrait = phase === 'settling' && (!trip || trip.actorId === actorId) ? happyPortrait ?? travelingPortrait : travelingPortrait;
 
-  return <section className={'adventure-page' + (landscape ? ' adventure-page--landscape' : '') + (panorama ? ' adventure-page--panorama' : '')} data-action-phase={phase} data-motion={action.motion} aria-busy={phase !== 'idle'}
+  return <div className="adventure-viewport"><section className={'adventure-page' + (landscape ? ' adventure-page--landscape' : '') + (panorama ? ' adventure-page--panorama' : '')} data-action-phase={phase} data-motion={action.motion} aria-busy={phase !== 'idle'}
     onClickCapture={event => { if (isBusy()) { event.preventDefault(); event.stopPropagation(); } }}
     onChangeCapture={event => { if (isBusy()) { event.preventDefault(); event.stopPropagation(); } }}
     onKeyDownCapture={event => { if (isBusy() && ['Enter', ' ', 'Escape'].includes(event.key)) { event.preventDefault(); event.stopPropagation(); } }}>
@@ -117,29 +124,41 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
       </div>
     </header>
     <div className={trip ? 'adventure-stage adventure-scene--valley' : 'adventure-stage adventure-scene--hall'}>
-      <img className="adventure-backdrop" src={trip ? getAdventureNodeScene(trip.region === 'tutorial' ? 'valley' : trip.region, 'entrance') : adventureHallScene} alt={trip ? L('前哨附近的小溪、旧木桥与远处温室', 'The creek, old footbridge and distant greenhouse near the outpost') : L('有地图桌与补给架的木质大厅', 'A wooden hall with a map table and supply shelves')} />
       <nav className="adventure-toolbar" aria-label={L('冒险操作', 'Adventure actions')}>
-        <button onClick={() => perform(() => setLandscape(value => !value))} aria-pressed={landscape}><RotateCw size={18} />{landscape ? L('自动方向', 'Auto orientation') : L('横屏查看', 'Landscape')}</button>
-        <button onClick={() => perform(() => setPanorama(value => !value))} aria-pressed={panorama}><Eye size={18} />{panorama ? L('返回操作', 'Show actions') : L('看全景', 'Panorama')}</button>
-        <button disabled={!mapUnlocked} title={!mapUnlocked ? L('完成踩点探索后解锁大地图', 'Complete the tutorial to unlock the world map') : undefined} onClick={() => setPanel('map')}>{mapUnlocked ? <Map size={18} /> : <LockKeyhole size={18} />}{mapUnlocked ? L('总地图', 'Region map') : L('总地图未解锁', 'World map locked')}</button>
-        <button onClick={() => setPanel('journal')}><BookOpen size={18} />{L('手账', 'Journal')}</button>
+        <button disabled={!mapUnlocked} aria-label={mapUnlocked ? L('总地图', 'Region map') : L('总地图未解锁', 'World map locked')} title={!mapUnlocked ? L('完成踩点探索后解锁大地图', 'Complete the tutorial to unlock the world map') : undefined} onClick={() => setPanel('map')}>{mapUnlocked ? <Map size={18} /> : <LockKeyhole size={18} />}{L('地图', 'Map')}</button>
         {trip ? <><button onClick={() => setPanel('bag')}><Backpack size={18} />{L('背包', 'Bag')}</button>
           {lootCount > 0 && <button className="adventure-loot-alert" onClick={() => setPanel('loot')}><PackageOpen size={18} />{L('待拾取', 'Finds')} {lootCount}</button>}
-          <button onClick={returnHome}><ArrowLeft size={18} />{L('免费返程', 'Return free')}</button></>
-          : <>{pending && <button onClick={() => setPanel('result')}><PackageOpen size={18} />{L('领取行囊', 'Collect bag')}</button>}<button disabled={Boolean(pending)} onClick={() => setPanel('pack')}><Backpack size={18} />{L('出发整备', 'Pack for the trip')}</button>{!pending && <><button onClick={() => setPanel('supplies')}><ShoppingBag size={18} />{L('补给', 'Supplies')}</button><button onClick={onKitchen}><Utensils size={18} />{L('厨房', 'Kitchen')}</button></>}</>}
+          <button onClick={returnHome} aria-label={L('免费返程', 'Return free')}><ArrowLeft size={18} />{L('返程', 'Return')}</button></>
+          : <>{pending && <button onClick={() => setPanel('result')}><PackageOpen size={18} />{L('领取行囊', 'Collect bag')}</button>}<button disabled={Boolean(pending)} onClick={() => setPanel('pack')}><Backpack size={18} />{L('出发整备', 'Pack for the trip')}</button></>}
+        {panorama && <button onClick={() => perform(() => setPanorama(false))}><Eye size={18} />{L('返回操作', 'Show actions')}</button>}
+        <details className="adventure-more" ref={moreRef}
+          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); closeMore(); } }}>
+          <summary><Ellipsis size={18} />{L('更多', 'More')}</summary>
+          <div className="adventure-more-actions">
+            <button onClick={() => fromMore(() => setPanel('journal'))}><BookOpen size={18} />{L('手账', 'Journal')}</button>
+            <button onClick={() => fromMore(() => perform(() => setLandscape(value => !value)))} aria-pressed={landscape}><RotateCw size={18} />{landscape ? L('自动方向', 'Auto orientation') : L('横屏查看', 'Landscape')}</button>
+            {!panorama && <button onClick={() => fromMore(() => perform(() => setPanorama(true)))}><Eye size={18} />{L('看全景', 'Panorama')}</button>}
+            {!trip && !pending && <><button onClick={() => fromMore(() => setPanel('supplies'))}><ShoppingBag size={18} />{L('补给', 'Supplies')}</button><button onClick={() => fromMore(onKitchen)}><Utensils size={18} />{L('厨房', 'Kitchen')}</button></>}
+          </div>
+        </details>
       </nav>
+      <div className="adventure-content">
+      <div className="adventure-scene-view"><div className="adventure-scene-canvas">
+      <img className="adventure-backdrop" src={trip ? getAdventureNodeScene(trip.region === 'tutorial' ? 'valley' : trip.region, 'entrance') : adventureHallScene} alt={trip ? L('前哨附近的小溪、旧木桥与远处温室', 'The creek, old footbridge and distant greenhouse near the outpost') : L('有地图桌与补给架的木质大厅', 'A wooden hall with a map table and supply shelves')} />
       <div className="adventure-cast">
         <div className="adventure-actor adventure-actor--you">{shownPortrait && <img src={shownPortrait} alt={trip?.actorName ?? actorName} />}<span>{trip?.actorName ?? actorName}</span></div>
         {!trip && neighbors.map((id, index) => <button className={'adventure-actor adventure-neighbor adventure-neighbor--' + index} key={id} onClick={() => perform(() => setGreeting(actorNameFor(id) + L('：这趟要多带几份料理！途中遇见我，可以买补给，也可以请我从仓库送来物资。', ': Pack a few dishes! If we meet on the trail, I can sell supplies or deliver items from home.')))} aria-label={L('聊聊 · ', 'Talk with ') + actorNameFor(id)}><img src={builtinPortrait(id)} alt="" /><span>{actorNameFor(id)}</span></button>)}
         {trip?.neighborId && trip.choices.length === 4 && <div className="adventure-actor adventure-neighbor--encounter"><img src={builtinPortrait(trip.neighborId)} alt={actorNameFor(trip.neighborId)} /><span>{actorNameFor(trip.neighborId)}</span></div>}
       </div>
+      </div></div>
       <section className="adventure-dialogue" aria-label={L('当前事件与行动', 'Current event and actions')}>
-        {trip ? <><div className="adventure-dialogue-heading"><h3>{services ? actorNameFor(trip.neighborId!) + ' · ' + L('路上遇见你', 'Good to see you') : step?.title ?? L('这一带的路已经记住了', 'You know these paths now')}</h3><small>{trip.region === 'tutorial' ? adventureTutorialRewardText() : trip.rulesVersion >= 3 ? adventureTreasureRewardText(trip.rulesVersion) : <>{reward.hearts} {L('基础小心心', 'base hearts')} · {reward.coins} {L('金币', 'coins')}</>}</small></div>
+        {trip ? <><div className="adventure-dialogue-heading"><h3>{services ? actorNameFor(trip.neighborId!) + ' · ' + L('路上遇见你', 'Good to see you') : step?.title ?? L('这一带的路已经记住了', 'You know these paths now')}</h3><button className="adventure-task-button" onClick={() => setPanel('task')}>{L('任务详情', 'Task details')}</button></div>
           <p>{services ? L('我带了些补给，也能从家里送来物资，每份 2 小心心。先歇歇脚，再往前走吧。', 'I have supplies and can deliver items from home for 2 hearts each. Rest before moving on.') : step?.story ?? L('带着发现和未用完的补给，一起回到大厅吧。', 'Bring your discoveries and unused supplies back to the hall.')}</p>
           {services && <div className="adventure-service-actions"><button className="secondary-button" onClick={() => setPanel('shop')}><ShoppingBag size={17} />{L('看看随身补给', 'Browse supplies')}</button><button className="secondary-button" onClick={() => setPanel('delivery')}><Truck size={17} />{L('请伙伴运输', 'Request delivery')}</button></div>}
           {lootCount > 0 ? <button className="primary-button" onClick={() => setPanel('loot')}><PackageOpen size={18} />{L('先处理待拾取物资', 'Handle pending finds first')}</button> : <div className="adventure-choices">{step?.choices.map(choice => {
             const reason = getAdventureChoiceReason(pet, choice);
-            return <button key={choice.id} disabled={Boolean(reason)} title={reason || choice.detail} onClick={() => update(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id))}><strong>{choice.label}<ArrowRight size={16} /></strong><small>{choice.detail}</small><span className="adventure-cost"><Utensils size={14} />−{choice.hunger}<Zap size={14} />−{choice.energy}</span>{reason && <small className="adventure-blocked">{reason}</small>}</button>;
+            return <button key={choice.id} disabled={Boolean(reason)} title={reason || choice.detail} onClick={() => update(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id))}><span className="adventure-choice-heading"><strong>{choice.label}</strong><span className="adventure-cost"><Utensils size={14} />−{choice.hunger}<Zap size={14} />−{choice.energy}<ArrowRight size={14} /></span></span><small>{choice.detail}</small>{reason && <small className="adventure-blocked">{reason}</small>}</button>;
           })}{!step && <button className="primary-button" onClick={returnHome}>{L('完成探查，返回大厅', 'Finish scouting and return')}</button>}</div>}
           {step && step.choices.every(choice => Boolean(getAdventureChoiceReason(pet, choice))) && !lootCount && <button className="text-button" onClick={() => setPanel('bag')}>{L('打开背包补给；也可免费返程', 'Open your bag to refuel, or return for free')}</button>}
         </> : <><h3>{pending ? L('平安归来', 'Welcome home') : L('这次想去哪里？', 'Where shall we go?')}</h3><p>{greeting || (pending ? L('收好行囊和这趟探查的奖励吧。战利品可以在背包或出发整备中兑换金币。', 'Collect your supplies and rewards. Exchange treasure in your bag or trip preparation.') : !mapUnlocked ? L('先从附近的「踩点探索」开始：四个节点，熟悉路线和行囊操作。通关并收好发现后，再展开大地图。', 'Start close to home with the four-stop tutorial. Learn the route and travel bag, then collect your finds to open the world map.') : entranceComplete ? L('今天的溪谷入口探查已完成，凌晨 5 点刷新。可以看看地图，安排下一次目的地。', 'Today’s valley scouting is complete and resets at 5 a.m. Browse the map and plan your next destination.') : L('可以先打开出发整备整理行囊，再到大地图选择目的地。选好去处后，就能带着准备好的物资出发。', 'You can pack your bag first, then choose a destination on the world map. Once you choose where to go, set out with your prepared supplies.'))}</p>
@@ -148,10 +167,12 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
             {(!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed) && <button className="secondary-button" onClick={() => update(claimAdventureStarter)}><Sparkles size={17} />{pet.adventure.starterClaimed ? L('补领胡萝卜蛋饭 ×4', 'Collect 4 carrot egg rice dishes') : L('领取入门补给 · 含料理 ×4', 'Collect starter supplies · 4 dishes included')}</button>}</>}</div>
         </>}
       </section>
+      </div>
       {storagePanel && <AdventureStorage key={storagePanel} panel={storagePanel} pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} onPack={changeBag} onTool={setTool} onDepart={depart} onPanel={setPanel} onClose={close} onBuy={onBuy} onUseHomeItem={onUseHomeItem} update={update} perform={perform} />}
       {panel === 'map' && mapUnlocked && <AdventureMap adventure={pet.adventure} today={today} selection={mapSelection} portrait={shownPortrait} landscape={landscape} onToggleLandscape={() => perform(() => setLandscape(value => !value))} onSelect={value => perform(() => setSelection(value))} onPrepare={prepareSelectedNode} onResume={close} onCollect={() => setPanel('result')} onClose={close} />}
+      {panel === 'task' && trip && dialog(L('任务详情', 'Task details'), <><h4>{adventureTaskName(trip.region)}</h4><p>{trip.region === 'tutorial' ? adventureTutorialRewardText() : trip.rulesVersion >= 3 ? adventureTreasureRewardText(trip.rulesVersion) : <>{reward.hearts} {L('基础小心心', 'base hearts')} · {reward.coins} {L('金币', 'coins')}</>}</p></>)}
       {panel === 'journal' && dialog(L('旅行手账', 'Travel journal'), <>{(['tutorial', 'valley'] as const).filter(region => region === 'tutorial' || mapUnlocked).map(region => <section key={region}><h4>{region === 'tutorial' ? adventureTaskName(region) : L('溪谷的第一张地图', 'Your first valley map')}</h4><div className="adventure-landmarks">{adventureDiscoveryNames(region).map((name, i) => { const found = pet.adventure.discoveries.includes(region + ':' + i); return <div key={name} data-found={found}>{found ? <Check size={17} /> : <Compass size={17} />}<span>{name}</span></div>; })}</div></section>)}<h4>{L('最近的旅途', 'Recent journeys')}</h4>{!pet.adventure.journal.length && <p>{L('收好第一趟行囊后，这里会留下记录。', 'Collect your first travel bag to record a journey.')}</p>}{pet.adventure.journal.map(entry => <article className="adventure-journal-entry" key={entry.id}><div><strong>{entry.actorName} · {adventureTaskName(entry.region)}</strong><small>{entry.complete ? L('完成探查', 'Scouting complete') : L('提前返回', 'Returned early')} · {entry.steps}/{getAdventureStepCount(entry.region)}{entry.first ? L(' · 首次完成', ' · First completion') : ''}</small></div>{(entry.hearts > 0 || entry.coins > 0) && <span>♥ {entry.hearts} · {entry.coins} {L('金币', 'coins')}</span>}</article>)}</>)}
       {panel === 'result' && pending && dialog(L('本次探查结算', 'Trip rewards'), <><h4>{pending.complete ? pending.region === 'tutorial' ? L('踩点探索完成，大地图就在眼前', 'Tutorial complete: the world map awaits') : L('入口附近，已经熟悉了', 'The entrance feels familiar now') : L('平安回来，也是一段旅程', 'A safe return is a journey too')}</h4><p>{pending.region === 'tutorial' && pending.complete ? L('收好这次发现，地图手册将带你去往更远的地方。一堆金币可以在背包中兑换为 360 金币。', 'Collect your finds and let the map handbook guide you farther. Exchange the coin hoard in your inventory for 360 coins.') : pending.first ? L('首次完成的收获已列在下方。', 'Your first-completion rewards are listed below.') : L('保留所有已完成路段的收获。', 'Keep the rewards from every completed step.')}</p><div className="adventure-rewards">{pending.hearts > 0 && <span><Heart size={18} />{pending.hearts}</span>}{pending.coins > 0 && <span>{pending.coins} {L('金币', 'coins')}</span>}{pending.rewardsClaimed && <small>{L('奖励已结算', 'Rewards received')}</small>}</div><h4>{L('收获与归还物资', 'Finds and returned supplies')}</h4><div className="adventure-item-list">{Object.entries(pending.items).filter(([, n]) => n > 0).map(([id, n]) => <span className="adventure-item-pill" key={id}><img src={icons[id] ?? unknownItemIcon} alt="" />{registry.get(id)?.name ?? id} ×{n}{isAdventureTreasure(id) && <small>{L('可兑换 ', 'Worth ')}{getAdventureTreasureValue(id) * n} {L('金币', 'coins')}</small>}</span>)}</div><div className="adventure-dialog-actions"><button className="primary-button" onClick={() => update(current => claimAdventureResult(current, pending.id))}><PackageOpen size={18} />{pending.rewardsClaimed ? L('领取剩余物资', 'Collect remaining supplies') : L('收好行囊', 'Collect everything')}</button><button className="secondary-button" onClick={close}>{L('返回大厅', 'Return to the hall')}</button></div></>)}
     </div>
-  </section>;
+  </section></div>;
 };
