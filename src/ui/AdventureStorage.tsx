@@ -5,7 +5,7 @@ import { adventureBagCapacity, adventureTransportLimit, createAdventureShopStock
 import { adventureItems, getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
 import { getAdventureBagCount, getAdventureItemPurchaseCapacity, isAdventureSupply } from '../core/adventureState';
 import { getInventoryDefinitions } from '../core/items';
-import { getItemRecoveryPreview } from '../core/itemEffects';
+import { getItemRecoveryPreview, getItemUsePlan, overfedMessage } from '../core/itemEffects';
 import { getItemPurchaseQuote } from '../core/petActions';
 import { activityText as L } from '../core/kitchenRecipes';
 import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes';
@@ -76,9 +76,10 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, desti
           {!quote.canTrade && <small>{L('请检查剩余库存、服务额度、余额与行囊空位。', 'Check stock, service allowance, balance and bag space.')}</small>}</>;
       }
       const source = panel === 'loot' ? 'loot' : id === 'trail_rope' ? 'tool' : 'bag';
+      const usePlan = getItemUsePlan(pet, item, quantity);
       return <>
         {source === 'loot' && <button className="storage-primary" disabled={getAdventureBagCount(trip.bag) + quantity > adventureBagCapacity} onClick={() => perform(() => update(current => pickupAdventureLoot(current, trip.id, trip.revision, id, quantity)))}><Backpack size={16} />{L('收起 ×', 'Collect ×')}{quantity}</button>}
-        {source !== 'tool' && (isAdventureTreasure(id) ? <button className="storage-primary" onClick={() => perform(() => update(current => redeemAdventureTreasure(current, trip.id, trip.revision, quantity, source, id)))}>{exchange}</button> : item.usable && <button className="storage-primary" disabled={!canRecover(id, quantity)} onClick={() => perform(() => update(current => useAdventureSupply(current, trip.id, trip.revision, id, quantity, source)))}>{source === 'loot' ? L('当场食用 ×', 'Eat here ×') : L('使用 ×', 'Use ×')}{quantity}</button>)}
+        {source !== 'tool' && (isAdventureTreasure(id) ? <button className="storage-primary" onClick={() => perform(() => update(current => redeemAdventureTreasure(current, trip.id, trip.revision, quantity, source, id)))}>{exchange}</button> : item.usable && <button className="storage-primary" disabled={!canRecover(id, quantity)} title={usePlan.blocked ? overfedMessage : undefined} onClick={() => perform(() => update(current => useAdventureSupply(current, trip.id, trip.revision, id, usePlan.quantity, source)))}>{usePlan.blocked ? '吃撑了，先消化一下' : `${source === 'loot' ? L('当场食用 ×', 'Eat here ×') : L('使用 ×', 'Use ×')}${usePlan.quantity}`}</button>)}
         <button className="storage-secondary adventure-discard" onClick={() => perform(() => setDiscard({ tripId: trip.id, revision: trip.revision, id, name: item.displayName, quantity, source }))}><Trash2 size={16} />{L('丢弃 ×', 'Discard ×')}{quantity}</button>
       </>;
     }} />

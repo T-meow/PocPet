@@ -4,11 +4,12 @@ import { getEnergyRecoveryInfo, getPetEnergyCap, getPetStatCap, type PetState } 
 import { t } from '../i18n';
 import { activityText as L } from '../core/kitchenRecipes';
 import { DialogShell } from './DialogShell';
+import { isPetOverfed } from '../core/petStats';
 
 export const CompanionStatus = ({ pet }: { pet: PetState }) => {
   const [details, setDetails] = useState(false);
   const energy = getEnergyRecoveryInfo(pet);
-  const hint = energy.isFull ? L('体力已充足', 'Energy is full') : energy.isPaused ? L('体力恢复暂停中', 'Energy recovery paused') : L(`下次恢复 ${Math.ceil(energy.remainingMs / 1000)} 秒`, `Next recovery in ${Math.ceil(energy.remainingMs / 1000)}s`);
+  const hint = isPetOverfed(pet) ? '吃撑了，先消化一下' : energy.isFull ? L('体力已充足', 'Energy is full') : energy.isPaused ? L('体力恢复暂停中', 'Energy recovery paused') : L(`下次恢复 ${Math.ceil(energy.remainingMs / 1000)} 秒`, `Next recovery in ${Math.ceil(energy.remainingMs / 1000)}s`);
   const stats = [ ['hunger', '#ff9658'], ['mood', '#f6c63e'], ['cleanliness', '#18b9dc'], ['energy', '#947de5'], ['health', '#19b98e'] ] as const;
   return <><div className="companion-status"><button className="stat-overview" onClick={() => setDetails(true)}><strong>{L('伙伴状态', 'Companion status')}</strong><span>{hint}</span><ChevronRight size={16} /></button><div className="stat-rings">{stats.map(([key, color]) => {
     const max = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet);

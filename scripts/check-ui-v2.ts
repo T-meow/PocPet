@@ -148,6 +148,7 @@ for (const mode of ['development', 'toy']) {
     const textFiles = await server.ssrLoadModule('/src/platform/saveTextFile.ts');
     const gachaPresentation = await server.ssrLoadModule('/src/ui/gachaRewards.ts');
     const gachaPoster = await server.ssrLoadModule('/src/platform/sharePoster.ts');
+    const inventoryUi = await server.ssrLoadModule('/src/ui/InventoryModal.tsx');
     const [giftBubble, giftCore, rewardController] = await Promise.all([
       server.ssrLoadModule('/src/ui/FloatingRewardBubble.tsx'),
       server.ssrLoadModule('/src/core/communityWorkGift.ts'),
@@ -347,6 +348,24 @@ for (const mode of ['development', 'toy']) {
         assert.ok(goldenBag.includes(label), `golden apple inventory badge: ${label}`);
         assert.ok(goldenPreview.includes(label), `golden apple recovery preview: ${label}`);
       }
+
+      const feedPet = { ...core.createDefaultPet(now), hunger: 50, inventory: { bento: 10 } };
+      const feedItems = core.getInventoryDefinitions(core.createBuiltinItemRegistry(), feedPet.inventory);
+      const feedPreview = render(recovery.ItemRecoveryPreview, { pet: feedPet, item: feedItems[0], quantity: 10, favoriteFoodIds: [] });
+      assert.ok(feedPreview.includes('本次只用 2 份') && feedPreview.includes('其余保留'));
+      assert.ok(feedPreview.includes(`${locale.t('ui.stats.hunger')} +50`));
+      const fullPet = { ...feedPet, hunger: 99, isOverfed: true };
+      const blockedPreview = render(recovery.ItemRecoveryPreview, { pet: fullPet, item: feedItems[0], quantity: 10 });
+      assert.ok(blockedPreview.includes('吃撑了') && blockedPreview.includes('95%') && blockedPreview.includes('不消耗食物'));
+      assert.ok(render(status.CompanionStatus, { pet: fullPet }).includes('吃撑了'));
+      const renderFeedButton = (pet: typeof feedPet) => {
+        const element = inventoryUi.InventoryModal({ pet, items: feedItems, itemIconMap: assets.itemIcons,
+          browse: { category: 'food', query: '', selectedId: 'bento', quantity: 10 }, onBrowseChange: noop, isPetBusy: false,
+          onClose: noop, onOpenShop: noop, onOpenGarden: noop, onOpenKitchen: noop, onUseItem: noop });
+        return renderToStaticMarkup(element.props.renderActions(feedItems[0], 10));
+      };
+      assert.ok(renderFeedButton(feedPet).includes('×2'), 'the action advertises the same quantity as the recovery preview');
+      assert.ok(/data-use-item="bento"[^>]*disabled=""/.test(renderFeedButton(fullPet)), 'full companions cannot submit a feed from inventory');
 
       // Exercise the real poster drawing path without a browser or a player save.
       const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');

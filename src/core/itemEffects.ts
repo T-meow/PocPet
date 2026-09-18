@@ -3,12 +3,25 @@ import { getClassicTrophyEffects } from './classicTrophies';
 import { favoriteFoodIdSet } from './items';
 import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
 import { addSkillXp, partnerScheduleMaxSkillLevel } from './partnerSchedule';
-import { clampPetEnergy, clampPetHealth, clampPetStat, getPetEnergyCap, getPetStatCap } from './petStats';
+import { clampPetEnergy, clampPetHealth, clampPetStat, getPetEnergyCap, getPetStatCap, isPetOverfed } from './petStats';
 import type { ItemDefinition, ItemEffect, ItemId, PartnerScheduleSkill, PetState } from './petTypes';
 
 export const itemStatKeys = ['hunger', 'mood', 'cleanliness', 'energy', 'health'] as const;
 export const goldenAppleRecoveryPercent = 50;
 type EffectItem = Pick<ItemDefinition, 'id' | 'kind' | 'effect'>;
+
+export const overfedMessage = '吃撑了，先消化一下。饱食降至上限的 95% 后可继续喂食。';
+
+// Special recovery items keep their existing uses, including golden-apple hearts.
+export const getItemUsePlan = (pet: PetState, item: EffectItem, quantity = 1) => {
+  const special = item.id === 'birthday_cake' || item.id === 'golden_apple';
+  const requestedQuantity = special || item.kind === 'garden' ? 1 : Math.max(1, Math.min(99, Number.isFinite(quantity) ? Math.floor(quantity) : 1));
+  const food = item.kind === 'food' && !special;
+  const blocked = food && isPetOverfed(pet);
+  const hungerPerItem = food ? getItemStatEffect(pet, item).hunger ?? 0 : 0;
+  const needed = hungerPerItem > 0 ? Math.ceil(Math.max(0, getPetStatCap(pet) - pet.hunger) / hungerPerItem) : requestedQuantity;
+  return { requestedQuantity, quantity: blocked ? 0 : Math.min(requestedQuantity, needed), blocked };
+};
 
 export const getPictureBookReward = (initialSkill: PartnerScheduleSkill, quantity: number) => {
   let skill = initialSkill;
@@ -44,7 +57,8 @@ export const getItemStatEffect = (pet: PetState, item: EffectItem): ItemEffect =
 // Preview only the item's recovery; wake-up and repeated-action reactions are separate.
 export const getItemRecoveryPreview = (pet: PetState, item: EffectItem, quantity = 1, favoriteFoodIds?: readonly ItemId[]) => {
   const isSpecial = item.id === 'birthday_cake' || item.id === 'golden_apple';
-  const count = isSpecial ? 1 : Math.max(1, Math.floor(quantity));
+  const plan = getItemUsePlan(pet, item, quantity);
+  const count = plan.quantity;
   const effect = item.id === 'birthday_cake' ? item.effect : getItemStatEffect(pet, item);
   const favorite = !isSpecial && (favoriteFoodIds ? favoriteFoodIds.includes(item.id) : favoriteFoodIdSet.has(item.id));
   const actual: ItemEffect = {};
@@ -56,5 +70,5 @@ export const getItemRecoveryPreview = (pet: PetState, item: EffectItem, quantity
     actual[key] = clamp(pet, pet[key] + amount) - pet[key];
     overflow[key] = Math.max(0, amount - actual[key]!);
   }
-  return { actual, overflow };
+  return { actual, overflow, ...plan };
 };

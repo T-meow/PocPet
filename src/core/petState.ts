@@ -5,6 +5,7 @@ import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultFestivalStories, normalizeFestivalStories } from './festivalStories';
 import { defaultAdventureState, normalizeAdventureState } from './adventureState';
+import { isPetOverfed } from './petStats';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
@@ -104,6 +105,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   name: defaultPetName,
   level: 1,
   hunger: 78,
+  isOverfed: false,
   mood: 72,
   cleanliness: 82,
   energy: 76,
@@ -313,6 +315,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
+  const hunger = clampStat(isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap);
   const normalizedIsSleeping = Boolean(raw.isSleeping);
   const hasValidSleepSnapshot = normalizedIsSleeping
     && isNumber(raw.sleepStartedAt)
@@ -437,7 +440,8 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     name: normalizedName,
     saveMetadata: fallback.saveMetadata,
     level,
-    hunger: clampStat(isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap),
+    hunger,
+    isOverfed: isPetOverfed({ level, hunger, isOverfed: raw.isOverfed === true }),
     mood: clampStat(isNumber(raw.mood) ? raw.mood : fallback.mood, statCap),
     cleanliness: clampStat(isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, statCap),
     energy: normalizedEnergy,

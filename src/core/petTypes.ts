@@ -472,6 +472,7 @@ export interface PetState {
   cleanliness: number;
   energy: number;
   health: number;
+  isOverfed: boolean;
   createdAt: number;
   metDate: PetCalendarDate;
   ageSeconds: number;

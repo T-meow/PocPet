@@ -53,6 +53,19 @@ const loadCurrent = () => {
 };
 const resetStorage = () => { storage.values.clear(); loadPet(now, quiet); takeStorageFeedback(); };
 
+// Satiety survives exports and reloads, while old saves need no new field.
+const fedPet = useInventoryItem({ ...fresh, hunger: 70, inventory: { bento: 5 } }, 'bento', now);
+const fedText = createSaveFileText(fedPet, null, now);
+assert.equal(readLocal(fedText).isOverfed, true);
+const fedReload = readLocal(fedText, now + 1000);
+assert.equal(fedReload.isOverfed, true);
+assert.equal(useInventoryItem(fedReload, 'bento', now + 1000).inventory.bento, 4);
+assert.equal(readLocal(fedText, now + 60 * 60 * 1000).isOverfed, false);
+const { isOverfed: _satiety, ...beforeFeedingProtection } = fresh;
+assert.equal(normalizePet(beforeFeedingProtection, now).isOverfed, false);
+assert.equal(normalizePet({ ...beforeFeedingProtection, hunger: 100 }, now).isOverfed, true);
+assert.equal(normalizePet({ ...fresh, hunger: 98, isOverfed: 'true' }, now).isOverfed, false);
+
 // Pure parsing/export and the exact durable boundary.
 const goldDrawn = drawGoldenAppleGacha(rich, 'coins', 10, now).pet;
 const drawn = drawGoldenAppleHeartGacha(goldDrawn, 10, now).pet;

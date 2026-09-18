@@ -66,6 +66,18 @@ export const getPetStatRatio = (pet: PetState, key: ScaledPetStatKey) => {
   return statCap > 0 ? Math.max(0, Math.min(1, pet[key] / statCap)) : 0;
 };
 
+export const overfedReleaseRatio = 0.95;
+
+export const isPetOverfed = (pet: Pick<PetState, 'level' | 'hunger'> & { isOverfed?: boolean }) => {
+  const cap = getPetStatCap(pet);
+  return pet.hunger >= cap || (pet.isOverfed === true && pet.hunger > cap * overfedReleaseRatio);
+};
+
+export const updatePetSatiety = (pet: PetState): PetState => {
+  const isOverfed = isPetOverfed(pet);
+  return pet.isOverfed === isOverfed ? pet : { ...pet, isOverfed };
+};
+
 export const clampPetStat = (pet: PetState, value: number) => clampStat(value, getPetStatCap(pet));
 
 export const clampPetHealth = (pet: PetState, value: number) => clampHealth(value, getPetStatCap(pet));

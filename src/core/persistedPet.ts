@@ -2,7 +2,7 @@ import { normalizePet } from './petState';
 import type { PetState } from './petTypes';
 
 export const persistentPetKeys = [
-  'saveMetadata', 'name', 'level', 'hunger', 'mood', 'cleanliness', 'energy', 'health', 'createdAt', 'metDate', 'ageSeconds',
+  'saveMetadata', 'name', 'level', 'hunger', 'isOverfed', 'mood', 'cleanliness', 'energy', 'health', 'createdAt', 'metDate', 'ageSeconds',
   'lastUpdatedAt', 'isSleeping', 'coins', 'hearts', 'inventory', 'lastDailyRewardAt', 'lastDailyEncounterAt',
   'dailyEncounterDateKey', 'neighborGiftDateKey', 'neighborGiftCount', 'dailyBiscuitClaimDate', 'dailyBiscuitClaims',
   'dailyDiscountDate', 'dailyDiscountItemIds', 'dailyDiscountUsedItemIds', 'dailyDiscountUsed',

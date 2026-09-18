@@ -17,7 +17,8 @@ import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, g
 import type { BuiltinItemId, BuyItemOptions, CareActionKey, ItemDefinition, ItemId, PetAction, PetBirthday, PetState, PomodoroDurations, RecentActivity, UseInventoryItemOptions } from './petTypes';
 import { defaultPomodoroState, getDefaultPomodoroRemainingMs, getPomodoroPhaseDurationMs, normalizePomodoroSettings, pickPomodoroActivity, pomodoroMinHealthThreshold, pomodoroPhaseLabels, pomodoroResetEventMinFocusMs } from './pomodoro';
 import { startSleepSnapshot, wakePet } from './petEvents';
-import { getItemStatEffect, getPictureBookReward, goldenAppleRecoveryPercent } from './itemEffects';
+import { getItemStatEffect, getItemUsePlan, getPictureBookReward, goldenAppleRecoveryPercent, overfedMessage } from './itemEffects';
+import { updatePetSatiety } from './petStats';
 import { randomInt } from './utils';
 import { formatPracticeSkillXp, isPartnerSchedulePetBusy } from './partnerSchedule';
 import { recordDishTaste } from './kitchen';
@@ -417,7 +418,7 @@ export const buyItem = (pet: PetState, itemId: ItemId, now = Date.now(), options
   }, price > 0, quantity);
 };
 
-export const useInventoryItem = (
+const useInventoryItemInternal = (
   pet: PetState,
   itemId: ItemId,
   now = Date.now(),
@@ -436,7 +437,9 @@ export const useInventoryItem = (
 
   const count = getInventoryCount(current.inventory, itemId);
   const isSingleUseItem = itemId === 'birthday_cake' || itemId === 'golden_apple' || item.kind === 'garden';
-  const quantity = isSingleUseItem ? 1 : getEffectiveBatchQuantity(current, options.quantity);
+  const plan = getItemUsePlan(current, item, isSingleUseItem ? 1 : getEffectiveBatchQuantity(current, options.quantity));
+  if (plan.blocked) return { ...current, recentEvent: overfedMessage };
+  const quantity = plan.quantity;
   if (count < quantity) {
     return { ...current, recentEvent: t('pet.item.empty', { item: displayItemName }) };
   }
@@ -569,7 +572,7 @@ export const useInventoryItem = (
       boostCards: giftHeartPet.boostCards,
       partnerSchedule: bookReward && studyXp > 0 ? { ...base.partnerSchedule, skills: { ...base.partnerSchedule.skills, study: bookReward.skill } } : base.partnerSchedule,
       inventory: removeInventoryItem(base.inventory, itemId, quantity),
-      recentEvent: `${baseEvent}${favoriteText}${giftHeartText}${studyXp > 0 ? ` ${formatPracticeSkillXp('study', studyXp)}` : ''}${overuse.text}`,
+      recentEvent: `${baseEvent}${favoriteText}${giftHeartText}${studyXp > 0 ? ` ${formatPracticeSkillXp('study', studyXp)}` : ''}${overuse.text}${plan.quantity < plan.requestedQuantity ? ` 已吃饱，本次仅使用 ${quantity} 份，其余未消耗。` : ''}`,
     }, overuseKey, now, quantity),
     now,
     quantity,
@@ -583,6 +586,9 @@ export const useInventoryItem = (
   const wishAction = item.kind === 'food' ? 'feed' : itemId === 'shampoo' || itemId === 'wet_wipes' ? 'clean' : undefined;
   return wishAction ? recordWishProgress(withHeartRecord, wishAction, now) : withHeartRecord;
 };
+
+export const useInventoryItem = (...args: Parameters<typeof useInventoryItemInternal>): PetState =>
+  updatePetSatiety(useInventoryItemInternal(...args));
 
 export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));

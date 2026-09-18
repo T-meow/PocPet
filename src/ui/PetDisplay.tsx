@@ -8,6 +8,7 @@ import { formatCompactNumber } from './numberFormat';
 import { RoomBackdrop } from './RoomBackdrop';
 import { DialogShell } from './DialogShell';
 import { activityText as L } from '../core/kitchenRecipes';
+import { isPetOverfed } from '../core/petStats';
 
 const weatherIcons: Record<WeatherType, LucideIcon> = { sunny: Sun, cloudy: Cloud, rainy: CloudRain, breezy: Wind };
 interface PetDisplayProps {
@@ -21,7 +22,7 @@ export const PetDisplay = ({ pet, onInteract, canUpgrade, isPetBusy, nextUpgrade
   const status = getPrimaryStatus(pet);
   const activity = !pet.isSleeping ? (pet.partnerSchedule.active ? getPartnerScheduleActivity(pet.partnerSchedule.active.category) : pet.recentActivity !== 'idle' && pet.recentActivityUntil > Date.now() ? pet.recentActivity : undefined) : undefined;
   const petImage = activity ? petActivityImages[activity] ?? petStatusImages[status] : petStatusImages[status];
-  const label = getStatusLabel(status);
+  const label = status === 'content' && isPetOverfed(pet) ? '吃撑了，先消化一下' : getStatusLabel(status);
   const busyLabel = pet.adventure.active ? L('伙伴正在溪谷探查，请先返回前哨基地。', 'Your companion is scouting the valley. Return to the outpost first.') : t('ui.petDisplay.partnerScheduleBusy');
   const season = getSeasonInfo(pet.lastUpdatedAt);
   const weather = weatherInfo[pet.weather];

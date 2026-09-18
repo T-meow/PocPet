@@ -7,7 +7,7 @@ import { getAdventureStartReason } from '../core/adventure';
 import { getAdventureBagCount, isAdventureSupply } from '../core/adventureState';
 import { getInventoryDefinitions } from '../core/items';
 import { getEffectiveBatchQuantity } from '../core/petActions';
-import { getItemRecoveryPreview } from '../core/itemEffects';
+import { getItemRecoveryPreview, getItemUsePlan, overfedMessage } from '../core/itemEffects';
 import { getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
 import { activityText as L } from '../core/kitchenRecipes';
 import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes';
@@ -41,8 +41,10 @@ export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destinat
   const max = selected?.id === 'trail_rope' ? Math.min(1, amount) : Math.min(adventureBagCapacity, amount);
   const count = Math.max(1, Math.min(quantity, max));
   const canPack = selected && (isAdventureSupply(selected.id) || selected.id === 'trail_rope');
-  const useCount = selected?.id === 'golden_apple' || selected?.id === 'birthday_cake' ? 1 : getEffectiveBatchQuantity(pet, count);
-  const canUse = selected?.usable && selection?.source === 'warehouse' && amount >= useCount && !pet.adventure.active && !pet.partnerSchedule.active
+  const requestedUseCount = selected?.id === 'golden_apple' || selected?.id === 'birthday_cake' ? 1 : getEffectiveBatchQuantity(pet, count);
+  const usePlan = selected ? getItemUsePlan(pet, selected, requestedUseCount) : undefined;
+  const useCount = usePlan?.quantity ?? 0;
+  const canUse = selected?.usable && useCount > 0 && selection?.source === 'warehouse' && amount >= useCount && !pet.adventure.active && !pet.partnerSchedule.active
     && (isAdventureTreasure(selected.id) || Object.values(getItemRecoveryPreview(pet, selected, useCount, []).actual).some(value => value > 0));
   const reason = getAdventureStartReason(pet, destination);
   const valid = packed <= adventureBagCapacity && Object.entries(carried).every(([id, n]) => n <= (pet.inventory[id] ?? 0));
@@ -78,10 +80,10 @@ export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destinat
       {selected && selection ? <div className="adventure-pack-selection"><div><strong>{selected.displayName}</strong><small>{L('仓库', 'Home')} {warehouse[selected.id] ?? 0} · {L('背包', 'Bag')} {carried[selected.id] ?? 0}</small></div>
         <QuantityStepper value={count} max={Math.max(1, max)} disabled={!max} onChange={value => perform(() => setQuantity(value))} onInputChange={setQuantity} />
         {(canPack || selection.source === 'bag') && <button className="storage-primary" disabled={!max || selection.source === 'warehouse' && selected.id !== 'trail_rope' && packed + count > adventureBagCapacity} onClick={transferItem}>{selection.source === 'warehouse' ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}{selection.source === 'warehouse' ? L('装入', 'Pack') : L('移回仓库', 'Unpack')} ×{count}</button>}
-        {selection.source === 'warehouse' && selected.usable && <button className="storage-secondary" disabled={!canUse} onClick={() => perform(() => { if (canUse) onUseHomeItem(selected.id, useCount); })}>{isAdventureTreasure(selected.id) ? L(`兑换 ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} 金币`, `Exchange ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} coins`) : L(`现在${selected.kind === 'food' ? '食用' : '使用'} ×${useCount}`, `Use now ×${useCount}`)}</button>}
+        {selection.source === 'warehouse' && selected.usable && <button className="storage-secondary" disabled={!canUse} title={usePlan?.blocked ? overfedMessage : undefined} onClick={() => perform(() => { if (canUse) onUseHomeItem(selected.id, useCount); })}>{usePlan?.blocked ? '吃撑了，先消化一下' : isAdventureTreasure(selected.id) ? L(`兑换 ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} 金币`, `Exchange ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} coins`) : L(`现在${selected.kind === 'food' ? '食用' : '使用'} ×${useCount}`, `Use now ×${useCount}`)}</button>}
         {max > 1 && <QuantityPresets value={count} max={max} onChange={value => perform(() => setQuantity(value))} />}
       </div> : <p>{L('点选物品后装入背包；仓库中的补给可以直接使用，战利品可以兑换金币。', 'Select items to pack. Use home supplies here or exchange treasure for coins.')}</p>}
-      {selected && selection?.source === 'warehouse' && <ItemRecoveryPreview pet={pet} item={selected} quantity={useCount} favoriteFoodIds={[]} />}
+      {selected && selection?.source === 'warehouse' && <ItemRecoveryPreview pet={pet} item={selected} quantity={requestedUseCount} favoriteFoodIds={[]} />}
     </footer>
     <div className="adventure-pack-depart"><div><strong>{destination ? (destination === 'tutorial' ? '' : L('溪谷 · ', 'Creek Valley · ')) + adventureTaskName(destination) : L('尚未选择目的地', 'No destination selected')}</strong>{destination && <small>{destination === 'tutorial' ? L('4 个节点 · 全程饱食 32、体力 8 · 无需额外道具', '4 stops · 32 hunger, 8 energy in total · No extra items needed') : L('全程饱食 300～345 · 体力 74～98 · 返程免费', '300–345 hunger · 74–98 energy · Free return')}</small>}{(reason || !valid) && <small className="adventure-blocked">{reason || L('库存已变化，请调整携带选择。', 'Inventory changed. Adjust the selection.')}</small>}</div><button className="adventure-depart-button" disabled={Boolean(reason) || !valid} onClick={() => perform(onDepart)}><Compass size={22} />{L('出发', 'Set out')}</button></div>
   </DialogShell>;

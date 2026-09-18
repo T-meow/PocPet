@@ -11,6 +11,7 @@ import { applyTimedEvent, getRandomDailyEncounter, getRandomOfflineDiary, getRan
 import { neighborGiftDailyLimit } from './neighbors';
 import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, criticalHungerActionThreshold, getEnergyRecoveryIntervalMs, getPetEnergyCap, getPetStatCap, getPetStatThreshold, lowEnergyThreshold, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
 import type { NeighborEventContext, PetState } from './petTypes';
+import { updatePetSatiety } from './petStats';
 import {
   getDefaultPomodoroRemainingMs,
   getPomodoroBonusReward,
@@ -458,7 +459,7 @@ const advanceUnprotectedSlice = (
     ageSeconds: pet.ageSeconds + (to - from) / 1000,
     lastUpdatedAt: to,
   };
-  return recoverEnergyUntil(advanced, to, from);
+  return updatePetSatiety(recoverEnergyUntil(advanced, to, from));
 };
 
 const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetState => {
@@ -474,7 +475,7 @@ const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetStat
   };
 };
 
-export const advancePet = (pet: PetState, now = Date.now(), eventContext?: NeighborEventContext): PetState => {
+const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: NeighborEventContext): PetState => {
   const clockReconciled = reconcilePetClock(pet, now);
   const useHistoricalDateKeys = clockReconciled.rolledBackByMs === 0;
   const normalized = normalizePet(clockReconciled.pet, now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
@@ -706,4 +707,7 @@ export const advancePet = (pet: PetState, now = Date.now(), eventContext?: Neigh
 
   return applyDailyEncounter(next, now, eventContext);
 };
+
+export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState =>
+  updatePetSatiety(advancePetInternal(...args));
 

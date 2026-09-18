@@ -179,6 +179,26 @@ try {
   const preview = getItemRecoveryPreview(poor, getInventoryItem('dish_carrot_rice')!, 2, []);
   assert.equal(batch.hunger - poor.hunger, preview.actual.hunger);
 
+  const almostFull = { ...poor, hunger: 90 };
+  const limitedBatch = eat(almostFull, 'dish_carrot_rice', 5);
+  assert.equal(limitedBatch.adventure.active!.bag.dish_carrot_rice, 4, 'travel meals stop after the first filling serving');
+  assert.equal(limitedBatch.energy, almostFull.energy + 2);
+  assert.equal(limitedBatch.isOverfed, true);
+  assert.equal(limitedBatch.achievements.counters.totalItemUseCount, almostFull.achievements.counters.totalItemUseCount + 1);
+  const blockedMeal = eat(limitedBatch, 'dish_carrot_rice', 4);
+  assert.deepEqual(blockedMeal.adventure, limitedBatch.adventure, 'a fresh revision cannot bypass satiety');
+  assert.deepEqual(blockedMeal.achievements, limitedBatch.achievements);
+  assert.deepEqual(eat(roundTrip(limitedBatch), 'dish_carrot_rice').adventure, limitedBatch.adventure);
+  const refreshed = eat(limitedBatch, 'energy_drink');
+  assert.ok(refreshed.energy > limitedBatch.energy, 'full travelers can restore energy without food');
+  const afterWalking = step({ ...limitedBatch, energy: 100 });
+  assert.equal(afterWalking.isOverfed, false, 'route costs can release satiety without waiting');
+  assert.ok(eat(afterWalking, 'dish_carrot_rice').hunger > afterWalking.hunger);
+  const groundFood = { ...almostFull, adventure: { ...almostFull.adventure, active: { ...almostFull.adventure.active!, loot: { apple: 2 } } } };
+  const groundMeal = eat(groundFood, 'apple', 2, 'loot');
+  assert.equal(groundMeal.adventure.active!.loot.apple, 1, 'ground food uses the same batch protection');
+  assert.deepEqual(eat(groundMeal, 'apple', 1, 'loot').adventure, groundMeal.adventure);
+
   const traveling = { ...pet, level: 3 };
   assert.equal(canSpendCompanionTime(traveling), false);
   assert.equal(applyPetAction(traveling, 'sleep', now).isSleeping, false);
@@ -267,7 +287,7 @@ try {
   assert.deepEqual(migrated.active!.shopStock, {});
   assert.equal(migrated.active!.purchases, 1); assert.equal(migrated.active!.transportedCount, 1);
   assert.deepEqual(normalizeAdventureState(migrated), migrated);
-  let oldTrip = { ...fresh(), adventure: migrated };
+  let oldTrip = { ...fresh(), hunger: 80, adventure: migrated };
   oldTrip = eat(oldTrip, 'apple');
   assert.equal(roundTrip(oldTrip).adventure.active!.bag.apple, 1);
   const oldHunger = oldTrip.hunger;
