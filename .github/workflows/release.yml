@@ -210,6 +210,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # v3 defaults include the retired tools package.
+          packages: platform-tools
 
       - name: Install Android SDK packages
         shell: powershell
@@ -272,6 +275,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # v3 defaults include the retired tools package.
+          packages: platform-tools
 
       - name: Install Android SDK packages
         shell: powershell
