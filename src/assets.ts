@@ -77,6 +77,7 @@ export const itemIcons: Record<BuiltinItemId, string> = {
   trail_mix: trailMix,
   berry_bait: berryBait,
   trail_rope: trailRope,
+  map_handbook: itemPictureBook,
   coin_hoard: coinHoard,
   valley_amber: valleyAmber,
   ancient_gold_bar: ancientGoldBar,

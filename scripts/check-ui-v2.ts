@@ -9,6 +9,10 @@ import { appearancePalette, appearanceStorageKey, appearanceThemes, colorContras
 import { updatePetSession, type PetSessionState } from '../src/ui/app/petSessionFeedback';
 import { createAlbumData, createCurrentReview, createReviewAlbumData, isAlbumArtworkUnlocked } from '../src/ui/albumData';
 import { albumPosterSvg } from '../src/platform/albumPoster';
+import { acknowledgementsGiftCoins, acknowledgementsGiftRewardId, claimAcknowledgementsGift } from '../src/core/acknowledgementsGift';
+import { helpPageGiftRewardId, helpStarterGiftRewardId } from '../src/core/petState';
+import { createSaveFileText, loadStoredPetJson, parseSaveFileText } from '../src/core/saveCodec';
+import { editionNoticeKey, readEditionNotice, recordEditionNoticeShown, shouldShowEditionNotice } from '../src/core/editionNotice';
 
 // In-memory preferences only; never load or write an actual player's save.
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -36,6 +40,19 @@ try {
   assert.deepEqual(readAppearance(), defaultAppearance);
   assert.deepEqual(normalizeAppearance({ theme: 'custom', color: 'url(bad)' }), defaultAppearance);
   assert.equal(preferences.get('pocpet.pet.v1'), 'untouched-player-save');
+  preferences.set('pocpet.edition-notice.1.9.0.outpost-entrance-scouting', JSON.stringify({ count: 3, lastLaunch: 'old-preview' }));
+  preferences.set('pocpet.edition-notice.1.9.0.release-1.9.0', JSON.stringify({ count: 3, lastLaunch: 'before-tutorial' }));
+  assert.equal(readEditionNotice().count, 0, 'reading earlier drafts three times does not hide the revised tutorial notice');
+  for (let launch = 1; launch <= 3; launch++) {
+    const launchId = `formal-${launch}`;
+    assert.equal(shouldShowEditionNotice(readEditionNotice(), launchId), true);
+    recordEditionNoticeShown(launchId);
+    recordEditionNoticeShown(launchId);
+    assert.equal(readEditionNotice().count, launch, 'a repeat render in one launch does not spend another reminder');
+    assert.equal(shouldShowEditionNotice(readEditionNotice(), launchId), false);
+  }
+  assert.equal(shouldShowEditionNotice(readEditionNotice(), 'formal-fourth'), false);
+  assert.equal(JSON.parse(preferences.get(editionNoticeKey)!).count, 3);
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('Storage disabled'); } });
   assert.deepEqual(readAppearance(), defaultAppearance);
   assert.equal(persistAppearance(custom), false);
@@ -91,6 +108,35 @@ assert.ok(escapedPoster.includes('&lt;script&gt; &amp; &quot;name&quot;'));
 assert.ok(escapedPoster.includes('lengthAdjust="spacingAndGlyphs"'));
 assert.equal((escapedPoster.match(/width="386"/g) ?? []).length, 6);
 console.log('UI v2 data: independent themes, storage failures, contrast, repeat feedback, quiet ticks, album scopes and artwork gates passed.');
+
+assert.equal(acknowledgementsGiftCoins, 1000);
+for (const oldClaims of [[], [helpStarterGiftRewardId], [helpPageGiftRewardId], [helpStarterGiftRewardId, helpPageGiftRewardId]]) {
+  const fresh = createDefaultPet(now);
+  const before = normalizePet({ ...fresh, claimedRewardIds: [...fresh.claimedRewardIds, ...oldClaims] }, now);
+  const original = JSON.stringify(before);
+  const claimed = claimAcknowledgementsGift(before);
+  assert.equal(claimed.coins, before.coins + 1000, 'both new players and recipients of either retired gift receive the new full gift');
+  assert.equal(claimed.achievements.counters.coinEarnedTotal, before.achievements.counters.coinEarnedTotal + 1000);
+  assert.deepEqual(claimed.claimedRewardIds, [...before.claimedRewardIds, acknowledgementsGiftRewardId]);
+  assert.equal(JSON.stringify(before), original, 'claiming never mutates the prior save');
+  assert.deepEqual(claimAcknowledgementsGift(before), claimed, 'React replay computes the same one-gift result');
+  assert.equal(claimAcknowledgementsGift(claimed), claimed, 'repeated clicks do not grant coins or statistics again');
+  for (const saved of [before, claimed]) {
+    const text = createSaveFileText(saved, null, now);
+    const local = loadStoredPetJson(text, now, { neighbors: [], giftCandidates: [], random: () => 0 });
+    assert.equal(local.status, 'ok');
+    if (local.status !== 'ok') throw new Error('Gift test save did not load');
+    for (const restored of [local.pet, parseSaveFileText(text, now).pet]) {
+      assert.equal(restored.coins, saved.coins);
+      if (saved === claimed) assert.equal(claimAcknowledgementsGift(restored), restored, 'the receipt survives local reloads and file imports');
+      else assert.equal(claimAcknowledgementsGift(restored).coins, restored.coins + 1000, 'an unclaimed gift remains available after restoring');
+    }
+  }
+}
+const oldHelpFlag = normalizePet({ ...createDefaultPet(now), hasClaimedHelpGift: true }, now);
+assert.ok(oldHelpFlag.claimedRewardIds.includes(helpStarterGiftRewardId));
+assert.equal(claimAcknowledgementsGift(oldHelpFlag).coins, oldHelpFlag.coins + 1000, 'the oldest help flag does not block the new gift');
+console.log('Acknowledgements gift: new/legacy eligibility, 1000 coins, statistics, replay, duplicate claims and save round trips passed.');
 
 const noop = () => {};
 for (const mode of ['development', 'toy']) {
@@ -175,24 +221,25 @@ for (const mode of ['development', 'toy']) {
       pet: rich, portrait: assets.petStatusImages.content, appearance: defaultAppearance, isAudioEnabled: true,
       backupController: { state: { snapshots: [], fileStatus: 'unconfigured' }, preferences: { enabled: true, intervalDays: 1 }, busy: false },
       updateController: { supported: false, preferences: { enabled: true } }, activeMod: null, installedMods: [], modMessage: '', draftName: rich.name, draftBirthday: rich.birthday, metDate: rich.metDate,
-      saveText: '', importSaveText: '', hasImportBackup: false, hasOpenedHelp: false, hasClaimedAuthorFollowGift: false, hasClaimedHelpPageGift: false,
+      saveText: '', importSaveText: '', hasImportBackup: false, hasOpenedHelp: false, hasClaimedAuthorFollowGift: false, hasClaimedAcknowledgementsGift: false,
       cloudAvailability: 'available', cloudUsedFallback: false, cloudBusy: null, cloudReminderEnabled: true, cloudReminderDue: false, hasLatestYearReview: false, shareBusy: null,
       cloudManifest: { schemaVersion: 1, generation: 'a', encoding: 'zip-deflate-base64', encodedLength: 4096, chunkCount: 4, checksum: '00000000', uploadedAt: new Date(now).toISOString(), petName: rich.name, petLevel: rich.level },
       authorSummary: {}, authorVideo: {}, isAuthorLoading: false,
-      ...Object.fromEntries(['onClose', 'onAppearanceChange', 'onAudioToggle', 'onDraftNameChange', 'onDraftBirthdayChange', 'onLanguageChange', 'onImportSaveTextChange', 'onCloudReminderEnabledChange'].map((key) => [key, noop])),
+      ...Object.fromEntries(['onClose', 'onAppearanceChange', 'onAudioToggle', 'onDraftNameChange', 'onDraftBirthdayChange', 'onLanguageChange', 'onImportSaveTextChange', 'onCloudReminderEnabledChange', 'onClaimAcknowledgementsGift'].map((key) => [key, noop])),
     };
     for (const language of ['zh-CN', 'en-US']) {
       locale.setLanguage(language);
       let giftPet = core.normalizePet({ ...rich, saveMetadata: { ...rich.saveMetadata, communityWorkGift: undefined } }, now);
       const pendingGift = rewardController.getAvailableFloatingReward(giftPet);
-      assert.equal(pendingGift.id, giftCore.communityWorkGiftRewardId, 'the returning-player gift appears before the existing starter gift');
-      assert.notEqual(rewardController.getAvailableFloatingReward(rich)?.id, giftCore.communityWorkGiftRewardId);
+      assert.equal(pendingGift.id, giftCore.communityWorkGiftRewardId, 'the community-work ticket gift remains available');
+      assert.equal(rewardController.getAvailableFloatingReward(rich), undefined, 'new saves no longer show the retired starter coin bubble');
       const giftHtml = render(giftBubble.FloatingRewardBubble, { reward: pendingGift, onClaim: noop });
       assert.ok(giftHtml.includes(locale.t('ui.rewards.communityWorkGiftTickets', { count: 10 })));
       assert.ok(giftHtml.includes(`aria-label="${locale.t('ui.rewards.communityWorkGiftClaim', { count: 10 })}"`));
       assert.ok(giftHtml.includes('floating-reward-button--labeled') && !giftHtml.includes('ui.rewards.'));
       const beforeTickets = giftPet.goldenAppleGacha.tickets;
       let giftController: any;
+      const loadedMod = { current: true };
       const GiftHarness = () => {
         giftController = rewardController.useRewardController({ pet: giftPet,
           setPet: (update: any) => {
@@ -202,7 +249,7 @@ for (const mode of ['development', 'toy']) {
             assert.deepEqual(first, replay, 'replaying the UI reward updater preserves a single gift');
             giftPet = replay;
           },
-          commitPet: (pet: any) => pet, hasLoadedModRef: { current: true }, playAfterUnlock: noop,
+          commitPet: (pet: any) => pet, hasLoadedModRef: loadedMod, playAfterUnlock: noop,
         });
         return null;
       };
@@ -211,15 +258,27 @@ for (const mode of ['development', 'toy']) {
       giftController.claimFloatingReward(pendingGift);
       giftController.claimFloatingReward(pendingGift);
       assert.equal(giftPet.goldenAppleGacha.tickets, beforeTickets + 10, 'rapid duplicate clicks grant exactly ten tickets');
-      assert.notEqual(rewardController.getAvailableFloatingReward(giftPet)?.id, pendingGift.id);
-      const starterReward = rewardController.getAvailableFloatingReward(giftPet);
-      assert.ok(starterReward?.coins > 0, 'the earlier coin gift remains separately available');
-      assert.ok(!render(giftBubble.FloatingRewardBubble, { reward: starterReward, onClaim: noop }).includes('floating-reward-button__copy'));
-      const announcementHtml = render(editionNotice.EditionNoticeDialog, { onAcknowledge: noop, onBackup: noop });
-      for (const text of [locale.t('ui.editionNotice.backup'), locale.t('ui.editionNotice.backupAdvice'), locale.t('ui.editionNotice.formatTimeline'), locale.t('ui.editionNotice.adventureAdvice'), locale.t('ui.editionNotice.suppliesAdvice'), locale.t('ui.editionNotice.compensationAdvice'), locale.t('ui.editionNotice.boxAdvice')]) {
+      assert.equal(rewardController.getAvailableFloatingReward(giftPet), undefined, 'no starter coin bubble follows the ticket gift');
+      const beforeCoins = giftPet.coins;
+      for (const id of [helpStarterGiftRewardId, helpPageGiftRewardId]) giftController.claimFloatingReward({ id, coins: 800, eventKey: 'pet.reward.helpStarterGift' });
+      assert.equal(giftPet.coins, beforeCoins, 'stale callbacks cannot claim retired coin gifts');
+      loadedMod.current = false;
+      giftController.claimAcknowledgementsGift();
+      assert.equal(giftPet.coins, beforeCoins, 'wait until the player state is loaded');
+      loadedMod.current = true;
+      giftController.claimAcknowledgementsGift();
+      giftController.claimAcknowledgementsGift();
+      assert.equal(giftPet.coins, beforeCoins + 1000, 'duplicate UI clicks claim the acknowledgements gift once');
+      assert.ok(giftPet.recentEvent.includes('1000') && !giftPet.recentEvent.includes('pet.reward.'));
+      renderToStaticMarkup(createElement(GiftHarness));
+      assert.equal(giftController.hasClaimedAcknowledgementsGift, true);
+      const announcementHtml = render(editionNotice.EditionNoticeDialog, { onAcknowledge: noop, onBackup: noop, onOpenAcknowledgements: noop });
+      for (const key of ['intro', 'adventureTutorial', 'adventureAdvice', 'adventureRewards', 'festivalAdvice', 'kitchenAdvice', 'communityAdvice', 'communityBalance', 'gardenAdvice', 'gachaAdvice', 'giftTitle', 'giftAdvice', 'giftEligibility', 'openAcknowledgements', 'uiAdvice', 'backup', 'backupAdvice', 'formatTimeline', 'compensationAdvice', 'closing', mode === 'toy' ? 'downloadFallback' : 'localBackupAdvice']) {
+        const text = locale.t(`ui.editionNotice.${key}`, { coins: 1000 });
         const escaped = renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
         assert.ok(announcementHtml.includes(escaped), `announcement ${mode}/${language}: ${text}`);
       }
+      assert.ok(!announcementHtml.includes('ui.editionNotice.') && !announcementHtml.includes('{coins}'), 'formal notice translations and reward values resolve in both editions');
       const ringHtml = render(status.CompanionStatus, { pet: rich });
       assert.equal((ringHtml.match(/class="ring-value"/g) ?? []).length, 5);
       assert.ok(ringHtml.includes(`190 / ${core.getPetEnergyCap(rich)}`));
@@ -409,7 +468,18 @@ for (const mode of ['development', 'toy']) {
           assert.ok(html.includes(locale.t('ui.settings.save.newProgress')));
           assert.equal(html.includes('4.0 / 60 KiB'), mode === 'toy');
         }
-        if (page === 'help') assert.ok(html.includes(locale.t(mode === 'toy' ? 'ui.settings.author.rewardAvailable' : 'ui.settings.author.visitRewardAvailable', { count: core.authorFollowGiftTickets })));
+        if (page === 'help') {
+          assert.ok(html.includes(locale.t(mode === 'toy' ? 'ui.settings.author.rewardAvailable' : 'ui.settings.author.visitRewardAvailable', { count: core.authorFollowGiftTickets })));
+          assert.ok(!html.includes('help-gift-button'), 'the old help-page coin bubble is removed');
+          assert.ok(html.includes('acknowledgements-entry') && html.includes('1000'), 'the help page points players to the new gift');
+        }
+        if (page === 'acknowledgements') {
+          const claimButton = html.match(/<button\b[^>]*>[\s\S]*?1000[\s\S]*?<\/button>/)?.[0];
+          assert.ok(claimButton && !claimButton.includes('disabled=""'), 'the supporter list offers the 1000-coin gift');
+          const claimedHtml = render(settings.SettingsModal, { ...settingsProps, initialPage: page, language, hasClaimedAcknowledgementsGift: true });
+          assert.ok(/<button[^>]*disabled=""[^>]*>[\s\S]*?(已领取|Claimed)/.test(claimedHtml), 'the collected gift stays visible and disabled');
+          for (const name of ['ManoT95', '银点', '我是苔丝的奶香魔法棒', '影ch-']) assert.ok(claimedHtml.includes(name));
+        }
       }
       const memoryPet = { ...rich, latestYearReview: oldReview, companionMemories: { schemaVersion: 1, entries: [
         { id: 'one', actorId: 'official.furo', kind: 'first_taste', subject: 'dish_egg_rice', at: now, mentionedAt: 0 },

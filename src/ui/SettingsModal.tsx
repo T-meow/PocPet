@@ -5,7 +5,7 @@ import { ChevronRight, Cloud, Copy, FileImage, Heart, Play, Share2 } from 'lucid
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
 import { cloudSaveMaxEncodedLength, type CloudSaveManifestV1 } from '../core/cloudSave';
-import { giftBoxIcon } from '../assets';
+import { acknowledgementsGiftCoins } from '../core/acknowledgementsGift';
 import { languages, list, t, type LanguageCode } from '../i18n';
 import type { ToyAuthorSummary, ToyAuthorVideoSummary } from '../platform/toySdk';
 import type { ToyCloudAvailability, ToyCloudBusyAction } from './app/useToyIntegration';
@@ -49,7 +49,7 @@ interface SettingsModalProps {
   hasImportBackup: boolean;
   hasOpenedHelp: boolean;
   hasClaimedAuthorFollowGift: boolean;
-  hasClaimedHelpPageGift: boolean;
+  hasClaimedAcknowledgementsGift: boolean;
   initialPage?: SettingsPage;
   onPageChange?: (page: SettingsPage) => void;
   cloudAvailability: ToyCloudAvailability;
@@ -71,7 +71,7 @@ interface SettingsModalProps {
   onOpenHelp: () => void;
   onOpenAuthorSpace: () => void;
   onOpenIntroVideo: () => void;
-  onClaimHelpPageGift: () => void;
+  onClaimAcknowledgementsGift: () => void;
   onClose: () => void;
   onSaveProfile: () => void;
   onReset: () => void;
@@ -113,7 +113,7 @@ export const SettingsModal = ({
   importSaveText,
   hasImportBackup,
   hasClaimedAuthorFollowGift,
-  hasClaimedHelpPageGift,
+  hasClaimedAcknowledgementsGift,
   initialPage = 'main',
   onPageChange,
   cloudAvailability,
@@ -135,7 +135,7 @@ export const SettingsModal = ({
   onOpenHelp,
   onOpenAuthorSpace,
   onOpenIntroVideo,
-  onClaimHelpPageGift,
+  onClaimAcknowledgementsGift,
   onClose,
   onSaveProfile,
   onReset,
@@ -208,7 +208,7 @@ export const SettingsModal = ({
         ] as const).map(([id, label, Icon]) => <button key={id} aria-current={(page === id || (page === 'mod' && id === 'main') || (page === 'acknowledgements' && id === 'help')) ? 'page' : undefined} onClick={() => id === 'help' ? handleOpenHelp() : setPage(id)}><Icon size={18} />{label}</button>)}</nav><div className="settings-content">
         <div className="settings-modal__body">
           {page === 'appearance' && <AppearancePanel pet={pet} appearance={appearance} onChange={onAppearanceChange} />}
-          {page === 'acknowledgements' && <AcknowledgementsPage onBack={() => setPage('help')} />}
+          {page === 'acknowledgements' && <AcknowledgementsPage onBack={() => setPage('help')} hasClaimedGift={hasClaimedAcknowledgementsGift} onClaimGift={onClaimAcknowledgementsGift} />}
           {page === 'main' && (
             <>
               <h3>{L('认识彼此', 'Getting to know each other')}</h3>
@@ -509,7 +509,9 @@ export const SettingsModal = ({
           </div>
           <button type="button" className="acknowledgements-entry" onClick={() => setPage('acknowledgements')}>
             <span className="acknowledgements-entry-icon" aria-hidden="true"><Heart size={22} /></span>
-            <span><strong>{L('致谢名单', 'Acknowledgements')}</strong><small>{L('感谢支持 PocPet 开发的伙伴', 'Meet the supporters behind PocPet')}</small></span>
+            <span><strong>{L('致谢名单', 'Acknowledgements')}</strong><small>{hasClaimedAcknowledgementsGift
+              ? L('感谢支持 PocPet 开发的伙伴', 'Meet the supporters behind PocPet')
+              : L(`${acknowledgementsGiftCoins} 金币赠礼 · 新老玩家均可领取`, `${acknowledgementsGiftCoins}-coin gift · For every player`)}</small></span>
             <ChevronRight size={18} aria-hidden="true" />
           </button>
           {modMessage && <p className="settings-message" role="status">{modMessage}</p>}
@@ -525,17 +527,6 @@ export const SettingsModal = ({
               </section>
             ))}
           </div>
-          {!hasClaimedHelpPageGift && (
-            <button
-              type="button"
-              className="help-gift-button"
-              aria-label={t('ui.rewards.claim')}
-              title={t('ui.rewards.claim')}
-              onClick={onClaimHelpPageGift}
-            >
-              <img src={giftBoxIcon} alt="" aria-hidden="true" />
-            </button>
-          )}
         </section>
       )}
         <small className="build-info">v{appBuild.version} · {appBuild.edition} · {appBuild.revision.slice(0, 8)}</small>

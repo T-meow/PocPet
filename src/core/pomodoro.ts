@@ -119,7 +119,7 @@ export const normalizePomodoroState = (
         : 0,
     settings,
     currentActivity: isPomodoroActivity(raw.currentActivity) ? raw.currentActivity : fallback.currentActivity,
-    lastSettledPhaseId: typeof raw.lastSettledPhaseId === 'string' ? raw.lastSettledPhaseId : '',
+    lastSettledPhaseId: typeof raw.lastSettledPhaseId === 'string' ? raw.lastSettledPhaseId.slice(0, 128) : '',
     pausedRemainingMs: isRunning ? 0 : rawPausedRemainingMs > 0 ? rawPausedRemainingMs : defaultRemainingMs,
     focusRewardCheckpointAt: isNumber(raw.focusRewardCheckpointAt) ? Math.max(0, Math.round(raw.focusRewardCheckpointAt)) : 0,
     sessionFocusMs: isNumber(raw.sessionFocusMs) ? Math.max(0, Math.round(raw.sessionFocusMs)) : 0,

@@ -63,7 +63,7 @@ const writesBefore = storage.writes;
 const file = createSaveFileText(drawn, { id: 'mod.test', name: '测试 Mod', version: '1.0.0' }, now);
 const envelope = JSON.parse(file);
 assert.equal(envelope.schemaVersion, 2);
-assert.equal(envelope.minimumReaderVersion, '1.8.0');
+assert.equal(envelope.minimumReaderVersion, '1.9.0');
 assert.ok(file.startsWith('{') && !file.includes('\n'), 'exports are compact UTF-8 JSON');
 assert.equal(envelope.activeMod.id, 'mod.test');
 for (const key of ['recentEvent', 'recentActivity', 'recentActivityUntil', 'hasOpenedHelp', 'hasSeenCommonDreamsUnlock', 'suppressGoldenAppleUseConfirm']) assert.ok(!(key in envelope.pet), key);
@@ -151,6 +151,37 @@ const catchGame = startMiniGame(rich, 'catch', 'gentle', 'official.mint', 'catch
 const catchReload = readLocal(createSaveFileText(catchGame, null, now));
 assert.equal(catchReload.miniGames.active?.paused, true);
 assert.equal(resumeMiniGame(catchReload, 'official.mint', now).inventory.toy_ball, rich.inventory.toy_ball - 1);
+
+// Imported IDs cannot keep paragraphs of text in otherwise compact saves.
+const oversizedId = 'x'.repeat(200000);
+for (const source of [startMiniGame(rich, 'matching', 'gentle', 'official.mint', 'active-game', now), game]) {
+  const oversized = JSON.parse(createSaveFileText(source, null, now));
+  oversized.pet.kitchen.recentOperationIds = [oversizedId, oversizedId, 'existing-receipt'];
+  oversized.pet.miniGames.lastSettledSessionId = oversizedId;
+  oversized.pet.pomodoro.lastSettledPhaseId = oversizedId;
+  for (const field of ['active', 'lastResult']) {
+    if (oversized.pet.miniGames[field]) Object.assign(oversized.pet.miniGames[field], { id: oversizedId, actorId: oversizedId });
+  }
+  const imported = parseSaveFileText(JSON.stringify(oversized), now).pet;
+  const compact = createSaveFileText(imported, null, now);
+  assert.ok(Buffer.byteLength(compact) < 20000, 'oversized IDs are removed from the durable save');
+  assert.equal(imported.inventory.emergency_biscuit, source.inventory.emergency_biscuit);
+  assert.equal(imported.hearts, source.hearts, 'normalization does not change earned rewards');
+  assert.deepEqual(imported.kitchen.recentOperationIds, [oversizedId.slice(0, 128), 'existing-receipt']);
+  assert.equal(imported.pomodoro.lastSettledPhaseId.length, 128);
+  assert.equal(imported.miniGames.lastSettledSessionId.length, 128);
+  const activity = imported.miniGames.active ?? imported.miniGames.lastResult!;
+  assert.equal(activity.id.length, 128);
+  assert.equal(activity.actorId.length, 128);
+  assert.equal(activity.id, imported.miniGames.lastSettledSessionId, 'session and receipt IDs stay consistent');
+  const reopened = readLocal(compact);
+  assert.equal(createSaveFileText(reopened, null, now), compact, 'bounded IDs survive another save unchanged');
+  if (reopened.miniGames.lastResult) {
+    const dismissed = acknowledgeMiniGameResult(reopened, activity.id);
+    assert.equal(dismissed.miniGames.lastResult?.pending, false);
+    assert.equal(startMiniGame(dismissed, 'matching', 'gentle', activity.actorId, activity.id, now), dismissed, 'the settlement receipt still blocks replay');
+  }
+}
 
 const growing = { ...rich, garden: { ...rich.garden, slots: [{ ...rich.garden.slots[0], unlocked: true, treeId: 'fruit_tree' as const, state: 'ready' as const, plantedAt: now - 8 * 3600000, naturalReadyAt: now, nextReadyAt: now, maxHarvests: 8, pendingDrops: [{ itemId: 'apple' as const, amount: 3 }] }, ...rich.garden.slots.slice(1)] } };
 const gardenFile = createSaveFileText(growing, null, now);
@@ -280,14 +311,71 @@ assert.equal(storage.getItem(migrationLedgerStorageKey), null);
 assert.equal(takeStorageFeedback().length, 0);
 assert.equal(replacePetFromImport(legacyPreview.pet, 'previous', null, rawLegacy, now).inventory.emergency_biscuit, 123);
 
+// A damaged optional ledger must not block progress or invent compensation history.
+const legacyId = legacyPreview.pet.saveMetadata.id;
+for (const brokenLedger of ['{', '', 'null', '[]', JSON.stringify({ [legacyId]: { delivered: {} } })]) {
+  resetStorage(); savePet(fresh);
+  storage.setItem(migrationLedgerStorageKey, brokenLedger);
+  const ordinary = savePet({ ...loadCurrent(), coins: fresh.coins + 1 });
+  assert.equal(loadCurrent().coins, ordinary.coins, 'new saves remain writable with an unrelated damaged ledger');
+  assert.equal(storage.getItem(migrationLedgerStorageKey), brokenLedger);
+  assert.equal(takeStorageFeedback().length, 0);
+
+  const deferred = replacePetFromImport(legacyPreview.pet, 'previous', null, rawLegacy, now);
+  assert.equal(deferred.inventory.emergency_biscuit, legacyPreview.pet.inventory.emergency_biscuit);
+  assert.equal(deferred.saveMetadata.compensation, 'pending');
+  assert.equal(storage.getItem(migrationLedgerStorageKey), brokenLedger, 'do not reset unknown delivery history');
+  const notices = takeStorageFeedback();
+  assert.equal(notices.length, 1);
+  assert.match(notices[0], /补偿暂缓/);
+  savePet({ ...deferred, coins: deferred.coins + 1 });
+  savePet(deferred);
+  assert.equal(takeStorageFeedback().length, 0, 'do not repeat the warning on every autosave');
+  assert.equal(loadCurrent().inventory.emergency_biscuit, deferred.inventory.emergency_biscuit);
+  takeStorageFeedback();
+
+  // Once readable, honor the already delivered portion rather than issuing a full gift.
+  storage.setItem(migrationLedgerStorageKey, JSON.stringify({ [legacyId]: { delivered: { emergency_biscuit: 5, strawberry_milk: 1 } }, unrelated: { damaged: true } }));
+  const resumed = savePet(deferred);
+  assert.equal(resumed.inventory.emergency_biscuit, deferred.inventory.emergency_biscuit + 115);
+  assert.equal(resumed.inventory.strawberry_milk, deferred.inventory.strawberry_milk + 9);
+  assert.equal(savePet(resumed).inventory.emergency_biscuit, resumed.inventory.emergency_biscuit);
+  assert.deepEqual(JSON.parse(storage.getItem(migrationLedgerStorageKey)!).unrelated, { damaged: true });
+}
+resetStorage(); savePet(fresh);
+storage.setItem(migrationLedgerStorageKey, '{');
+const deferredBalance = savePet(firstFull);
+assert.deepEqual(deferredBalance.saveMetadata.pendingItems, firstFull.saveMetadata.pendingItems, 'claimed saves retain pending capacity overflow while history is unreadable');
+assert.deepEqual(savePet({ ...deferredBalance, inventory: { ...deferredBalance.inventory, emergency_biscuit: 9000 } }).saveMetadata.pendingItems, firstFull.saveMetadata.pendingItems);
+assert.equal(storage.getItem(migrationLedgerStorageKey), '{');
+resetStorage(); savePet(fresh);
+storage.setItem(migrationLedgerStorageKey, '{');
+const fullyPaid = { ...deferredBalance, saveMetadata: { ...deferredBalance.saveMetadata, pendingItems: {} } };
+assert.equal(savePet(fullyPaid), fullyPaid);
+assert.equal(takeStorageFeedback().length, 0, 'fully delivered gifts do not show a misleading pending-gift warning');
+assert.equal(storage.getItem(migrationLedgerStorageKey), '{');
+
 // Unknown module versions must never be silently dropped and saved over.
 const current = JSON.parse(createSaveFileText(rich, null, now));
+const currentTrip = { id: 'version-check-trip', region: 'valley', actorId: 'official.mint', actorName: 'Mint', startedAt: now, rulesVersion: 4, revision: 2, choices: [], bag: { trail_mix: 1 }, loot: {}, tool: true, shopStock: {}, purchases: 0, transportedCount: 0, treasure: 'ancient_gold_bar' };
+const currentAdventure = { ...current.pet.adventure, active: currentTrip };
+const supportedAdventure = parseSaveFileText(JSON.stringify({ ...current, pet: { ...current.pet, adventure: currentAdventure } }), now).pet;
+assert.deepEqual(JSON.parse(JSON.stringify(supportedAdventure.adventure.active)), currentTrip, 'supported trips keep their rules, supplies and treasure');
+const futurePets = Object.entries(current.pet).flatMap(([key, value]) => {
+  if (!value || typeof value !== 'object' || !('schemaVersion' in value) || typeof value.schemaVersion !== 'number') return [];
+  return [{ ...current.pet, [key]: { ...value, schemaVersion: value.schemaVersion + 1 } }];
+});
+futurePets.push({ ...current.pet, adventure: { ...currentAdventure, active: { ...currentTrip, rulesVersion: 5 } } });
 const futureFiles = [
   { ...current, schemaVersion: 3 },
   { ...current, minimumReaderVersion: '2.0.0' },
-  { ...current, pet: { ...current.pet, garden: { ...current.pet.garden, schemaVersion: current.pet.garden.schemaVersion + 1 } } },
-  { ...current, pet: { ...current.pet, adventure: { schemaVersion: 1, progress: 99 } } },
+  { ...current, pet: { ...current.pet, unknownFutureModule: { schemaVersion: 1 } } },
   { ...current, modules: { adventure: { schemaVersion: 1 } } },
+  ...futurePets.flatMap((pet) => [
+    { ...current, pet },
+    { schemaVersion: 1, app: 'PocPet', exportedAt: current.exportedAt, pet: { ...rich, ...pet } },
+    { ...rich, ...pet },
+  ]),
 ].map((value) => JSON.stringify(value));
 for (const text of futureFiles) {
   assert.throws(() => parseSaveFileText(text, now), UnsupportedSaveVersionError);
@@ -341,4 +429,4 @@ assert.ok(!('lastCraft' in JSON.parse(cookedFile).pet.kitchen));
 assert.equal(craftRecipe(readLocal(cookedFile), 'biscuit_cup', false, 1, 'box-cook', now).inventory.dish_biscuit_cup, 1);
 assert.equal(selectNeighborGift([{ itemId: 'soda_biscuit_box', displayName: 'Box', price: 500 }], () => 0.5).itemId, 'emergency_biscuit');
 
-console.log(`Save v2: UTF-8 ${Buffer.byteLength(file)} bytes; durable RNG/receipts/rewards, legacy/Mint migration, local preferences, compensation/overflow/replay/rollback, future versions and box transactions passed.`);
+console.log(`Save v2: UTF-8 ${Buffer.byteLength(file)} bytes; bounded IDs, durable RNG/receipts/rewards, legacy/Mint migration, local preferences, compensation/overflow/replay/rollback, damaged ledgers, future module/trip versions and box transactions passed.`);

@@ -10,6 +10,8 @@ export const getAdventureTripTreasure = (tripId: string) => adventureTreasureIds
 export const isAdventureTreasure = (id: string): id is AdventureTreasureId => Object.prototype.hasOwnProperty.call(adventureTreasureValues, id);
 export const getAdventureTreasureValue = (id: string) => isAdventureTreasure(id) ? adventureTreasureValues[id] : 0;
 export const adventureLootItems: readonly ShopItem[] = [
+  { id: 'map_handbook', get name() { return L('地图手册', 'Map handbook'); }, kind: 'item', price: 0, effect: {}, usable: false, tags: ['adventure_keepsake'],
+    get summary() { return L('踩点探索中找到的地图手册。通关后大地图永久开放，手册可留作第一次冒险的纪念。', 'A handbook found on your first scouting trip. Completing the tutorial permanently opens the world map; keep this as a memento.'); } },
   { id: 'coin_hoard', get name() { return L('一堆金币', 'Coin hoard'); }, kind: 'item', price: 0, effect: {}, usable: true, tags: ['adventure_treasure'],
     get summary() { return L(`探查中发现的战利品。每堆占 1 份行囊容量，可兑换 ${adventureTreasureValues.coin_hoard} 金币。`, `A scouting treasure. Takes one bag slot and can be exchanged for ${adventureTreasureValues.coin_hoard} coins.`); } },
   { id: 'valley_amber', get name() { return L('溪谷琥珀', 'Valley amber'); }, kind: 'item', price: 0, effect: {}, usable: true, tags: ['adventure_treasure'],

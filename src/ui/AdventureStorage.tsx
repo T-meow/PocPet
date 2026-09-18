@@ -9,6 +9,7 @@ import { getItemRecoveryPreview } from '../core/itemEffects';
 import { getItemPurchaseQuote } from '../core/petActions';
 import { activityText as L } from '../core/kitchenRecipes';
 import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes';
+import type { AdventureDestinationId } from '../core/adventureTypes';
 import { AdventurePreparation } from './AdventurePreparation';
 import { DialogShell } from './DialogShell';
 import { ItemStorageModal } from './ItemStorageModal';
@@ -17,16 +18,17 @@ import { createItemBrowseState } from './itemBrowse';
 export type AdventureStoragePanel = 'pack' | 'bag' | 'loot' | 'shop' | 'delivery' | 'supplies';
 interface Props {
   panel: AdventureStoragePanel; pet: PetState; registry: ItemRegistry; icons: Record<string, string>;
+  destination?: AdventureDestinationId;
   bag: Inventory; tool: boolean; onPack: (id: ItemId, delta: number) => void; onTool: (value: boolean) => void;
   onDepart: () => void; onPanel: (panel: AdventureStoragePanel) => void; onClose: () => void;
   onBuy: (id: ItemId, quantity: number) => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
   update: (action: (pet: PetState) => PetState) => void;
   perform?: (action: () => void) => void;
 }
-export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, onPack, onTool, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
+export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, destination, onPack, onTool, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [discard, setDiscard] = useState<{ tripId: string; revision: number; id: ItemId; name: string; quantity: number; source: 'bag' | 'loot' | 'tool' }>();
-  if (panel === 'pack') return <AdventurePreparation pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
+  if (panel === 'pack') return <AdventurePreparation pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
   const trip = pet.adventure.active;
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? { ...trip?.bag, ...(trip?.tool ? { trail_rope: 1 } : {}) }

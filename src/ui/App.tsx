@@ -469,11 +469,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     closeActiveReward,
     enqueueReward,
     availableFloatingReward,
-    hasClaimedHelpGift: hasClaimedHelpPageGift,
+    hasClaimedAcknowledgementsGift,
     hasClaimedGardenCompensation,
     claimDateRewards,
     claimFloatingReward: handleClaimFloatingReward,
-    claimHelpGift: handleClaimHelpPageGift,
+    claimAcknowledgementsGift: handleClaimAcknowledgementsGift,
     claimGardenCompensation: handleClaimGardenCompensation,
   } = rewardController;
   const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPetWithEventFeedback, commitPet);
@@ -1553,6 +1553,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <EditionNoticeDialog
           onAcknowledge={() => setEditionNoticeVisible(false)}
           onBackup={() => { setEditionNoticeVisible(false); setSettingsInitialPage('save'); setActivePage('settings'); }}
+          onOpenAcknowledgements={() => { setEditionNoticeVisible(false); setSettingsInitialPage('acknowledgements'); setActivePage('settings'); }}
           onOpenUpdates={updateController.supported ? () => { setEditionNoticeVisible(false); setSettingsInitialPage('updates'); setActivePage('settings'); } : undefined} />
       )}
       <header className="top-bar v2-top-bar">
@@ -1904,7 +1905,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           hasImportBackup={hasImportBackup}
           hasOpenedHelp={pet.hasOpenedHelp}
           hasClaimedAuthorFollowGift={toyIntegration.hasClaimedAuthorFollowGift}
-          hasClaimedHelpPageGift={hasClaimedHelpPageGift}
+          hasClaimedAcknowledgementsGift={hasClaimedAcknowledgementsGift}
           cloudAvailability={toyIntegration.cloudAvailability}
           cloudManifest={toyIntegration.cloudManifest}
           cloudUsedFallback={toyIntegration.cloudUsedFallback}
@@ -1927,7 +1928,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             void toyIntegration.openAuthorSpace();
           }}
           onOpenIntroVideo={() => void toyIntegration.openIntroVideo()}
-          onClaimHelpPageGift={handleClaimHelpPageGift}
+          onClaimAcknowledgementsGift={handleClaimAcknowledgementsGift}
           onClose={() => {
             playAfterUnlock('close');
             setActivePage('home');

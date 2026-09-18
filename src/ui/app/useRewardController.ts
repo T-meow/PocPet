@@ -4,28 +4,23 @@ import {
   clampCoins,
   gardenCompensationCoins,
   gardenCompensationRewardId,
-  helpPageGiftCoins,
-  helpPageGiftRewardId,
-  helpStarterGiftCoins,
-  helpStarterGiftRewardId,
   recordEarnedCoins,
   type ClaimedDateReward,
   type PetState,
 } from '../../core/pet';
 import { playSfx } from '../../core/audio';
 import { claimCommunityWorkGift, communityWorkGiftRewardId, communityWorkGiftTickets, isCommunityWorkGiftAvailable } from '../../core/communityWorkGift';
+import { acknowledgementsGiftRewardId, claimAcknowledgementsGift } from '../../core/acknowledgementsGift';
 import { t } from '../../i18n';
 
 export type FloatingRewardConfig = { id: string; coins?: number; gachaTickets?: number; eventKey: string };
 export type RewardPopupData = Pick<ClaimedDateReward, 'id' | 'title' | 'message' | 'coins' | 'hearts' | 'gachaTickets' | 'items'>;
 
-const floatingRewardConfigs: readonly FloatingRewardConfig[] = [
-  { id: communityWorkGiftRewardId, gachaTickets: communityWorkGiftTickets, eventKey: 'ui.rewards.communityWorkGiftReceived' },
-  { id: helpStarterGiftRewardId, coins: helpStarterGiftCoins, eventKey: 'pet.reward.helpStarterGift' },
-];
+const communityWorkFloatingReward: FloatingRewardConfig =
+  { id: communityWorkGiftRewardId, gachaTickets: communityWorkGiftTickets, eventKey: 'ui.rewards.communityWorkGiftReceived' };
 
-export const getAvailableFloatingReward = (pet: PetState) => floatingRewardConfigs.find((reward) =>
-  reward.id === communityWorkGiftRewardId ? isCommunityWorkGiftAvailable(pet) : !pet.claimedRewardIds.includes(reward.id));
+export const getAvailableFloatingReward = (pet: PetState) =>
+  isCommunityWorkGiftAvailable(pet) ? communityWorkFloatingReward : undefined;
 
 interface RewardControllerOptions {
   pet: PetState;
@@ -58,41 +53,27 @@ export const useRewardController = ({ pet, setPet, commitPet, hasLoadedModRef, p
   };
 
   const claimFloatingReward = (reward: FloatingRewardConfig) => {
-    if (!hasLoadedModRef.current) return;
+    if (!hasLoadedModRef.current || reward.id !== communityWorkGiftRewardId) return;
     playAfterUnlock('coin');
     setPet((current) => {
-      if (reward.id === communityWorkGiftRewardId) {
-        const result = claimCommunityWorkGift(current);
-        if (result.claimed) enqueueReward({
-          id: communityWorkGiftRewardId,
-          title: t('ui.rewards.communityWorkGiftTitle'),
-          message: t('ui.rewards.communityWorkGiftMessage', { count: communityWorkGiftTickets }),
-          gachaTickets: communityWorkGiftTickets,
-          items: [],
-        });
-        return commitPet(result.pet);
-      }
-      if (current.claimedRewardIds.includes(reward.id)) return current;
-      const coins = reward.coins ?? 0;
-      return recordEarnedCoins({
-        ...current,
-        coins: current.coins + coins,
-        claimedRewardIds: [...current.claimedRewardIds, reward.id],
-        recentEvent: t(reward.eventKey, { coins }),
-      }, coins);
+      const result = claimCommunityWorkGift(current);
+      if (result.claimed) enqueueReward({
+        id: communityWorkGiftRewardId,
+        title: t('ui.rewards.communityWorkGiftTitle'),
+        message: t('ui.rewards.communityWorkGiftMessage', { count: communityWorkGiftTickets }),
+        gachaTickets: communityWorkGiftTickets,
+        items: [],
+      });
+      return commitPet(result.pet);
     });
   };
 
-  const claimHelpGift = () => {
+  const claimAcknowledgementsReward = () => {
+    if (!hasLoadedModRef.current) return;
     playAfterUnlock('coin');
     setPet((current) => {
-      if (current.claimedRewardIds.includes(helpPageGiftRewardId)) return current;
-      return recordEarnedCoins({
-        ...current,
-        coins: current.coins + helpPageGiftCoins,
-        claimedRewardIds: [...current.claimedRewardIds, helpPageGiftRewardId],
-        recentEvent: t('pet.reward.helpPageGift', { coins: helpPageGiftCoins }),
-      }, helpPageGiftCoins);
+      const next = claimAcknowledgementsGift(current);
+      return next === current ? current : commitPet(next);
     });
   };
 
@@ -114,11 +95,11 @@ export const useRewardController = ({ pet, setPet, commitPet, hasLoadedModRef, p
     closeActiveReward: () => setQueue((current) => current.slice(1)),
     enqueueReward,
     availableFloatingReward: getAvailableFloatingReward(pet),
-    hasClaimedHelpGift: pet.claimedRewardIds.includes(helpPageGiftRewardId),
+    hasClaimedAcknowledgementsGift: pet.claimedRewardIds.includes(acknowledgementsGiftRewardId),
     hasClaimedGardenCompensation: pet.claimedRewardIds.includes(gardenCompensationRewardId),
     claimDateRewards,
     claimFloatingReward,
-    claimHelpGift,
+    claimAcknowledgementsGift: claimAcknowledgementsReward,
     claimGardenCompensation,
   };
 };

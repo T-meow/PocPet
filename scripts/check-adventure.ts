@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { advanceAdventure, buyAdventureSupply, claimAdventureResult, claimAdventureStarter, discardAdventureItem, getAdventureRewardPreview, getAdventureServiceQuote, getAdventureStartReason, pickupAdventureLoot, redeemAdventureTreasure, returnFromAdventure, startAdventure, transportAdventureSupply, useAdventureSupply } from '../src/core/adventure';
 import { adventureBagCapacity, getAdventureRegions, getAdventureSteps } from '../src/core/adventureData';
-import { getAdventureBagCount, normalizeAdventureState } from '../src/core/adventureState';
+import { defaultAdventureState, getAdventureBagCount, isAdventureMapUnlocked, normalizeAdventureState } from '../src/core/adventureState';
 import { adventureTreasureIds, getAdventureTreasureValue } from '../src/core/adventureItems';
 import { getDailyResetDateKey } from '../src/core/dailyReset';
 import { getEffectiveDailyDateKey } from '../src/core/gameClock';
@@ -24,12 +24,14 @@ import type { Inventory, ItemId, PetState } from '../src/core/petTypes';
 import { createAdventureActionGate, adventureActionCommitMs, adventureActionDurationMs, type AdventureActionState } from '../src/ui/adventureActionGate';
 
 const now = new Date(2026, 8, 17, 12).getTime();
-const fresh = (level = 1): PetState => ({ ...createDefaultPet(now), level, hunger: getPetStatCap(level), energy: getPetStatCap(level), coins: 1000, hearts: 100,
+const fresh = (level = 1): PetState => ({ ...createDefaultPet(now), adventure: { ...defaultAdventureState(), completed: { tutorial: 1 } }, level, hunger: getPetStatCap(level), energy: getPetStatCap(level), coins: 1000, hearts: 100,
   inventory: { dish_carrot_rice: 20, trail_mix: 15, berry_bait: 10, trail_rope: 1, apple: 5, golden_apple: 2, energy_drink: 10, rice: 10, egg: 10 } });
+const beginner = (): PetState => ({ ...fresh(), adventure: defaultAdventureState() });
+const tutorial = (pet = beginner(), bag: Inventory = {}) => startAdventure(pet, 'tutorial', 'official.furo', 'Furo', bag, false, now);
 const start = (pet = fresh(), bag: Inventory = { dish_carrot_rice: 5, berry_bait: 1, energy_drink: 2, apple: 1 }, tool = true) => startAdventure(pet, 'valley', 'official.furo', 'Furo', bag, tool, now);
 const step = (pet: PetState, choice?: string) => {
   const trip = pet.adventure.active!;
-  return advanceAdventure(pet, trip.id, trip.choices.length, choice ?? getAdventureSteps(trip.rulesVersion)[trip.choices.length].choices[0].id, now);
+  return advanceAdventure(pet, trip.id, trip.choices.length, choice ?? getAdventureSteps(trip.rulesVersion, trip.region)[trip.choices.length].choices[0].id, now);
 };
 const eat = (pet: PetState, id: ItemId, quantity = 1, source: 'bag' | 'loot' = 'bag') => useAdventureSupply(pet, pet.adventure.active!.id, pet.adventure.active!.revision, id, quantity, source);
 const buy = (pet: PetState, id: ItemId, quantity = 1) => buyAdventureSupply(pet, pet.adventure.active!.id, pet.adventure.active!.revision, id, quantity);
@@ -54,6 +56,77 @@ try {
   assert.equal(JSON.parse(createSaveFilePlainText(fresh(), null, now)).minimumReaderVersion, '1.9.0');
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/pocpet-1.8.0-backup.json', import.meta.url), 'utf8'));
   assert.equal(parseSaveFileText(fixture.text, fixture.savedAt).pet.adventure.active, undefined);
+
+  // A destination must be chosen, and the four-stop tutorial is the only first trip.
+  const novice = beginner();
+  const unselected = startAdventure(novice, undefined, 'official.furo', 'Furo', {}, false, now);
+  assert.equal(unselected.adventure.active, undefined);
+  assert.deepEqual(unselected.inventory, novice.inventory);
+  assert.ok(getAdventureStartReason(novice, undefined, now));
+  assert.equal(startAdventure(novice, 'valley', 'official.furo', 'Furo', {}, false, now).adventure.active, undefined);
+  assert.equal(isAdventureMapUnlocked(novice.adventure), false);
+  assert.equal(getAdventureSteps(4, 'tutorial').length, 4);
+  assert.equal(getInventoryItem('map_handbook')?.usable, false);
+  assert.equal(tutorial({ ...novice, hunger: 7, energy: 2 }).adventure.active, undefined);
+  let scouting = tutorial({ ...novice, hunger: 32, energy: 8 });
+  const tutorialId = scouting.adventure.active!.id;
+  assert.equal(scouting.adventure.active!.neighborId, undefined);
+  assert.equal(advanceAdventure(scouting, tutorialId, 0, 'entrance', now), scouting, 'a valley choice cannot advance the tutorial');
+  for (let i = 0; i < 4; i++) {
+    const before = scouting;
+    const choice = getAdventureSteps(4, 'tutorial')[i].choices[0].id;
+    scouting = step(scouting);
+    assert.equal(scouting.adventure.active!.choices.length, i + 1);
+    assert.equal(scouting.hunger, before.hunger - 8);
+    assert.equal(scouting.energy, before.energy - 2);
+    assert.equal(advanceAdventure(scouting, tutorialId, i, choice, now), scouting, 'a repeated tutorial click cannot duplicate finds or costs');
+    assert.deepEqual(roundTrip(scouting).adventure, scouting.adventure, 'every tutorial stop survives a saved restart');
+    scouting = roundTrip(scouting);
+    if (i < 3) {
+      assert.deepEqual(scouting.adventure.active!.bag, {}, 'returning before completion cannot farm the fixed reward');
+      const earlyTutorial = finish(scouting);
+      assert.equal(isAdventureMapUnlocked(earlyTutorial.adventure), false);
+      assert.equal(earlyTutorial.inventory.map_handbook, undefined);
+      assert.equal(earlyTutorial.inventory.coin_hoard, undefined);
+      assert.ok(tutorial({ ...earlyTutorial, hunger: 32, energy: 8 }).adventure.active, 'an unfinished tutorial can be retried');
+    }
+  }
+  assert.deepEqual(scouting.adventure.active!.bag, { map_handbook: 1, coin_hoard: 1 });
+  assert.deepEqual(getAdventureRewardPreview(scouting), { steps: 4, complete: true, first: true, hearts: 0, coins: 0 });
+  assert.equal(advanceAdventure(scouting, tutorialId, 4, 'tutorial_finish', now), scouting);
+  const tutorialReturned = roundTrip(returnFromAdventure(scouting, tutorialId, now));
+  assert.ok(tutorialReturned.adventure.pending!.complete);
+  const tutorialDone = claimAdventureResult(tutorialReturned, tutorialId);
+  assert.equal(isAdventureMapUnlocked(tutorialDone.adventure), true);
+  assert.equal(tutorialDone.inventory.map_handbook, 1);
+  assert.equal(tutorialDone.inventory.coin_hoard, 1);
+  assert.equal(tutorialDone.adventure.discoveries.length, 4);
+  assert.equal(tutorialDone.adventure.completed.tutorial, 1);
+  assert.equal(tutorialDone.adventure.lastCompletedDay.valley, undefined, 'the tutorial does not consume daily valley scouting');
+  assert.equal(claimAdventureResult(tutorialDone, tutorialId), tutorialDone);
+  const nextTrip = { ...roundTrip(tutorialDone), hunger: 100, energy: 100 };
+  assert.ok(startAdventure(nextTrip, 'valley', 'official.furo', 'Furo', {}, false, now).adventure.active);
+  assert.equal(tutorial(nextTrip).adventure.active, undefined, 'the completed tutorial cannot be farmed');
+  assert.equal(startAdventure(nextTrip, 'tutorial', 'official.furo', 'Furo', {}, false, now + 86400000).adventure.active, undefined);
+  assert.equal(startAdventure(nextTrip, undefined, 'official.furo', 'Furo', {}, false, now).adventure.active, undefined, 'unlocking the map never substitutes a default destination');
+  assert.equal(useInventoryItem(nextTrip, 'coin_hoard', now).coins, nextTrip.coins + 360);
+  assert.equal(isAdventureMapUnlocked(roundTrip({ ...nextTrip, inventory: {} }).adventure), true, 'map access is recorded independently of the keepsake');
+  let fullTutorial = tutorial(beginner(), { trail_mix: 12 });
+  for (let i = 0; i < 4; i++) fullTutorial = step(fullTutorial);
+  assert.deepEqual(fullTutorial.adventure.active!.loot, { map_handbook: 1, coin_hoard: 1 });
+  fullTutorial = roundTrip(fullTutorial);
+  assert.ok(returnFromAdventure(fullTutorial, fullTutorial.adventure.active!.id, now).adventure.active, 'pending finds must be handled before returning');
+  fullTutorial = discard(fullTutorial, 'trail_mix', 2);
+  for (const id of ['map_handbook', 'coin_hoard']) fullTutorial = pickupAdventureLoot(fullTutorial, fullTutorial.adventure.active!.id, fullTutorial.adventure.active!.revision, id, 1);
+  assert.equal(finish(fullTutorial).inventory.map_handbook, 1);
+  const overflowTutorial = claimAdventureResult({ ...tutorialReturned, inventory: { ...tutorialReturned.inventory, coin_hoard: inventoryItemLimit } }, tutorialId);
+  assert.equal(overflowTutorial.adventure.pending!.items.coin_hoard, 1);
+  assert.equal(overflowTutorial.inventory.map_handbook, 1);
+  assert.equal(claimAdventureResult(roundTrip(overflowTutorial), tutorialId).adventure.completed.tutorial, 1, 'partial collection never repeats tutorial completion');
+  const tutorialOverflowCleared = claimAdventureResult(useInventoryItem(roundTrip(overflowTutorial), 'coin_hoard', now), tutorialId);
+  assert.equal(tutorialOverflowCleared.adventure.pending, undefined);
+  assert.equal(tutorialOverflowCleared.inventory.map_handbook, 1);
+  console.log('Tutorial checks passed: explicit destination, map lock, four low-cost stops, fixed finds, safe retries, saves, full bags and one-time completion.');
 
   const starterBase = { ...fresh(), inventory: {} };
   const starter = claimAdventureStarter(starterBase);
@@ -476,6 +549,17 @@ try {
     assert.ok(hall.includes('outpost-hall.webp'));
     assert.equal((hall.match(/role="meter"/g) ?? []).length, 3, 'hunger, energy and bag have visible meters');
     assert.ok(!hall.includes('adventure-action-status'), 'the hall has no action waiting indicator');
+    assert.ok(hall.includes(english ? 'Choose a destination first' : '请先选择目的地'));
+    assert.ok(!hall.includes('<progress'), 'entering the hall does not preselect a trip');
+    const beginnerHall = render(beginner());
+    assert.ok(beginnerHall.includes(english ? 'Choose tutorial · Prepare' : '选择踩点探索 · 整备'));
+    assert.ok(beginnerHall.includes(english ? 'World map locked' : '总地图未解锁'));
+    assert.ok(beginnerHall.includes(english ? 'map handbook' : '地图手册'));
+    const mapButton = beginnerHall.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes('lucide-lock-keyhole'));
+    assert.ok(mapButton?.includes('disabled=""'), 'the map cannot be opened before tutorial completion');
+    const tutorialPage = render(step(tutorial()));
+    assert.ok(tutorialPage.includes('value="1" max="4"'));
+    assert.ok(tutorialPage.includes(english ? 'First scouting trip' : '踩点探索'));
     const toolbar = hall.split('<nav class="adventure-toolbar"')[1].split('</nav>')[0];
     assert.ok(toolbar.includes(english ? 'Pack for the trip' : '出发整备'));
     assert.ok(!toolbar.includes(english ? '>Inventory<' : '>仓库<'), 'the hall has one combined preparation entry');
@@ -515,6 +599,8 @@ try {
         assert.ok(html.includes('adventure-pack-columns') && html.includes('adventure-pack-pane--bag'));
         assert.ok(html.includes(english ? 'Unpacked home supplies' : '仓库未装入物资'));
         assert.ok(html.includes(english ? 'Packed travel bag' : '本次携带的背包'));
+        const departButton = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes('lucide-compass'));
+        assert.ok(departButton?.includes('disabled=""'), 'packing cannot depart without a selected destination');
       }
     }
     const packedHtml = renderToStaticMarkup(createElement(storage.AdventureStorage, { ...shared, pet: fresh(), panel: 'pack', bag: { dish_carrot_rice: 2 }, tool: true, onPack: noop, onTool: noop, onDepart: noop, onPanel: noop, onClose: noop }));
@@ -524,14 +610,21 @@ try {
     assert.equal((changedInventory.match(/data-item-id="dish_carrot_rice"/g) ?? []).length, 2, 'outdated packing selections remain available to remove');
     assert.ok(hall.includes(english ? 'Landscape' : '横屏查看') && hall.includes(english ? 'Panorama' : '看全景'));
     const today = getEffectiveDailyDateKey(fresh());
-    const doneHall = render({ ...fresh(), adventure: { ...fresh().adventure, completed: { valley: 1 }, lastCompletedDay: { valley: today } } });
-    assert.ok(doneHall.includes(english ? 'Done today' : '今日已完成'));
+    const doneHall = render({ ...fresh(), adventure: { ...fresh().adventure, completed: { tutorial: 1, valley: 1 }, lastCompletedDay: { valley: today } } });
+    assert.ok(doneHall.includes(english ? 'Today’s valley scouting is complete' : '今天的溪谷入口探查已完成'));
     assert.ok(doneHall.includes(english ? 'Pack for the trip' : '出发整备'), 'preparation stays available after finishing today');
-    const renderMap = (state: PetState, region = 'valley', node = 'entrance') => renderToStaticMarkup(createElement(map.AdventureMap, {
-      adventure: state.adventure, today, selection: { region, node }, portrait: assets.petStatusImages.content, landscape: false,
+    const renderMap = (state: PetState, region?: string, node?: string) => renderToStaticMarkup(createElement(map.AdventureMap, {
+      adventure: state.adventure, today, selection: region ? { region, node } : undefined, portrait: assets.petStatusImages.content, landscape: false,
       onToggleLandscape: noop, onSelect: noop, onPrepare: noop, onResume: noop, onCollect: noop, onClose: noop,
     }));
-    const newMap = renderMap(fresh());
+    for (const html of [renderMap(fresh()), renderMap(fresh(), 'valley'), renderMap(fresh(), 'coast')]) {
+      assert.ok(html.includes(english ? 'No destination selected' : '尚未选择目的地'));
+      assert.ok(!/class="adventure-map-node"[^>]*aria-pressed="true"/.test(html), 'opening the map or selecting a region does not select a destination');
+      const departButton = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes(english ? 'Choose a destination first' : '先选择目的地'));
+      assert.ok(departButton?.includes('disabled=""'));
+    }
+    assert.equal(mapData.getAdventureNodeStatus(beginner().adventure, 'valley', 'entrance', today), 'locked');
+    const newMap = renderMap(fresh(), 'valley', 'entrance');
     assert.equal((newMap.match(/class="adventure-map-node"/g) ?? []).length, 8);
     assert.ok(newMap.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
     assert.ok(newMap.includes('adventure-map-scene-preview') && newMap.includes('valley.webp'));
@@ -541,8 +634,8 @@ try {
     assert.ok(!futureNode.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
     assert.ok(renderMap(route).includes(english ? 'Resume current scouting' : '继续当前探查'));
     assert.ok(renderMap(returned, 'observatory').includes(english ? 'Collect your previous bag' : '先领取上次行囊'));
-    const completedState = { ...fresh(), adventure: { ...fresh().adventure, completed: { valley: 1 }, lastCompletedDay: { valley: today }, discoveries: Array.from({ length: 6 }, (_, i) => `valley:${i}`) } };
-    const completedMap = renderMap(completedState);
+    const completedState = { ...fresh(), adventure: { ...fresh().adventure, completed: { tutorial: 1, valley: 1 }, lastCompletedDay: { valley: today }, discoveries: Array.from({ length: 6 }, (_, i) => `valley:${i}`) } };
+    const completedMap = renderMap(completedState, 'valley', 'entrance');
     assert.ok(!completedMap.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
     assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, 'valley', 'entrance', today), 'complete');
     assert.equal(mapData.getAdventureNodeStatus({ ...completedState.adventure, lastCompletedDay: { valley: '2026-09-16' } }, 'valley', 'entrance', '2026-09-17'), 'available');
@@ -552,7 +645,7 @@ try {
     assert.equal(mapData.getAdventureNodeStatus(returned.adventure, 'valley', 'entrance'), 'pending');
     for (const region of ['valley', 'windmill', 'forest', 'coast', 'observatory']) {
       for (const node of mapData.adventureMapNodes) if (node.id !== 'entrance') assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, region, node.id), 'planned', 'six entrance events never unlock other map tasks');
-      const overview = renderMap(fresh(), region);
+      const overview = renderMap(fresh(), region, 'entrance');
       assert.ok(overview.includes('data-region="' + region + '"'));
       assert.ok(!/src="undefined"|NaN|\[object Object\]/.test(overview));
       if (region !== 'valley') assert.ok(!overview.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
@@ -560,7 +653,7 @@ try {
     // Replacing overview art leaves task art and clickable markers independent.
     scenes.adventureRegionArt.valley.overview = '/test-valley-overview.webp';
     try {
-      const illustratedMap = renderMap(fresh());
+      const illustratedMap = renderMap(fresh(), 'valley', 'entrance');
       assert.ok(illustratedMap.includes('/test-valley-overview.webp') && illustratedMap.includes('valley.webp'));
       assert.equal((illustratedMap.match(/class="adventure-map-node"/g) ?? []).length, 8);
     } finally { delete scenes.adventureRegionArt.valley.overview; }

@@ -1,13 +1,14 @@
 import type { Inventory } from './petTypes';
 
 export type AdventureRegionId = 'valley' | 'windmill' | 'forest' | 'coast' | 'observatory';
+export type AdventureDestinationId = AdventureRegionId | 'tutorial';
 export type AdventureTreasureId = 'coin_hoard' | 'valley_amber' | 'ancient_gold_bar';
-export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | AdventureTreasureId;
+export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | 'map_handbook' | AdventureTreasureId;
 export type AdventureRulesVersion = 1 | 2 | 3 | 4;
 
 export interface AdventureTrip {
   id: string;
-  region: AdventureRegionId;
+  region: AdventureDestinationId;
   actorId: string;
   actorName: string;
   startedAt: number;
@@ -27,7 +28,7 @@ export interface AdventureTrip {
 
 export interface AdventureResult {
   id: string;
-  region: AdventureRegionId;
+  region: AdventureDestinationId;
   actorId: string;
   actorName: string;
   endedAt: number;
@@ -42,12 +43,12 @@ export interface AdventureResult {
 }
 
 export interface AdventureState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   starterClaimed: boolean;
   starterMealsClaimed: boolean;
   tripsStarted: number;
-  completed: Partial<Record<AdventureRegionId, number>>;
-  lastCompletedDay: Partial<Record<AdventureRegionId, string>>;
+  completed: Partial<Record<AdventureDestinationId, number>>;
+  lastCompletedDay: Partial<Record<AdventureDestinationId, string>>;
   discoveries: string[];
   active?: AdventureTrip;
   pending?: AdventureResult;

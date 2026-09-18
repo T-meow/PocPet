@@ -41,11 +41,11 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
     for (const [id, at] of Object.entries(dishes)) if (getDish(id) && typeof at === 'number' && Number.isFinite(at) && at >= 0) tastes[id as DishId] = at;
     next.tasted[actor.slice(0, 128)] = tastes;
   }
-  next.recentOperationIds = Array.isArray(value.recentOperationIds) ? value.recentOperationIds.filter((id) => typeof id === 'string').slice(-32) : [];
+  next.recentOperationIds = Array.isArray(value.recentOperationIds) ? [...new Set(value.recentOperationIds.filter((id) => typeof id === 'string').slice(-32).map((id) => id.slice(0, 128)))] : [];
   next.plating = value.plating === 'flower' || value.plating === 'stars' ? value.plating : 'plain';
   const result = value.lastCraft;
   if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= 99 && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
-    next.lastCraft = { id: result.id, dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
+    next.lastCraft = { id: result.id.slice(0, 128), dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
     if (typeof result.skillXp === 'number' && Number.isInteger(result.skillXp) && result.skillXp >= 0 && result.skillXp <= practiceSkillXp + kitchenFirstRecipeXp) next.lastCraft.skillXp = result.skillXp;
     if (typeof result.baseHearts === 'number' && Number.isFinite(result.baseHearts) && result.baseHearts >= 0 && typeof result.skillHearts === 'number' && Number.isFinite(result.skillHearts) && result.skillHearts >= 0 && typeof result.skillLevel === 'number' && Number.isInteger(result.skillLevel) && result.skillLevel >= 1 && result.skillLevel <= partnerScheduleMaxSkillLevel) {
       Object.assign(next.lastCraft, { baseHearts: result.baseHearts, skillHearts: result.skillHearts, skillLevel: result.skillLevel });

@@ -1,5 +1,5 @@
 import { activityText as L } from './kitchenRecipes';
-import type { AdventureRegionId, AdventureRulesVersion } from './adventureTypes';
+import type { AdventureDestinationId, AdventureRegionId, AdventureRulesVersion } from './adventureTypes';
 import type { ItemId } from './petTypes';
 import { adventureTreasureValues } from './adventureItems';
 
@@ -11,9 +11,12 @@ const legacyShopPrices: Record<string, number> = { dish_egg_rice: 36, trail_mix:
 export const getAdventureShopPrice = (id: string, version: AdventureRulesVersion = 4) => (version < 3 ? legacyShopPrices : adventureShopPrices)[id] ?? 0;
 export const createAdventureShopStock = (version: AdventureRulesVersion = 4): Record<string, number> => version === 1 ? { trail_mix: 1, berry_bait: 1 } : { dish_egg_rice: 2, trail_mix: 2, berry_bait: 1 };
 export const adventureStepCount = 6;
+export const adventureTutorialStepCount = 4;
+export const getAdventureStepCount = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? adventureTutorialStepCount : adventureStepCount;
 export const adventureBusyMessage = () => L('伙伴正在探查途中，请先返回前哨基地。', 'Your companion is exploring. Return to the outpost first.');
 export const adventureActorIds = ['official.furo', 'official.doro', 'official.mint'] as const;
 export const adventureRegionIds: readonly AdventureRegionId[] = ['valley', 'windmill', 'forest', 'coast', 'observatory'];
+export const adventureDestinationIds: readonly AdventureDestinationId[] = ['tutorial', ...adventureRegionIds];
 export const getAdventureRegions = () => [
   { id: 'valley' as const, name: L('溪谷', 'Creek Valley'), description: L('沿着溪水，认清第一段回家的路。', 'Follow the creek and learn the first path home.'), open: true },
   { id: 'windmill' as const, name: L('风车山丘', 'Windmill Hills'), description: L('风车、花田与避风的小营地。', 'Windmills, flower fields and a sheltered camp.'), open: false },
@@ -21,11 +24,14 @@ export const getAdventureRegions = () => [
   { id: 'coast' as const, name: L('潮汐海岸', 'Tidal Coast'), description: L('沿海拾取漂流物，探访旧船屋。', 'Beachcomb along the shore near an old boathouse.'), open: false },
   { id: 'observatory' as const, name: L('旧观测站', 'Old Observatory'), description: L('远处的星图与观测遗迹仍在等待。', 'Star charts and old instruments await discovery.'), open: false },
 ];
-export const adventureTaskName = () => L('入口附近探查', 'Scout the entrance');
+export const adventureTaskName = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? L('踩点探索', 'First scouting trip') : L('入口附近探查', 'Scout the entrance');
+export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`);
 export const adventureTreasureRewardText = (version: AdventureRulesVersion = 4) => version >= 4
   ? L(`通关：22 基础小心心＋随机战利品 ×1（${Math.min(...Object.values(adventureTreasureValues))}～${Math.max(...Object.values(adventureTreasureValues))} 金币）`, `Completion: 22 base hearts + 1 random treasure (${Math.min(...Object.values(adventureTreasureValues))}–${Math.max(...Object.values(adventureTreasureValues))} coins)`)
   : L(`通关：22 基础小心心＋金币堆 ×1（${adventureTreasureValues.coin_hoard} 金币）`, `Completion: 22 base hearts + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins)`);
-export const adventureDiscoveryNames = () => [L('溪谷入口', 'Valley entrance'), L('分岔小径', 'Forked path'), L('溪边足迹', 'Creekside tracks'), L('旧木桥', 'Old footbridge'), L('路边歇脚处', 'Wayside clearing'), L('温室远望点', 'Greenhouse overlook')];
+export const adventureDiscoveryNames = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial'
+  ? [L('前哨门口', 'Outpost doorstep'), L('路标岔口', 'Signposted fork'), L('林边歇脚处', 'Woodland resting spot'), L('旧路标下的发现', 'Finds beneath the old signpost')]
+  : [L('溪谷入口', 'Valley entrance'), L('分岔小径', 'Forked path'), L('溪边足迹', 'Creekside tracks'), L('旧木桥', 'Old footbridge'), L('路边歇脚处', 'Wayside clearing'), L('温室远望点', 'Greenhouse overlook')];
 
 export interface AdventureChoice {
   id: string;
@@ -65,7 +71,17 @@ const costs: Record<string, [number, number]> = {
   entrance: [45, 12], bank: [55, 14], slope: [65, 18], lure: [45, 10], apple: [50, 12], detour: [65, 22],
   rope: [45, 10], ford: [60, 18], clearing: [50, 12], overlook: [60, 16],
 };
-export const getAdventureSteps = (version: AdventureRulesVersion = 4) => legacyAdventureSteps().map(step => ({ ...step, choices: step.choices.map(choice => version === 1 ? choice : {
+const tutorialSteps = (): ReturnType<typeof legacyAdventureSteps> => [
+  { title: L('前哨门口', 'Outpost doorstep'), story: L('第一次远行不用走得太远。先绕着前哨看看，记住大厅与回家的方向。', 'Your first trip stays close to home. Walk around the outpost and remember the way back.'),
+    choices: [{ id: 'tutorial_entrance', label: L('记住回大厅的路', 'Remember the way back'), detail: L('新手关共四个节点，随时可以安全返程。', 'There are four tutorial stops. You can return safely at any time.'), hunger: 8, energy: 2 }] },
+  { title: L('路标岔口', 'Signposted fork'), story: L('岔口的木牌指向溪谷，另一条小路绕回前哨。先沿近处的小路踩点。', 'A wooden sign points toward the valley. A shorter path loops back to the outpost; follow it first.'),
+    choices: [{ id: 'tutorial_signpost', label: L('沿近处的小路前进', 'Follow the nearby path'), detail: L('观察路标，熟悉探索时的路线选择。', 'Read the signs and learn how to choose a route.'), hunger: 8, energy: 2 }] },
+  { title: L('林边歇脚处', 'Woodland resting spot'), story: L('林边有一块平整的石头，可以停下来整理行囊。更远的旅程需要提前准备补给。', 'A flat stone beside the woods makes a good resting spot. Longer trips will need supplies.'),
+    choices: [{ id: 'tutorial_rest', label: L('检查行囊后继续', 'Check the bag and continue'), detail: L('途中可打开旅行背包使用补给；本次无需额外道具。', 'Open the travel bag to use supplies along the way. No extra items are needed for this trip.'), hunger: 8, energy: 2 }] },
+  { title: L('旧路标下的发现', 'Finds beneath the old signpost'), story: L('回程的旧路标下放着一只旅行包。里面是一册地图手册，还有一堆亮闪闪的金币！', 'A travel pouch rests beneath an old signpost on the way back. Inside are a map handbook and a glittering coin hoard!'),
+    choices: [{ id: 'tutorial_finish', label: L('收下发现，完成踩点', 'Collect the finds and finish scouting'), detail: adventureTutorialRewardText(), hunger: 8, energy: 2 }] },
+];
+export const getAdventureSteps = (version: AdventureRulesVersion = 4, destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? tutorialSteps() : legacyAdventureSteps().map(step => ({ ...step, choices: step.choices.map(choice => version === 1 ? choice : {
   ...choice, hunger: costs[choice.id][0], energy: costs[choice.id][1],
   detail: choice.id === 'slope' ? version === 2 ? L('发现橙子 ×1，额外获得 30 金币。', 'Find an orange and 30 extra coins.') : L('发现橙子 ×1，观察更远处的路。', 'Find an orange and survey the distant path.') : choice.id === 'overlook' && version >= 3 ? version >= 4 ? L('随机发现金币堆、溪谷琥珀或古老金条 ×1，可兑换金币。', 'Find one random coin hoard, valley amber or ancient gold bar to exchange for coins.') : L('固定发现金币堆 ×1，可兑换 360 金币。', 'Find a coin hoard worth 360 coins.') : choice.detail,
 }) }));

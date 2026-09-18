@@ -11,6 +11,7 @@
 .adventure-wallet svg { color: #bc7581; }.adventure-wallet > span { margin-left: 8px; color: #947331; }
 .adventure-hud-row { justify-content: space-between; padding-top: 4px; }
 .adventure-progress { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 440px; font-size: 12px; white-space: nowrap; }
+.adventure-progress > span { display: inline-flex; align-items: center; gap: 6px; }
 .adventure-progress progress { flex: 1; min-width: 45px; height: 9px; accent-color: #77965c; border: 0; border-radius: 8px; overflow: hidden; background: #e5e8d8; }
 .adventure-progress progress::-webkit-progress-bar { background: #e5e8d8; }.adventure-progress progress::-webkit-progress-value { background: #77965c; border-radius: 8px; }
 .adventure-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); flex: 1.4; min-width: 0; font-size: 11px; gap: 12px; }
@@ -30,6 +31,8 @@
 .adventure-dialogue { position: absolute; z-index: 4; bottom: 12px; left: 12px; right: 12px; max-height: 51%; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px; border: 1px solid #e2d5b9; border-radius: 18px; background: #fffdf4f5; box-shadow: 0 6px 25px #453e3638; }
 .adventure-dialogue h3 { margin: 0; font-size: 18px; }.adventure-dialogue p { margin: 8px 0 12px; font-size: 13px; line-height: 1.65; }
 .adventure-dialogue-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: center; }.adventure-dialogue-heading small { color: #897457; font-size: 11px; }
+.adventure-tutorial-card { padding: 12px; margin: 10px 0; border: 1px solid #cad8b5; border-radius: 12px; background: #f0f5e6; color: #456044; }
+.adventure-tutorial-card > strong { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; }.adventure-tutorial-card small { font-size: 11px; line-height: 1.6; }.adventure-tutorial-card > strong small { margin-left: auto; font-weight: 400; }.adventure-tutorial-card p { margin: 7px 0; }
 .adventure-choices { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 8px; }
 .adventure-choices > button { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 13px; border: 1px solid #d9d6bd; border-radius: 12px; color: #566346; background: #f5f7e9; text-align: left; font: inherit; min-height: 44px; }
 .adventure-choices strong { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }.adventure-choices small { color: #7c7f6e; font-size: 11px; line-height: 1.45; }
@@ -90,6 +93,8 @@
 .adventure-pack-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #e2d9c2; border-radius: 13px; background: #faf8ef; padding: 10px; }
 .adventure-pack-pane--bag { background: #eff4e6; border-color: #c8d6b4; }
 .adventure-pack-pane h3 { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 15px; }.adventure-pack-pane h3 small { margin-left: auto; color: #8b806a; font-size: 11px; }
+/* Item details change the list height; keep auto-fill columns stable. */
+.adventure-preparation .storage-grid-scroll { scrollbar-gutter: stable; }
 .adventure-stage .adventure-preparation .storage-item-grid { grid-template-columns: repeat(auto-fill,minmax(88px,1fr)); gap: 7px; }
 .adventure-preparation .storage-item-tile { aspect-ratio: auto; min-height: 96px; padding: 5px; }.adventure-preparation .storage-tile-picture { height: 62px; padding-top: 13px; }.adventure-preparation .storage-tile-picture img { max-height: 54px; }.adventure-preparation .storage-tile-name { font-size: 11px; margin-top: 3px; }
 .adventure-pack-slots { display: flex; gap: 3px; flex-shrink: 0; margin: 0 0 7px; }.adventure-pack-slots i { flex: 1; height: 5px; border-radius: 4px; background: #d9dfce; }.adventure-pack-slots [data-filled="true"] { background: #8ba368; }

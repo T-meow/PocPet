@@ -209,6 +209,17 @@ export const createSaveFilePlainText = (pet: PetState, activeMod?: PocPetSaveMod
 export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSummary | null, now = Date.now()) =>
   createSaveFilePlainText(pet, activeMod, now);
 
+const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 3 };
+  for (const [key, maximum] of Object.entries(supportedModules)) {
+    const module = rawPet[key];
+    if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  }
+  const adventure = rawPet.adventure;
+  const trip = isObject(adventure) ? adventure.active : undefined;
+  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 4) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+};
+
 const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<string, unknown>) => {
   if (Object.keys(parsed).some((key) => !['schemaVersion', 'app', 'minimumReaderVersion', 'exportedAt', 'pet', 'activeMod'].includes(key))) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const minimum = parsed.minimumReaderVersion;
@@ -218,11 +229,6 @@ const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<strin
   for (let index = 0; index < 3; index++) {
     if (required[index] > current[index]) throw new UnsupportedSaveVersionError(t('ui.settings.save.requiresVersion', { version: minimum }));
     if (required[index] < current[index]) break;
-  }
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3 };
-  for (const [key, maximum] of Object.entries(supportedModules)) {
-    const module = rawPet[key];
-    if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   }
   if (Object.keys(rawPet).some((key) => !(persistentPetKeys as readonly string[]).includes(key))) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   if (!isSaveMetadata(rawPet.saveMetadata)) throw new Error('Save file has invalid save identity.');
@@ -313,6 +319,7 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
     }
     if (!isObject(parsed.pet)) throw new Error('Save file has invalid pet data.');
     if (parsed.schemaVersion === 2) assertSupportedV2(parsed, parsed.pet);
+    assertSupportedModuleVersions(parsed.pet);
     const rawPet = parsed.schemaVersion === 2 ? hydratePersistedPet(parsed.pet) : parsed.pet;
     if (!hasLegacyPetSaveFingerprint(rawPet)) throw new Error('Save file has invalid pet data.');
     const { exportedAt } = readEnvelopeExportedAt(parsed.exportedAt);
@@ -332,6 +339,7 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
   if (!hasLegacyPetSaveFingerprint(parsed)) {
     throw new Error('Save text is not recognizable as a PocPet save.');
   }
+  assertSupportedModuleVersions(parsed);
   return {
     pet: { ...parsed, name: repairPetName(parsed.name, fallbackName), saveMetadata: normalizeSaveMetadata(parsed.saveMetadata, parsed) } as unknown as PetState,
     source: 'legacy',

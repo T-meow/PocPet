@@ -21,6 +21,7 @@ let persistedIdentity: PocPetSaveModSummary | undefined;
 let lastRollingBackupAt = 0;
 let upgradeBackupBlocked = false;
 let unsupportedSaveBlocked = false;
+let migrationRecordWarningShown = false;
 
 export type PetStorageLoadResult =
   | { status: 'missing' }
@@ -50,6 +51,7 @@ export const hasStoredPet = () => window.localStorage.getItem(storageKey) !== nu
 export const loadPet = (now = Date.now(), eventContext?: NeighborEventContext, fallbackName?: string): PetStorageLoadResult => {
   upgradeBackupBlocked = false;
   unsupportedSaveBlocked = false;
+  migrationRecordWarningShown = false;
   try {
     const raw = window.localStorage.getItem(storageKey);
     expectedRaw = raw;
@@ -149,30 +151,39 @@ const preserveLegacyFormat = (raw: string, identity?: PocPetSaveModSummary) => {
   else if (existing !== raw) throw new Error('Conflicting original save backup.');
 };
 
+const readMigrationRecord = (raw: string | null, saveId: string): { ledger: Record<string, unknown>; delivered: SaveMetadata['pendingItems'] } | undefined => {
+  try {
+    const parsed: unknown = raw === null ? {} : JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+    const ledger = parsed as Record<string, unknown>;
+    const record = Object.prototype.hasOwnProperty.call(ledger, saveId) ? ledger[saveId] : undefined;
+    if (record === undefined) return { ledger, delivered: {} };
+    if (record === true) return { ledger, delivered: migrationCompensationItems };
+    if (!record || typeof record !== 'object' || Array.isArray(record) || !('delivered' in record)) return undefined;
+    const amounts = record.delivered;
+    if (!amounts || typeof amounts !== 'object' || Array.isArray(amounts)) return undefined;
+    const delivered: SaveMetadata['pendingItems'] = {};
+    for (const itemId of Object.keys(migrationCompensationItems) as MigrationItemId[]) {
+      const amount = (amounts as Record<string, unknown>)[itemId];
+      if (!Number.isInteger(amount) || (amount as number) < 0 || (amount as number) > migrationCompensationItems[itemId]) return undefined;
+      delivered[itemId] = amount as number;
+    }
+    return { ledger, delivered };
+  } catch { return undefined; }
+};
+
 const persistCurrentPet = (pet: PetState, identity?: PocPetSaveModSummary, now = Date.now()): PetState => {
   const previousRaw = window.localStorage.getItem(storageKey);
   const previousLedger = window.localStorage.getItem(migrationLedgerStorageKey);
-  const ledger: Record<string, true | { delivered: SaveMetadata['pendingItems'] }> = Object.create(null);
-  if (previousLedger) {
-    const parsed: unknown = JSON.parse(previousLedger);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid save migration record.');
-    for (const [id, value] of Object.entries(parsed)) {
-      if (value === true) { ledger[id] = true; continue; }
-      if (!value || typeof value !== 'object' || !value.delivered || typeof value.delivered !== 'object') throw new Error('Invalid save migration record.');
-      const delivered: SaveMetadata['pendingItems'] = {};
-      for (const itemId of Object.keys(migrationCompensationItems) as MigrationItemId[]) {
-        const amount: unknown = value.delivered[itemId];
-        if (!Number.isInteger(amount) || (amount as number) < 0 || (amount as number) > migrationCompensationItems[itemId]) throw new Error('Invalid save migration record.');
-        delivered[itemId] = amount as number;
-      }
-      ledger[id] = { delivered };
-    }
-  }
-  const record = ledger[pet.saveMetadata.id];
-  const prepared = prepareMigrationCompensation(pet, record === true ? migrationCompensationItems : record?.delivered);
+  const needsMigrationRecord = pet.saveMetadata.origin === 'legacy' && pet.saveMetadata.compensation !== 'ineligible';
+  const record = needsMigrationRecord ? readMigrationRecord(previousLedger, pet.saveMetadata.id) : undefined;
+  const migrationRecordInvalid = needsMigrationRecord && !record;
+  // Unknown delivery history must not grant another gift or block ordinary progress.
+  // Preserve both the original ledger and pending entitlement until it can be verified.
+  const prepared: ReturnType<typeof prepareMigrationCompensation> = record ? prepareMigrationCompensation(pet, record.delivered) : { pet, granted: {}, delivered: undefined };
   const next = prepared.pet;
   const raw = createSaveFileText(next, identity, now);
-  const nextLedger = prepared.delivered ? JSON.stringify({ ...ledger, [next.saveMetadata.id]: { delivered: prepared.delivered } }) : previousLedger;
+  const nextLedger = record && prepared.delivered ? JSON.stringify({ ...record.ledger, [next.saveMetadata.id]: { delivered: prepared.delivered } }) : previousLedger;
   try {
     window.localStorage.setItem(storageKey, raw);
     if (nextLedger !== previousLedger && nextLedger !== null) window.localStorage.setItem(migrationLedgerStorageKey, nextLedger);
@@ -183,7 +194,12 @@ const persistCurrentPet = (pet: PetState, identity?: PocPetSaveModSummary, now =
   expectedRaw = raw;
   persistedIdentity = identity;
   persistPetPreferences(next);
-  if (Object.keys(prepared.granted).length) {
+  if (migrationRecordInvalid) {
+    if (!migrationRecordWarningShown && (pet.saveMetadata.compensation === 'pending' || Object.keys(pet.saveMetadata.pendingItems).length > 0)) {
+      storageFeedback.push(t('pet.reward.saveMigrationRecordInvalid'));
+      migrationRecordWarningShown = true;
+    }
+  } else if (Object.keys(prepared.granted).length) {
     storageFeedback.push(t('pet.reward.saveMigrationGift', { biscuits: prepared.granted.emergency_biscuit ?? 0, milk: prepared.granted.strawberry_milk ?? 0 })
       + (Object.keys(next.saveMetadata.pendingItems).length ? t('pet.reward.saveMigrationPending') : ''));
   } else if (pet.saveMetadata.compensation === 'pending' && Object.keys(next.saveMetadata.pendingItems).length) storageFeedback.push(t('pet.reward.saveMigrationPending'));

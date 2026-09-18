@@ -1,10 +1,10 @@
 import { getAdventureRegions } from './adventureData';
 import type { AdventureRegionId, AdventureState } from './adventureTypes';
 import { activityText as L } from './kitchenRecipes';
-import { isAdventureEntranceCompleteForDay } from './adventureState';
+import { isAdventureEntranceCompleteForDay, isAdventureMapUnlocked } from './adventureState';
 
 export type AdventureNodeId = 'entrance' | 'gather' | 'ridge' | 'crossing' | 'lookout' | 'story' | 'camp' | 'encounter';
-export type AdventureNodeStatus = 'available' | 'current' | 'pending' | 'complete' | 'planned';
+export type AdventureNodeStatus = 'available' | 'current' | 'pending' | 'complete' | 'planned' | 'locked';
 export const adventureMapNodes: readonly { id: AdventureNodeId; x: number; y: number }[] = [
   { id: 'entrance', x: 14, y: 75 }, { id: 'gather', x: 22, y: 50 },
   { id: 'ridge', x: 41, y: 70 }, { id: 'crossing', x: 45, y: 40 },
@@ -37,6 +37,7 @@ export const getAdventureMapNames = (region: AdventureRegionId): Record<Adventur
 
 // Entrance scouting is one task node. Its six events are not six unlocked map nodes.
 export const getAdventureNodeStatus = (state: AdventureState, region: AdventureRegionId, node: AdventureNodeId, today?: string): AdventureNodeStatus => {
+  if (!isAdventureMapUnlocked(state)) return 'locked';
   if (node !== 'entrance') return 'planned';
   if (state.active?.region === region) return 'current';
   if (state.pending?.region === region) return 'pending';
@@ -46,5 +47,5 @@ export const getAdventureNodeStatus = (state: AdventureState, region: AdventureR
 
 export const adventureNodeStatusLabel = (status: AdventureNodeStatus) => ({
   available: L('可以探查', 'Ready to scout'), current: L('正在探查', 'Scouting'),
-  pending: L('行囊待领取', 'Bag to collect'), complete: L('已完成', 'Completed'), planned: L('筹备中', 'Coming later'),
+  pending: L('行囊待领取', 'Bag to collect'), complete: L('已完成', 'Completed'), planned: L('筹备中', 'Coming later'), locked: L('完成踩点探索后解锁', 'Complete the tutorial to unlock'),
 })[status];

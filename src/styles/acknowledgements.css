@@ -91,6 +91,18 @@
 .acknowledgements-list span { max-width: 100%; font-size: 14px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
 .acknowledgements-note { margin: 0; color: #786a54; font-size: 12px; line-height: 1.8; text-align: center; }
 
+.acknowledgements-gift {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid #e8dcc3;
+  border-radius: 14px;
+  background: #fffbf2;
+}
+.acknowledgements-gift h3 { margin: 0 0 8px; color: #51452f; font-size: 16px; }
+.acknowledgements-gift p { margin: 0 0 14px; color: #786a54; font-size: 13px; line-height: 1.8; }
+.acknowledgements-gift button { min-height: 44px; max-width: 100%; white-space: normal; }
+.acknowledgements-gift button svg { flex-shrink: 0; }
+
 @media (min-width: 1100px) {
   .acknowledgements-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

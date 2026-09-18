@@ -55,7 +55,7 @@ export const normalizeMiniGameState = (raw: unknown, inventory: Inventory = {}, 
       // Preserve old low-level games for resuming at Lv.3, with the entry reward.
       const rewardLevel = Math.max(miniGameUnlockLevel, clampLevel(count(active.rewardLevel) || options.level || miniGameUnlockLevel));
       next.active = {
-        id: active.id, game: active.game, actorId: active.actorId, mode: active.mode, paused,
+        id: active.id.slice(0, 128), game: active.game, actorId: active.actorId.slice(0, 128), mode: active.mode, paused,
         startedAt: count(active.startedAt), lastTickAt: paused ? 0 : count(active.lastTickAt), elapsedMs: count(active.elapsedMs), rewardLevel, baseHearts: getMiniGameBaseHearts(rewardLevel, active.game),
         deck, matched: validMatched, flipped: indices(active.flipped).filter((index) => !validMatched.includes(index)).slice(0, 2), moves: count(active.moves),
         rounds: Math.min(10, count(active.rounds)), streak: Math.min(10, count(active.streak)), bestStreak: Math.min(10, count(active.bestStreak)), throwAt: paused || !Number.isFinite(active.throwTargetX) ? 0 : count(active.throwAt),
@@ -68,9 +68,9 @@ export const normalizeMiniGameState = (raw: unknown, inventory: Inventory = {}, 
     }
   }
   const result = value.lastResult;
-  next.lastSettledSessionId = typeof value.lastSettledSessionId === 'string' ? value.lastSettledSessionId : typeof result?.id === 'string' ? result.id : '';
+  next.lastSettledSessionId = (typeof value.lastSettledSessionId === 'string' ? value.lastSettledSessionId : typeof result?.id === 'string' ? result.id : '').slice(0, 128);
   if (result && typeof result.id === 'string' && typeof result.actorId === 'string' && gameIds.includes(result.game)) next.lastResult = {
-    id: result.id, actorId: result.actorId, game: result.game, mode: result.mode === 'normal' ? 'normal' : 'gentle',
+    id: result.id.slice(0, 128), actorId: result.actorId.slice(0, 128), game: result.game, mode: result.mode === 'normal' ? 'normal' : 'gentle',
     hearts: count(result.hearts), baseHearts: typeof result.baseHearts === 'number' ? count(result.baseHearts) : undefined,
     rewardLevel: typeof result.rewardLevel === 'number' ? clampLevel(result.rewardLevel) : undefined,
     mood: typeof result.mood === 'number' && Number.isFinite(result.mood) ? Math.max(0, result.mood) : undefined,
