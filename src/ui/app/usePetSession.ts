@@ -4,6 +4,8 @@ import { playSfx, setAudioTemporarilyMuted } from '../../core/audio';
 import { savePet, takeStorageFeedback } from '../../core/storage';
 import { updatePetSession, type FeedbackMode, type PetSessionState } from './petSessionFeedback';
 import { cancelPendingNativeSave, flushNativeSave, subscribeNativeSave } from '../../platform/nativeSave';
+import { prepareTimePause, resumePetTime } from '../../core/timePause';
+import { commitTimePauseAfterBackup, type TimePauseBackupWriter } from './timePauseTransaction';
 
 export type AchievementToast = { kind: 'single'; achievement: AchievementView } | { kind: 'review' };
 
@@ -24,6 +26,9 @@ interface PetSession {
   retryPersistence: () => void;
   adoptCommittedPet: (pet: PetState) => void;
   saveAction: (pet: PetState, mode?: FeedbackMode) => PetState | undefined;
+  timePauseBusy: boolean;
+  freezeTime: (backup: TimePauseBackupWriter) => Promise<boolean>;
+  resumeTime: () => void;
 }
 
 export const usePetSession = (
@@ -40,6 +45,8 @@ export const usePetSession = (
   const [persistenceError, setPersistenceError] = useState(initialPersistenceError);
   const [nativeSaveError, setNativeSaveError] = useState('');
   const paused = useRef(Boolean(initialPersistenceError));
+  const timePauseInProgress = useRef(false);
+  const [timePauseBusy, setTimePauseBusy] = useState(false);
   const feedbackId = useRef(0);
   const persist = (next: PetState, immediateNative = true) => {
     try {
@@ -62,7 +69,7 @@ export const usePetSession = (
     setSession(next);
   }, []);
   const applyUpdate = useCallback((action: SetStateAction<PetState>, mode: FeedbackMode, immediateNative = true) => {
-    if (paused.current) return;
+    if (paused.current || timePauseInProgress.current) return;
     const id = ++feedbackId.current;
     const current = sessionRef.current;
     const next = updatePetSession(current, action, mode, id);
@@ -115,6 +122,7 @@ export const usePetSession = (
   }, []);
 
   const commitPet = (next: PetState, options: CommitOptions = {}) => {
+    if (next.timePause) return next;
     const result = evaluateAchievementUnlocks(next);
     if (!options.silent && isHomeRef.current && result.unlocked.length > 0) {
       setAchievementToast(
@@ -131,6 +139,35 @@ export const usePetSession = (
   commitRef.current = commitPet;
   const eventContextRef = useRef(eventContext);
   eventContextRef.current = eventContext;
+
+  const freezeTime = async (backup: TimePauseBackupWriter) => {
+    if (paused.current || nativeSaveError || timePauseInProgress.current || petRef.current.timePause) return false;
+    timePauseInProgress.current = true;
+    setTimePauseBusy(true);
+    try {
+      const candidate = prepareTimePause(petRef.current, Date.now(), eventContextRef.current);
+      const { timePause, ...settled } = candidate;
+      const saved = persistRef.current(commitRef.current(settled, { silent: true }));
+      if (!saved) throw new Error('当前存档写入失败，请先修复存档，再备份并冻结。');
+      publish({ pet: saved, feedback: [] });
+      return await commitTimePauseAfterBackup({ ...saved, timePause }, backup,
+        () => !paused.current && petRef.current === saved,
+        (frozen) => {
+          const committed = persistRef.current(frozen);
+          if (committed) publish({ pet: committed, feedback: [] });
+          return committed;
+        });
+    } finally {
+      timePauseInProgress.current = false;
+      setTimePauseBusy(false);
+    }
+  };
+
+  const resumeTime = () => {
+    if (paused.current || timePauseInProgress.current || !petRef.current.timePause) return;
+    const resumed = persistRef.current(resumePetTime(petRef.current));
+    if (resumed) publish({ pet: resumed, feedback: [] });
+  };
 
   useLayoutEffect(() => {
     if (paused.current) return;
@@ -165,5 +202,5 @@ export const usePetSession = (
     return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); window.removeEventListener('pagehide', flush); };
   }, []);
 
-  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet') => applyUpdate(next, mode) };
+  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet') => applyUpdate(next, mode), timePauseBusy, freezeTime, resumeTime };
 };

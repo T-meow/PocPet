@@ -137,7 +137,7 @@ export const getEffectiveDailyDateKey = (pet: Pick<PetState, 'timeGuard'>, now =
 const shiftTimestamp = (value: number, offsetMs: number) =>
   isFiniteTimestamp(value) && value > 0 ? Math.max(1, value + offsetMs) : 0;
 
-export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number): PetState => {
+export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, preserveSessions = false): PetState => {
   const actionStreak = pet.actionStreak
     ? {
         ...pet.actionStreak,
@@ -184,7 +184,7 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number): PetS
               endsAt: shiftTimestamp(pet.partnerSchedule.active.endsAt, offsetMs),
             }
           : undefined,
-        pendingResult: pet.partnerSchedule.pendingResult
+        pendingResult: preserveSessions ? pet.partnerSchedule.pendingResult : pet.partnerSchedule.pendingResult
           ? { ...pet.partnerSchedule.pendingResult,
               rewardSeed: pet.partnerSchedule.pendingResult.rewardSeed ?? pet.partnerSchedule.pendingResult.completedAt,
               startedAt: pet.partnerSchedule.pendingResult.startedAt === undefined ? undefined : shiftTimestamp(pet.partnerSchedule.pendingResult.startedAt, offsetMs),
@@ -196,16 +196,31 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number): PetS
   return {
     ...pet,
     lastUpdatedAt: shiftTimestamp(pet.lastUpdatedAt, offsetMs),
+    ...(preserveSessions ? {
+      lastDailyEncounterAt: shiftTimestamp(pet.lastDailyEncounterAt, offsetMs),
+      adventure: { ...pet.adventure, active: pet.adventure.active ? { ...pet.adventure.active, startedAt: shiftTimestamp(pet.adventure.active.startedAt, offsetMs) } : undefined },
+    } : {}),
     community: pet.community ? { ...pet.community,
       expedition: pet.community.expedition ? { ...pet.community.expedition, active: pet.community.expedition.active ? { ...pet.community.expedition.active, startedAt: shiftTimestamp(pet.community.expedition.active.startedAt, offsetMs), endsAt: shiftTimestamp(pet.community.expedition.active.endsAt, offsetMs) } : undefined } : pet.community.expedition,
       crop: pet.community.crop ? { ...pet.community.crop, plantedAt: shiftTimestamp(pet.community.crop.plantedAt, offsetMs), readyAt: shiftTimestamp(pet.community.crop.readyAt, offsetMs) } : undefined,
-      commission: pet.community.commission ? { ...pet.community.commission, acceptedAt: shiftTimestamp(pet.community.commission.acceptedAt, offsetMs) } : undefined,
-      tasks: pet.community.tasks?.map(task => ({ ...task, acceptedAt: shiftTimestamp(task.acceptedAt, offsetMs) })),
+      commission: preserveSessions ? pet.community.commission : pet.community.commission ? { ...pet.community.commission, acceptedAt: shiftTimestamp(pet.community.commission.acceptedAt, offsetMs) } : undefined,
+      tasks: preserveSessions ? pet.community.tasks : pet.community.tasks?.map(task => ({ ...task, acceptedAt: shiftTimestamp(task.acceptedAt, offsetMs) })),
       animals: pet.community.animals ? Object.fromEntries(Object.entries(pet.community.animals).map(([id, state]) => [id, { ...state, nextAt: state.nextAt === undefined ? undefined : shiftTimestamp(state.nextAt, offsetMs) }])) as PetState['community']['animals'] : pet.community.animals,
-      fishing: pet.community.fishing ? { ...pet.community.fishing, active: offsetMs === 0 ? pet.community.fishing.active : undefined } : pet.community.fishing,
+      fishing: pet.community.fishing ? { ...pet.community.fishing, active: preserveSessions && pet.community.fishing.active ? {
+        ...pet.community.fishing.active,
+        biteAt: shiftTimestamp(pet.community.fishing.active.biteAt, offsetMs),
+        expiresAt: shiftTimestamp(pet.community.fishing.active.expiresAt, offsetMs),
+        lastActionAt: shiftTimestamp(pet.community.fishing.active.lastActionAt, offsetMs),
+      } : offsetMs === 0 ? pet.community.fishing.active : undefined } : pet.community.fishing,
       market: pet.community.market ? { ...pet.community.market, lastVisitAt: shiftTimestamp(pet.community.market.lastVisitAt, offsetMs) } : pet.community.market,
     } : pet.community,
-    miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: { ...pet.miniGames.active, paused: true, lastTickAt: 0, throwAt: 0, blowingAt: 0 } } : pet.miniGames,
+    miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: preserveSessions ? {
+      ...pet.miniGames.active,
+      startedAt: shiftTimestamp(pet.miniGames.active.startedAt, offsetMs),
+      lastTickAt: shiftTimestamp(pet.miniGames.active.lastTickAt, offsetMs),
+      throwAt: shiftTimestamp(pet.miniGames.active.throwAt, offsetMs),
+      blowingAt: shiftTimestamp(pet.miniGames.active.blowingAt, offsetMs),
+    } : { ...pet.miniGames.active, paused: true, lastTickAt: 0, throwAt: 0, blowingAt: 0 } } : pet.miniGames,
     recentActivityUntil: shiftTimestamp(pet.recentActivityUntil, offsetMs),
     lastEnergyRecoveryAt: shiftTimestamp(pet.lastEnergyRecoveryAt, offsetMs),
     sleepStartedAt: shiftTimestamp(pet.sleepStartedAt, offsetMs),

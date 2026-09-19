@@ -210,7 +210,7 @@ export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSumma
   createSaveFilePlainText(pet, activeMod, now);
 
 const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 5, community: 3 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 5, community: 3 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
@@ -239,6 +239,9 @@ const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<strin
 };
 
 const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number): PetState => {
+  // Frozen backups retain their original anchor. Importing, loading or exporting
+  // them must not resume time or reset the remaining duration of an activity.
+  if (pet.timePause !== undefined) return normalizePet(pet, now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
   const sourceNow = Number.isFinite(savedAt) && savedAt >= 0 ? savedAt : now;
   const sourceNormalized = normalizePet(pet, sourceNow, { preserveExpiredPartnerSchedule: true });
   const normalized = normalizePet(

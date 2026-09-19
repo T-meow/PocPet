@@ -725,6 +725,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
 
 export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState => {
   const now = args[1] ?? Date.now();
+  if (args[0].timePause !== undefined) return normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
   let pet = settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);

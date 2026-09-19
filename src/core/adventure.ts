@@ -68,7 +68,7 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   let inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   if (tool) inventory = removeInventoryItem(inventory, 'trail_rope');
   return { ...pet, inventory, lastInteractionAt: now,
-    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 5, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: getAdventureTripTreasure(id) } : {}) } },
+    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 6, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: getAdventureTripTreasure(id) } : {}) } },
     recentEvent: region === 'tutorial' ? L('从前哨门口开始踩点探索，先走完附近的四个节点吧。', 'Starting your first scouting trip: four stops close to the outpost.') : L('从溪谷入口出发，随时可以带着收获返回。', 'Setting out from the valley entrance. You can return with your discoveries at any time.') };
 };
 

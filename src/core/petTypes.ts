@@ -534,6 +534,7 @@ export interface PetState {
   goldenAppleGacha: GoldenAppleGachaState;
   classicEndgame: ClassicEndgameState;
   timeGuard: TimeGuardState;
+  timePause?: import('./timePauseState').TimePauseState;
   kitchen: KitchenState;
   miniGames: MiniGameState;
   companionMemories: CompanionMemoryState;

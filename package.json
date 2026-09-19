@@ -1,6 +1,6 @@
 {
   "name": "pocpet",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,6 +25,7 @@
     "check:partner-schedule": "tsx scripts/check-partner-schedule.ts",
     "check:offline-lifecycle": "tsx scripts/check-offline-lifecycle.ts",
     "check:time-guard": "tsx scripts/check-time-guard.ts",
+    "check:time-pause": "tsx scripts/check-time-pause.ts",
     "check:sleep-settlement": "tsx scripts/check-sleep-settlement.ts",
     "check:achievement-good-ending": "tsx scripts/check-achievement-good-ending.ts",
     "check:save-recovery": "tsx scripts/check-save-recovery.ts",

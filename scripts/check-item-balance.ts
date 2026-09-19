@@ -47,6 +47,25 @@ const growing = (treeId: GardenTreeId, duration = 12 * hour, overrides: Partial<
 const amount = (drops: readonly GardenDrop[]) => drops.reduce((sum, drop) => sum + drop.amount, 0);
 
 try {
+  // Portable recovery has a useful role beside ordinary food/medicine. Prices
+  // reflect both recovery and bag space, and use the shared capped-use preview.
+  assert.equal(item('trail_mix').price, 28);
+  assert.deepEqual(item('trail_mix').effect, { hunger: 36, energy: 18 });
+  assert.equal(item('field_dressing').price, 28);
+  assert.deepEqual(item('field_dressing').effect, { health: 36 });
+  assert.equal(item('comfort_charm').price, 18);
+  assert.deepEqual(item('comfort_charm').effect, { mood: 28 });
+  assert.equal(item('berry_bait').price, 8);
+  assert.equal(item('trail_rope').price, 80);
+  assert(item('field_dressing').effect.health! / item('field_dressing').price < item('medicine').effect.health! / item('medicine').price, 'medicine keeps its stronger healing value at the cost of mood');
+  for (const id of ['trail_mix', 'field_dressing', 'comfort_charm'] as const) {
+    for (const nearlyFull of [false, true]) {
+      const p = normalizePet({ ...createDefaultPet(now), hunger: nearlyFull ? 97 : 20, health: nearlyFull ? 97 : 20, mood: nearlyFull ? 97 : 20, energy: nearlyFull ? 97 : 20, inventory: { [id]: 2 } }, now);
+      const preview = getItemRecoveryPreview(p, item(id), 1, []);
+      const used = useInventoryItem(p, id, now, { favoriteFoodIds: [] });
+      for (const key of itemStatKeys) assert.equal(used[key] - p[key], preview.actual[key], `${id} ${key} cap-aware recovery`);
+    }
+  }
   assert.equal(achievementDefinitions.length, 106);
   const rewardTotals = achievementDefinitions.reduce((totals, entry) => {
     totals.coins += entry.reward.coins ?? 0; totals.hearts += entry.reward.hearts ?? 0; totals.tickets += entry.reward.gachaTickets ?? 0;

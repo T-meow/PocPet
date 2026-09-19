@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { readTimePause } from './timePauseState';
 import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
 import { defaultKitchenState, normalizeKitchenState } from './kitchen';
 import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
@@ -256,6 +257,8 @@ interface NormalizePetOptions {
 export const normalizePet = (value: unknown, now = Date.now(), options: NormalizePetOptions = {}): PetState => {
   if (!value || typeof value !== 'object') return createDefaultPet(now);
   const raw = value as Record<string, unknown>;
+  const timePause = readTimePause(raw.timePause);
+  if (timePause) now = timePause.pausedAt;
   const fallback = createDefaultPet(now, normalizeSaveMetadata(raw.saveMetadata, raw));
   const actualDailyDateKey = getDailyResetDateKey(now);
   const timeGuard = normalizeTimeGuardState(raw.timeGuard, raw, now);
@@ -466,7 +469,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts),
     inventory: normalizedInventory,
     kitchen,
-    miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: options.preserveMiniGameSession, level }),
+    miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: Boolean(timePause) || options.preserveMiniGameSession, level }),
     companionMemories: normalizeCompanionMemories(raw.companionMemories),
     festivalStories: normalizeFestivalStories(raw.festivalStories),
     adventure,
@@ -544,6 +547,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     goldenAppleGacha: normalizeGoldenAppleGachaState(raw.goldenAppleGacha, createdAt, now, currentDailyDateKey),
     classicEndgame,
     timeGuard,
+    ...(timePause ? { timePause } : {}),
   }, isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now), isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now);
 };
 

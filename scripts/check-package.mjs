@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { backupArtifact, createPlan, selectTypes, versionUpdates } from './package.mjs';
+import { backupArtifact, canCreateAndroidSymlink, createPlan, selectTypes, versionUpdates } from './package.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const metadataFiles = ['package.json', 'package-lock.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock'];
@@ -92,6 +92,24 @@ test('backup preserves original bytes and refuses to overwrite an existing backu
   writeFileSync(file, 'new output');
   assert.throws(() => backupArtifact(file, destination), { code: 'EEXIST' });
   assert.deepEqual(readFileSync(backup.path), original);
+});
+
+test('Android permission errors select native copying; unrelated errors still fail and probes are removed', () => {
+  let probe;
+  const attempt = (code) => (target, link) => {
+    probe = dirname(target);
+    assert.equal(readFileSync(target, 'utf8'), 'probe');
+    if (code) throw Object.assign(new Error(code), { code });
+    copyFileSync(target, link);
+  };
+  assert.equal(canCreateAndroidSymlink(attempt()), true);
+  assert.equal(existsSync(probe), false);
+  for (const code of ['EPERM', 'EACCES']) {
+    assert.equal(canCreateAndroidSymlink(attempt(code)), false);
+    assert.equal(existsSync(probe), false);
+  }
+  assert.throws(() => canCreateAndroidSymlink(attempt('ENOSPC')), { code: 'ENOSPC' });
+  assert.equal(existsSync(probe), false);
 });
 
 test('real CLI previews leave version files and release outputs untouched; invalid requests fail', () => {

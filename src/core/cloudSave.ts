@@ -345,6 +345,9 @@ export const uploadCloudSave = async (
   if (writtenManifest[manifestKey(generation)] !== manifestText) throw new InvalidCloudSaveGenerationError('Cloud save manifest failed read-back verification.');
   await readGeneration(storage, generation, manifest, now);
   await storage.setCloudStorage({ [cloudSaveActiveKey]: generation });
+  if ((await storage.getCloudStorage([cloudSaveActiveKey]))[cloudSaveActiveKey] !== generation) {
+    throw new InvalidCloudSaveGenerationError('Cloud save activation failed read-back verification.');
+  }
 
   const staleKeys = Array.from(
     { length: cloudSaveMaxChunksPerGeneration - payload.chunks.length },

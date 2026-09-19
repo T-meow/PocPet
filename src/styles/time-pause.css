@@ -1,0 +1,26 @@
+.time-pause-dialog { width: min(100%, 480px); padding: 24px; color: var(--text-main, #38483e); }
+.time-pause-heading { display: flex; align-items: center; gap: 10px; }
+.time-pause-heading h2 { flex: 1; margin: 0; font-size: 21px; }
+.time-pause-dialog p { line-height: 1.7; }
+.time-pause-backup-note { display: flex; gap: 12px; padding: 14px; border-radius: 16px; background: #eff5ec; color: #466049; }
+.time-pause-backup-note svg { flex-shrink: 0; margin-top: 3px; }
+.time-pause-backup-note p { margin: 0; }
+.time-pause-actions, .time-pause-verification { display: grid; gap: 12px; margin: 20px 0; }
+.time-pause-verification p { margin: 0; }
+.time-pause-verification code { overflow-wrap: anywhere; font-size: 12px; }
+.time-pause-caption { font-size: 12px; opacity: .75; }
+.time-pause-message { padding: 12px; border-radius: 12px; background: #fff3df; color: #755529; }
+.time-pause-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 18px; padding: 18px; border-radius: 18px; background: #eef4f0; }
+.time-pause-setting > div { flex: 1 1 210px; }
+.time-pause-setting p { margin: 6px 0 0; font-size: 13px; line-height: 1.65; }
+.modal-backdrop.time-pause-backdrop { position: fixed; inset: 0; z-index: 1000; display: block; padding: 0; background: #edf3ee; }
+.time-pause-mask.dialog-shell { display: grid; place-items: center; width: 100%; max-width: none; height: 100vh; max-height: none; padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); overflow-y: auto; border: 0; border-radius: 0; background: radial-gradient(ellipse at 50% 20%, #fffdf5, #e9f1eb 78%); color: #354e42; }
+@supports (height: 100dvh) { .time-pause-mask.dialog-shell { height: 100dvh; } }
+.time-pause-mask__content { width: min(100%, 430px); text-align: center; padding: 20px 0; }
+.time-pause-portrait { position: relative; width: 132px; height: 132px; margin: 0 auto 28px; border-radius: 50%; background: #fffdf7; box-shadow: 0 12px 40px #456c4e15; }
+.time-pause-portrait img { width: 100%; height: 100%; object-fit: contain; }
+.time-pause-portrait > svg { position: absolute; right: -4px; bottom: 0; width: 38px; height: 38px; padding: 7px; border-radius: 50%; background: #dcece7; }
+.time-pause-mask h1 { margin: 10px 0 18px; font-size: clamp(28px, 7vw, 38px); letter-spacing: .08em; }
+.time-pause-mask p { line-height: 1.85; }
+.time-pause-resume { min-height: 52px; min-width: 220px; margin: 22px 0; justify-content: center; }
+.time-pause-mask small { display: block; opacity: .7; }

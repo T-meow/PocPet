@@ -144,7 +144,7 @@ try {
 
   let pet = start();
   const originalTrip = structuredClone(pet.adventure.active!);
-  assert.equal(originalTrip.rulesVersion, 5);
+  assert.equal(originalTrip.rulesVersion, 6);
   assert.ok(adventureTreasureIds.includes(originalTrip.treasure!));
   assert.equal(pet.inventory.trail_rope, undefined);
   assert.equal(pet.inventory.dish_carrot_rice, 15);
@@ -251,14 +251,14 @@ try {
   assert.deepEqual(shop.adventure.active!.shopStock, { dish_egg_rice: 2, trail_mix: 2, berry_bait: 1 });
   const beforeBuy = shop;
   shop = buy(shop, 'dish_egg_rice');
-  assert.equal(shop.coins, beforeBuy.coins - 54);
+  assert.equal(shop.coins, beforeBuy.coins - 30);
   assert.equal(buyAdventureSupply(shop, shop.adventure.active!.id, beforeBuy.adventure.active!.revision, 'dish_egg_rice'), shop);
   shop = buy(roundTrip(shop), 'dish_egg_rice');
   assert.equal(shop.adventure.active!.bag.dish_egg_rice, 2);
   assert.equal(buy(shop, 'dish_egg_rice'), shop);
   shop = buy(shop, 'trail_mix', 2);
   shop = buy(shop, 'berry_bait');
-  assert.equal(shop.coins, beforeBuy.coins - 108 - 96 - 18);
+  assert.equal(shop.coins, beforeBuy.coins - 60 - 72 - 10);
   assert.deepEqual(roundTrip(shop).adventure.active, shop.adventure.active);
   assert.equal(buy(shop, 'trail_mix'), shop);
   const beforeDelivery = shop;
@@ -300,7 +300,7 @@ try {
   const pendingMigration = normalizeAdventureState({ schemaVersion: 1, pending: { ...oldPending, items: { apple: 2 } } });
   assert.deepEqual(pendingMigration.pending, { ...oldPending, items: { apple: 2 } });
   assert.equal(start(finish(oldTrip)).adventure.active, undefined, 'completed entrances cannot be restarted on the same day');
-  assert.equal(start(finish(start())).adventure.active!.rulesVersion, 5, 'unfinished entrances can be retried under new rules');
+  assert.equal(start(finish(start())).adventure.active!.rulesVersion, 6, 'unfinished entrances can be retried under new rules');
   const oldBeforeDiscovery = { ...fresh(), adventure: normalizeAdventureState({ schemaVersion: 1, active: { ...oldActive, choices: ['entrance'], bought: false, transported: false } }) };
   const legacyBank = step(oldBeforeDiscovery, 'bank');
   assert.equal(legacyBank.hunger, 96); assert.equal(legacyBank.adventure.active!.bag.apple, 2);
@@ -422,6 +422,9 @@ try {
   for (const id of ['trail_mix', 'berry_bait']) assert.ok(getAdventureServiceQuote(serviceTrip(), id, 1, 'buy').unitPrice > getInventoryItem(id)!.price);
   const activeV2 = { ...serviceTrip(), adventure: { ...serviceTrip().adventure, active: { ...serviceTrip().adventure.active!, rulesVersion: 2 as const } } };
   assert.equal(getAdventureServiceQuote(roundTrip(activeV2), 'dish_egg_rice', 1, 'buy').unitPrice, 36);
+  const activeV5 = { ...serviceTrip(), adventure: { ...serviceTrip().adventure, active: { ...serviceTrip().adventure.active!, rulesVersion: 5 as const } } };
+  assert.equal(getAdventureServiceQuote(roundTrip(activeV5), 'dish_egg_rice', 1, 'buy').unitPrice, 54, 'existing trips preserve the quoted price');
+  assert.equal(getAdventureServiceQuote(roundTrip(activeV5), 'trail_mix', 1, 'buy').unitPrice, 48);
   const completedV2 = richStep(richStep(activeV2, 'clearing'), 'overlook');
   assert.equal(getAdventureRewardPreview(completedV2).coins, 360);
   assert.equal(completedV2.adventure.active!.bag.coin_hoard, undefined, 'old trips keep their original reward form');
@@ -608,7 +611,7 @@ try {
       assert.ok(!/src="undefined"|NaN|\[object Object\]/.test(html));
       if (panel === 'shop') {
         assert.ok(html.includes('data-item-id="dish_egg_rice"'));
-        assert.ok(html.includes(english ? '54 coins' : '54 金币'));
+        assert.ok(html.includes(english ? '30 coins' : '30 金币'));
         assert.ok(html.includes(english ? 'Stock 2' : '剩余 2'));
       }
       if (panel === 'bag') {

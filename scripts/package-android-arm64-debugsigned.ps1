@@ -162,6 +162,60 @@ function Get-AndroidReleaseApk([string]$apkDirectoryName, [string]$apkLabel) {
   return $apk.FullName
 }
 
+function Build-AndroidNativeWithoutSymlink([string]$sdk) {
+  $ndkCandidates = @($env:NDK_HOME, $env:ANDROID_NDK_HOME)
+  $ndkRoot = Join-Path $sdk 'ndk'
+  if (Test-Path -LiteralPath $ndkRoot) {
+    $ndkCandidates += @(Get-ChildItem -Directory -LiteralPath $ndkRoot |
+      Sort-Object -Property @{ Expression = { try { [version]$_.Name } catch { [version]'0.0.0' } } } -Descending |
+      ForEach-Object { $_.FullName })
+  }
+  $ndk = $ndkCandidates | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe')) } | Select-Object -First 1
+  if (-not $ndk) { throw 'Android NDK with a Windows LLVM toolchain is required to rebuild without symbolic links.' }
+  $llvm = Join-Path $ndk 'toolchains\llvm\prebuilt\windows-x86_64\bin'
+  $gradleConfig = Get-Content -LiteralPath (Join-Path $appDir 'build.gradle.kts') -Raw
+  $minSdkMatch = [regex]::Match($gradleConfig, 'minSdk\s*=\s*(\d+)')
+  if (-not $minSdkMatch.Success) { throw 'Cannot determine Android minSdk from build.gradle.kts.' }
+  $clangTarget = if ($AndroidTarget -eq 'aarch64') { 'aarch64-linux-android' } else { 'armv7a-linux-androideabi' }
+  $compilerPrefix = "$clangTarget$($minSdkMatch.Groups[1].Value)"
+  $targetKey = $rustTarget.Replace('-', '_')
+  $cargoTargetKey = $targetKey.ToUpperInvariant()
+  $tauriConfig = Get-Content -LiteralPath (Join-Path $root 'src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json
+  $packageName = [string]$tauriConfig.identifier
+  $kotlinDirectory = Join-Path $appDir ('src\main\java\' + $packageName.Replace('.', '\') + '\generated')
+  New-Item -ItemType Directory -Force -Path $kotlinDirectory | Out-Null
+  $buildEnvironment = @{
+    "CARGO_TARGET_${cargoTargetKey}_LINKER" = Join-Path $llvm "$compilerPrefix-clang.cmd"
+    "CARGO_TARGET_${cargoTargetKey}_RUSTFLAGS" = '-Clink-arg=-landroid -Clink-arg=-llog -Clink-arg=-lOpenSLES'
+    "CC_$targetKey" = Join-Path $llvm "$compilerPrefix-clang.cmd"
+    "CXX_$targetKey" = Join-Path $llvm "$compilerPrefix-clang++.cmd"
+    "AR_$targetKey" = Join-Path $llvm 'llvm-ar.exe'
+    TAURI_ANDROID_PROJECT_PATH = [string]$androidDir
+    TAURI_ANDROID_PACKAGE_UNESCAPED = $packageName
+    WRY_ANDROID_PACKAGE = $packageName
+    WRY_ANDROID_LIBRARY = 'app_lib'
+    WRY_ANDROID_KOTLIN_FILES_OUT_DIR = $kotlinDirectory
+  }
+  $previousEnvironment = @{}
+  foreach ($key in $buildEnvironment.Keys) {
+    $previousEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
+    [Environment]::SetEnvironmentVariable($key, [string]$buildEnvironment[$key], 'Process')
+  }
+  try {
+    Push-Location $root
+    try {
+      & npm.cmd run build
+      if ($LASTEXITCODE -ne 0) { throw 'Frontend validation build failed.' }
+      & cargo build --manifest-path src-tauri/Cargo.toml --target $rustTarget --release --lib --locked --features tauri/custom-protocol
+      if ($LASTEXITCODE -ne 0) { throw "Cargo Android build failed for $label." }
+    } finally { Pop-Location }
+  } finally {
+    foreach ($key in $previousEnvironment.Keys) {
+      [Environment]::SetEnvironmentVariable($key, $previousEnvironment[$key], 'Process')
+    }
+  }
+}
+
 $sdk = Resolve-AndroidSdk
 $zipalign = Resolve-BuildTool $sdk 'zipalign.exe'
 $apksigner = Resolve-BuildTool $sdk 'apksigner.bat'
@@ -181,7 +235,10 @@ if ($env:POCPET_ANDROID_SIGNING_SHA256 -and $certificateSha256 -ne $env:POCPET_A
 }
 Write-Host "Android signing SHA-256: $certificateSha256"
 
-if (-not $ReuseNative) {
+if (-not $ReuseNative -and $env:POCPET_ANDROID_COPY_NATIVE -eq '1') {
+  Write-Host "Rebuilding $label with NDK/Cargo; copying native output instead of creating symbolic links..."
+  Build-AndroidNativeWithoutSymlink $sdk
+} elseif (-not $ReuseNative) {
   Write-Host "Rebuilding $label Rust library and Tauri Android assets..."
   Push-Location $root
   try {

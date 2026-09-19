@@ -162,6 +162,7 @@ import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
+import { TimePauseDialog, TimePauseMask } from './TimePause';
 import { features, isNativeApp, requiresAuthorFollowVerification } from '../platform/edition';
 import { readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
 import { EditionNoticeDialog } from './EditionNoticeDialog';
@@ -356,6 +357,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [achievementCgPopup, setAchievementCgPopup] = useState<AchievementCgPopup | null>(null);
   const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPage>('main');
   const [isCloudUploadConfirmOpen, setCloudUploadConfirmOpen] = useState(false);
+  const [isTimePauseDialogOpen, setTimePauseDialogOpen] = useState(false);
   const [shareBusy, setShareBusy] = useState<'profile' | 'year' | 'gacha' | null>(null);
   const [yearCardSaveFeedback, setYearCardSaveFeedback] = useState('');
   const [gachaCardSaveFeedback, setGachaCardSaveFeedback] = useState('');
@@ -376,9 +378,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       price: item.price,
     })),
   }), [itemRegistry, neighbors]);
-  const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError, retryPersistence, adoptCommittedPet, saveAction } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
+  const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError, retryPersistence, adoptCommittedPet, saveAction, timePauseBusy, freezeTime, resumeTime } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
   const actorId = activeMod?.manifest.id ?? 'official.furo';
-  const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
+  const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause));
   const updateController = useClientUpdates();
   const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => shouldShowEditionNotice(readEditionNotice()));
   const completedFocusCountRef = useRef(pet.pomodoro.completedFocusCount);
@@ -444,7 +446,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       : undefined;
   const isPomodoroActionDisabled = !pet.pomodoro.isRunning && !canRunPomodoro;
   const currentBgmMode = getPageBgmMode(activePage, isShopOpen, pet.isSleeping, communityTab);
-  useWorldAudioFeedback(pet, activePage, Boolean(persistenceError || pendingImportedSave || isImportingSave), actorId);
+  useWorldAudioFeedback(pet, activePage, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause), actorId);
   const achievementSummary = getAchievementSummary(pet);
   const hasAchievementNotice = achievementSummary.pendingReviewNotice || achievementSummary.claimable > 0;
   const gardenReminder = getGardenReminder(pet);
@@ -488,7 +490,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     claimAcknowledgementsGift: handleClaimAcknowledgementsGift,
     claimGardenCompensation: handleClaimGardenCompensation,
   } = rewardController;
-  const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave), setPetWithEventFeedback, commitPet);
+  const activities = useCompanionActivities(pet, actorId, utilityDialog === 'play' && !activeRewardPopup && !achievementCgPopup && !pendingImageSave, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause), setPetWithEventFeedback, commitPet);
   const openKitchen = () => { activityReturnRef.current = null; setActivePage('home'); activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); };
   const selectedFestivalRunId = festivalReplayId ?? selectedFestival?.runId;
   const festivalRun = selectedFestivalRunId ? pet.festivalStories.runs[selectedFestivalRunId] : undefined;
@@ -1542,6 +1544,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       onSettingChange={handlePomodoroSettingChange}
     />
   ) : undefined;
+  if (pet.timePause) return <TimePauseMask pet={pet} portrait={petStatusImageMap.content} onResume={() => {
+    closeUtilityDialog();
+    if (pet.community.fishing.active) setCommunityTab('fishing');
+    setActivePage(pet.adventure.active ? 'adventure' : pet.community.expedition.active ? 'expedition' : pet.community.fishing.active ? 'community' : 'home');
+    resumeTime();
+  }} persistenceError={persistenceError} onRetry={retryPersistence} />;
   return (
     <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
@@ -1901,6 +1909,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onAppearanceChange={appearanceController.setAppearance}
           isAudioEnabled={isAudioEnabled}
           onAudioToggle={handleAudioToggle}
+          onPauseTime={() => setTimePauseDialogOpen(true)}
+          pauseTimeDisabled={Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || toyIntegration.cloudBusy)}
           onShareSaveFile={handleShareSaveFile}
           isSharingSaveFile={isSharingSaveFile}
           updateController={updateController}
@@ -1980,6 +1990,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onConfirm={handleConfirmReset}
         />
       )}
+      {isTimePauseDialogOpen && <TimePauseDialog freezeTime={freezeTime} identity={getStoredSaveIdentity() ?? activeMod?.manifest}
+        uploadCloud={features.cloudSave && toyIntegration.cloudAvailability === 'available' && !toyIntegration.cloudBusy ? toyIntegration.upload : undefined}
+        onClose={() => setTimePauseDialogOpen(false)} />}
       {isCloudUploadConfirmOpen && (
         <ConfirmDialog
           title={t('ui.settings.cloud.confirmTitle')}

@@ -7,6 +7,7 @@ export type PetSessionState = { pet: PetState; feedback: { id: number; text: str
 // Queue feedback with the committed state. React may replay this pure updater;
 // delivery happens later in an effect and each operation ID is delivered once.
 export const updatePetSession = (current: PetSessionState, action: SetStateAction<PetState>, mode: FeedbackMode, id: number): PetSessionState => {
+  if (current.pet.timePause) return current;
   const next = typeof action === 'function' ? action(current.pet) : action;
   if (next === current.pet) return current;
   const announce = mode !== 'quiet' && (mode === 'action' || next.recentEvent !== current.pet.recentEvent);

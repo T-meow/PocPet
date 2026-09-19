@@ -108,6 +108,24 @@ const runCommand = (command, env) => {
     : run('npm', ['run', command.npm], env);
 };
 
+export const canCreateAndroidSymlink = (createLink = symlinkSync) => {
+  const probe = mkdtempSync(join(tmpdir(), 'pocpet-package-symlink-'));
+  const target = join(probe, 'target');
+  const link = join(probe, 'link');
+  try {
+    writeFileSync(target, 'probe');
+    createLink(target, link, 'file');
+    return true;
+  } catch (error) {
+    if (['EPERM', 'EACCES'].includes(error.code)) return false;
+    throw error;
+  } finally {
+    if (existsSync(link)) unlinkSync(link);
+    if (existsSync(target)) unlinkSync(target);
+    rmdirSync(probe);
+  }
+};
+
 const preflight = (plan) => {
   if (process.platform !== 'win32' && plan.some((item) => item.windowsOnly)) throw new Error('当前原生打包脚本需要 Windows；macOS/Linux 请使用对应系统或项目 CI。');
   if (!existsSync(join(root, 'node_modules/typescript/package.json'))) throw new Error('缺少项目依赖，请先执行 npm.cmd ci --registry=https://registry.npmmirror.com/');
@@ -123,18 +141,9 @@ const preflight = (plan) => {
       env.JAVA_HOME = java;
       env.ANDROID_HOME = env.ANDROID_SDK_ROOT = sdk;
       env[pathKey] = `${join(java, 'bin')};${env[pathKey]}`;
-      const probe = mkdtempSync(join(tmpdir(), 'pocpet-package-symlink-'));
-      const target = join(probe, 'target');
-      const link = join(probe, 'link');
-      try {
-        writeFileSync(target, 'probe');
-        symlinkSync(target, link, 'file');
-      } catch (error) {
-        throw new Error(`Android 打包需要创建符号链接的权限。请启用 Windows 开发者模式或使用有该权限的终端后重试。不会自动修改系统设置。\n${error.message}`);
-      } finally {
-        if (existsSync(link)) unlinkSync(link);
-        if (existsSync(target)) unlinkSync(target);
-        rmdirSync(probe);
+      if (!canCreateAndroidSymlink()) {
+        env.POCPET_ANDROID_COPY_NATIVE = '1';
+        console.log('Android：无符号链接权限，将通过 NDK/Cargo 重编译当前源码并复制原生库。');
       }
     }
   }

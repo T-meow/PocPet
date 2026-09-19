@@ -194,12 +194,12 @@ export const useToyIntegration = ({
     if (!preferences.enabled || !isCloudReminderDue) setReminderPromptVisible(false);
   }, [isCloudReminderDue, preferences.enabled]);
 
-  const upload = async () => {
+  const upload = async (snapshot = petRef.current) => {
     const sdk = getToySdk();
     if (!features.cloudSave || isNativeApp() || !sdk || cloudAvailability !== 'available' || cloudBusy) throw new Error(t('ui.settings.cloud.unavailable'));
     setCloudBusy('upload');
     try {
-      const manifest = await uploadCloudSave(sdk, petRef.current, getStoredSaveIdentity() ?? activeModRef.current?.manifest);
+      const manifest = await uploadCloudSave(sdk, snapshot, getStoredSaveIdentity() ?? activeModRef.current?.manifest);
       setCloudManifest(manifest);
       setCloudUsedFallback(false);
       setReminderPromptVisible(false);
