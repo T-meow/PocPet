@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Backpack, Compass, PackageOpen, X } from 'lucide-react';
 import { unknownItemIcon } from '../assets';
-import { adventureBagCapacity, adventureTaskName } from '../core/adventureData';
+import { adventureBagCapacity, adventureJourneyName, adventureJourneyCost } from '../core/adventureData';
 import type { AdventureDestinationId } from '../core/adventureTypes';
+import type { CommunityRoute } from '../core/communityTypes';
 import { getAdventureStartReason } from '../core/adventure';
 import { getAdventureBagCount, isAdventureSupply } from '../core/adventureState';
 import { getInventoryDefinitions } from '../core/items';
@@ -20,11 +21,12 @@ import { getItemBrowseCategories, filterBrowseItems, type ItemBrowseCategory } f
 interface Props {
   pet: PetState; registry: ItemRegistry; icons: Record<string, string>; bag: Inventory; tool: boolean;
   destination?: AdventureDestinationId;
+  purpose?: CommunityRoute;
   onPack: (id: ItemId, delta: number) => void; onTool: (value: boolean) => void;
   onDepart: () => void; onClose: () => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
   perform: (action: () => void) => void;
 }
-export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destination, onPack, onTool, onDepart, onClose, onUseHomeItem, perform }: Props) => {
+export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destination, purpose, onPack, onTool, onDepart, onClose, onUseHomeItem, perform }: Props) => {
   const [category, setCategory] = useState<ItemBrowseCategory>('all');
   const [selection, setSelection] = useState<{ id: ItemId; source: 'warehouse' | 'bag' }>();
   const [quantity, setQuantity] = useState(1);
@@ -46,7 +48,7 @@ export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destinat
   const useCount = usePlan?.quantity ?? 0;
   const canUse = selected?.usable && useCount > 0 && selection?.source === 'warehouse' && amount >= useCount && !pet.adventure.active && !pet.partnerSchedule.active
     && (isAdventureTreasure(selected.id) || Object.values(getItemRecoveryPreview(pet, selected, useCount, []).actual).some(value => value > 0));
-  const reason = getAdventureStartReason(pet, destination);
+  const reason = getAdventureStartReason(pet, destination, Date.now(), purpose);
   const valid = packed <= adventureBagCapacity && Object.entries(carried).every(([id, n]) => n <= (pet.inventory[id] ?? 0));
   const transferItem = () => {
     if (!selected || !selection || amount < count) return;
@@ -85,6 +87,6 @@ export const AdventurePreparation = ({ pet, registry, icons, bag, tool, destinat
       </div> : <p>{L('点选物品后装入背包；仓库中的补给可以直接使用，战利品可以兑换金币。', 'Select items to pack. Use home supplies here or exchange treasure for coins.')}</p>}
       {selected && selection?.source === 'warehouse' && <ItemRecoveryPreview pet={pet} item={selected} quantity={requestedUseCount} favoriteFoodIds={[]} />}
     </footer>
-    <div className="adventure-pack-depart"><div><strong>{destination ? (destination === 'tutorial' ? '' : L('溪谷 · ', 'Creek Valley · ')) + adventureTaskName(destination) : L('尚未选择目的地', 'No destination selected')}</strong>{destination && <small>{destination === 'tutorial' ? L('4 个节点 · 全程饱食 32、体力 8 · 无需额外道具', '4 stops · 32 hunger, 8 energy in total · No extra items needed') : L('全程饱食 300～345 · 体力 74～98 · 返程免费', '300–345 hunger · 74–98 energy · Free return')}</small>}{(reason || !valid) && <small className="adventure-blocked">{reason || L('库存已变化，请调整携带选择。', 'Inventory changed. Adjust the selection.')}</small>}</div><button className="adventure-depart-button" disabled={Boolean(reason) || !valid} onClick={() => perform(onDepart)}><Compass size={22} />{L('出发', 'Set out')}</button></div>
+    <div className="adventure-pack-depart"><div><strong>{destination ? (destination === 'tutorial' ? '' : L('溪谷 · ', 'Creek Valley · ')) + adventureJourneyName(destination, purpose) : L('尚未选择目的地', 'No destination selected')}</strong>{destination && <small>{purpose ? adventureJourneyCost(purpose) : destination === 'tutorial' ? L('4 个节点 · 全程饱食 32、体力 8 · 无需额外道具', '4 stops · 32 hunger, 8 energy in total · No extra items needed') : L('全程饱食 300～345 · 体力 74～98 · 返程免费', '300–345 hunger · 74–98 energy · Free return')}</small>}{(reason || !valid) && <small className="adventure-blocked">{reason || L('库存已变化，请调整携带选择。', 'Inventory changed. Adjust the selection.')}</small>}</div><button className="adventure-depart-button" disabled={Boolean(reason) || !valid} onClick={() => perform(onDepart)}><Compass size={22} />{L('出发', 'Set out')}</button></div>
   </DialogShell>;
 };

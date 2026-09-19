@@ -1,5 +1,7 @@
-use std::{fs, io::Write, path::{Path, PathBuf}};
+use std::{fs, io::Write, path::{Path, PathBuf}, sync::Mutex};
 use tauri::Manager;
+
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 fn directory(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path().app_local_data_dir().map(|path| path.join("backups")).map_err(|e| e.to_string())
@@ -10,7 +12,12 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut file = fs::File::create(&temporary).map_err(|e| e.to_string())?;
     file.write_all(bytes).and_then(|_| file.sync_all()).map_err(|e| e.to_string())?;
     drop(file);
-    fs::rename(temporary, path).map_err(|e| e.to_string())
+    fs::rename(temporary, path).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    if let Some(parent) = path.parent() {
+        fs::File::open(parent).and_then(|dir| dir.sync_all()).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn history_files(dir: &Path) -> Result<Vec<PathBuf>, String> {
@@ -59,7 +66,58 @@ pub fn read_backup_latest(app: tauri::AppHandle) -> Result<Option<String>, Strin
 
 #[tauri::command]
 pub fn write_backup_files(app: tauri::AppHandle, snapshot: String) -> Result<(), String> {
+    let _guard = WRITE_LOCK.lock().map_err(|e| e.to_string())?;
     write_backup_in(&directory(&app)?, &snapshot)
+}
+
+fn read_recent_in(dir: &Path) -> Result<BackupFiles, String> {
+    let mut result = BackupFiles { files: Vec::new(), warnings: Vec::new() };
+    for name in ["recent.pocpet", "recent-previous.pocpet"] {
+        match fs::read_to_string(dir.join(name)) {
+            Ok(text) => result.files.push(text),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => result.warnings.push(format!("{name}: {error}")),
+        }
+    }
+    Ok(result)
+}
+
+fn write_recent_in(dir: &Path, text: &str) -> Result<(), String> {
+    if !is_recent_save_text(text) { return Err("Invalid recent save".into()); }
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let latest = dir.join("recent.pocpet");
+    match fs::read_to_string(&latest) {
+        Ok(previous) if previous == text => return Ok(()),
+        Ok(previous) if is_recent_save_text(&previous) => {
+            atomic_write(&dir.join("recent-previous.pocpet"), previous.as_bytes())?;
+        },
+        Ok(_) => {}, // A damaged latest file must not replace the previous good copy.
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound || error.kind() == std::io::ErrorKind::InvalidData => {},
+        Err(error) => return Err(error.to_string()),
+    }
+    atomic_write(&latest, text.as_bytes())
+}
+
+fn is_recent_save_text(text: &str) -> bool {
+    if !is_supported_backup_text(text) { return false; }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else { return false; };
+    let pet = &value["pet"];
+    value["schemaVersion"].as_u64() == Some(2)
+        && pet["saveMetadata"]["id"].as_str().is_some_and(|id| !id.is_empty())
+        && ["level", "hunger", "mood", "cleanliness", "energy", "health", "coins", "hearts", "lastUpdatedAt"].iter().all(|key| pet[key].is_number())
+        && ["inventory", "actionStreak", "pomodoro"].iter().all(|key| pet[key].is_object())
+        && pet["isSleeping"].is_boolean()
+}
+
+#[tauri::command]
+pub fn read_recent_saves(app: tauri::AppHandle) -> Result<BackupFiles, String> {
+    read_recent_in(&directory(&app)?)
+}
+
+#[tauri::command]
+pub fn write_recent_save(app: tauri::AppHandle, text: String) -> Result<(), String> {
+    let _guard = WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+    write_recent_in(&directory(&app)?, &text)
 }
 
 fn is_supported_backup_text(text: &str) -> bool {
@@ -93,6 +151,42 @@ fn write_backup_in(dir: &Path, snapshot: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recent_saves_survive_partial_writes_and_keep_an_independent_previous_copy() {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("pocpet-recent-test-{unique}"));
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../scripts/fixtures/pocpet-1.8.0-backup.json")).unwrap();
+        let first = fixture["text"].as_str().unwrap();
+        let mut changed: serde_json::Value = serde_json::from_str(first).unwrap();
+        changed["pet"]["coins"] = 9876.into();
+        let second = changed.to_string();
+        write_recent_in(&dir, first).unwrap();
+        write_recent_in(&dir, &second).unwrap();
+        assert_eq!(read_recent_in(&dir).unwrap().files, vec![second.clone(), first.to_string()]);
+        assert!(history_files(&dir).unwrap().is_empty(), "recent saves must not consume daily history slots");
+
+        let latest = dir.join("recent.pocpet");
+        fs::create_dir(latest.with_extension("tmp")).unwrap();
+        assert!(write_recent_in(&dir, first).is_err());
+        assert_eq!(fs::read_to_string(&latest).unwrap(), second);
+        assert_eq!(fs::read_to_string(dir.join("recent-previous.pocpet")).unwrap(), second);
+        fs::remove_dir(latest.with_extension("tmp")).unwrap();
+
+        fs::write(&latest, b"{truncated").unwrap();
+        write_recent_in(&dir, first).unwrap();
+        assert_eq!(read_recent_in(&dir).unwrap().files, vec![first.to_string(), second.clone()]);
+        fs::write(&latest, [0xff, 0xfe]).unwrap();
+        let read = read_recent_in(&dir).unwrap();
+        assert_eq!(read.files, vec![second]);
+        assert_eq!(read.warnings.len(), 1);
+        write_recent_in(&dir, first).unwrap();
+        let before = read_recent_in(&dir).unwrap().files;
+        changed["pet"] = serde_json::json!({});
+        assert!(write_recent_in(&dir, &changed.to_string()).is_err());
+        assert_eq!(read_recent_in(&dir).unwrap().files, before);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn accepts_current_frontend_json_and_replaces_the_same_day() {

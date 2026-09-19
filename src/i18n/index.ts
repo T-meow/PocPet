@@ -41,11 +41,11 @@ if (typeof document !== 'undefined') {
   document.documentElement.lang = currentLanguage;
 }
 
-const resolvePath = (key: string): unknown =>
+const resolvePath = (key: string, resource = locale): unknown =>
   key.split('.').reduce<unknown>((current, part) => {
     if (!current || typeof current !== 'object') return undefined;
     return (current as Record<string, unknown>)[part];
-  }, locale);
+  }, resource);
 
 const formatText = (template: string, params?: Params) =>
   template.replace(/\{(\w+)\}/g, (_, token: string) => {
@@ -54,7 +54,7 @@ const formatText = (template: string, params?: Params) =>
   });
 
 export const t = (key: string, params?: Params) => {
-  const value = resolvePath(key);
+  const value = resolvePath(key) ?? resolvePath(key, resources[fallbackLanguage]);
   return typeof value === 'string' ? formatText(value, params) : key;
 };
 

@@ -6,7 +6,7 @@ export const getInitialFestival = () => {
   return isFestivalId(id) ? id : null;
 };
 
-export type ActivePage = 'home' | 'achievements' | 'garden' | 'partnerSchedule' | 'commonDreams' | 'settings' | 'memories' | 'festival' | 'adventure';
+export type ActivePage = 'home' | 'achievements' | 'garden' | 'partnerSchedule' | 'commonDreams' | 'settings' | 'memories' | 'festival' | 'adventure' | 'community' | 'expedition';
 export type UtilityDialog = 'inventory' | 'shop' | 'boostCards' | 'gacha' | 'kitchen' | 'play' | null;
 
 export const useAppNavigation = () => {

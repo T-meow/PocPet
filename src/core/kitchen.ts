@@ -4,8 +4,10 @@ import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practi
 import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId } from './companionActivityTypes';
-import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, recipes } from './kitchenRecipes';
+import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes } from './kitchenRecipes';
+import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
+import { isExpeditionAway } from './expeditionData';
 
 const kitchenFirstRecipeXp = 5;
 export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
@@ -55,13 +57,14 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
 };
 export const kitchenMadeCount = (pet: PetState) => Object.values(pet.kitchen.made).reduce((sum, count) => sum + (count ?? 0), 0);
 export const kitchenRecipeCount = (pet: PetState) => recipes.filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length;
-export const canSpendCompanionTime = (pet: PetState) => !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && (!pet.miniGames.active || pet.miniGames.active.paused);
+export const canSpendCompanionTime = (pet: PetState) => !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !isExpeditionAway(pet) && !pet.community.fishing.active && (!pet.miniGames.active || pet.miniGames.active.paused);
 export const claimKitchenStarter = (pet: PetState): PetState => {
   if (pet.kitchen.starterClaimed) return pet;
   const inventory = ['apple', 'orange', 'rice', 'egg'].reduce((stock, id) => addInventoryItem(stock, id as 'apple' | 'orange' | 'rice' | 'egg', 1), pet.inventory);
   return { ...pet, inventory, kitchen: { ...pet.kitchen, starterClaimed: true } };
 };
 export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false) => {
+  if (getRecipeUnlockReason(pet, recipeId)) return 0;
   const recipe = getRecipe(recipeId);
   if (!recipe) return 0;
   return Math.max(0, Math.min(99, 9999 - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
@@ -89,6 +92,7 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   next.recentActivityUntil = now + 3000;
   next.recentEvent = activityText(`一起做好了 ${quantity} 份${dishName(dishId)}，收获 ${hearts} 颗心心。`, `Made ${quantity} × ${dishName(dishId)} together and earned ${hearts} hearts.`);
   if (skillXp > 0) next.recentEvent += ` ${formatPracticeSkillXp('cooking', skillXp)}`;
+  if (recipeId === 'herb_porridge') next = recordCommunityTaskEvent(next, 'cook_porridge', now);
   return recordEarnedHearts(next, hearts);
 };
 export const buyKitchenEquipment = (pet: PetState, id: CookingMethod): PetState => {

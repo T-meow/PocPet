@@ -213,7 +213,8 @@ const exactCostPet = {
   mood: discountedStartPreview.moodCost,
 };
 assert.equal(getPartnerScheduleStartCheck(exactCostPet, offer.id, now).canStart, true, 'displayed costs should be sufficient to start a schedule');
-assert.equal(getPartnerScheduleStartCheck({ ...exactCostPet, energy: exactCostPet.energy - 1 }, offer.id, now).reason, 'energy');
+assert.equal(getPartnerScheduleStartCheck({ ...exactCostPet, energy: exactCostPet.energy - 1 }, offer.id, now).canStart, true, 'timed services may start below the full energy cost');
+assert.equal(getPartnerScheduleStartCheck({ ...exactCostPet, energy: 0 }, offer.id, now).canStart, true, 'zero energy does not block timed services');
 assert.equal(getPartnerScheduleStartCheck({ ...exactCostPet, hunger: exactCostPet.hunger - 1 }, offer.id, now).reason, 'hunger');
 assert.equal(getPartnerScheduleStartCheck({ ...exactCostPet, mood: exactCostPet.mood - 1 }, offer.id, now).reason, 'mood');
 
@@ -1409,6 +1410,39 @@ for (let time = now + minuteMs; time <= now + standardQuote.durationMs; time += 
 const offline = advancePet(communityStarted, now + standardQuote.durationMs);
 for (const key of ['energy', 'hunger', 'mood', 'cleanliness', 'health'] as const) assert.ok(Math.abs(online[key] - offline[key]) < 1e-8, `${key}: online and offline costs match`);
 assert.deepEqual(online.partnerSchedule.pendingResult, offline.partnerSchedule.pendingResult);
+assert.equal(offline.partnerSchedule.pendingResult?.exhausted, false);
+
+const tiredStart = startPartnerSchedule({ ...community, energy: 1 }, standardOffer.id, now);
+assert.ok(tiredStart.partnerSchedule.active, 'low energy still starts the request');
+const tiredHalf = advancePet(tiredStart, midTime);
+assert.equal(tiredHalf.energy, 0, 'progressive work costs stop at zero');
+assert.equal(tiredHalf.partnerSchedule.active?.endsAt, tiredStart.partnerSchedule.active.endsAt, 'zero energy does not end or shorten the request');
+assert.equal(tiredHalf.partnerSchedule.pendingResult, undefined);
+assert.ok(!tiredHalf.recentEvent.includes('筋疲力尽'), 'exhaustion is only announced at settlement');
+const tiredEndAt = tiredStart.partnerSchedule.active.endsAt;
+const tiredFinish = advancePet(tiredHalf, tiredEndAt);
+assert.equal(tiredFinish.energy, 0);
+assert.equal(tiredFinish.partnerSchedule.active, undefined);
+assert.equal(tiredFinish.partnerSchedule.pendingResult?.outcome, 'completed');
+assert.equal(tiredFinish.partnerSchedule.pendingResult?.exhausted, true);
+assert.ok(tiredFinish.recentEvent.includes('筋疲力尽了'));
+assert.deepEqual(getPartnerScheduleClaimPreview(tiredFinish.partnerSchedule.pendingResult!, 'coins'), getPartnerScheduleClaimPreview(offline.partnerSchedule.pendingResult!, 'coins'), 'exhaustion keeps the full reward');
+assert.deepEqual(advancePet(tiredStart, tiredEndAt).partnerSchedule.pendingResult, tiredFinish.partnerSchedule.pendingResult, 'offline exhaustion matches incremental progress');
+const tiredReload = loadStoredPetJson(createSaveFilePlainText(tiredFinish, undefined, tiredEndAt), tiredEndAt);
+assert.equal(tiredReload.status, 'ok');
+if (tiredReload.status === 'ok') {
+  const restedAt = tiredEndAt + 10 * minuteMs;
+  const rested = advancePet(tiredReload.pet, restedAt);
+  assert.ok(rested.energy > 0, 'energy resumes recovering after work');
+  assert.equal(rested.partnerSchedule.pendingResult?.exhausted, true, 'the saved result retains exhaustion after resting');
+  const restedClaim = claimPartnerScheduleResult(rested, 'coins', restedAt);
+  assert.ok(restedClaim.recentEvent.includes('筋疲力尽了'));
+  assert.equal(restedClaim.coins - rested.coins, standardQuote.coinReward);
+}
+const zeroStart = startPartnerSchedule({ ...community, energy: 0 }, standardOffer.id, now);
+assert.ok(zeroStart.partnerSchedule.active);
+assert.equal(advancePet(zeroStart, tiredEndAt).partnerSchedule.pendingResult?.outcome, 'completed');
+
 const bonusSnapshot = { ...offline, partnerSchedule: { ...offline.partnerSchedule, pendingResult: { ...offline.partnerSchedule.pendingResult!, extraRewardChancePercent: 50 } } };
 const originalCopies = getPartnerScheduleExtraRewardCopies(bonusSnapshot, bonusSnapshot.partnerSchedule.pendingResult);
 for (const shiftMinutes of [-120, -60, 60, 120]) {

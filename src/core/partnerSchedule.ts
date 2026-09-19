@@ -39,6 +39,7 @@ export const partnerScheduleSchemaVersion = 7;
 export const partnerScheduleUnlockLevel = 1;
 export const partnerScheduleMaxSkillLevel = 10;
 export const partnerScheduleNeighborChancePercent = 30;
+export const partnerScheduleExhaustedMessage = '筋疲力尽了，回家好好休息吧。';
 
 const partnerScheduleNeighborSchemaVersion = 4;
 const validTrophyRewardMultipliers = new Set([1, 1.25, 1.5, 2, 2.5]);
@@ -337,6 +338,7 @@ const normalizeResult = (value: unknown, level: number, now: number, allowNeighb
     grantsMasterCompletion: raw.grantsMasterCompletion === true,
     neighbor: allowNeighbor ? normalizeNeighborReference(raw.neighbor) : undefined,
     outcome: raw.outcome === 'early' ? 'early' : 'completed',
+    exhausted: raw.exhausted === true,
     progressRatio: raw.outcome === 'early' && isNumber(raw.progressRatio) ? Math.max(0, Math.min(1, raw.progressRatio)) : 1,
     contributionMs: isNumber(raw.contributionMs) ? Math.max(0, Math.min(definition.durationMinutes * minuteMs, raw.contributionMs)) : undefined,
     energyCost: isNumber(raw.energyCost) ? Math.max(0, Math.min(100000, raw.energyCost)) : definition.energyCost,
@@ -500,20 +502,25 @@ const finishActiveSchedule = (pet: PetState, completedAt: number, outcome: 'comp
   const preview = getPartnerScheduleCostPreview(active, completedAt);
   const refund = outcome === 'early' && active.legacyPrepaid;
   const isOnBoard = pet.partnerSchedule.offers.some((offer) => offer.id === active.offerId);
+  const energy = refund ? clampPetEnergy(pet, pet.energy + preview.total.energy - preview.consumed.energy) : pet.energy;
+  const exhausted = energy === 0;
   return {
     ...pet,
-    energy: refund ? clampPetEnergy(pet, pet.energy + preview.total.energy - preview.consumed.energy) : pet.energy,
+    energy,
     hunger: refund ? clampPetStat(pet, pet.hunger + preview.total.hunger - preview.consumed.hunger) : pet.hunger,
     mood: refund ? clampPetStat(pet, pet.mood + preview.total.mood - preview.consumed.mood) : pet.mood,
     recentActivity: 'idle',
     recentActivityUntil: 0,
-    recentEvent: t(`pet.partnerSchedule.${outcome === 'early' ? 'cancelled' : 'completed'}`, { name: pet.name }),
+    recentEvent: [
+      t(`pet.partnerSchedule.${outcome === 'early' ? 'cancelled' : 'completed'}`, { name: pet.name }),
+      exhausted ? partnerScheduleExhaustedMessage : '',
+    ].filter(Boolean).join(' '),
     partnerSchedule: {
       ...pet.partnerSchedule,
       active: undefined,
       earlyEndedOfferIds: outcome === 'early' && isOnBoard
         ? Array.from(new Set([...pet.partnerSchedule.earlyEndedOfferIds, active.offerId])) : pet.partnerSchedule.earlyEndedOfferIds,
-      pendingResult: makeScheduleResult(active, completedAt, outcome),
+      pendingResult: { ...makeScheduleResult(active, completedAt, outcome), exhausted },
     },
   };
 };
@@ -664,7 +671,7 @@ export const getPartnerScheduleStartCheck = (
 ): PartnerScheduleStartCheck => {
   const current = advancePartnerSchedule(pet, now);
   if (current.partnerSchedule.pendingResult) return { canStart: false, reason: 'pending' };
-  if (current.partnerSchedule.active || current.adventure.active) return { canStart: false, reason: 'busy' };
+  if (current.partnerSchedule.active || current.adventure.active || isExpeditionAway(current) || current.community.fishing.active) return { canStart: false, reason: 'busy' };
   if (current.partnerSchedule.completedOfferIds.includes(offerId)) return { canStart: false, reason: 'completed' };
   if (current.partnerSchedule.earlyEndedOfferIds.includes(offerId)) return { canStart: false, reason: 'ended' };
   if (current.isSleeping) return { canStart: false, reason: 'sleeping' };
@@ -672,7 +679,6 @@ export const getPartnerScheduleStartCheck = (
   const definition = offer ? definitionMap.get(offer.templateId) : undefined;
   if (!offer || !definition) return { canStart: false, reason: 'missing' };
   const preview = getPartnerScheduleOfferPreview(current, definition, now);
-  if (current.energy < preview.energyCost) return { canStart: false, reason: 'energy' };
   if (current.hunger < preview.hungerCost) return { canStart: false, reason: 'hunger' };
   if (current.mood < preview.moodCost) return { canStart: false, reason: 'mood' };
   if (current.health < getPetStatThreshold(current, definition.requiredHealth)) return { canStart: false, reason: 'health' };
@@ -890,6 +896,7 @@ export const claimPartnerScheduleResult = (
         : '',
       isComplete && result.grantsMasterCompletion ? t('pet.partnerSchedule.masterCompletion', { count: nextSkill.masterCompletions }).trim() : '',
       extraRewardCopies > 0 ? t('pet.partnerSchedule.extraRewardTriggered', { count: extraRewardCopies }) : '',
+      result.exhausted ? partnerScheduleExhaustedMessage : '',
     ].filter(Boolean).join(' '),
     lastInteractionAt: now,
     partnerSchedule: {
@@ -934,3 +941,4 @@ export const isPartnerScheduleCategory = (value: unknown): value is PartnerSched
 
 export const isPartnerScheduleSize = (value: unknown): value is PartnerScheduleSize =>
   typeof value === 'string' && sizeSet.has(value as PartnerScheduleSize);
+import { isExpeditionAway } from './expeditionData';

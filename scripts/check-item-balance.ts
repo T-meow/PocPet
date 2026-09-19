@@ -92,7 +92,8 @@ try {
   assert.equal(getRecipeMaterialCost(getRecipe('pork_rice_bowl')!, false, rawPrice), 68);
   assert.equal(getRecipeMaterialCost(getRecipe('biscuit_layer_cake')!, false, rawPrice), 126);
   for (const dish of allDishes) {
-    assert.equal(getRecipeEffect(dish.recipe, dish.banana).health ?? 0, 0);
+    const healingRecipes: Record<string, number> = { herb_porridge: 8, creek_fish_soup: 10, mushroom_rice: 6, kelp_rice: 14 };
+    assert.equal(getRecipeEffect(dish.recipe, dish.banana).health ?? 0, healingRecipes[dish.recipe.id] ?? 0);
     assert.deepEqual(item(dish.id).effect, getRecipeEffect(dish.recipe, dish.banana));
   }
   for (const recipe of recipes.filter((entry) => entry.fruitVariant)) {

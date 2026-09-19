@@ -1,5 +1,5 @@
 import { getLanguage } from '../i18n';
-import type { BuiltinItemId, ItemEffect } from './petTypes';
+import type { BuiltinItemId, ItemEffect, PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenMaterialId, RecipeId } from './companionActivityTypes';
 
 export const activityText = (zh: string, en: string) => getLanguage() === 'en-US' ? en : zh;
@@ -24,6 +24,15 @@ export const kitchenMaterials: readonly { id: KitchenMaterialId; name: string; e
   { id: 'mixed_nuts', name: '混合果仁', en: 'Mixed nuts', price: 20, glyph: '🥜', edibleEffect: { hunger: 22, mood: 4, energy: 4 } },
 ];
 export const recipes: readonly RecipeDefinition[] = [
+  { id: 'mushroom_rice', name: '野菇焖饭', en: '野菇焖饭', glyph: '🍄', method: 'pan', technique: 'simmer', ingredients: ['valley_mushroom', 'rice'], effect: { hunger: 28, energy: 24, health: 6 }, chainHearts: 2, main: true },
+  { id: 'honey_drink', name: '蜂蜜暖饮', en: '蜂蜜暖饮', glyph: '🍯', method: 'mix', ingredients: ['hill_honey', 'creek_herb'], effect: { hunger: 8, energy: 14, mood: 30 }, chainHearts: 2 },
+  { id: 'berry_milk', name: '林莓奶饮', en: '林莓奶饮', glyph: '🫐', method: 'mix', ingredients: ['forest_berry', 'farm_milk'], effect: { hunger: 10, energy: 20, mood: 20 }, chainHearts: 2 },
+  { id: 'kelp_rice', name: '海藻饭团', en: '海藻饭团', glyph: '🍙', method: 'pan', ingredients: ['coast_kelp', 'rice'], effect: { hunger: 32, energy: 20, health: 14 }, chainHearts: 2, main: true },
+  { id: 'creek_fish_soup', name: '香草鲜鱼汤', en: '香草鲜鱼汤', glyph: '🍲', method: 'pan', technique: 'simmer', ingredients: ['pond_crucian', 'creek_herb'], effect: { hunger: 18, energy: 24, health: 10, mood: 8 }, chainHearts: 2 },
+  { id: 'river_grill', name: '溪流香烤鱼', en: '溪流香烤鱼', glyph: '🐟', method: 'pan', ingredients: ['stream_trout', 'carrot'], effect: { hunger: 30, energy: 30, mood: 12 }, chainHearts: 2, main: true },
+  { id: 'milk_custard', name: '鲜奶蛋羹', en: '鲜奶蛋羹', glyph: '🍮', method: 'pan', technique: 'simmer', ingredients: ['farm_milk', 'egg'], effect: { hunger: 24, mood: 30, energy: 8 }, chainHearts: 1 },
+  { id: 'carp_rice', name: '鲤鱼焖饭', en: '鲤鱼焖饭', glyph: '🍚', method: 'pan', technique: 'simmer', ingredients: ['pond_carp', 'rice'], effect: { hunger: 48, energy: 16, mood: 10 }, chainHearts: 2, main: true },
+  { id: 'herb_porridge', name: '香草暖粥', en: '香草暖粥', glyph: '🥣', method: 'pan', technique: 'simmer', ingredients: ['creek_herb', 'rice'], effect: { hunger: 28, energy: 12, health: 8, mood: 6 }, chainHearts: 1, main: true },
   { id: 'plain_rice', name: '白米饭', en: 'Plain rice', glyph: '🍚', method: 'pan', technique: 'simmer', ingredients: ['rice'], effect: { hunger: 24 }, chainHearts: 0, main: true },
   { id: 'fruit_salad', name: '双果沙拉', en: 'Fruit salad', glyph: '🥗', method: 'mix', ingredients: ['apple', 'orange'], effect: { hunger: 40, mood: 20 }, chainHearts: 1 },
   { id: 'banana_shake', name: '香蕉奶昔', en: 'Banana shake', glyph: '🥤', method: 'blender', ingredients: ['banana', 'ad_milk'], effect: { hunger: 46, mood: 22, energy: 6 }, chainHearts: 2 },
@@ -54,6 +63,18 @@ export const cookingMethods: readonly { id: CookingMethod; name: string; en: str
   { id: 'oven', name: '小烤箱', en: 'Oven', glyph: '♨️', price: 240, requiredRecipes: 5 },
 ];
 export const recipeName = (recipe: RecipeDefinition) => activityText(recipe.name, recipe.en);
+export const getRecipeUnlockReason = (pet: PetState, id: RecipeId) => {
+  const region = ({ mushroom_rice: 'valley', honey_drink: 'hills', berry_milk: 'forest', kelp_rice: 'coast' } as const)[id as 'mushroom_rice'];
+  if (region && !pet.community.expedition.regions[region].surveyed) return '完成对应地区故事后记下配方';
+  if (id === 'honey_drink' && !pet.community.herbDiscovered) return '先去溪谷发现香草';
+  if (id === 'berry_milk' && !pet.community.facilities.barn.built) return '先开放牛棚，取得鲜奶';
+  if (id === 'herb_porridge' && !pet.community.herbDiscovered) return '去溪谷发现香草后解锁';
+  if (id === 'creek_fish_soup' && (!pet.community.herbDiscovered || !pet.community.facilities.fishing_hut.built)) return '发现香草并开放钓鱼小屋后解锁';
+  if (id === 'carp_rice' && !pet.community.facilities.fishing_hut.built) return '开放钓鱼小屋后解锁';
+  if (id === 'river_grill' && !pet.community.facilities.upstream.built) return '修好上游步道后解锁';
+  if (id === 'milk_custard' && !pet.community.facilities.barn.built) return '开放牛棚后解锁';
+  return '';
+};
 export const getRecipe = (id: string) => recipes.find((recipe) => recipe.id === id);
 export const getDishId = (recipe: RecipeDefinition, banana = false): DishId => `dish_${recipe.id}${recipe.fruitVariant && banana ? '_banana' : ''}` as DishId;
 export const getRecipeIngredients = (recipe: RecipeDefinition, banana = false) => recipe.ingredients.map((id) => recipe.fruitVariant && banana && id === 'apple' ? 'banana' as const : id);

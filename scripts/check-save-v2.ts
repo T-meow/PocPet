@@ -378,7 +378,7 @@ const futurePets = Object.entries(current.pet).flatMap(([key, value]) => {
   if (!value || typeof value !== 'object' || !('schemaVersion' in value) || typeof value.schemaVersion !== 'number') return [];
   return [{ ...current.pet, [key]: { ...value, schemaVersion: value.schemaVersion + 1 } }];
 });
-futurePets.push({ ...current.pet, adventure: { ...currentAdventure, active: { ...currentTrip, rulesVersion: 5 } } });
+futurePets.push({ ...current.pet, adventure: { ...currentAdventure, active: { ...currentTrip, rulesVersion: 7 } } });
 const futureFiles = [
   { ...current, schemaVersion: 3 },
   { ...current, minimumReaderVersion: '2.0.0' },

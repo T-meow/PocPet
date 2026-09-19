@@ -12,7 +12,7 @@ import {
   partnerScheduleDailyContributionTargetMs, partnerScheduleMaxSkillLevel, selectNeighborReference,
   type ItemId, type NeighborIdentity, type PartnerScheduleCategory, type PartnerScheduleRewardChoice, type PetState,
 } from '../core/pet';
-import type { PartnerScheduleClaimPreview } from '../core/partnerSchedule';
+import { partnerScheduleExhaustedMessage, type PartnerScheduleClaimPreview } from '../core/partnerSchedule';
 import { t } from '../i18n';
 import { ConfirmDialog } from './ConfirmDialog';
 import { getPartnerScheduleDisplaySummary, getPartnerScheduleDisplayTitle } from './partnerScheduleText';
@@ -89,6 +89,7 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
       </div>
       {complete && result.grantsMasterCompletion && <p className="community-result-note">{L('完整完成 · 大师次数 +1', 'Completed in full · Mastery +1')}</p>}
       {complete && (result.extraRewardChancePercent ?? 0) > 0 && <p className="community-result-note">{t('ui.partnerSchedule.extraRewardChance', { percent: result.extraRewardChancePercent })}</p>}
+      {result.exhausted && <p className="community-result-note">{partnerScheduleExhaustedMessage}</p>}
     </section>}
 
     {active && endPreview && fullPreview && <section className="community-active partner-schedule-active" data-category={active.category} aria-label={L('正在工作', 'Work in progress')}>
@@ -141,7 +142,7 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
         const next = getPartnerScheduleMasteryNextThreshold(skill.masterCompletions);
         return <details key={id} className="community-skill" data-category={id}><summary><Icon size={18} /><span><strong>{t(`ui.partnerSchedule.categories.${id}`)}</strong><small>{master ? t('ui.partnerSchedule.mastery.count', { count: skill.masterCompletions }) : `${skill.xp} / ${needed} XP`}</small></span><b>Lv.{skill.level}</b></summary><progress max={master ? next ?? Math.max(1, skill.masterCompletions) : needed} value={master ? skill.masterCompletions : skill.xp} aria-label={t(`ui.partnerSchedule.categories.${id}`)} /><div className="community-skill-details">{([2, 4, 5, 7, 8, 9, 10] as const).map((level) => <p key={level} data-unlocked={skill.level >= level}>{skill.level >= level ? '✓ ' : ''}{t(`ui.partnerSchedule.passives.level${level}`)}</p>)}{id === 'cooking' && <p>{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet, 'plain_rice').skillBonusPercent })}</p>}{master && <><p>{t(`ui.partnerSchedule.masterPassives.${id}.${skill.masterCompletions >= 60 ? 'advanced' : 'base'}`)}</p><p>{next ? t(`ui.partnerSchedule.mastery.next${next}`, { count: skill.masterCompletions, target: next }) : t('ui.partnerSchedule.mastery.complete', { count: skill.masterCompletions })}</p></>}</div></details>;
       })}<div className="community-milestones"><strong>{L(`全局金币加成 +${getPartnerScheduleGlobalCoinBonusPercent(schedule.skills)}%`, `Global coin bonus +${getPartnerScheduleGlobalCoinBonusPercent(schedule.skills)}%`)}</strong><p>{L('四项技能均达 Lv.3 / Lv.6：每批可选 5 / 6 项。', 'All skills at Lv.3 / Lv.6: 5 / 6 requests per batch.')}</p>{getPartnerScheduleUnlockedOfferCount(schedule.skills) > schedule.boardOfferCount && <p>{L('新增名额将在下次换批时生效。', 'New slots become available with the next batch.')}</p>}</div></section>
-      <p className="community-quiet-note"><Home size={17} />{L('伙伴在外帮忙时，状态只随工作消耗变化。随时都可以提前回家。', 'While helping, your companion only spends the work costs. They can head home whenever needed.')}</p>
+      <p className="community-quiet-note"><Home size={17} /><span>{L('伙伴在外帮忙时，状态只随工作消耗变化。随时都可以提前回家。', 'While helping, your companion only spends the work costs. They can head home whenever needed.')} 体力不足也能接单，最低降至 0，不会因此提前结束；筋疲力尽会在结算时提示。</span></p>
     </aside></div>
     {refreshConfirm && <ConfirmDialog title={L('换一批社区事务？', 'Refresh community requests?')} message={L(`消耗 ${refreshConfirm.cost} 颗小心心，换取 ${refreshConfirm.offerCount} 项事务。本批未开始的事务也会被替换，今日贡献会保留。`, `Spend ${refreshConfirm.cost} hearts for ${refreshConfirm.offerCount} requests. Unstarted requests will also be replaced. Your daily contribution is kept.`)} cancelLabel={L('再看看', 'Keep browsing')} confirmLabel={L(`换一批 · ♥ ${refreshConfirm.cost}`, `Refresh · ♥ ${refreshConfirm.cost}`)} confirmTone="primary" onCancel={() => setRefreshConfirm(null)} onConfirm={() => { const key = refreshConfirm.boardKey; setRefreshConfirm(null); onRefresh(key); }} />}
     {active && endPreview && endConfirmId === active.offerId && <ConfirmDialog title={L('现在回家休息？', 'Head home now?')} message={endMessage} cancelLabel={L('继续帮忙', 'Keep helping')} confirmLabel={L('提前回家', 'Head home early')} confirmTone="primary" onCancel={() => setEndConfirmId(null)} onConfirm={() => { setEndConfirmId(null); onCancel(); }} />}

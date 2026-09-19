@@ -10,6 +10,8 @@ import { getItemPurchaseQuote } from '../core/petActions';
 import { activityText as L } from '../core/kitchenRecipes';
 import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes';
 import type { AdventureDestinationId } from '../core/adventureTypes';
+import type { CommunityRoute } from '../core/communityTypes';
+import { communityShopItems } from '../core/communityItems';
 import { AdventurePreparation } from './AdventurePreparation';
 import { DialogShell } from './DialogShell';
 import { ItemStorageModal } from './ItemStorageModal';
@@ -19,21 +21,22 @@ export type AdventureStoragePanel = 'pack' | 'bag' | 'loot' | 'shop' | 'delivery
 interface Props {
   panel: AdventureStoragePanel; pet: PetState; registry: ItemRegistry; icons: Record<string, string>;
   destination?: AdventureDestinationId;
+  purpose?: CommunityRoute;
   bag: Inventory; tool: boolean; onPack: (id: ItemId, delta: number) => void; onTool: (value: boolean) => void;
   onDepart: () => void; onPanel: (panel: AdventureStoragePanel) => void; onClose: () => void;
   onBuy: (id: ItemId, quantity: number) => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
   update: (action: (pet: PetState) => PetState) => void;
   perform?: (action: () => void) => void;
 }
-export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, destination, onPack, onTool, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
+export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, destination, purpose, onPack, onTool, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [discard, setDiscard] = useState<{ tripId: string; revision: number; id: ItemId; name: string; quantity: number; source: 'bag' | 'loot' | 'tool' }>();
-  if (panel === 'pack') return <AdventurePreparation pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
+  if (panel === 'pack') return <AdventurePreparation pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} purpose={purpose} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
   const trip = pet.adventure.active;
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? { ...trip?.bag, ...(trip?.tool ? { trail_rope: 1 } : {}) }
     : panel === 'loot' ? trip?.loot ?? {} : panel === 'shop' ? trip?.shopStock ?? {} : pet.inventory;
-  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : adventureItems.map(item => item.id)).map(id => [id, 1])) : stock)
+  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : [...adventureItems, ...communityShopItems.filter(item => item.kind === 'care')].map(item => item.id)).map(id => [id, 1])) : stock)
     .filter(item => panel !== 'delivery' || isAdventureSupply(item.id));
   const titles = { pack: L('出发整备', 'Pack for the trip'), bag: L('旅行背包', 'Travel bag'), loot: L('待拾取物资', 'Pending finds'), shop: L('伙伴的随身补给', 'Neighbor supplies'), delivery: L('请伙伴从仓库送货', 'Delivery from home'), supplies: L('基地补给', 'Outpost supplies') };
   const canRecover = (id: ItemId, quantity: number) => {

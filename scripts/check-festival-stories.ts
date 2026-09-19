@@ -9,11 +9,11 @@ import { advanceMidautumnStory, getActiveMidautumnRun, getMidautumnHistory, getM
 import { craftRecipe } from '../src/core/kitchen';
 import { createSaveFileText, loadStoredPetJson, parseSaveFileText, UnsupportedSaveVersionError } from '../src/core/saveCodec';
 import type { PetState } from '../src/core/petTypes';
-import { createMidautumnPreview } from './fixtures/midautumn-preview';
 
 for (const [year, date] of [[2023, '2023-09-29'], [2024, '2024-09-17'], [2025, '2025-10-06'], [2026, '2026-09-25'], [2027, '2027-09-15'], [2028, '2028-10-03']] as const) assert.equal(getMidautumnWindow(year)?.date, date);
 const window = getMidautumnWindow(2026)!;
 const now = new Date(2026, 8, 25, 12).getTime();
+const outsideFestivalWindow = new Date(2026, 8, 16, 12).getTime();
 assert.equal(window.startDate, '2026-09-22');
 assert.equal(window.endDate, '2026-09-28');
 assert.equal(new Date(window.startsAt).getHours(), 0);
@@ -26,13 +26,6 @@ assert.equal(getMidautumnWindow(NaN), undefined);
 assert.equal(getMidautumnWindow(10000), undefined);
 
 const base = createDefaultPet(now);
-const previewNow = new Date(2026, 8, 16, 12).getTime();
-const preview = parseSaveFileText(createSaveFileText(createMidautumnPreview(previewNow, 'preview.actor', '预览伙伴'), null, previewNow), previewNow).pet;
-assert.equal(isMidautumnOpen(previewNow), false);
-assert.equal(getMidautumnRun(preview, 2026)?.stage, 'flavour');
-assert.equal(getMidautumnRun(preview, 2026)?.actorName, '预览伙伴');
-assert.ok(preview.kitchen.equipment.includes('oven') && preview.inventory.mixed_nuts >= 10 && preview.inventory.red_bean_paste >= 10);
-assert.equal(getMidautumnRun(advanceMidautumnStory(preview, 2026, { type: 'flavour', value: 'nuts' }, previewNow), 2026)?.stage, 'prepare', 'the test save is playable today without bypassing production dates');
 const start = startMidautumnStory(base, 'official.furo', '小芙', now);
 assert.equal(getMidautumnRun(base, 2026), undefined, 'does not mutate the source');
 assert.equal(startMidautumnStory(base, 'official.furo', '小芙', window.startsAt - 1), base);
@@ -322,7 +315,7 @@ try {
     const album = renderToStaticMarkup(createElement(MemoryAlbum, { pet: finished, actorId: 'different.actor', portrait: '/portrait.png', onBack: noop, onOpenArt: noop, onSave: noop, onError: noop, onReplayFestival: noop }));
     assert.ok(album.includes('festival-cg') && album.includes('2026 · 小芙'), 'the album keeps the original partner across switches');
     for (const pet of [base, start, unclaimed, allFestivals]) {
-      assert.equal(renderToStaticMarkup(createElement(FestivalEntry, { pet, onOpen: noop, now: previewNow })), '', 'home has no festival entry outside the activity windows');
+      assert.equal(renderToStaticMarkup(createElement(FestivalEntry, { pet, onOpen: noop, now: outsideFestivalWindow })), '', 'home has no festival entry outside the activity windows');
     }
     const continuingAlbum = renderToStaticMarkup(createElement(MemoryAlbum, { pet: overlapBoth, actorId: 'different.actor', portrait: '/portrait.png', onBack: noop, onOpenArt: noop, onSave: noop, onError: noop, onReplayFestival: noop, onContinueFestival: noop }));
     assert.ok(continuingAlbum.includes('地图外的一小段') && continuingAlbum.includes('2025 · 小芙') && continuingAlbum.includes('继续还没讲完的故事'));

@@ -6,8 +6,9 @@ import type { SaveFailureStage } from '../core/saveCodec';
 import type { SaveRecoveryCandidate } from '../platform/saveRecovery';
 import { features } from '../platform/edition';
 
-export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onRestore, onImport, onExport, onStartNew }: {
+export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, newerSave, onRestore, onImport, onExport, onStartNew }: {
   candidates: SaveRecoveryCandidate[]; stage?: SaveFailureStage; unavailable: boolean; raw: string; message: string;
+  newerSave?: boolean;
   onRestore: (candidate: SaveRecoveryCandidate) => Promise<void>;
   onImport: (text: string) => Promise<void>;
   onExport: () => void;
@@ -22,14 +23,14 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, onR
   const perform = async (action: () => Promise<void>) => { setBusy(true); setReadError(false); try { await action(); } catch { setReadError(true); } finally { setBusy(false); } };
   return <main className="app-shell app-shell--role-picker ui-v2-app"><section className="save-recovery">
     <h1>{t('ui.backup.recoveryTitle')}</h1>
-    <p>{t(stage === 'version' ? 'ui.settings.save.newerVersion' : unavailable ? 'ui.backup.recoveryStorage' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing')}</p>
+    <p>{t(stage === 'version' ? 'ui.settings.save.newerVersion' : unavailable ? 'ui.backup.recoveryStorage' : newerSave ? 'ui.backup.newerRecovery' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing')}</p>
     {stage && <p>{t('ui.backup.stage')}: {t(`ui.backup.${stage}`)}</p>}
     {message && <p role="status">{message}</p>}
     {readError && <p role="status">{t('ui.backup.failed')}</p>}
     <label className="field"><span>{t('ui.backup.history')}</span>
       <select value={selected} onChange={(event) => setSelected(event.target.value)} disabled={!candidates.length}>
         {!candidates.length && <option value="">{t('ui.backup.empty')}</option>}
-        {candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{new Date(candidate.savedAt).toLocaleString(getLanguage())} · {candidate.petName} · Lv.{candidate.level}</option>)}
+        {candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{new Date(candidate.savedAt).toLocaleString(getLanguage())} · {candidate.petName} · Lv.{candidate.level}{candidate.id === 'current' ? ` · ${t('ui.backup.currentSave')}` : ''}</option>)}
       </select>
     </label>
     <div className="modal-actions">

@@ -21,13 +21,13 @@ export const adventureLootItems: readonly ShopItem[] = [
 ];
 
 export const adventureItems: readonly ShopItem[] = [
-  { id: 'trail_mix', get name() { return L('便携坚果包', 'Trail mix'); }, kind: 'food', price: 34,
-    effect: { hunger: 24, energy: 12 }, tags: ['adventure_supply'],
-    get summary() { return L('轻便口粮，基础恢复饱食度 24、体力 12，可装进行囊。', 'A compact ration. Restores 24 hunger and 12 energy before bonuses.'); } },
-  { id: 'berry_bait', get name() { return L('野果诱饵包', 'Berry lure'); }, kind: 'item', price: 12,
+  { id: 'trail_mix', get name() { return L('便携坚果包', 'Trail mix'); }, kind: 'food', price: 28,
+    effect: { hunger: 36, energy: 18 }, tags: ['adventure_supply'],
+    get summary() { return L('轻便口粮，基础恢复饱食度 36、体力 18，占 1 份行囊；适合途中同时补充饱食与体力。', 'A compact ration. Restores 36 hunger and 18 energy before bonuses; takes one bag slot.'); } },
+  { id: 'berry_bait', get name() { return L('野果诱饵包', 'Berry lure'); }, kind: 'item', price: 8,
     effect: {}, usable: false, tags: ['adventure_supply'],
     get summary() { return L('探索遭遇中用来引开挡路的小动物，使用后消耗一份。', 'Use one during an encounter to lure a small animal off the path.'); } },
-  { id: 'trail_rope', get name() { return L('探路绳', 'Trail rope'); }, kind: 'item', price: 120,
+  { id: 'trail_rope', get name() { return L('探路绳', 'Trail rope'); }, kind: 'item', price: 80,
     effect: {}, usable: false, tags: ['adventure_tool'],
     get summary() { return L('放入工具位，过桥时节省体力与饱食度；可重复使用，返程归还。', 'Equip in the tool slot to cross with less hunger and energy. Reusable; returned after the trip.'); } },
 ];

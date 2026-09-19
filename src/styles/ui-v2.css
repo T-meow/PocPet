@@ -23,7 +23,7 @@
   width: min(1280px, 100%);
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 30px 40px;
+  padding: var(--safe-top, 0px) 30px 40px;
   color: var(--text);
 }
 
@@ -1396,16 +1396,16 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   border-radius: 5px;
-  background: #ede5f7e6;
+  background: #ede5f780;
   color: #725297;
 }
 
-.storage-tile-tag--hunger { background: #fae8cce6; color: #96601c; }
-.storage-tile-tag--mood { background: #f9dfebe6; color: #ac4b79; }
-.storage-tile-tag--cleanliness,.storage-tile-tag--care { background: #deeffae6; color: #347ca4; }
-.storage-tile-tag--energy { background: #fff1bce6; color: #93720e; }
-.storage-tile-tag--health,.storage-tile-tag--garden { background: #dff0dce6; color: #477c43; }
-.storage-tile-tag--ingredient { background: #fbe2d4e6; color: #a25b35; }
+.storage-tile-tag--hunger { background: #fae8cc80; color: #96601c; }
+.storage-tile-tag--mood { background: #f9dfeb80; color: #ac4b79; }
+.storage-tile-tag--cleanliness,.storage-tile-tag--care { background: #deeffa80; color: #347ca4; }
+.storage-tile-tag--energy { background: #fff1bc80; color: #93720e; }
+.storage-tile-tag--health,.storage-tile-tag--garden { background: #dff0dc80; color: #477c43; }
+.storage-tile-tag--ingredient { background: #fbe2d480; color: #a25b35; }
 
 .storage-modal .storage-wallet>span {
   color: #795d1d;
@@ -2646,7 +2646,7 @@
 
 @media (max-width:1050px) {
   .ui-v2-app {
-    padding: 0 22px 30px;
+    padding: var(--safe-top, 0px) 22px 30px;
   }
   .v2-brand small {
     display: none;
@@ -2765,7 +2765,7 @@
 
 @media (max-width:600px) {
   .ui-v2-app {
-    padding: 0 14px 25px;
+    padding: var(--safe-top, 0px) 14px 25px;
   }
   .v2-top-bar {
     display: flex;

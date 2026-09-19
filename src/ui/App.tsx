@@ -89,7 +89,6 @@ import {
   setAudioEnabled,
   syncBgm,
   unlockAudio,
-  type BgmMode,
   type SfxId,
 } from '../core/audio';
 import {
@@ -99,7 +98,6 @@ import {
   loadPet,
   replacePetFromImport,
   restorePetBackup,
-  savePet,
   type PetStorageLoadResult,
 } from '../core/storage';
 import {
@@ -121,7 +119,7 @@ import {
   loadPetMod,
   setActivePetMod,
 } from '../core/modStorage';
-import { createSaveFileText, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
+import { createSaveFileText, decodeSaveSnapshot, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
 import { resolveImportedSaveMod } from '../core/saveImport';
 import { AchievementsPage, type AchievementTabId } from './AchievementsPage';
 import { BoostCardModal } from './BoostCardModal';
@@ -131,11 +129,17 @@ import { GardenPage } from './GardenPage';
 import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
+import { CommunityPage, type CommunityTab } from './CommunityPage';
+import { ExpeditionPage } from './ExpeditionPage';
+import { isExpeditionAway } from '../core/expeditionData';
+import type { CommunityRoute } from '../core/communityTypes';
 import { KitchenModal } from './KitchenModal';
 import { PlayModal } from './PlayModal';
 import { DialogShell } from './DialogShell';
 import { FloatingRewardBubble } from './FloatingRewardBubble';
 import { useCompanionActivities } from './app/useCompanionActivities';
+import { getPageBgmMode } from './app/worldAudio';
+import { useWorldAudioFeedback } from './app/useWorldAudioFeedback';
 import { claimKitchenStarter } from '../core/kitchen';
 import { pauseMiniGame, resumeMiniGame } from '../core/miniGames';
 import { activityText as L } from '../core/kitchenRecipes';
@@ -158,14 +162,14 @@ import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
-import { features, requiresAuthorFollowVerification } from '../platform/edition';
+import { features, isNativeApp, requiresAuthorFollowVerification } from '../platform/edition';
 import { readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
 import { EditionNoticeDialog } from './EditionNoticeDialog';
 import { useAutomaticBackup } from './app/useAutomaticBackup';
 import { useClientUpdates } from './app/useClientUpdates';
 import { assertStorageUnchanged, getStoredSaveIdentity, setStoredSaveIdentity } from '../core/storage';
 import type { BackupSnapshot } from '../platform/automaticBackup';
-import { collectRecoveryCandidates, readRecoveryCandidate, type SaveRecoveryCandidate } from '../platform/saveRecovery';
+import { collectRecoveryCandidates, findNewerRecovery, readRecoveryCandidate, type SaveRecoveryCandidate } from '../platform/saveRecovery';
 import { SaveRecovery } from './SaveRecovery';
 import { useAppearance } from './app/useAppearance';
 import { NoticeCenter, useNotices } from './NoticeCenter';
@@ -302,7 +306,7 @@ const loadInitialAppState = () => {
       .then(([mods, mod]) => ({
         mods,
         mod,
-        petResult: loadPet(Date.now(), createNeighborEventContext(mods, mod), mod?.manifest.defaultPetName),
+        petResult: loadPet(Date.now(), createNeighborEventContext(mods, mod), mod?.manifest.defaultPetName, true),
       }));
   }
   return initialAppLoadPromise;
@@ -311,6 +315,8 @@ const loadInitialAppState = () => {
 const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initialInstalledMods, onResetToPicker }: PetAppProps) => {
   const appearanceController = useAppearance();
   const notices = useNotices();
+  const [communityRoute, setCommunityRoute] = useState<CommunityRoute>();
+  const [communityTab, setCommunityTab] = useState<CommunityTab>('village');
   const {
     activePage,
     isHomeRef,
@@ -370,7 +376,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       price: item.price,
     })),
   }), [itemRegistry, neighbors]);
-  const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
+  const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError, retryPersistence, adoptCommittedPet, saveAction } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
   const actorId = activeMod?.manifest.id ?? 'official.furo';
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave));
   const updateController = useClientUpdates();
@@ -437,13 +443,19 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ? t('ui.pomodoro.lowHealthTitle')
       : undefined;
   const isPomodoroActionDisabled = !pet.pomodoro.isRunning && !canRunPomodoro;
-  const currentBgmMode: BgmMode = isShopOpen ? 'shop' : pet.isSleeping ? 'sleep' : 'room';
+  const currentBgmMode = getPageBgmMode(activePage, isShopOpen, pet.isSleeping, communityTab);
+  useWorldAudioFeedback(pet, activePage, Boolean(persistenceError || pendingImportedSave || isImportingSave), actorId);
   const achievementSummary = getAchievementSummary(pet);
   const hasAchievementNotice = achievementSummary.pendingReviewNotice || achievementSummary.claimable > 0;
   const gardenReminder = getGardenReminder(pet);
 
   const playAfterUnlock = (id: SfxId) => {
     void unlockAudio().then(() => playSfx(id));
+  };
+
+  const handleOpenCommunity = () => {
+    setCommunityTab(pet.community.fishing.active || pet.community.fishing.pending ? 'fishing' : 'village');
+    setActivePage('community');
   };
 
   const gardenController = useGardenController({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock });
@@ -770,28 +782,21 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleGachaDraw = (payment: GachaPaymentMethod, count: 1 | 10): GoldenAppleGachaDrawOutcome => {
     const outcome = drawGoldenAppleGacha(petRef.current, payment, count, Date.now());
     if (outcome.error) return outcome;
-    const settled = savePet(commitPet(outcome.pet));
-    petRef.current = settled;
-    setPet(settled);
-    return { ...outcome, pet: settled };
+    const settled = saveAction(commitPet(outcome.pet));
+    return settled ? { ...outcome, pet: settled } : { pet: petRef.current, results: [], error: 'save_failed' };
   };
 
   const handleHeartGachaDraw = (count: 1 | 10): GoldenAppleGachaDrawOutcome => {
     const outcome = drawGoldenAppleHeartGacha(petRef.current, count, Date.now());
     if (outcome.error) return outcome;
-    const settled = savePet(commitPet(outcome.pet));
-    petRef.current = settled;
-    setPet(settled);
-    return { ...outcome, pet: settled };
+    const settled = saveAction(commitPet(outcome.pet));
+    return settled ? { ...outcome, pet: settled } : { pet: petRef.current, results: [], error: 'save_failed' };
   };
 
   const handleClaimGachaStarterGift = () => {
     const outcome = claimGoldenAppleGachaStarterGift(petRef.current);
     if (!outcome.claimed) return false;
-    const settled = savePet(commitPet(outcome.pet));
-    petRef.current = settled;
-    setPetWithFeedback(settled);
-    return true;
+    return Boolean(saveAction(commitPet(outcome.pet), 'action'));
   };
 
   const handleOpenCommonDreams = () => {
@@ -1382,8 +1387,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
       setHasImportBackup(true);
       setActiveMod(resolvedMod);
-      petRef.current = committedPet;
-      setPet(committedPet);
+      adoptCommittedPet(committedPet);
       setDraftName(committedPet.name);
       setDraftBirthday(committedPet.birthday);
       setImportSaveText('');
@@ -1539,13 +1543,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     />
   ) : undefined;
   return (
-    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}`}>
+    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); setActivePage('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
       </div>}
       {persistenceError && <div role="alert" className="persistence-warning">
         <p>{t(`ui.backup.${persistenceError}`)}</p>
+        {(persistenceError === 'saveError' || persistenceError === 'nativeSave') && <button type="button" className="secondary-button" onClick={retryPersistence}>{t('ui.backup.retry')}</button>}
         <button type="button" className="secondary-button" onClick={() => { setSettingsInitialPage('save'); setActivePage('settings'); }}>{t('ui.backup.export')}</button>
         <button type="button" className="secondary-button" onClick={() => window.location.reload()}>{t('ui.backup.reload')}</button>
       </div>}
@@ -1648,9 +1653,19 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         />
       ) : activePage === 'adventure' ? (
         <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} icons={itemIconMap} registry={itemRegistry}
+          communityRoute={communityRoute} onCommunity={handleOpenCommunity}
           update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
+      ) : activePage === 'expedition' ? (
+        <ExpeditionPage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} update={activities.update}
+          onCommunity={handleOpenCommunity} onShop={() => handleOpenShop()}
+          onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
+      ) : activePage === 'community' ? (
+        <CommunityPage pet={pet} registry={itemRegistry} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+          onAdventure={() => { setCommunityRoute(undefined); setActivePage('adventure'); }}
+          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onGarden={handleOpenGarden} onShop={() => handleOpenShop()} onExpedition={() => setActivePage('expedition')}
+          onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
           pet={pet}
@@ -1673,7 +1688,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
-          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending), onOpen: () => { playAfterUnlock('open'); setActivePage('adventure'); } }}
+          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending), onOpen: () => { playAfterUnlock('open'); setCommunityRoute(undefined); setActivePage('adventure'); } }}
+          onOpenCommunity={handleOpenCommunity}
           hasAchievementNotice={hasAchievementNotice}
           onOpenShop={() => handleOpenShop()}
           onOpenAchievements={handleOpenAchievements}
@@ -1779,11 +1795,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
           itemIconMap={itemIconMap}
           browse={inventoryController.browse}
-          isPetBusy={Boolean(pet.partnerSchedule.active || pet.adventure.active)}
+          isPetBusy={Boolean(pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active)}
           onBrowseChange={inventoryController.setBrowse}
           onClose={handleCloseInventory}
           onOpenShop={() => handleOpenShop()}
           onOpenGarden={handleOpenGarden}
+          onOpenCommunity={() => { handleCloseInventory(); handleOpenCommunity(); }}
           onOpenKitchen={openKitchen}
           onUseItem={handleUseItem}
         />
@@ -2045,6 +2062,8 @@ export const App = () => {
   const [initialPersistenceError, setInitialPersistenceError] = useState('');
   const [startupRecovery, setStartupRecovery] = useState<Exclude<PetStorageLoadResult, { status: 'ok' }> | null>(null);
   const [recoveryCandidates, setRecoveryCandidates] = useState<SaveRecoveryCandidate[]>([]);
+  const [rollbackDetected, setRollbackDetected] = useState(false);
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
   const [installedMods, setInstalledMods] = useState<readonly InstalledPetModSummary[]>([]);
   const [activeMod, setActiveMod] = useState<ActivePetMod | null>(null);
   const [modMessage, setModMessage] = useState('');
@@ -2053,17 +2072,28 @@ export const App = () => {
   useEffect(() => {
     let cancelled = false;
     const applyLoaded = async (petResult: PetStorageLoadResult, mod: ActivePetMod | null) => {
-      if (petResult.status === 'ok') {
-        if (!cancelled) {
-          setInitialPersistenceError(petResult.persistenceError ?? '');
-          setInitialPet(petResult.pet);
-        }
-        return;
-      }
       const recovery = await collectRecoveryCandidates(mod?.manifest.defaultPetName);
       if (cancelled) return;
+      // Some web containers disable the optional backup database. Keep their
+      // healthy primary usable, while native recovery and unknown formats fail closed.
+      const recoveryBlocked = recovery.unsupported || (isNativeApp() && recovery.unavailable);
+      setRecoveryUnavailable(recoveryBlocked);
+      if (petResult.status === 'ok') {
+        const newer = findNewerRecovery(petResult.raw, recovery.candidates);
+        if (newer.length && !recoveryBlocked && !petResult.persistenceError) {
+          const original = decodeSaveSnapshot(petResult.raw);
+          setRecoveryCandidates([...newer, { id: 'current', text: petResult.raw, format: 'stored', savedAt: original.exportedAt ? Date.parse(original.exportedAt) : original.pet.lastUpdatedAt, petName: original.pet.name, level: original.pet.level, activeMod: original.activeMod ?? mod?.manifest }]);
+          setRollbackDetected(true);
+          setStartupRecovery({ status: 'corrupt', raw: petResult.raw, backup: null, stage: 'storage' });
+          setInitialPet(null);
+          return;
+        }
+        setInitialPersistenceError(petResult.persistenceError ?? (recoveryBlocked ? 'recoveryCheck' : ''));
+        setInitialPet(petResult.pet);
+        return;
+      }
       setRecoveryCandidates(recovery.candidates);
-      if (petResult.status !== 'missing' || recovery.candidates.length || recovery.unavailable) setStartupRecovery(petResult);
+      if (petResult.status !== 'missing' || recovery.candidates.length || recovery.unavailable || recovery.warnings.length) setStartupRecovery(petResult);
       if (recovery.unavailable) setModMessage(t('ui.backup.failed'));
       else if (recovery.warnings.length) setModMessage(t('ui.backup.skippedFiles', { count: recovery.warnings.length }));
       setInitialPet(null);
@@ -2078,7 +2108,7 @@ export const App = () => {
       .catch(async (error) => {
         if (cancelled) return;
         setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.loadFailed'));
-        await applyLoaded(loadPet(), null);
+        await applyLoaded(loadPet(Date.now(), undefined, undefined, true), null);
       });
     return () => {
       cancelled = true;
@@ -2101,7 +2131,7 @@ export const App = () => {
   };
 
   const handleExportCorruptSave = async () => {
-    const raw = getPreservedCorruptPetRaw() ?? (startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '');
+    const raw = (startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '') || getPreservedCorruptPetRaw();
     if (!raw) return;
     try {
       setModMessage(saveFileResultMessage(await saveTextFile(createSaveFileName(t('ui.settings.save.recoveryFileName')), raw)));
@@ -2194,8 +2224,8 @@ export const App = () => {
   };
 
   if (startupRecovery) {
-    return <SaveRecovery candidates={recoveryCandidates} stage={startupRecovery.status === 'missing' ? undefined : startupRecovery.stage}
-      unavailable={startupRecovery.status === 'unavailable'} raw={startupRecovery.status === 'corrupt' ? startupRecovery.raw : ''} message={modMessage}
+    return <SaveRecovery candidates={recoveryCandidates} newerSave={rollbackDetected} stage={rollbackDetected || startupRecovery.status === 'missing' ? undefined : startupRecovery.stage}
+      unavailable={startupRecovery.status === 'unavailable' || recoveryUnavailable} raw={startupRecovery.status === 'corrupt' ? startupRecovery.raw : ''} message={modMessage}
       onRestore={handleRecover} onExport={() => void handleExportCorruptSave()} onStartNew={handleResetCorruptSave}
       onImport={async (text) => handleRecover({ id: 'import', text, format: 'file', savedAt: Date.now(), petName: '', level: 0 })} />;
   }

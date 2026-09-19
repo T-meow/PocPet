@@ -6,6 +6,7 @@ import { hashString } from './utils';
 import { activityText, allDishes, dishName, getRecipeEffect, kitchenMaterials } from './kitchenRecipes';
 import { inventoryItemLimit } from './saveMetadata';
 import { adventureItems, adventureLootItems } from './adventureItems';
+import { communityShopItems, communityFindItems } from './communityItems';
 
 export const dailyBiscuitClaimLimit = 3;
 
@@ -301,10 +302,12 @@ export const shopItems: readonly ShopItem[] = [
     tags: ['garden', 'nutrient'],
     usable: false,
   },
+  ...communityShopItems,
 ] as const;
 
 export const specialItems: readonly ShopItem[] = [
   ...adventureLootItems,
+  ...communityFindItems,
   ...allDishes.map(({ recipe, id, banana }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: getRecipeEffect(recipe, banana), tags: ['homemade'], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
   {
     id: 'birthday_cake',

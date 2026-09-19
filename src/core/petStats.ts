@@ -2,6 +2,7 @@ import { getEnergyRecoverySeasonModifier } from './season';
 import { getClassicTrophyEffects } from './classicTrophies';
 import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
 import type { PetState } from './petTypes';
+import { getAdventureEnergyBonus } from './adventureGrowth';
 
 export const lowEnergyThreshold = 10;
 
@@ -82,10 +83,10 @@ export const clampPetStat = (pet: PetState, value: number) => clampStat(value, g
 
 export const clampPetHealth = (pet: PetState, value: number) => clampHealth(value, getPetStatCap(pet));
 
-export const getPetEnergyCap = (pet: Pick<PetState, 'level' | 'classicEndgame'>) =>
-  getPetStatCap(pet) + getClassicTrophyEffects(pet).energyCapBonus;
+export const getPetEnergyCap = (pet: Pick<PetState, 'level' | 'classicEndgame'> & Partial<Pick<PetState, 'adventure' | 'community'>>) =>
+  getPetStatCap(pet) + getClassicTrophyEffects(pet).energyCapBonus + getAdventureEnergyBonus(pet);
 
-export const clampPetEnergy = (pet: Pick<PetState, 'level' | 'classicEndgame'>, value: number) =>
+export const clampPetEnergy = (pet: Parameters<typeof getPetEnergyCap>[0], value: number) =>
   Math.round(clampStat(value, getPetEnergyCap(pet)));
 
 export const getUpgradeHeartCost = (targetLevel: number) => {

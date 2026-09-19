@@ -4,6 +4,7 @@ import { currencyIcon } from '../assets';
 import { t } from '../i18n';
 import { formatCompactNumber } from './numberFormat';
 import { ItemStorageModal } from './ItemStorageModal';
+import { getCommunityPurchaseReason } from '../core/communityData';
 import type { ItemBrowseState } from './itemBrowse';
 
 interface ShopModalProps {
@@ -40,7 +41,7 @@ export const ShopModal = ({ pet, items, browse, onBrowseChange, itemIconMap, onC
         {quote.discountApplied && <small className="storage-transaction-note">{L('首件享优惠，其余按原价。', 'First item discounted; the rest at regular price.')}</small>}
         {biscuit && <small className="storage-transaction-note">{L(`今日可免费领取 ${Math.max(0, biscuit.limit - biscuit.claimed)} 份`, `${Math.max(0, biscuit.limit - biscuit.claimed)} free claims left today`)}</small>}
         {item.purchaseContents && <small className="storage-transaction-note">{L(`购买后到账 ${quantity * 40} 块苏打饼干，可喂食或用于做饭。`, `Receive ${quantity * 40} soda biscuits for feeding or cooking.`)}</small>}
-        <button className="storage-primary" data-buy-item={item.id} disabled={!quote.canPurchase} onClick={() => onBuyItem(item.id, quantity)}>{label}</button>
+        <button className="storage-primary" data-buy-item={item.id} disabled={!quote.canPurchase} onClick={() => onBuyItem(item.id, quantity)}>{getCommunityPurchaseReason(pet, item.id) || label}</button>
       </>;
     }} />;
 };

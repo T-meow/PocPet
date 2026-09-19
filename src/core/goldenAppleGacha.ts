@@ -390,6 +390,7 @@ const spendGoldenApples = (inventory: PetState['inventory'], amount: number) => 
 };
 
 export type GoldenAppleGachaDrawError =
+  | 'save_failed'
   | 'not_enough_coins'
   | 'not_enough_tickets'
   | 'not_enough_golden_apples'

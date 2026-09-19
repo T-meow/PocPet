@@ -1,10 +1,11 @@
 import type { Inventory } from './petTypes';
+import type { CommunityRoute } from './communityTypes';
 
 export type AdventureRegionId = 'valley' | 'windmill' | 'forest' | 'coast' | 'observatory';
 export type AdventureDestinationId = AdventureRegionId | 'tutorial';
 export type AdventureTreasureId = 'coin_hoard' | 'valley_amber' | 'ancient_gold_bar';
 export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | 'map_handbook' | AdventureTreasureId;
-export type AdventureRulesVersion = 1 | 2 | 3 | 4;
+export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface AdventureTrip {
   id: string;
@@ -24,6 +25,7 @@ export interface AdventureTrip {
   transportedCount: number;
   treasure?: AdventureTreasureId;
   completedDay?: string;
+  purpose?: CommunityRoute;
 }
 
 export interface AdventureResult {
@@ -40,10 +42,15 @@ export interface AdventureResult {
   items: Inventory;
   rewardsClaimed: boolean;
   completedDay?: string;
+  purpose?: CommunityRoute;
+  returnReason?: 'health';
+  salvage?: Inventory;
+  salvageTool?: boolean;
 }
 
 export interface AdventureState {
-  schemaVersion: 3;
+  schemaVersion: 5;
+  valleyCompleted: import('./valleyQuests').ValleyQuestId[];
   starterClaimed: boolean;
   starterMealsClaimed: boolean;
   tripsStarted: number;

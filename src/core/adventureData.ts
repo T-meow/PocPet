@@ -2,17 +2,21 @@ import { activityText as L } from './kitchenRecipes';
 import type { AdventureDestinationId, AdventureRegionId, AdventureRulesVersion } from './adventureTypes';
 import type { ItemId } from './petTypes';
 import { adventureTreasureValues } from './adventureItems';
+import type { CommunityRoute, FacilityId } from './communityTypes';
+import { facilities, facilityIds } from './communityData';
+import { getValleyQuestCosts, isValleyQuest, valleyQuests } from './valleyQuests';
 
 export const adventureBagCapacity = 12;
 export const adventureTransportCost = 2;
 export const adventureTransportLimit = 3;
-export const adventureShopPrices: Record<string, number> = { dish_egg_rice: 54, trail_mix: 48, berry_bait: 18 };
+export const adventureShopPrices: Record<string, number> = { dish_egg_rice: 30, trail_mix: 36, berry_bait: 10 };
+const previousShopPrices: Record<string, number> = { dish_egg_rice: 54, trail_mix: 48, berry_bait: 18 };
 const legacyShopPrices: Record<string, number> = { dish_egg_rice: 36, trail_mix: 34, berry_bait: 12 };
-export const getAdventureShopPrice = (id: string, version: AdventureRulesVersion = 4) => (version < 3 ? legacyShopPrices : adventureShopPrices)[id] ?? 0;
+export const getAdventureShopPrice = (id: string, version: AdventureRulesVersion = 6) => (version < 3 ? legacyShopPrices : version < 6 ? previousShopPrices : adventureShopPrices)[id] ?? 0;
 export const createAdventureShopStock = (version: AdventureRulesVersion = 4): Record<string, number> => version === 1 ? { trail_mix: 1, berry_bait: 1 } : { dish_egg_rice: 2, trail_mix: 2, berry_bait: 1 };
 export const adventureStepCount = 6;
 export const adventureTutorialStepCount = 4;
-export const getAdventureStepCount = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? adventureTutorialStepCount : adventureStepCount;
+export const getAdventureStepCount = (destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute) => isValleyQuest(purpose) ? valleyQuests[purpose].steps.length : purpose ? 3 : destination === 'tutorial' ? adventureTutorialStepCount : adventureStepCount;
 export const adventureBusyMessage = () => L('伙伴正在探查途中，请先返回前哨基地。', 'Your companion is exploring. Return to the outpost first.');
 export const adventureActorIds = ['official.furo', 'official.doro', 'official.mint'] as const;
 export const adventureRegionIds: readonly AdventureRegionId[] = ['valley', 'windmill', 'forest', 'coast', 'observatory'];
@@ -25,6 +29,16 @@ export const getAdventureRegions = () => [
   { id: 'observatory' as const, name: L('旧观测站', 'Old Observatory'), description: L('远处的星图与观测遗迹仍在等待。', 'Star charts and old instruments await discovery.'), open: false },
 ];
 export const adventureTaskName = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? L('踩点探索', 'First scouting trip') : L('入口附近探查', 'Scout the entrance');
+export const adventureJourneyName = (destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute) => isValleyQuest(purpose) ? valleyQuests[purpose].name : purpose ? purpose === 'commission' ? '旧桥委托短途' : purpose === 'seeds' ? '寻找溪谷香草种子' : purpose === 'irrigation' ? '寻找灌溉零件' : `${facilities[purpose].name}的修复线索` : adventureTaskName(destination);
+export const adventureJourneyDetail = (purpose: CommunityRoute) => isValleyQuest(purpose)
+  ? `首次成果：${valleyQuests[purpose].coins} 金币、${valleyQuests[purpose].hearts} 基础小心心。${valleyQuests[purpose].outcome}`
+  : facilityIds.includes(purpose as FacilityId) ? `${facilities[purpose as FacilityId].clue}会永久记入建设记录。${facilities[purpose as FacilityId].benefit}。`
+    : '沿旧桥完成已接寻物／实地采集／送餐委托，寻找灌溉线索与香草。每日首次搜寻可带回香草种子 ×1，不领取完整探查战利品。';
+export const adventureJourneyCost = (purpose: CommunityRoute) => {
+  if (!isValleyQuest(purpose)) return '3 个节点 · 饱食 22～24、体力 8～11 · 安全路线不扣健康';
+  const cost = getValleyQuestCosts(purpose);
+  return `${valleyQuests[purpose].steps.length} 个节点 · 饱食 ${cost.hunger.join('～')}、体力 ${cost.energy.join('～')} · 一次性故事`;
+};
 export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`);
 export const adventureTreasureRewardText = (version: AdventureRulesVersion = 4) => version >= 4
   ? L(`通关：22 基础小心心＋随机战利品 ×1（${Math.min(...Object.values(adventureTreasureValues))}～${Math.max(...Object.values(adventureTreasureValues))} 金币）`, `Completion: 22 base hearts + 1 random treasure (${Math.min(...Object.values(adventureTreasureValues))}–${Math.max(...Object.values(adventureTreasureValues))} coins)`)
@@ -41,6 +55,9 @@ export interface AdventureChoice {
   hunger: number;
   item?: ItemId;
   tool?: boolean;
+  health?: number;
+  mood?: number;
+  minMoodRatio?: number;
 }
 const legacyAdventureSteps = (): { title: string; story: string; choices: AdventureChoice[] }[] => [
   { title: L('认清入口', 'Find your bearings'), story: L('大厅就在身后。先看看溪水的方向，把回来的路记在心里。', 'The hall is just behind you. Follow the water and remember your way back.'),
@@ -81,7 +98,19 @@ const tutorialSteps = (): ReturnType<typeof legacyAdventureSteps> => [
   { title: L('旧路标下的发现', 'Finds beneath the old signpost'), story: L('回程的旧路标下放着一只旅行包。里面是一册地图手册，还有一堆亮闪闪的金币！', 'A travel pouch rests beneath an old signpost on the way back. Inside are a map handbook and a glittering coin hoard!'),
     choices: [{ id: 'tutorial_finish', label: L('收下发现，完成踩点', 'Collect the finds and finish scouting'), detail: adventureTutorialRewardText(), hunger: 8, energy: 2 }] },
 ];
-export const getAdventureSteps = (version: AdventureRulesVersion = 4, destination: AdventureDestinationId = 'valley') => destination === 'tutorial' ? tutorialSteps() : legacyAdventureSteps().map(step => ({ ...step, choices: step.choices.map(choice => version === 1 ? choice : {
+const communitySteps = (purpose?: CommunityRoute): ReturnType<typeof legacyAdventureSteps> => {
+  const target = purpose && facilityIds.includes(purpose as FacilityId) ? facilities[purpose as FacilityId] : undefined;
+  return [
+  { title: '沿溪谷小径出发', story: target ? `照着邻居记下的方位，去寻找${target.clue}，让${target.name}重新热闹起来。` : '循着旧温室的标记，去找修渠的零件与溪谷香草。', choices: [{ id: 'search_path', label: '沿平缓小径前进', detail: '短途共三个节点，不领取每日完整探查奖励。', hunger: 8, energy: 3, mood: 2 }] },
+  { title: '旧桥附近', story: '浅滩可以抄近路，岸边也有稳妥的小径。', choices: [
+    { id: 'search_bank', label: '沿岸边慢慢绕行', detail: '安全通过，不损失健康。', hunger: 8, energy: 5 },
+    { id: 'search_shallows', label: '涉过浅滩', detail: '浅滩湿冷：健康 −8，心情 −3。', hunger: 6, energy: 2, health: -8, mood: -3, minMoodRatio: 0.3 },
+  ] },
+  { title: target ? `${target.name}的修复线索` : '温室旁的发现', story: target ? `找到了${target.clue}！把修复方法记在手账里，回社区完成两项工作并备齐建材，就能开放${target.name}。` : '水渠旁有旧阀芯，石缝里长着香草；仔细找找邻居遗落的工具。', choices: [{ id: 'search_find', label: '完成定向搜寻', detail: '永久记下建设线索与香草配方；每日首次搜寻得到种子 1 份，已接寻物／采集委托同时推进。', hunger: 8, energy: 3, mood: 4 }] },
+];
+};
+export const getAdventureSteps = (version: AdventureRulesVersion = 5, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute) => isValleyQuest(purpose) ? valleyQuests[purpose].steps : purpose ? communitySteps(purpose) : destination === 'tutorial' ? tutorialSteps().map(step => ({ ...step, choices: step.choices.map(choice => ({ ...choice, ...(version >= 5 ? { mood: 2 } : {}) })) })) : legacyAdventureSteps().map(step => ({ ...step, choices: step.choices.map(choice => version === 1 ? choice : {
   ...choice, hunger: costs[choice.id][0], energy: costs[choice.id][1],
+  ...(version >= 5 ? { mood: choice.id === 'bank' || choice.id === 'overlook' ? 4 : choice.id === 'detour' ? -3 : 0, ...(choice.id === 'slope' ? { health: -6, minMoodRatio: 0.3 } : {}) } : {}),
   detail: choice.id === 'slope' ? version === 2 ? L('发现橙子 ×1，额外获得 30 金币。', 'Find an orange and 30 extra coins.') : L('发现橙子 ×1，观察更远处的路。', 'Find an orange and survey the distant path.') : choice.id === 'overlook' && version >= 3 ? version >= 4 ? L('随机发现金币堆、溪谷琥珀或古老金条 ×1，可兑换金币。', 'Find one random coin hoard, valley amber or ancient gold bar to exchange for coins.') : L('固定发现金币堆 ×1，可兑换 360 金币。', 'Find a coin hoard worth 360 coins.') : choice.detail,
 }) }));

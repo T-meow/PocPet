@@ -4,6 +4,10 @@ import { ensureDailyWishForDate, maybeCreateReturnWelcome, returnWelcomeMinAwayM
 import { getAchievementEffects, incrementAchievementPomodoroFocus, incrementNaturalWake, recordEarnedCoins } from './achievements';
 import { canClaimBoostCardDailyReward } from './boostCards';
 import { advanceGarden } from './garden';
+import { advanceCommunityAnimals } from './communityFarm';
+import { advanceCommunityFishing } from './communityFishing';
+import { advanceCommunityMarket } from './communityMarket';
+import { advanceCommunityBoard } from './communityCommissions';
 import { goldenAppleGachaDailyTicketLimit, resolveDailyGachaTicket } from './goldenAppleGacha';
 import { getEffectiveDailyDateKey, reconcilePetClock } from './gameClock';
 import { dailyBiscuitClaimLimit } from './items';
@@ -31,6 +35,9 @@ import { getCleanlinessDecaySeasonModifier, getMoodDecaySeasonModifier } from '.
 import { ensureYearlyStatsForDate, recordYearlyPomodoroFocus } from './yearlyStats';
 import { getWeatherForDate } from './weather';
 import { isNightTime } from './utils';
+import { adventureHealthRules, enforceAdventureHealth } from './adventureReturn';
+import { isExpeditionAway } from './expeditionData';
+import { settleExpeditionTime } from './expeditionReturn';
 
 export const getEnergyRecoveryInfo = (pet: PetState, now = Date.now()) => {
   const current = normalizePet(pet, now);
@@ -459,7 +466,7 @@ const advanceUnprotectedSlice = (
     ageSeconds: pet.ageSeconds + (to - from) / 1000,
     lastUpdatedAt: to,
   };
-  return updatePetSatiety(recoverEnergyUntil(advanced, to, from));
+  return settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recoverEnergyUntil(advanced, to, from)), to), to);
 };
 
 const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetState => {
@@ -478,7 +485,7 @@ const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetStat
 const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: NeighborEventContext): PetState => {
   const clockReconciled = reconcilePetClock(pet, now);
   const useHistoricalDateKeys = clockReconciled.rolledBackByMs === 0;
-  const normalized = normalizePet(clockReconciled.pet, now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
+  const normalized = enforceAdventureHealth(normalizePet(clockReconciled.pet, now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }), Math.min(pet.lastUpdatedAt, now));
   const simulationStartedAt = Math.min(normalized.lastUpdatedAt, now);
   const normalizedForSimulation = useHistoricalDateKeys && clockReconciled.pet.pomodoro?.isRunning
     ? {
@@ -534,6 +541,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
   );
 
   const applyImmediateStateChanges = (time: number) => {
+    next = settleExpeditionTime(next, time);
     next = withWeatherForTime(next, time);
     if (next.partnerSchedule.active && time >= next.partnerSchedule.active.endsAt) {
       next = advancePartnerSchedule(next, time);
@@ -545,7 +553,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     while (transitionCount < 3) {
       transitionCount += 1;
       const idleAtNight = isNightTime(time) && time - next.lastInteractionAt >= autoSleepIdleMs;
-      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && idleAtNight) {
+      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && !isExpeditionAway(next) && idleAtNight) {
         next = startSleepSnapshot({
           ...next,
           isSleeping: true,
@@ -580,6 +588,8 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     const protectedBySchedule = isScheduleProtectedAt(cursor);
     const rates = protectedBySchedule ? undefined : getLifecycleRates(next, cursor);
     let sliceEndsAt = Math.min(now, getNextCalendarBoundary(cursor));
+    const expedition = next.community.expedition.active;
+    if (expedition?.mode === 'idle') sliceEndsAt = Math.min(sliceEndsAt, expedition.startedAt + (expedition.settledParts + 1) * hourMs, expedition.endsAt);
 
     if (scheduleForInterval) {
       if (cursor < scheduleForInterval.startedAt) {
@@ -590,6 +600,11 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     }
 
     if (!protectedBySchedule && rates) {
+      if ((next.adventure.active || isExpeditionAway(next)) && rates.health < 0) {
+        const distance = next.health - getPetStatCap(next) * adventureHealthRules.retreat;
+        // The first millisecond strictly below the line, including starting on it.
+        sliceEndsAt = Math.min(sliceEndsAt, cursor + Math.max(1, Math.floor(distance / -rates.health * hourMs) + 1));
+      }
       sliceEndsAt = Math.min(
         sliceEndsAt,
         getNextPressureBoundary(next, cursor, rates),
@@ -708,6 +723,12 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
   return applyDailyEncounter(next, now, eventContext);
 };
 
-export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState =>
-  updatePetSatiety(advancePetInternal(...args));
+export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState => {
+  const now = args[1] ?? Date.now();
+  let pet = settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
+  pet = advanceCommunityFishing(pet, now);
+  pet = advanceCommunityAnimals(pet, now);
+  pet = advanceCommunityMarket(pet, now);
+  return advanceCommunityBoard(pet, now);
+};
 

@@ -2,6 +2,7 @@ import hallBackground from '../assets/adventure/outpost-hall.webp';
 import valleyEntrance from '../assets/adventure/valley.webp';
 import type { AdventureNodeId } from '../core/adventureMap';
 import type { AdventureRegionId } from '../core/adventureTypes';
+import { valleySceneAssets } from '../valleySceneAssets';
 
 interface AdventureRegionArt {
   // Overview art uses the map's 1000 × 650 coordinate space. Pins stay separate.
@@ -10,7 +11,7 @@ interface AdventureRegionArt {
 }
 export const adventureHallScene = hallBackground;
 export const adventureRegionArt: Record<AdventureRegionId, AdventureRegionArt> = {
-  valley: { nodes: { entrance: valleyEntrance } },
+  valley: { nodes: { entrance: valleyEntrance, ...valleySceneAssets } },
   windmill: { nodes: {} },
   forest: { nodes: {} },
   coast: { nodes: {} },

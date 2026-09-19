@@ -178,6 +178,9 @@ for (const recipeId of festivalRecipeIds) {
 }
 
 let catalogue = stocked();
+catalogue.community.herbDiscovered = true;
+for (const region of Object.values(catalogue.community.expedition.regions)) region.surveyed = true;
+for (const id of ['fishing_hut', 'upstream', 'barn'] as const) catalogue.community.facilities[id] = { found: true, work: 2, built: true };
 for (const recipe of recipes.filter((recipe) => recipe.method === 'pan' || recipe.method === 'mix')) catalogue = craftRecipe(catalogue, recipe.id, false, 1, `cook-${recipe.id}`, now);
 catalogue = buyKitchenEquipment(buyKitchenEquipment(catalogue, 'blender'), 'oven');
 assert.deepEqual(catalogue.kitchen.equipment, ['mix', 'pan', 'blender', 'oven']);
@@ -188,8 +191,8 @@ for (const { recipe, banana, id } of allDishes) {
   catalogue = craftRecipe(catalogue, recipe.id, banana, 1, `all-${id}`, now);
   catalogue = recordDishTaste(catalogue, id, actor, now);
 }
-assert.equal(Object.keys(catalogue.kitchen.made).length, 22);
-assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, 24);
+assert.equal(Object.keys(catalogue.kitchen.made).length, 31);
+assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, 33);
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'menu_page'));
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'fruit_comparison'));
 const registered = getInventoryDefinitions(createBuiltinItemRegistry(), catalogue.inventory);
@@ -419,7 +422,7 @@ assert.deepEqual(imported.miniGames.active?.flipped, [0]);
 assert.equal(imported.miniGames.active?.paused, true);
 assert.equal(imported.miniGames.active?.elapsedMs, 0);
 Math.random = originalRandom;
-console.log('Companion activities: cooking process, skill hearts, all 24 dishes, year-round festival recipes, weighted ingredients, memories, three games, rewards, and save compatibility passed.');
+console.log('Companion activities: cooking process, skill hearts, all 33 dishes, year-round festival recipes, weighted ingredients, memories, three games, rewards, and save compatibility passed.');
 
 const storagePet = { ...stocked(), level: 20 };
 const storageRegistry = createBuiltinItemRegistry();
@@ -481,7 +484,7 @@ try {
   const noop = () => {};
   const kitchenHtml = renderToStaticMarkup(createElement(KitchenModal, { pet: catalogue, actorId: actor, portrait: assets.petStatusImages.content, workingPortrait: assets.petActivityImages.work_food, icons: assets.itemIcons, registry: createBuiltinItemRegistry(), recipeId: 'egg_rice', banana: false, quantity: 1, onRecipe: noop, onBanana: noop, onQuantity: noop, update: noop, onClose: noop, onShop: noop, onFeed: noop }));
   assert.ok(kitchenHtml.includes('id="kitchen-title"'));
-  assert.equal((kitchenHtml.match(/class="recipe-card/g) ?? []).length, 22);
+  assert.equal((kitchenHtml.match(/class="recipe-card/g) ?? []).length, 31);
   assert.ok(kitchenHtml.includes('白米饭') && kitchenHtml.includes('草莓饼干千层'));
   const cookingProps = { pet: catalogue, request: { id: 'render-cook', recipeId: 'egg_rice', banana: false, quantity: 1 }, portrait: assets.petActivityImages.work_food, icons: assets.itemIcons, update: noop, onBack: noop, onFeed: noop };
   for (const recipe of recipes) {
@@ -602,7 +605,7 @@ try {
   assert.ok(renderToStaticMarkup(createElement(ItemRecoveryPreview, { ...readingProps, pet: masteredPet })).includes('学习已满级'));
   const fullStats = { ...base, hunger: 100, mood: 100, energy: 100 };
   const fullPreview = renderToStaticMarkup(createElement(ItemRecoveryPreview, { pet: fullStats, item: storageRegistry.get('dish_biscuit_layer_cake') }));
-  assert.ok(fullPreview.includes('属性已满') && fullPreview.includes('超过上限的部分'));
+  assert.ok(fullPreview.includes('吃撑了') && fullPreview.includes('95%'), 'full food previews explain the feeding guard');
   const supplementPet = structuredClone(base);
   supplementPet.achievements.unlockedAtById.garden_water_20 = now;
   supplementPet.achievements.claimedOneTimeRewardIds = ['garden_water_20'];

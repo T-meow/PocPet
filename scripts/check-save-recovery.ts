@@ -7,6 +7,7 @@ import {
   loadStoredPetJson,
   parseSaveFileText,
   pocPetSaveAppId,
+  UnsupportedSaveVersionError,
 } from '../src/core/saveCodec';
 import {
   backupCurrentPet,
@@ -27,7 +28,8 @@ import { getEditionFeatures } from '../src/platform/edition';
 import { isBackupDue, readBackupState, runAutomaticBackup, trimBackupSnapshots, type BackupSnapshot } from '../src/platform/automaticBackup';
 import { editionNoticeKey, recordEditionNoticeShown, readEditionNotice, localDateKey, shouldShowEditionNotice } from '../src/core/editionNotice';
 import { builtinMintManifest } from '../src/core/builtinPetModManifests';
-import { readRecoveryCandidate } from '../src/platform/saveRecovery';
+import { collectRecoveryCandidates, findNewerRecovery, readRecoveryCandidate } from '../src/platform/saveRecovery';
+import { cancelPendingNativeSave, flushNativeSave, queueNativeSave, subscribeNativeSave } from '../src/platform/nativeSave';
 import { normalizePet } from '../src/core/petState';
 import { claimKitchenStarter, craftRecipe } from '../src/core/kitchen';
 import { acknowledgeMiniGameResult, resumeMiniGame, startMiniGame } from '../src/core/miniGames';
@@ -36,6 +38,7 @@ import { advancePartnerSchedule, claimPartnerScheduleResult, normalizePartnerSch
 class MemoryStorage {
   private readonly values = new Map<string, string>();
   private failSetKey: string | undefined;
+  private failGetKey: string | undefined;
 
   get length() {
     return this.values.size;
@@ -46,6 +49,10 @@ class MemoryStorage {
   }
 
   getItem(key: string) {
+    if (this.failGetKey === key) {
+      this.failGetKey = undefined;
+      throw new Error(`Injected storage read failure for ${key}`);
+    }
     return this.values.get(key) ?? null;
   }
 
@@ -60,6 +67,8 @@ class MemoryStorage {
   failNextSet(key: string) {
     this.failSetKey = key;
   }
+
+  failNextGet(key: string) { this.failGetKey = key; }
 
   setItem(key: string, value: string) {
     if (this.failSetKey === key) {
@@ -495,5 +504,162 @@ try {
   await runAutomaticBackup(firstPet, undefined, true, () => true);
   assert.equal(nativeWrites, writesBeforePause, 'paused/conflicting saves never write a backup');
 } finally { globalThis.window = previousWindow; }
+
+// Android's independent recent saves must survive selective WebView data loss.
+const recentNow = Date.now();
+const oldPet = createDefaultPet(recentNow - 7 * 86400000);
+const progressedPet = { ...oldPet, level: 20, coins: 12345, lastUpdatedAt: recentNow - 1000 };
+const oldText = createSaveFileText(oldPet, null, recentNow - 7 * 86400000);
+const progressText = createSaveFileText(progressedPet, null, recentNow - 1000);
+let recentFiles = [progressText];
+const recentWrites: string[] = [];
+let recentFailure = false;
+let holdRecent: (() => Promise<void>) | undefined;
+let holdBackupRead: (() => Promise<void>) | undefined;
+let dailyWrites = 0;
+let dailyFiles: string[] = [];
+let nativeError = '';
+const unsubscribeNative = subscribeNativeSave((error) => { nativeError = error; });
+Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: { localStorage, __TAURI_INTERNALS__: {
+  invoke: async (command: string, payload?: { text: string; snapshot: string }) => {
+    if (command === 'read_recent_saves') return { files: [...recentFiles], warnings: [] };
+    if (command === 'read_backup_files') { await holdBackupRead?.(); return { files: dailyFiles, warnings: [] }; }
+    if (command === 'read_backup_latest') return null;
+    if (command === 'write_backup_files') { dailyWrites++; return; }
+    assert.equal(command, 'write_recent_save');
+    await holdRecent?.();
+    if (recentFailure) throw new Error('Injected recent save failure');
+    recentWrites.push(payload!.text);
+    recentFiles = [payload!.text, ...recentFiles].slice(0, 2);
+  },
+} } });
+try {
+  localStorage.clear();
+  localStorage.setItem('pocpet.pet.v1', oldText);
+  const rolledBack = loadPet(recentNow, undefined, undefined, true);
+  assert.equal(rolledBack.status, 'ok');
+  assert.equal(localStorage.getItem('pocpet.pet.v1'), oldText, 'startup comparison must precede any rewrite of the original primary');
+  const recovery = await collectRecoveryCandidates();
+  assert.equal(recovery.unavailable, false);
+  const newer = findNewerRecovery(oldText, recovery.candidates);
+  assert.equal(newer.length, 1);
+  assert.equal(newer[0].level, 20, 'valid but rolled-back primary must reveal the newer native save');
+  const candidate = (text: string) => ({ ...newer[0], text });
+  assert.equal(findNewerRecovery(progressText, [candidate(createSaveFileText(progressedPet, null, recentNow))]).length, 0, 'later export of identical progress is not a rollback');
+  assert.equal(findNewerRecovery(progressText, [candidate(createSaveFileText(oldPet, null, recentNow))]).length, 0, 'delayed backup of an older tick is not newer progress');
+  assert.equal(findNewerRecovery(oldText, [candidate(createSaveFileText(createDefaultPet(recentNow), null, recentNow))]).length, 0, 'another playthrough must not replace an intentional new game');
+  assert.equal(findNewerRecovery(progressText, [candidate(createSaveFileText({ ...progressedPet, coins: 1 }, null, recentNow))]).length, 1, 'newer progress may have spent resources');
+  localStorage.setItem('pocpet.pet.v1', JSON.stringify(oldPet));
+  loadPet(recentNow, undefined, undefined, true);
+  assert.equal(localStorage.getItem('pocpet.pet.v1'), JSON.stringify(oldPet), 'legacy migration is deferred until recovery comparison completes');
+  assert.equal(findNewerRecovery(JSON.stringify(oldPet), recovery.candidates).length, 1);
+  localStorage.failNextGet('pocpet.pet.v1');
+  assert.equal(loadPet(recentNow, undefined, undefined, true).status, 'unavailable');
+  assert.ok((await collectRecoveryCandidates()).candidates.some((item) => item.text === progressText), 'a main-store read error must not hide independent recovery points');
+
+  for (const broken of [null, '{"broken":', '{}']) {
+    localStorage.clear();
+    if (broken !== null) localStorage.setItem('pocpet.pet.v1', broken);
+    assert.notEqual(loadPet(recentNow, undefined, undefined, true).status, 'ok');
+    const recovered = await collectRecoveryCandidates();
+    assert.ok(recovered.candidates.some((item) => item.text === progressText));
+    assert.equal(recentFiles[0], progressText, 'damaged primary never overwrites the native original during loading');
+  }
+  localStorage.clear();
+  localStorage.setItem('pocpet.pet.v1', progressText);
+  loadPet(recentNow, undefined, undefined, true);
+  replacePetFromImport(parseSaveFileText(oldText, recentNow).pet, progressText, null, oldText, recentNow);
+  await flushNativeSave();
+  assert.equal(findNewerRecovery(localStorage.getItem('pocpet.pet.v1')!, [candidate(progressText)]).length, 0, 'confirmed import becomes the new baseline even if lower level');
+  const beforeWriteFailure = [...recentFiles];
+  localStorage.failNextSet('pocpet.pet.v1');
+  assert.throws(() => savePet(progressedPet), /Injected storage failure/);
+  await flushNativeSave();
+  assert.deepEqual(recentFiles, beforeWriteFailure, 'failed local commits are not mirrored as successful native saves');
+  const beforeConflict = recentWrites.length;
+  savePet(progressedPet, false);
+  localStorage.setItem('pocpet.pet.v1', oldText);
+  await flushNativeSave();
+  assert.equal(recentWrites.length, beforeConflict, 'a checkpoint must not overwrite native data after another page changes the primary');
+  loadPet(recentNow, undefined, undefined, true);
+
+  let releaseWrite!: () => void;
+  let enteredWrite!: () => void;
+  const startedWrite = new Promise<void>((resolve) => { enteredWrite = resolve; });
+  const blockedWrite = new Promise<void>((resolve) => { releaseWrite = resolve; });
+  holdRecent = () => { enteredWrite(); return blockedWrite; };
+  queueNativeSave(oldText);
+  await startedWrite;
+  const writeStart = recentWrites.length;
+  queueNativeSave(progressText);
+  const newestText = createSaveFileText({ ...progressedPet, coins: 999 }, null, recentNow + 1);
+  queueNativeSave(newestText);
+  releaseWrite();
+  await flushNativeSave();
+  holdRecent = undefined;
+  assert.deepEqual(recentWrites.slice(writeStart), [oldText, newestText], 'overlapping requests serialize and coalesce to the latest state');
+  recentFailure = true;
+  queueNativeSave(progressText);
+  await flushNativeSave();
+  assert.ok(nativeError);
+  assert.equal(recentFiles[0], newestText);
+  recentFailure = false;
+  await flushNativeSave();
+  assert.equal(nativeError, '');
+  assert.equal(recentFiles[0], progressText, 'retry retains and persists the failed pending save');
+  queueNativeSave(oldText, false);
+  cancelPendingNativeSave();
+  await flushNativeSave();
+  assert.equal(recentFiles[0], progressText, 'reset discards an unstarted checkpoint');
+
+  let releaseCancelled!: () => void;
+  let enteredCancelled!: () => void;
+  const cancelledStarted = new Promise<void>((resolve) => { enteredCancelled = resolve; });
+  const cancelledWrite = new Promise<void>((resolve) => { releaseCancelled = resolve; });
+  holdRecent = async () => { enteredCancelled(); await cancelledWrite; holdRecent = undefined; throw new Error('Cancelled generation failed late'); };
+  queueNativeSave(oldText);
+  await cancelledStarted;
+  cancelPendingNativeSave();
+  queueNativeSave(progressText);
+  releaseCancelled();
+  await flushNativeSave();
+  assert.equal(nativeError, '', 'a late failure from the old playthrough must not block the imported save');
+  assert.equal(recentFiles[0], progressText);
+
+  let releaseRead!: () => void;
+  let enteredRead!: () => void;
+  const startedRead = new Promise<void>((resolve) => { enteredRead = resolve; });
+  const blockedRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  holdBackupRead = () => { enteredRead(); return blockedRead; };
+  const queuedBackup = runAutomaticBackup(progressedPet, undefined, true);
+  await startedRead;
+  replacePetFromImport(parseSaveFileText(oldText, recentNow).pet, progressText, null, oldText, recentNow);
+  releaseRead();
+  await queuedBackup;
+  await flushNativeSave();
+  holdBackupRead = undefined;
+  assert.equal(dailyWrites, 0, 'a backup started before import must not overwrite history after import commits');
+
+  localStorage.clear();
+  recentFiles = ['{bad'];
+  loadPet(recentNow, undefined, undefined, true);
+  const damagedRecent = await collectRecoveryCandidates();
+  assert.equal(damagedRecent.candidates.length, 0);
+  assert.ok(damagedRecent.warnings.length, 'unreadable independent copies must not silently become a new game');
+  const future = JSON.parse(progressText);
+  future.schemaVersion = 3;
+  recentFiles = [JSON.stringify(future)];
+  assert.equal((await collectRecoveryCandidates()).unavailable, true, 'unknown newer native formats block automatic overwrite');
+  recentFiles = [];
+  dailyFiles = [JSON.stringify({ dateKey: localDateKey(recentNow), savedAt: recentNow, text: JSON.stringify(future) })];
+  assert.equal((await collectRecoveryCandidates()).unavailable, true, 'unknown newer daily formats must not be silently discarded');
+  await assert.rejects(runAutomaticBackup(progressedPet, undefined, true), UnsupportedSaveVersionError);
+  assert.equal(dailyWrites, 0, 'older clients cannot overwrite a future-format daily backup');
+} finally {
+  cancelPendingNativeSave();
+  await flushNativeSave();
+  unsubscribeNative();
+  globalThis.window = previousWindow;
+}
 
 console.log('Save validation, backup recovery, and import timing checks passed.');

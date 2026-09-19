@@ -40,6 +40,8 @@ docs/dev/
 # Local art records and prototypes
 /docs/art/
 /docs/prototypes/
+/scripts/prototype/
+/scripts/build-prototype.mjs
 
 # Environment files
 .env
@@ -53,6 +55,7 @@ Desktop.ini
 .pnpm-store/
 # Test / coverage output
 coverage/
+/.playwright-mcp/
 playwright-report/
 test-results/
 # Tauri bundle output and installers

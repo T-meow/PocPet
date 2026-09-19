@@ -2,6 +2,7 @@ import { getAdventureRegions } from './adventureData';
 import type { AdventureRegionId, AdventureState } from './adventureTypes';
 import { activityText as L } from './kitchenRecipes';
 import { isAdventureEntranceCompleteForDay, isAdventureMapUnlocked } from './adventureState';
+import { getAdventureRouteNode, getValleyQuestReason, valleyQuestForNode } from './valleyQuests';
 
 export type AdventureNodeId = 'entrance' | 'gather' | 'ridge' | 'crossing' | 'lookout' | 'story' | 'camp' | 'encounter';
 export type AdventureNodeStatus = 'available' | 'current' | 'pending' | 'complete' | 'planned' | 'locked';
@@ -13,8 +14,8 @@ export const adventureMapNodes: readonly { id: AdventureNodeId; x: number; y: nu
 ];
 export const adventureMapEdges: readonly (readonly [AdventureNodeId, AdventureNodeId])[] = [
   ['entrance', 'gather'], ['entrance', 'ridge'], ['gather', 'crossing'], ['ridge', 'crossing'],
-  ['crossing', 'lookout'], ['crossing', 'story'], ['lookout', 'story'],
-  ['story', 'camp'], ['story', 'encounter'], ['encounter', 'camp'],
+  ['crossing', 'lookout'], ['crossing', 'story'], ['lookout', 'encounter'],
+  ['story', 'encounter'], ['encounter', 'camp'],
 ];
 export const adventureMapThemes = {
   valley: { color: '#39745d', pale: '#e8f1df', sky: '#e2f1ec', land: '#bfd4a0' },
@@ -35,17 +36,19 @@ export const getAdventureMapNames = (region: AdventureRegionId): Record<Adventur
   return Object.fromEntries(adventureMapNodes.map((node, index) => [node.id, names[region][index]])) as Record<AdventureNodeId, string>;
 };
 
-// Entrance scouting is one task node. Its six events are not six unlocked map nodes.
+// Entrance events and the seven permanent story tasks have independent progress.
 export const getAdventureNodeStatus = (state: AdventureState, region: AdventureRegionId, node: AdventureNodeId, today?: string): AdventureNodeStatus => {
   if (!isAdventureMapUnlocked(state)) return 'locked';
-  if (node !== 'entrance') return 'planned';
-  if (state.active?.region === region) return 'current';
-  if (state.pending?.region === region) return 'pending';
+  if (!getAdventureRegions().some(entry => entry.id === region && entry.open)) return 'planned';
+  if (state.active?.region === region && getAdventureRouteNode(state.active.purpose) === node) return 'current';
+  if (state.pending?.region === region && getAdventureRouteNode(state.pending.purpose) === node) return 'pending';
+  const quest = valleyQuestForNode(node);
+  if (quest) return state.valleyCompleted.includes(quest) ? 'complete' : getValleyQuestReason(state, quest) ? 'locked' : 'available';
   if (isAdventureEntranceCompleteForDay(state, region, today)) return 'complete';
-  return getAdventureRegions().some(entry => entry.id === region && entry.open) ? 'available' : 'planned';
+  return 'available';
 };
 
 export const adventureNodeStatusLabel = (status: AdventureNodeStatus) => ({
   available: L('可以探查', 'Ready to scout'), current: L('正在探查', 'Scouting'),
-  pending: L('行囊待领取', 'Bag to collect'), complete: L('已完成', 'Completed'), planned: L('筹备中', 'Coming later'), locked: L('完成踩点探索后解锁', 'Complete the tutorial to unlock'),
+  pending: L('行囊待领取', 'Bag to collect'), complete: L('已完成', 'Completed'), planned: L('筹备中', 'Coming later'), locked: L('等待前置任务', 'Complete preceding tasks'),
 })[status];

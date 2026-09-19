@@ -5,6 +5,9 @@ import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultFestivalStories, normalizeFestivalStories } from './festivalStories';
 import { defaultAdventureState, normalizeAdventureState } from './adventureState';
+import { defaultCommunityState, normalizeCommunityState } from './communityState';
+import { enforceAdventureHealth } from './adventureReturn';
+import { settleExpeditionTime } from './expeditionReturn';
 import { isPetOverfed } from './petStats';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
@@ -126,6 +129,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   companionMemories: defaultCompanionMemories(),
   festivalStories: defaultFestivalStories(),
   adventure: defaultAdventureState(),
+  community: defaultCommunityState(),
   lastDailyRewardAt: now,
   lastDailyEncounterAt: now,
   dailyEncounterDateKey: getDailyResetDateKey(now),
@@ -313,7 +317,9 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const latestYearReview = normalizeYearReview(raw.latestYearReview) ?? pendingYearReview;
   const yearlyStats = normalizeYearlyStats(raw.yearlyStats, now, currentDailyDateKey);
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
-  const normalizedEnergy = clampPetEnergy({ level, classicEndgame }, isNumber(raw.energy) ? raw.energy : fallback.energy);
+  const adventure = normalizeAdventureState(raw.adventure);
+  const community = normalizeCommunityState(raw.community);
+  const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
   const hunger = clampStat(isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap);
   const normalizedIsSleeping = Boolean(raw.isSleeping);
@@ -436,7 +442,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   };
   const normalizedAchievements = { ...achievements, unlockedAtById, claimedOneTimeRewardIds, counters };
 
-  return {
+  return settleExpeditionTime(enforceAdventureHealth({
     name: normalizedName,
     saveMetadata: fallback.saveMetadata,
     level,
@@ -463,7 +469,8 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: options.preserveMiniGameSession, level }),
     companionMemories: normalizeCompanionMemories(raw.companionMemories),
     festivalStories: normalizeFestivalStories(raw.festivalStories),
-    adventure: normalizeAdventureState(raw.adventure),
+    adventure,
+    community,
     lastDailyRewardAt: isNumber(raw.lastDailyRewardAt) ? raw.lastDailyRewardAt : now,
     lastDailyEncounterAt: isNumber(raw.lastDailyEncounterAt)
       ? raw.lastDailyEncounterAt
@@ -537,7 +544,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     goldenAppleGacha: normalizeGoldenAppleGachaState(raw.goldenAppleGacha, createdAt, now, currentDailyDateKey),
     classicEndgame,
     timeGuard,
-  };
+  }, isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now), isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now);
 };
 
 

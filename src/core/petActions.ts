@@ -3,6 +3,8 @@ import { adventureBusyMessage } from './adventureData';
 import { getAdventureTreasureValue, isAdventureTreasure } from './adventureItems';
 import { activityText as L } from './kitchenRecipes';
 import { getAdventureItemPurchaseCapacity } from './adventureState';
+import { getCommunityPurchaseReason } from './communityData';
+import { getCommunitySaleable } from './communityMarket';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, dailyBiscuitClaimLimit, favoriteFoodIdSet, getDailyHeartExchangeInfo, getDailyShopDiscountInfo, getInventoryCount, getInventoryItem, getShopItem, giftItemIdSet, heartExchangeCoins, removeInventoryItem } from './items';
 import { applyBoostCardWorkBonus } from './boostCards';
@@ -63,6 +65,7 @@ export const getItemPurchaseQuote = (
   if (!item) return { quantity, totalPrice: 0, firstItemPrice: 0, discountApplied: false, canPurchase: false, reason: 'missing' };
   const isShopAvailable = 'shop' in item ? item.shop : true;
   if (!isShopAvailable) return { quantity, totalPrice: 0, firstItemPrice: 0, discountApplied: false, canPurchase: false, reason: 'unavailable' };
+  if (getCommunityPurchaseReason(pet, itemId)) return { quantity, totalPrice: item.price * quantity, firstItemPrice: item.price, discountApplied: false, canPurchase: false, reason: 'unavailable' };
 
   if (itemId === 'emergency_biscuit') {
     const claimInfo = getDailyBiscuitClaimInfo(pet, now);
@@ -119,7 +122,7 @@ const getWorkQuote = (pet: PetState, now: number, energyCost: number) => {
 export const getQuickWorkPreview = (pet: PetState, now = Date.now()) => {
   const quote = getWorkQuote(pet, now, getWorkEnergyCost(pet));
   const minimumCoins = quote.baseCoins + quote.achievementBonusCoins + quote.boostBonus.bonusCoins;
-  const reason = pet.partnerSchedule.active || pet.adventure.active ? 'busy' : pet.isSleeping ? 'sleeping'
+  const reason = pet.partnerSchedule.active || (pet.adventure.active || isExpeditionAway(pet)) ? 'busy' : pet.isSleeping ? 'sleeping'
     : isPetCriticallyHungry(pet) ? 'hunger' : pet.energy < quote.energyCost ? 'energy' : undefined;
   return { energyCost: quote.energyCost, minimumCoins, maximumCoins: minimumCoins + Math.max(1, Math.floor(quote.baseCoins * 0.15)),
     boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
@@ -147,7 +150,8 @@ export const getWorkReward = (pet: PetState, now = Date.now(), energyCost = getW
 
 export const upgradePet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
-  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
+  if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
+  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -208,7 +212,8 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
   const advanced = markInteraction(advancePet(pet, now), now);
   const current = action === 'sleep' ? advanced : clearLowCleanlinessSleepConfirm(advanced);
 
-  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
+  if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
+  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return {
       ...current,
@@ -353,6 +358,7 @@ export const buyItem = (pet: PetState, itemId: ItemId, now = Date.now(), options
   if (!isShopAvailable) return { ...current, recentEvent: t('pet.buy.missing') };
   const quote = getItemPurchaseQuote(current, itemId, options.quantity, now, options.item);
   const quantity = quote.quantity;
+  if (quote.reason === 'unavailable') return { ...current, recentEvent: getCommunityPurchaseReason(current, itemId) || t('pet.buy.missing') };
 
   if (itemId === 'emergency_biscuit') {
     const claimInfo = getDailyBiscuitClaimInfo(current, now);
@@ -425,7 +431,8 @@ const useInventoryItemInternal = (
   options: UseInventoryItemOptions = {},
 ): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
-  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
+  if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
+  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -445,7 +452,9 @@ const useInventoryItemInternal = (
   }
 
   if (isAdventureTreasure(itemId)) {
+    if (quantity > getCommunitySaleable(current, itemId)) return { ...current, recentEvent: '这些战利品已设置自用保留量，请先在社区小摊调整保留。' };
     const coins = getAdventureTreasureValue(itemId) * quantity;
+    if (clampCoins(current.coins + coins) !== current.coins + coins) return { ...current, recentEvent: '金币已满，战利品仍保留在仓库。' };
     return recordEarnedCoins({ ...current, coins: clampCoins(current.coins + coins), inventory: removeInventoryItem(current.inventory, itemId, quantity),
       recentEvent: L(`${displayItemName}已兑换为 ${coins} 金币。`, `Exchanged ${displayItemName} for ${coins} coins.`) }, coins);
   }
@@ -592,7 +601,8 @@ export const useInventoryItem = (...args: Parameters<typeof useInventoryItemInte
 
 export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
-  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
+  if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
+  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -659,6 +669,7 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
 export const startPomodoro = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
   if (current.pomodoro.isRunning) return current;
+  if (isExpeditionAway(current)) return { ...current, recentEvent: '伙伴正在远行，请先在基地暂停或返回，再开始专注。' };
 
 
   if (isPetLowEnergy(current)) {
@@ -784,3 +795,4 @@ export const updatePetProfile = (pet: PetState, name: string, birthday?: PetBirt
 
 
 
+import { isExpeditionAway } from './expeditionData';

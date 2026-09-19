@@ -2,10 +2,12 @@ import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionM
 import type { SaveMetadata } from './saveMetadata';
 import type { FestivalStoryState } from './festivalStories';
 import type { AdventureItemId, AdventureState } from './adventureTypes';
+import type { CommunityItemId, CommunityState } from './communityTypes';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
 export type BuiltinItemId =
+  | CommunityItemId
   | AdventureItemId
   | DishId
   | KitchenMaterialId
@@ -392,6 +394,7 @@ export interface PartnerScheduleResult {
   grantsMasterCompletion: boolean;
   neighbor?: NeighborReference;
   outcome?: 'completed' | 'early';
+  exhausted?: boolean;
   progressRatio?: number;
   contributionMs?: number;
   energyCost?: number;
@@ -536,6 +539,7 @@ export interface PetState {
   companionMemories: CompanionMemoryState;
   festivalStories: FestivalStoryState;
   adventure: AdventureState;
+  community: CommunityState;
 }
 
 export type PetAction = 'play' | 'clean' | 'sleep' | 'work';

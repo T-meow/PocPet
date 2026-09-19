@@ -5,6 +5,9 @@ import type { Inventory, ItemId, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getAdventureTripTreasure, isAdventureTreasure } from './adventureItems';
 import { getDailyResetDateKey } from './dailyReset';
+import { facilityIds } from './communityData';
+import type { CommunityRoute } from './communityTypes';
+import { isValleyQuest, valleyQuestIds } from './valleyQuests';
 
 const object = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
 const count = (raw: unknown, max = Number.MAX_SAFE_INTEGER) => typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(max, Math.floor(raw))) : 0;
@@ -12,22 +15,25 @@ const text = (raw: unknown, max = 128) => typeof raw === 'string' ? raw.slice(0,
 export const isAdventureSupply = (id: string): id is ItemId => {
   if (id === 'berry_bait' || id === 'golden_apple') return true;
   const item = getInventoryItem(id as ItemId);
-  return Boolean(item && item.usable !== false && id !== 'birthday_cake' && ((item.effect.hunger ?? 0) > 0 || (item.effect.energy ?? 0) > 0));
+  return Boolean(item && item.usable !== false && id !== 'birthday_cake' && ((item.effect.hunger ?? 0) > 0 || (item.effect.energy ?? 0) > 0 || item.kind === 'care' && ((item.effect.health ?? 0) > 0 || (item.effect.mood ?? 0) > 0)));
 };
 export const getAdventureBagCount = (bag: Inventory) => Object.values(bag).reduce((sum, n) => sum + n, 0);
-export const isAdventureCarryItem = (id: string) => isAdventureSupply(id) || isAdventureTreasure(id) || id === 'map_handbook';
+export const isAdventureCarryItem = (id: string) => isAdventureSupply(id) || isAdventureTreasure(id) || ['map_handbook', 'creek_herb_seed', 'creek_herb', 'community_wood', 'community_stone', 'carrot_seed', 'rice'].includes(id);
 // Keep room for returned adventure gear, which cannot be consumed to clear a full warehouse.
 export const getAdventureItemPurchaseCapacity = (pet: PetState, id: string) => {
   if (!['trail_mix', 'berry_bait', 'trail_rope'].includes(id)) return Infinity;
   const trip = pet.adventure.active;
-  const reserved = (trip?.bag[id] ?? 0) + (trip?.loot[id] ?? 0) + (id === 'trail_rope' && trip?.tool ? 1 : 0) + (pet.adventure.pending?.items[id] ?? 0);
+  const pending = pet.adventure.pending;
+  const reserved = (trip?.bag[id] ?? 0) + (trip?.loot[id] ?? 0) + (id === 'trail_rope' && trip?.tool ? 1 : 0) + (pending?.items[id] ?? 0)
+    + (pending?.salvage?.[id] ?? 0) + (id === 'trail_rope' && pending?.salvageTool ? 1 : 0);
   return Math.max(0, inventoryItemLimit - (pet.inventory[id] ?? 0) - reserved);
 };
-export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 3, starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
+export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 5, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
 export const isAdventureMapUnlocked = (state: AdventureState) => (state.completed.tutorial ?? 0) > 0;
 const dayKey = (raw: unknown) => typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
+const route = (raw: unknown) => typeof raw === 'string' && ['irrigation', 'seeds', 'commission', ...facilityIds, ...valleyQuestIds].includes(raw) ? raw as CommunityRoute : undefined;
 export const getAdventureLastCompletedDay = (state: AdventureState, region: AdventureDestinationId) => state.journal
-  .filter(entry => entry.region === region && entry.complete)
+  .filter(entry => entry.region === region && entry.complete && !entry.purpose)
   .reduce((latest, entry) => { const day = entry.completedDay ?? getDailyResetDateKey(entry.endedAt); return day > latest ? day : latest; }, state.lastCompletedDay?.[region] ?? '');
 export const isAdventureEntranceCompleteForDay = (state: AdventureState, region: AdventureDestinationId, today = getDailyResetDateKey(Date.now())) => region === 'valley'
   ? getAdventureLastCompletedDay(state, region) >= today : (state.completed[region] ?? 0) > 0;
@@ -46,8 +52,9 @@ const normalizeTrip = (raw: unknown, legacy: boolean): AdventureTrip | undefined
   const value = object(raw);
   if (!text(value.id) || (value.region !== 'valley' && value.region !== 'tutorial') || !text(value.actorId)) return undefined;
   const tutorial = value.region === 'tutorial';
-  const rulesVersion = tutorial ? 4 : legacy || value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
-  const options = getAdventureSteps(rulesVersion, value.region);
+  const purpose = !legacy && !tutorial && (value.rulesVersion === 5 || value.rulesVersion === 6) ? route(value.purpose) : undefined;
+  const rulesVersion = legacy && !tutorial ? 1 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
+  const options = getAdventureSteps(rulesVersion, value.region, purpose);
   const choices: string[] = [];
   for (const choice of Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
     if (!options[choices.length]?.choices.some(option => option.id === choice)) break;
@@ -67,20 +74,22 @@ const normalizeTrip = (raw: unknown, legacy: boolean): AdventureTrip | undefined
   const savedStock = object(value.shopStock);
   const shopStock = Object.fromEntries(Object.entries(initialStock).map(([id, amount]): [string, number] => [id, legacy ? value.bought === true ? 0 : amount : count(savedStock[id], amount)]).filter(([, amount]) => amount > 0));
   return { id: text(value.id), region: value.region, actorId: text(value.actorId), actorName: text(value.actorName, 32), startedAt: count(value.startedAt), choices,
-    rulesVersion, revision: count(value.revision), bag, loot, tool: value.tool === true,
+    rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true,
     neighborId: !tutorial && adventureActorIds.some(id => id === value.neighborId && id !== value.actorId) ? String(value.neighborId) : undefined,
     shopStock, purchases: legacy ? value.bought === true ? 1 : 0 : count(value.purchases),
     transportedCount: legacy ? value.transported === true ? 1 : 0 : count(value.transportedCount, rulesVersion === 1 ? 1 : adventureTransportLimit),
-    ...(!tutorial && rulesVersion >= 4 ? { treasure: isAdventureTreasure(String(value.treasure)) ? value.treasure as AdventureTrip['treasure'] : getAdventureTripTreasure(text(value.id)) } : {}),
+    ...(!tutorial && !purpose && rulesVersion >= 4 ? { treasure: isAdventureTreasure(String(value.treasure)) ? value.treasure as AdventureTrip['treasure'] : getAdventureTripTreasure(text(value.id)) } : {}),
     ...(choices.length === options.length && dayKey(value.completedDay) ? { completedDay: dayKey(value.completedDay) } : {}) };
 };
 const normalizeResult = (raw: unknown): AdventureResult | undefined => {
   const value = object(raw);
   if (!text(value.id) || (value.region !== 'valley' && value.region !== 'tutorial')) return undefined;
-  const steps = count(value.steps, getAdventureStepCount(value.region));
-  const complete = value.complete === true && steps === getAdventureStepCount(value.region);
+  const purpose = route(value.purpose);
+  const steps = count(value.steps, getAdventureStepCount(value.region, purpose));
+  const complete = value.complete === true && steps === getAdventureStepCount(value.region, purpose);
   return { id: text(value.id), region: value.region, actorId: text(value.actorId), actorName: text(value.actorName, 32), endedAt: count(value.endedAt), steps, complete,
-    first: complete && value.first === true, hearts: count(value.hearts, 10000), coins: count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true,
+    purpose, first: complete && value.first === true, hearts: purpose && !isValleyQuest(purpose) ? 0 : count(value.hearts, 10000), coins: purpose && !isValleyQuest(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true,
+    ...(value.returnReason === 'health' ? { returnReason: 'health' as const, ...(value.salvage && value.rewardsClaimed !== true ? { salvage: inventory(value.salvage), salvageTool: value.salvageTool === true } : {}) } : {}),
     ...(complete ? { completedDay: dayKey(value.completedDay) ?? getDailyResetDateKey(count(value.endedAt)) } : {}) };
 };
 export const normalizeAdventureState = (raw: unknown): AdventureState => {
@@ -89,16 +98,16 @@ export const normalizeAdventureState = (raw: unknown): AdventureState => {
   const pending = normalizeResult(value.pending);
   const journal = (Array.isArray(value.journal) ? value.journal : []).slice(0, 8).map(normalizeResult).filter((entry): entry is AdventureResult => Boolean(entry));
   const lastCompletedDay = Object.fromEntries(adventureDestinationIds.flatMap(region => {
-    const days = [dayKey(object(value.lastCompletedDay)[region]), ...journal.filter(entry => entry.region === region && entry.complete).map(entry => entry.completedDay)];
+    const days = [dayKey(object(value.lastCompletedDay)[region]), ...journal.filter(entry => entry.region === region && entry.complete && !entry.purpose).map(entry => entry.completedDay)];
     const latest = days.reduce<string>((previous, day) => day && day > previous ? day : previous, '');
     return latest ? [[region, latest]] : [];
   }));
   return {
-    schemaVersion: 3, starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
+    schemaVersion: 5, valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
     completed: Object.fromEntries(adventureDestinationIds.filter(id => count(completed[id]) > 0).map(id => [id, count(completed[id])])),
     discoveries: Array.isArray(value.discoveries) ? [...new Set(value.discoveries.filter((id): id is string => typeof id === 'string' && /^(valley:[0-5]|tutorial:[0-3])$/.test(id)))].slice(0, adventureStepCount + adventureTutorialStepCount) : [],
     lastCompletedDay,
-    active: pending ? undefined : normalizeTrip(value.active, value.schemaVersion !== 2 && value.schemaVersion !== 3), pending,
+    active: pending ? undefined : normalizeTrip(value.active, ![2, 3, 4, 5].includes(Number(value.schemaVersion))), pending,
     journal,
   };
 };

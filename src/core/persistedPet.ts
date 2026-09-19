@@ -11,7 +11,7 @@ export const persistentPetKeys = [
   'lastInteractionAt', 'lastPetInteractionAt', 'pomodoro', 'claimedRewardIds', 'birthday', 'claimedDateRewardKeys',
   'dailyLoginRewardDateKey', 'yearlyStats', 'pendingYearReview', 'latestYearReview', 'lastYearReviewYear',
   'dailyWish', 'returnWelcome', 'achievements', 'lastCleanActionAt', 'garden', 'boostCards', 'partnerSchedule',
-  'goldenAppleGacha', 'classicEndgame', 'timeGuard', 'kitchen', 'miniGames', 'companionMemories', 'festivalStories', 'adventure',
+  'goldenAppleGacha', 'classicEndgame', 'timeGuard', 'kitchen', 'miniGames', 'companionMemories', 'festivalStories', 'adventure', 'community',
 ] as const satisfies readonly (keyof PetState)[];
 
 type PersistentBase = Pick<PetState, typeof persistentPetKeys[number]>;

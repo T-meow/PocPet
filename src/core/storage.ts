@@ -5,6 +5,7 @@ import { applyLocalPetPreferences, persistPetPreferences } from './petPreference
 import { t } from '../i18n';
 import { getStoredPetModManifest } from './modStorage';
 import { appBuild } from '../platform/edition';
+import { cancelPendingNativeSave, queueNativeSave } from '../platform/nativeSave';
 
 const storageKey = 'pocpet.pet.v1';
 const backupStorageKey = 'pocpet.pet.v1.backup';
@@ -22,10 +23,12 @@ let lastRollingBackupAt = 0;
 let upgradeBackupBlocked = false;
 let unsupportedSaveBlocked = false;
 let migrationRecordWarningShown = false;
+let storageGeneration = 0;
+export const getStorageGeneration = () => storageGeneration;
 
 export type PetStorageLoadResult =
   | { status: 'missing' }
-  | { status: 'ok'; pet: PetState; persistenceError?: 'upgradeBackup' }
+  | { status: 'ok'; pet: PetState; raw: string; persistenceError?: 'upgradeBackup' }
   | { status: 'unavailable'; stage: 'storage'; detail: string }
   | { status: 'corrupt'; raw: string; backup: PetState | null; stage: SaveFailureStage; detail?: string };
 
@@ -48,7 +51,8 @@ const preserveCorruptRaw = (raw: string) => {
 
 export const hasStoredPet = () => window.localStorage.getItem(storageKey) !== null;
 
-export const loadPet = (now = Date.now(), eventContext?: NeighborEventContext, fallbackName?: string): PetStorageLoadResult => {
+export const loadPet = (now = Date.now(), eventContext?: NeighborEventContext, fallbackName?: string, deferWrite = false): PetStorageLoadResult => {
+  storageGeneration++;
   upgradeBackupBlocked = false;
   unsupportedSaveBlocked = false;
   migrationRecordWarningShown = false;
@@ -73,14 +77,14 @@ export const loadPet = (now = Date.now(), eventContext?: NeighborEventContext, f
       } catch {
         // The primary is valid: allow viewing/export, but never overwrite its unpreserved bytes.
         upgradeBackupBlocked = true;
-        return { ...result, persistenceError: 'upgradeBackup' };
+        return { ...result, raw: raw!, persistenceError: 'upgradeBackup' };
       }
       const restored = applyLocalPetPreferences(result.pet);
-      if (result.formatVersion !== 2 || restored.saveMetadata.compensation === 'pending') {
-        try { return { ...result, pet: persistCurrentPet(restored, getStoredSaveIdentity(), now) }; }
-        catch { upgradeBackupBlocked = true; return { ...result, pet: restored, persistenceError: 'upgradeBackup' }; }
+      if (!deferWrite && (result.formatVersion !== 2 || restored.saveMetadata.compensation === 'pending')) {
+        try { return { ...result, raw: raw!, pet: persistCurrentPet(restored, getStoredSaveIdentity(), now) }; }
+        catch { upgradeBackupBlocked = true; return { ...result, raw: raw!, pet: restored, persistenceError: 'upgradeBackup' }; }
       }
-      return { ...result, pet: restored };
+      return { ...result, raw: raw!, pet: restored };
     }
     if (result.status === 'corrupt' && result.stage === 'version') {
       unsupportedSaveBlocked = true;
@@ -243,7 +247,13 @@ export const saveImportBackup = (saveText: string) => {
 
 export const getImportBackup = () => window.localStorage.getItem(importBackupStorageKey);
 
-export const savePet = (pet: PetState) => {
+const mirrorCurrentPet = (immediate = true) => {
+  const raw = expectedRaw!;
+  const generation = storageGeneration;
+  queueNativeSave(raw, immediate, () => generation === storageGeneration && window.localStorage.getItem(storageKey) === raw);
+};
+
+export const savePet = (pet: PetState, immediateNative = true) => {
   assertStorageUnchanged();
   const previous = window.localStorage.getItem(storageKey);
   if (previous) preserveLegacyFormat(previous, persistedIdentity);
@@ -252,7 +262,9 @@ export const savePet = (pet: PetState) => {
   } catch {
     // A failed backup must not block the primary atomic localStorage write.
   }
-  return persistCurrentPet(pet, getStoredSaveIdentity());
+  const saved = persistCurrentPet(pet, getStoredSaveIdentity());
+  mirrorCurrentPet(immediateNative);
+  return saved;
 };
 
 const restoreStorageValue = (key: string, value: string | null) => {
@@ -277,7 +289,11 @@ export const replacePetFromImport = (pet: PetState, importBackupText: string, id
       writeRecoveryCopy(backupStorageKey, previousPrimary, previousMod);
     }
     if (identity !== undefined) setStoredSaveIdentity(identity ?? undefined);
-    return persistCurrentPet(applyLocalPetPreferences(pet), identity === undefined ? getStoredSaveIdentity() : identity ?? undefined, now);
+    const saved = persistCurrentPet(applyLocalPetPreferences(pet), identity === undefined ? getStoredSaveIdentity() : identity ?? undefined, now);
+    storageGeneration++;
+    cancelPendingNativeSave();
+    mirrorCurrentPet();
+    return saved;
   } catch (error) {
     try {
       restoreStorageValue(storageKey, previousPrimary);
@@ -309,6 +325,8 @@ export const getPreservedCorruptPetRaw = () => window.localStorage.getItem(corru
 export const clearPet = () => {
   assertStorageUnchanged();
   window.localStorage.removeItem(storageKey);
+  cancelPendingNativeSave();
+  storageGeneration++;
   expectedRaw = null;
   persistedIdentity = undefined;
   window.localStorage.removeItem(backupStorageKey);

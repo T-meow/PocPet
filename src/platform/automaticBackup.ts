@@ -1,6 +1,6 @@
-import { createSaveFileText, parseSaveFileText, type PocPetSaveModSummary } from '../core/saveCodec';
+import { createSaveFileText, parseSaveFileText, UnsupportedSaveVersionError, type PocPetSaveModSummary } from '../core/saveCodec';
 import type { PetState } from '../core/pet';
-import { assertStorageUnchanged } from '../core/storage';
+import { assertStorageUnchanged, getStorageGeneration } from '../core/storage';
 import { localDateKey } from '../core/editionNotice';
 import { features, isNativeApp, isBilibiliAppWebView } from './edition';
 
@@ -81,14 +81,16 @@ const validateSnapshot = (value: unknown): value is BackupSnapshot => {
   if (!value || typeof value !== 'object') return false;
   const snapshot = value as BackupSnapshot;
   if (!Number.isFinite(snapshot.savedAt) || !/^\d{4}-\d{2}-\d{2}$/.test(snapshot.dateKey) || typeof snapshot.text !== 'string') return false;
-  try { parseSaveFileText(snapshot.text, snapshot.savedAt); return true; } catch { return false; }
+  try { parseSaveFileText(snapshot.text, snapshot.savedAt); return true; }
+  catch (error) { if (error instanceof UnsupportedSaveVersionError) throw error; return false; }
 };
 export const readBackupSnapshots = async (): Promise<{ snapshots: BackupSnapshot[]; warnings: string[] }> => {
   if (isNativeApp()) {
     const { invoke } = await import('@tauri-apps/api/core');
     const { files, warnings } = await invoke<{ files: string[]; warnings: string[] }>('read_backup_files');
     const snapshots = files.flatMap((text) => {
-      try { const value: unknown = JSON.parse(text); if (validateSnapshot(value)) return [value]; } catch { /* Skip invalid recovery points. */ }
+      try { const value: unknown = JSON.parse(text); if (validateSnapshot(value)) return [value]; }
+      catch (error) { if (error instanceof UnsupportedSaveVersionError) throw error; }
       warnings.push('Invalid backup data');
       return [];
     });
@@ -98,27 +100,37 @@ export const readBackupSnapshots = async (): Promise<{ snapshots: BackupSnapshot
   try {
     return await new Promise<{ snapshots: BackupSnapshot[]; warnings: string[] }>((resolve, reject) => {
       const request = db.transaction('snapshots').objectStore('snapshots').getAll();
-      request.onsuccess = () => resolve({ snapshots: trimBackupSnapshots(request.result.filter(validateSnapshot)), warnings: [] });
+      request.onsuccess = () => {
+        try { resolve({ snapshots: trimBackupSnapshots(request.result.filter(validateSnapshot)), warnings: [] }); }
+        catch (error) { reject(error); }
+      };
       request.onerror = () => reject(request.error);
     });
   } finally { db.close(); }
 };
 export const listBackupSnapshots = async (): Promise<BackupSnapshot[]> => (await readBackupSnapshots()).snapshots;
-const writeSnapshot = async (snapshot: BackupSnapshot, force: boolean, preferences: BackupPreferences) => {
+const writeSnapshot = async (snapshot: BackupSnapshot, force: boolean, preferences: BackupPreferences, isPaused = () => false) => {
+  if (isPaused()) return;
   assertStorageUnchanged();
   if (isNativeApp()) {
     const { invoke } = await import('@tauri-apps/api/core');
+    if (isPaused()) return;
+    assertStorageUnchanged();
     await invoke('write_backup_files', { snapshot: JSON.stringify(snapshot) });
     return;
   }
   const db = await openDatabase();
   try {
+    if (isPaused()) return;
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('snapshots', 'readwrite');
       const store = tx.objectStore('snapshots');
       const request = store.getAll();
       request.onsuccess = () => {
-        const current = trimBackupSnapshots(request.result.filter(validateSnapshot));
+        if (isPaused()) return;
+        let current: BackupSnapshot[];
+        try { assertStorageUnchanged(); current = trimBackupSnapshots(request.result.filter(validateSnapshot)); }
+        catch { tx.abort(); return; }
         if (!force && !isBackupDue(current[0], preferences, snapshot.savedAt)) return;
         const keep = trimBackupSnapshots([...current, snapshot]);
         store.put(snapshot);
@@ -153,26 +165,35 @@ export const readBackupState = async (): Promise<BackupState> => {
     fileSavedAt: await readSetting<number>('fileSavedAt'),
   };
 };
-const syncExternalFile = async (state: BackupState) => {
+const syncExternalFile = async (state: BackupState, isPaused = () => false) => {
   const latest = state.snapshots[0];
   if (!latest || isNativeApp() || !canChooseBackupFile()) return state;
   const handle = await readSetting<BackupFileHandle>('file');
+  if (isPaused()) return state;
   if (!handle || state.fileStatus === 'permission' || state.fileSavedAt === latest.savedAt) return state;
   assertStorageUnchanged();
   const writable = await handle.createWritable();
-  try { await writable.write(latest.text); await writable.close(); }
+  try {
+    if (isPaused()) { await writable.abort(); return state; }
+    await writable.write(latest.text);
+    if (isPaused()) { await writable.abort(); return state; }
+    assertStorageUnchanged();
+    await writable.close();
+  }
   catch (error) { await writable.abort().catch(() => undefined); throw error; }
   await writeSetting('fileSavedAt', latest.savedAt);
   return { ...state, fileStatus: 'saved' as const, fileSavedAt: latest.savedAt };
 };
 let queue: Promise<unknown> = Promise.resolve();
-export const runAutomaticBackup = (pet: PetState, mod?: PocPetSaveModSummary, force = false, isPaused = () => false): Promise<BackupState> => {
+export const runAutomaticBackup = (pet: PetState, mod?: PocPetSaveModSummary, force = false, paused = () => false): Promise<BackupState> => {
+  const generation = getStorageGeneration();
+  const isPaused = () => paused() || generation !== getStorageGeneration();
   const operation = async () => {
     const preferences = readBackupPreferences();
     let state = await readBackupState();
     if (isPaused() || !preferences.enabled && !force) return state;
     if (isNativeApp() && state.fileStatus === 'error' && state.snapshots[0]) {
-      try { await writeSnapshot(state.snapshots[0], true, preferences); }
+      try { await writeSnapshot(state.snapshots[0], true, preferences, isPaused); }
       catch (error) { return { ...state, error: String(error) }; }
       state = await readBackupState();
     }
@@ -181,11 +202,11 @@ export const runAutomaticBackup = (pet: PetState, mod?: PocPetSaveModSummary, fo
       const now = Date.now();
       const snapshot: BackupSnapshot = { dateKey: localDateKey(now), savedAt: now, petName: pet.name, level: pet.level, text: createSaveFileText(pet, mod, now) };
       parseSaveFileText(snapshot.text, now);
-      await writeSnapshot(snapshot, force, preferences);
+      await writeSnapshot(snapshot, force, preferences, isPaused);
       state = await readBackupState();
     }
     if (isPaused()) return state;
-    try { return await syncExternalFile(state); }
+    try { return await syncExternalFile(state, isPaused); }
     catch (error) { return { ...state, fileStatus: 'error' as const, error: String(error) }; }
   };
   const task = queue.catch(() => undefined).then(async () => navigator.locks

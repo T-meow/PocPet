@@ -335,7 +335,7 @@ export const GoldenAppleGachaModal = ({
       : onDraw(draw.payment, draw.count);
     if (outcome.error) {
       drawLockRef.current = false;
-      const key = outcome.error === 'inventory_full'
+      const key = outcome.error === 'save_failed' ? 'ui.backup.actionNotSaved' : outcome.error === 'inventory_full'
         ? 'ui.gacha.inventoryFull'
         : outcome.error === 'not_enough_tickets'
         ? 'ui.gacha.notEnoughTickets'

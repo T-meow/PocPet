@@ -1,9 +1,11 @@
 {
   "name": "pocpet",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "package": "node scripts/package.mjs",
+    "check:package": "node --test scripts/check-package.mjs",
     "dev": "vite --host 127.0.0.1",
     "serve:local": "node scripts/serve-dev.mjs --port 5173",
     "build": "tsc --noEmit && vite build",
@@ -11,6 +13,10 @@
     "check:date-rewards": "tsx scripts/check-date-rewards.ts",
     "check:companion-activities": "tsx scripts/check-companion-activities.ts",
     "check:adventure": "tsx scripts/check-adventure.ts",
+    "check:valley": "tsx scripts/check-valley.ts",
+    "check:community": "tsx scripts/check-community.ts",
+    "check:community-cd": "tsx scripts/check-community-cd.ts",
+    "check:expedition": "tsx scripts/check-expedition.ts",
     "check:festival-stories": "tsx scripts/check-festival-stories.ts",
     "check:garden-care": "tsx scripts/check-garden-care.ts",
     "check:item-balance": "tsx scripts/check-item-balance.ts",

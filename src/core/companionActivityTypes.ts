@@ -1,6 +1,7 @@
 export type CookingMethod = 'mix' | 'pan' | 'blender' | 'oven';
 export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'banana_shake' | 'watermelon_juice' | 'biscuit_cup' | 'egg_rice' | 'carrot_rice' | 'fruit_pancake' | 'milk_cookies' | 'carrot_omelet' | 'rice_pancake' | 'fruit_pudding' | 'apple_pie' | 'tomato_egg_bowl' | 'pork_rice_bowl'
-  | 'dumplings_pork_cabbage' | 'dumplings_vegetable' | 'zongzi_braised_pork' | 'zongzi_red_bean' | 'mooncake_mixed_nuts' | 'mooncake_red_bean';
+  | 'dumplings_pork_cabbage' | 'dumplings_vegetable' | 'zongzi_braised_pork' | 'zongzi_red_bean' | 'mooncake_mixed_nuts' | 'mooncake_red_bean' | 'herb_porridge'
+  | 'creek_fish_soup' | 'river_grill' | 'milk_custard' | 'carp_rice' | 'mushroom_rice' | 'honey_drink' | 'berry_milk' | 'kelp_rice';
 export type DishId = `dish_${RecipeId}` | 'dish_fruit_pancake_banana' | 'dish_fruit_pudding_banana';
 export type KitchenMaterialId = 'rice' | 'egg' | 'flour' | 'carrot' | 'tomato' | 'greens'
   | 'pork' | 'cabbage' | 'shiitake' | 'glutinous_rice' | 'braised_pork' | 'red_bean_paste' | 'mixed_nuts';

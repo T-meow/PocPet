@@ -66,6 +66,8 @@ import tree4 from './assets/tree4.webp';
 import tree5 from './assets/tree5.webp';
 import type { ActivePetMod } from './core/mod';
 import type { BuiltinItemId, PetStatus, RecentActivity } from './core/petTypes';
+import { communityItemIcons } from './communityAssets';
+import { expeditionItemIcons } from './expeditionAssets';
 
 export const currencyIcon = coin;
 export const giftBoxIcon = itemGiftBox;
@@ -74,6 +76,8 @@ export const goodEndingImage = goodEndingCg1;
 export const treeStageImages = [tree1, tree2, tree3, tree4, tree5] as const;
 
 export const itemIcons: Record<BuiltinItemId, string> = {
+  ...communityItemIcons,
+  ...expeditionItemIcons,
   trail_mix: trailMix,
   berry_bait: berryBait,
   trail_rope: trailRope,

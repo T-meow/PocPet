@@ -16,7 +16,7 @@ import { canSpendCompanionTime, craftRecipe } from '../src/core/kitchen';
 import { getRecipe, getRecipeMaterialCost } from '../src/core/kitchenRecipes';
 import { startMiniGame } from '../src/core/miniGames';
 import { startPartnerSchedule } from '../src/core/partnerSchedule';
-import { getPetStatCap } from '../src/core/petStats';
+import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
 import { createSaveFileText, createSaveFilePlainText, parseSaveFileText, minimumSaveReaderVersion } from '../src/core/saveCodec';
 import { toPersistedPet } from '../src/core/persistedPet';
 import { inventoryItemLimit } from '../src/core/saveMetadata';
@@ -24,7 +24,7 @@ import type { Inventory, ItemId, PetState } from '../src/core/petTypes';
 import { createAdventureActionGate, adventureActionCommitMs, adventureActionDurationMs, type AdventureActionState } from '../src/ui/adventureActionGate';
 
 const now = new Date(2026, 8, 17, 12).getTime();
-const fresh = (level = 1): PetState => ({ ...createDefaultPet(now), adventure: { ...defaultAdventureState(), completed: { tutorial: 1 } }, level, hunger: getPetStatCap(level), energy: getPetStatCap(level), coins: 1000, hearts: 100,
+const fresh = (level = 1): PetState => ({ ...createDefaultPet(now), adventure: { ...defaultAdventureState(), completed: { tutorial: 1 } }, level, hunger: getPetStatCap(level), mood: getPetStatCap(level), health: getPetStatCap(level), energy: getPetStatCap(level), coins: 1000, hearts: 100,
   inventory: { dish_carrot_rice: 20, trail_mix: 15, berry_bait: 10, trail_rope: 1, apple: 5, golden_apple: 2, energy_drink: 10, rice: 10, egg: 10 } });
 const beginner = (): PetState => ({ ...fresh(), adventure: defaultAdventureState() });
 const tutorial = (pet = beginner(), bag: Inventory = {}) => startAdventure(pet, 'tutorial', 'official.furo', 'Furo', bag, false, now);
@@ -144,7 +144,7 @@ try {
 
   let pet = start();
   const originalTrip = structuredClone(pet.adventure.active!);
-  assert.equal(originalTrip.rulesVersion, 4);
+  assert.equal(originalTrip.rulesVersion, 5);
   assert.ok(adventureTreasureIds.includes(originalTrip.treasure!));
   assert.equal(pet.inventory.trail_rope, undefined);
   assert.equal(pet.inventory.dish_carrot_rice, 15);
@@ -300,7 +300,7 @@ try {
   const pendingMigration = normalizeAdventureState({ schemaVersion: 1, pending: { ...oldPending, items: { apple: 2 } } });
   assert.deepEqual(pendingMigration.pending, { ...oldPending, items: { apple: 2 } });
   assert.equal(start(finish(oldTrip)).adventure.active, undefined, 'completed entrances cannot be restarted on the same day');
-  assert.equal(start(finish(start())).adventure.active!.rulesVersion, 4, 'unfinished entrances can be retried under new rules');
+  assert.equal(start(finish(start())).adventure.active!.rulesVersion, 5, 'unfinished entrances can be retried under new rules');
   const oldBeforeDiscovery = { ...fresh(), adventure: normalizeAdventureState({ schemaVersion: 1, active: { ...oldActive, choices: ['entrance'], bought: false, transported: false } }) };
   const legacyBank = step(oldBeforeDiscovery, 'bank');
   assert.equal(legacyBank.hunger, 96); assert.equal(legacyBank.adventure.active!.bag.apple, 2);
@@ -418,7 +418,7 @@ try {
   assert.equal(eat(golden, 'golden_apple', 2), golden);
   const goldRestored = eat(golden, 'golden_apple');
   assert.equal(goldRestored.hunger, 4 + getPetStatCap(99) / 2);
-  assert.equal(goldRestored.energy, 4 + getPetStatCap(99) / 2);
+  assert.equal(goldRestored.energy, Math.round(4 + getPetEnergyCap(golden) / 2));
   for (const id of ['trail_mix', 'berry_bait']) assert.ok(getAdventureServiceQuote(serviceTrip(), id, 1, 'buy').unitPrice > getInventoryItem(id)!.price);
   const activeV2 = { ...serviceTrip(), adventure: { ...serviceTrip().adventure, active: { ...serviceTrip().adventure.active!, rulesVersion: 2 as const } } };
   assert.equal(getAdventureServiceQuote(roundTrip(activeV2), 'dish_egg_rice', 1, 'buy').unitPrice, 36);
@@ -567,7 +567,7 @@ try {
     assert.equal((hall.match(/class="adventure-actor adventure-neighbor /g) ?? []).length, 2);
     assert.equal((render(fresh(), 'custom.pet').match(/class="adventure-actor adventure-neighbor /g) ?? []).length, 3);
     assert.ok(hall.includes('outpost-hall.webp'));
-    assert.equal((hall.match(/role="meter"/g) ?? []).length, 3, 'hunger, energy and bag have visible meters');
+    assert.equal((hall.match(/role="meter"/g) ?? []).length, 5, 'hunger, energy, mood, health and bag have visible meters');
     assert.ok(!hall.includes('adventure-action-status'), 'the hall has no action waiting indicator');
     assert.ok(hall.includes(english ? 'Choose a destination first' : '请先选择目的地'));
     assert.ok(!hall.includes('<progress'), 'entering the hall does not preselect a trip');
@@ -649,8 +649,8 @@ try {
     assert.ok(newMap.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
     assert.ok(newMap.includes('adventure-map-scene-preview') && newMap.includes('valley.webp'));
     const futureNode = renderMap(fresh(), 'valley', 'story');
-    assert.ok(futureNode.includes(english ? 'Task coming later' : '任务筹备中'));
-    assert.ok(!futureNode.includes('adventure-map-scene-preview'), 'planned nodes do not borrow the entrance background');
+    assert.ok(futureNode.includes('先完成前置故事'));
+    assert.ok(futureNode.includes('data:image/svg+xml') && !futureNode.includes('valley.webp'), 'story nodes have distinct SVG scenery');
     assert.ok(!futureNode.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
     assert.ok(renderMap(route).includes(english ? 'Resume current scouting' : '继续当前探查'));
     assert.ok(renderMap(returned, 'observatory').includes(english ? 'Collect your previous bag' : '先领取上次行囊'));
@@ -664,7 +664,7 @@ try {
     assert.equal(mapData.getAdventureNodeStatus(route.adventure, 'valley', 'entrance'), 'current');
     assert.equal(mapData.getAdventureNodeStatus(returned.adventure, 'valley', 'entrance'), 'pending');
     for (const region of ['valley', 'windmill', 'forest', 'coast', 'observatory']) {
-      for (const node of mapData.adventureMapNodes) if (node.id !== 'entrance') assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, region, node.id), 'planned', 'six entrance events never unlock other map tasks');
+      for (const node of mapData.adventureMapNodes) if (node.id !== 'entrance') assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, region, node.id), region === 'valley' ? ['gather', 'ridge'].includes(node.id) ? 'available' : 'locked' : 'planned', 'the valley starts with two branches; later stories require their own progress');
       const overview = renderMap(fresh(), region, 'entrance');
       assert.ok(overview.includes('data-region="' + region + '"'));
       assert.ok(!/src="undefined"|NaN|\[object Object\]/.test(overview));

@@ -1,4 +1,6 @@
 import type { DishId, KitchenMaterialId } from './core/companionActivityTypes';
+import { herbPorridgeIcon, communityDishIcons } from './communityAssets';
+import { expeditionDishIcons } from './expeditionAssets';
 import rice from './assets/icon/item_rice.webp';
 import egg from './assets/icon/item_egg.webp';
 import flour from './assets/icon/item_flour.webp';
@@ -38,6 +40,9 @@ import dishMooncakeMixedNuts from './assets/icon/item_dish_mooncake_mixed_nuts.w
 import dishMooncakeRedBean from './assets/icon/item_dish_mooncake_red_bean.webp';
 
 export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
+  ...expeditionDishIcons,
+  ...communityDishIcons,
+  dish_herb_porridge: herbPorridgeIcon,
   rice: rice,
   egg: egg,
   flour: flour,
@@ -79,6 +84,15 @@ export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
 
 // Bottom offsets come from the approved food-and-plate silhouette in its 256 px master.
 export const dishPresentation: Record<DishId, { container: string; rimBottom: string }> = {
+  dish_mushroom_rice: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_honey_drink: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_berry_milk: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_kelp_rice: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_creek_fish_soup: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_river_grill: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_milk_custard: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_carp_rice: { container: 'fixed_plate', rimBottom: '26.20%' },
+  dish_herb_porridge: { container: 'fixed_plate', rimBottom: '26.20%' },
   dish_plain_rice: { container: 'fixed_plate', rimBottom: '26.20%' },
   dish_fruit_salad: { container: 'fixed_plate', rimBottom: '25.65%' },
   dish_banana_shake: { container: 'fixed_glass', rimBottom: '16.00%' },

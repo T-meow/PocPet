@@ -24,6 +24,7 @@ interface Props extends HomePageProps {
   onOpenMemories: () => void;
   onOpenFestival?: (festival: FestivalId) => void;
   onOpenShop: () => void;
+  onOpenCommunity?: () => void;
   onOpenAchievements: () => void;
   onOpenNotices?: () => void;
   onOpenAppearance?: () => void;
@@ -32,7 +33,7 @@ interface Props extends HomePageProps {
 }
 export const HomePageV2 = (props: Props) => {
   const { pet, actorId, neighbors, onInteract, canUpgrade, nextUpgradeCost, onUpgrade, pomodoroOverlay, petStatusImages, petActivityImages, getStatusLabel, onOpenInventory, onOpenPlay, onOpenKitchen, onOpenGarden, onOpenPartnerSchedule, onOpenPomodoro, onDailyWish, onReturnWelcome, onAction, onOpenMemories } = props;
-  const busy = Boolean(pet.partnerSchedule.active || pet.adventure.active);
+  const busy = Boolean(pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active);
   const wish = getDailyWishView(pet);
   const welcome = getReturnWelcomeView(pet);
   const companionWish = getCompanionWish(pet, actorId);
@@ -51,7 +52,7 @@ export const HomePageV2 = (props: Props) => {
   const activeGame = pet.miniGames.active?.actorId === actorId ? pet.miniGames.active : undefined;
   const playLocked = pet.level < miniGameUnlockLevel;
   const quickPlayBlocked = busy || props.isLowEnergy || props.isCriticallyHungry;
-  const quickPlayHint = pet.adventure.active ? L('伙伴正在溪谷探查，请先返回基地', 'Your companion is scouting. Return to the outpost first.') : busy ? L('伙伴正在社区帮忙', 'Your companion is helping in the community')
+  const quickPlayHint = isExpeditionAway(pet) ? '伙伴正在远行，请先在基地暂停或返回' : pet.community.fishing.active ? '伙伴正在水边钓鱼，请先收起鱼竿' : pet.adventure.active ? L('伙伴正在溪谷探查，请先返回基地', 'Your companion is scouting. Return to the outpost first.') : busy ? L('伙伴正在社区帮忙', 'Your companion is helping in the community')
     : props.isCriticallyHungry ? t('ui.actionDock.lowHunger')
       : props.isLowEnergy ? t('ui.actionDock.lowEnergy') : L('消耗体力，恢复心情', 'Spend energy to lift their mood');
   return <div className="home-v2"><div className="home-v2-title"><div><p>OUR LITTLE HOME</p><h2>{L(`${pet.name} 的小窝`, `${pet.name}’s little home`)}</h2></div><span>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} together`)}</span></div>
@@ -85,6 +86,7 @@ export const HomePageV2 = (props: Props) => {
           <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span><ClaimNotice show={!pet.claimedRewardIds.includes(goldenAppleGachaStarterGiftRewardId)} /></button>
         </nav>
         <div className="home-quick-grid home-services-grid">
+          {props.onOpenCommunity && <button className="home-quick garden" onClick={props.onOpenCommunity}><Sprout /><strong>溪畔社区</strong><small>{pet.community.expedition.pending ? '远行收获待领取' : pet.community.expedition.active ? pet.community.expedition.active.paused ? '行程已在基地暂停，随时继续' : '伙伴正在远行，去看看进度' : pet.community.fishing.active ? '回到水边，继续这一竿' : '种养、钓鱼、委托与远方'}</small><ClaimNotice show={Boolean(pet.community.commission?.found || pet.community.fishing.pending) || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0) || Boolean(pet.community.crop && pet.community.crop.readyAt <= Date.now())} /></button>}
           <button className="home-quick garden" onClick={onOpenGarden}><Sprout /><strong>{L('花园', 'Garden')}</strong><small>{props.gardenReminder === 'ready' ? L('有果实可以收获啦', 'Ready to harvest') : gardenGiftReady ? L('有花园补偿待领取', 'Garden compensation to collect') : props.gardenReminder === 'withered' ? L('有植物需要照顾', 'A plant needs care') : L('照顾小小绿意', 'A little greenery')}</small><ClaimNotice show={gardenGiftReady} /></button>
           <button className="home-quick schedule" onClick={onOpenPartnerSchedule}>
             <CalendarDays /><strong>{L('社区工作', 'Community work')}</strong><small>{pet.partnerSchedule.pendingResult ? L('报酬待领取', 'Rewards are ready') : pet.partnerSchedule.active ? L('正在帮忙', 'Lending a hand') : L('快速工作与邻里事务', 'Quick work and local requests')}</small>
@@ -120,3 +122,4 @@ export const HomePageV2 = (props: Props) => {
     </div>
   </div>;
 };
+import { isExpeditionAway } from '../core/expeditionData';

@@ -6,5 +6,5 @@ export const useAdventureAction = () => {
   const gate = useRef<ReturnType<typeof createAdventureActionGate>>();
   if (!gate.current) gate.current = createAdventureActionGate(setState);
   useEffect(() => () => gate.current?.cancel(), []);
-  return { ...state, run: gate.current.run, isBusy: gate.current.isBusy };
+  return { ...state, run: gate.current.run, isBusy: gate.current.isBusy, cancel: gate.current.cancel };
 };
