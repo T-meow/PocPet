@@ -39,6 +39,13 @@ export const HomePageV2 = (props: Props) => {
   const companionWish = getCompanionWish(pet, actorId);
   const friendGiftReady = canClaimBoostCardDailyReward(pet);
   const gardenGiftReady = props.gardenReminder === 'ready' || !pet.claimedRewardIds.includes(gardenCompensationRewardId);
+  const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending || pet.community.expedition.pending)
+    || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0)
+    || Boolean(pet.community.crop && pet.community.crop.readyAt <= Date.now());
+  const farmHint = [
+    pet.community.expedition.pending ? '远行收获待领取' : pet.community.expedition.active ? pet.community.expedition.active.paused ? '行程已在基地暂停，随时继续' : '伙伴正在远行，去看看进度' : pet.community.fishing.active ? '回到水边，继续这一竿' : undefined,
+    props.gardenReminder === 'ready' ? '果园有果实可以收获' : gardenGiftReady ? '果园补偿待领取' : props.gardenReminder === 'withered' ? '果园有植物需要照顾' : undefined,
+  ].filter(Boolean).join(' · ') || '果树、菜地、养殖、钓鱼与委托';
   const achievementGiftReady = getAchievementSummary(pet).claimable > 0;
   const dreamsUnlocked = isClassicEndgameUnlocked(pet);
   const dreamGiftReady = dreamProjectCategories.some(category => {
@@ -86,8 +93,7 @@ export const HomePageV2 = (props: Props) => {
           <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span><ClaimNotice show={!pet.claimedRewardIds.includes(goldenAppleGachaStarterGiftRewardId)} /></button>
         </nav>
         <div className="home-quick-grid home-services-grid">
-          {props.onOpenCommunity && <button className="home-quick garden" onClick={props.onOpenCommunity}><Sprout /><strong>溪畔社区</strong><small>{pet.community.expedition.pending ? '远行收获待领取' : pet.community.expedition.active ? pet.community.expedition.active.paused ? '行程已在基地暂停，随时继续' : '伙伴正在远行，去看看进度' : pet.community.fishing.active ? '回到水边，继续这一竿' : '种养、钓鱼、委托与远方'}</small><ClaimNotice show={Boolean(pet.community.commission?.found || pet.community.fishing.pending) || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0) || Boolean(pet.community.crop && pet.community.crop.readyAt <= Date.now())} /></button>}
-          <button className="home-quick garden" onClick={onOpenGarden}><Sprout /><strong>{L('花园', 'Garden')}</strong><small>{props.gardenReminder === 'ready' ? L('有果实可以收获啦', 'Ready to harvest') : gardenGiftReady ? L('有花园补偿待领取', 'Garden compensation to collect') : props.gardenReminder === 'withered' ? L('有植物需要照顾', 'A plant needs care') : L('照顾小小绿意', 'A little greenery')}</small><ClaimNotice show={gardenGiftReady} /></button>
+          <button className="home-quick garden" onClick={props.onOpenCommunity ?? onOpenGarden}><Sprout /><strong>溪畔农场</strong><small>{farmHint}</small><ClaimNotice show={farmGiftReady} /></button>
           <button className="home-quick schedule" onClick={onOpenPartnerSchedule}>
             <CalendarDays /><strong>{L('社区工作', 'Community work')}</strong><small>{pet.partnerSchedule.pendingResult ? L('报酬待领取', 'Rewards are ready') : pet.partnerSchedule.active ? L('正在帮忙', 'Lending a hand') : L('快速工作与邻里事务', 'Quick work and local requests')}</small>
             <ClaimNotice show={Boolean(pet.partnerSchedule.pendingResult)} />

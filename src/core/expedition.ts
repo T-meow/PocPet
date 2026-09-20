@@ -1,10 +1,10 @@
 import { incrementAchievementItemUse, recordEarnedCoins, recordEarnedHearts } from './achievements';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, getInventoryItem, removeInventoryItem } from './items';
-import { getItemStatEffect, getItemUsePlan, overfedMessage } from './itemEffects';
+import { applyItemHungerEffect, getItemStatEffect, getItemUsePlan, overfedMessage } from './itemEffects';
 import { canSpendCompanionTime } from './kitchen';
 import { advancePet } from './petLifecycle';
-import { clampPetEnergy, clampPetHealth, clampPetStat, getPetStatCap, updatePetSatiety } from './petStats';
+import { clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetStatCap, updatePetSatiety } from './petStats';
 import { inventoryItemLimit } from './saveMetadata';
 import { expeditionBagCount, expeditionCapacity, expeditionHarvestLimit, expeditionProducts, getRegionUnlocked, regionIds, regions } from './expeditionData';
 import { finishExpedition, putExpeditionFinds, settleExpeditionTime, withExpedition } from './expeditionReturn';
@@ -96,7 +96,7 @@ export const chooseExpeditionStep = (pet: PetState, id: string, revision: number
   next = withExpedition(next, { regions: first ? { ...state.regions, [region]: { ...state.regions[region], surveyed: true, storyAt: now, actorId: t.actorId, actorName: t.actorName } } : state.regions,
     active: { ...t, revision: revision + 1, step: t.step + 1, coins: t.coins + (first ? 20 : 0), hearts: t.hearts + (first ? 4 : 0), journal: append(t, `${regions[region].name} · ${choice.title}`) } });
   next = putExpeditionFinds(next, choice.finds);
-  return settleExpeditionTime(updatePetSatiety({ ...next, hunger: clampPetStat(next, pet.hunger - choice.hunger), energy: clampPetEnergy(next, pet.energy - choice.energy), health: clampPetHealth(next, pet.health + choice.health), mood: clampPetStat(next, pet.mood + choice.mood), lastInteractionAt: now,
+  return settleExpeditionTime(updatePetSatiety({ ...next, hunger: clampPetHunger(next, pet.hunger - choice.hunger), energy: clampPetEnergy(next, pet.energy - choice.energy), health: clampPetHealth(next, pet.health + choice.health), mood: clampPetStat(next, pet.mood + choice.mood), lastInteractionAt: now,
     recentEvent: first ? regions[region].storyText : `${choice.title}。${expeditionBagCount(next.community.expedition.active!.ground) ? '行囊已满，多出的物资留在返程整理中。' : '这一步已记下。'}` }), now);
 };
 export const useExpeditionSupply = (pet: PetState, id: string, revision: number, itemId: string, now = Date.now()): PetState => {
@@ -104,7 +104,7 @@ export const useExpeditionSupply = (pet: PetState, id: string, revision: number,
   const t = pet.community.expedition.active, item = getInventoryItem(itemId as ItemId);
   if (!t || t.id !== id || t.revision !== revision || t.mode !== 'manual' || t.paused || !item || !isExpeditionSupply(itemId) || !(t.bag[itemId] ?? 0)) return pet;
   if (getItemUsePlan(pet, item, 1).blocked) return fail(pet, overfedMessage);
-  const effect = getItemStatEffect(pet, item), recovery = { hunger: clampPetStat(pet, pet.hunger + (effect.hunger ?? 0)), energy: clampPetEnergy(pet, pet.energy + (effect.energy ?? 0)), mood: clampPetStat(pet, pet.mood + (effect.mood ?? 0)), health: clampPetHealth(pet, pet.health + (effect.health ?? 0)), cleanliness: clampPetStat(pet, pet.cleanliness + (effect.cleanliness ?? 0)) };
+  const effect = getItemStatEffect(pet, item), recovery = { hunger: applyItemHungerEffect(pet, item, effect.hunger ?? 0), energy: clampPetEnergy(pet, pet.energy + (effect.energy ?? 0)), mood: clampPetStat(pet, pet.mood + (effect.mood ?? 0)), health: clampPetHealth(pet, pet.health + (effect.health ?? 0)), cleanliness: clampPetStat(pet, pet.cleanliness + (effect.cleanliness ?? 0)) };
   if (!Object.entries(recovery).some(([key, value]) => value > pet[key as keyof typeof recovery])) return fail(pet, '当前不需要这份补给。');
   return updatePetSatiety(incrementAchievementItemUse({ ...withExpedition(pet, { active: { ...t, revision: revision + 1, bag: removeInventoryItem(t.bag, itemId) } }), ...recovery, recentEvent: `使用${item.name} ×1，其余补给留在行囊。` }, itemId as ItemId));
 };

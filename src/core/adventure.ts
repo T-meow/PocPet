@@ -9,8 +9,8 @@ import { facilityIds, facilityAvailable } from './communityData';
 import type { FacilityId } from './communityTypes';
 import { adventureHealthRules, enforceAdventureHealth, finishAdventure, needsAdventureHealthReturn } from './adventureReturn';
 export { getAdventureRewardPreview } from './adventureReturn';
-import { getItemStatEffect, getItemUsePlan, overfedMessage } from './itemEffects';
-import { updatePetSatiety } from './petStats';
+import { applyItemHungerEffect, getItemStatEffect, getItemUsePlan, overfedMessage } from './itemEffects';
+import { clampPetHunger, updatePetSatiety } from './petStats';
 import { addInventoryItem, getInventoryItem, removeInventoryItem } from './items';
 import { activityText as L } from './kitchenRecipes';
 import { clampCoins, clampPetEnergy, clampPetHealth, clampPetStat, getPetStatRatio } from './petStats';
@@ -109,7 +109,7 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
     if (getAdventureBagCount(bag) + amount <= adventureBagCapacity) bag = addInventoryItem(bag, id, amount);
     else loot[id] = amount;
   }
-  return enforceAdventureHealth(updatePetSatiety({ ...pet, hunger: clampPetStat(pet, pet.hunger - choice.hunger), energy: clampPetEnergy(pet, pet.energy - choice.energy), health: clampPetHealth(pet, pet.health + (choice.health ?? 0)), mood: clampPetStat(pet, pet.mood + (choice.mood ?? 0)), lastInteractionAt: now,
+  return enforceAdventureHealth(updatePetSatiety({ ...pet, hunger: clampPetHunger(pet, pet.hunger - choice.hunger), energy: clampPetEnergy(pet, pet.energy - choice.energy), health: clampPetHealth(pet, pet.health + (choice.health ?? 0)), mood: clampPetStat(pet, pet.mood + (choice.mood ?? 0)), lastInteractionAt: now,
     adventure: { ...pet.adventure, active: { ...trip, revision: trip.revision + 1, choices: [...trip.choices, choiceId], bag, loot, ...(complete ? { completedDay: getEffectiveDailyDateKey(pet, now) } : {}) } },
     recentEvent: L(`${choice.label}：饱食度 −${choice.hunger}，体力 −${choice.energy}。`, `${choice.label}: hunger −${choice.hunger}, energy −${choice.energy}.`) }), now);
 };
@@ -133,7 +133,7 @@ export const useAdventureSupply = (pet: PetState, tripId: string, revision: numb
   quantity = plan.quantity;
   if ((trip[source][itemId] ?? 0) < quantity) return pet;
   const effect = getItemStatEffect(pet, item);
-  const recovery = { hunger: clampPetStat(pet, pet.hunger + (effect.hunger ?? 0) * quantity), energy: clampPetEnergy(pet, pet.energy + (effect.energy ?? 0) * quantity),
+  const recovery = { hunger: applyItemHungerEffect(pet, item, (effect.hunger ?? 0) * quantity), energy: clampPetEnergy(pet, pet.energy + (effect.energy ?? 0) * quantity),
     mood: clampPetStat(pet, pet.mood + (effect.mood ?? 0) * quantity), health: clampPetHealth(pet, pet.health + (effect.health ?? 0) * quantity), cleanliness: clampPetStat(pet, pet.cleanliness + (effect.cleanliness ?? 0) * quantity) };
   if (!Object.entries(recovery).some(([key, value]) => value > pet[key as keyof typeof recovery])) return fail(pet, L('当前不需要这份恢复补给。', 'You do not need this recovery supply right now.'));
   let next: PetState = { ...pet, ...recovery, adventure: { ...pet.adventure, active: { ...trip, revision: revision + 1, [source]: removeInventoryItem(trip[source], itemId, quantity) } },

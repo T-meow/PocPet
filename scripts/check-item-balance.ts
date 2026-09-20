@@ -124,11 +124,11 @@ try {
   endgame.partnerSchedule.skills.cooking = { level: 10, xp: 0, masterCompletions: 60 };
   const cake = item('dish_biscuit_layer_cake');
   assert.equal(getItemStatEffect(endgame, cake).hunger, 460);
-  for (const testPet of [endgame, { ...endgame, level: 1 }, { ...endgame, hunger: 590, mood: 590, health: 590 }]) {
+  for (const [testPet, expectedHunger] of [[endgame, 538], [{ ...endgame, level: 1 }, 362.8], [{ ...endgame, hunger: 590, mood: 590, health: 590 }, 590]] as const) {
     const preview = getItemRecoveryPreview(testPet, cake, 1, []);
     const used = useInventoryItem({ ...testPet, inventory: { [cake.id]: 1 } }, cake.id, now, { favoriteFoodIds: [] });
     for (const key of itemStatKeys) assert.equal(used[key] - testPet[key], preview.actual[key], `${key} recovery must match the cap-aware preview`);
-    assert.ok(used.hunger <= getPetStatCap(testPet));
+    assert.equal(used.hunger, expectedHunger, 'large meals retain discounted hunger overflow');
   }
   const goldenApple = item('golden_apple');
   for (const [testPet, recovery, energyRecovery] of [
@@ -155,9 +155,11 @@ try {
     const preview = getItemRecoveryPreview(nearlyFull, goldenApple);
     const used = useInventoryItem(nearlyFull, goldenApple.id, now);
     for (const key of itemStatKeys) {
-      assert.equal(used[key], key === 'energy' ? getPetEnergyCap(nearlyFull) : getPetStatCap(nearlyFull));
-      assert.equal(preview.actual[key], deficit);
-      assert.equal(preview.overflow[key], (key === 'energy' ? 370 : 295) - deficit, `${key} preview explains wasted golden apple recovery`);
+      const retainedOverflow = key === 'hunger' ? (295 - deficit) * 0.6 : 0;
+      const expected = (key === 'energy' ? getPetEnergyCap(nearlyFull) : getPetStatCap(nearlyFull)) + retainedOverflow;
+      assert.equal(used[key], expected);
+      assert.ok(Math.abs(preview.actual[key]! - deficit - retainedOverflow) < 1e-7);
+      assert.ok(Math.abs(preview.overflow[key]! - ((key === 'energy' ? 370 : 295) - deficit - retainedOverflow)) < 1e-7, `${key} preview explains unused golden apple recovery`);
     }
   }
   const cross = fresh(); cross.partnerSchedule.skills.study = { level: 9, xp: 618, masterCompletions: 0 }; cross.inventory = { picture_book: 99 };

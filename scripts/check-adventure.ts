@@ -174,13 +174,15 @@ try {
   assert.equal(eat(poor, 'berry_bait'), poor);
   for (const quantity of [0, -1, 1.5, NaN, 13]) assert.equal(eat(poor, 'dish_carrot_rice', quantity), poor);
   const batch = eat(poor, 'dish_carrot_rice', 2);
-  assert.equal(batch.hunger, 100); assert.equal(batch.energy, 5);
+  assert.equal(batch.hunger, 112.6); assert.equal(batch.energy, 5);
   assert.equal(batch.adventure.active?.bag.dish_carrot_rice, 3);
   const preview = getItemRecoveryPreview(poor, getInventoryItem('dish_carrot_rice')!, 2, []);
   assert.equal(batch.hunger - poor.hunger, preview.actual.hunger);
 
   const almostFull = { ...poor, hunger: 90 };
   const limitedBatch = eat(almostFull, 'dish_carrot_rice', 5);
+  assert.equal(limitedBatch.hunger, 130, 'travel meals retain 60 percent of the excess recovery');
+  assert.equal(roundTrip(limitedBatch).hunger, 130, 'travel overflow survives save import');
   assert.equal(limitedBatch.adventure.active!.bag.dish_carrot_rice, 4, 'travel meals stop after the first filling serving');
   assert.equal(limitedBatch.energy, almostFull.energy + 2);
   assert.equal(limitedBatch.isOverfed, true);
@@ -191,7 +193,10 @@ try {
   assert.deepEqual(eat(roundTrip(limitedBatch), 'dish_carrot_rice').adventure, limitedBatch.adventure);
   const refreshed = eat(limitedBatch, 'energy_drink');
   assert.ok(refreshed.energy > limitedBatch.energy, 'full travelers can restore energy without food');
+  assert.equal(refreshed.hunger, 130, 'non-food travel recovery preserves stored fullness');
   const afterWalking = step({ ...limitedBatch, energy: 100 });
+  const walkCost = getAdventureSteps(limitedBatch.adventure.active!.rulesVersion, limitedBatch.adventure.active!.region)[limitedBatch.adventure.active!.choices.length].choices[0].hunger;
+  assert.equal(afterWalking.hunger, limitedBatch.hunger - walkCost, 'route costs spend overflow normally');
   assert.equal(afterWalking.isOverfed, false, 'route costs can release satiety without waiting');
   assert.ok(eat(afterWalking, 'dish_carrot_rice').hunger > afterWalking.hunger);
   const groundFood = { ...almostFull, adventure: { ...almostFull.adventure, active: { ...almostFull.adventure.active!, loot: { apple: 2 } } } };

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { getDailyResetDateKey } from '../src/core/dailyReset';
-import { getDailyShopDiscountInfo, getShopItem } from '../src/core/items';
+import { getDailyShopDiscountInfo, getInventoryItem, getShopItem } from '../src/core/items';
 import {
   applyPetAction,
   buyItem,
@@ -8,6 +8,7 @@ import {
   getWorkReward,
   interactWithPet,
   maxBatchQuantity,
+  upgradePet,
   useInventoryItem,
 } from '../src/core/petActions';
 import { advancePet, isPetCriticallyHungry, isPetLowEnergy } from '../src/core/petLifecycle';
@@ -23,7 +24,8 @@ import {
   getPartnerScheduleOfferPreview,
   partnerScheduleDefinitions,
 } from '../src/core/partnerSchedule';
-import { createDefaultPet, getPrimaryStatus } from '../src/core/petState';
+import { createDefaultPet, getPrimaryStatus, normalizePet } from '../src/core/petState';
+import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
 import { getPetStatCap, getPetStatThreshold, roundPetStatDisplayAmount, scalePetStatDelta } from '../src/core/petStats';
 import type { ItemDefinition, PetState } from '../src/core/petTypes';
 import { getValidQuantityPreset } from '../src/ui/QuantityPresets';
@@ -208,7 +210,7 @@ const levelTwentyUse = useInventoryItem(atLevel(20, {
 }), 'emergency_biscuit', now, { quantity: 120 });
 assert.equal(maxBatchQuantity, 99);
 assert.equal(levelTwentyUse.inventory.emergency_biscuit, 85);
-assert.equal(levelTwentyUse.hunger, getPetStatCap(20));
+closeTo(levelTwentyUse.hunger, 195.6, 'one point of excess biscuit recovery contributes 0.6 fullness');
 assert.equal(levelTwentyUse.mood, getPetStatCap(20) - 14, 'only the fourteen eaten biscuits apply side effects');
 assert.equal(levelTwentyUse.actionStreak.count, 0, 'feeding should not advance the action streak');
 assert.equal(levelTwentyUse.achievements.counters.totalItemUseCount, 14);
@@ -219,11 +221,11 @@ const hungryBatch = atLevel(1, { hunger: 50, mood: 0, inventory: { bento: 10 } }
 const bento = getShopItem('bento')!;
 const mealPreview = getItemRecoveryPreview(hungryBatch, bento, 10, []);
 assert.equal(mealPreview.quantity, 2);
-assert.equal(mealPreview.actual.hunger, 50);
-assert.equal(mealPreview.overflow.hunger, 30, 'only the last eaten serving can overflow');
+assert.equal(mealPreview.actual.hunger, 68);
+assert.equal(mealPreview.overflow.hunger, 12, '40 percent of the last serving excess remains unused');
 const fullMeal = useInventoryItem(hungryBatch, 'bento', now, { quantity: 10, favoriteFoodIds: [] });
 assert.equal(fullMeal.inventory.bento, 8);
-assert.equal(fullMeal.hunger, 100);
+assert.equal(fullMeal.hunger, 118);
 assert.equal(fullMeal.mood, mealPreview.actual.mood);
 assert.equal(fullMeal.isOverfed, true);
 assert.equal(fullMeal.achievements.counters.careActionCounts.feed, 2);
@@ -240,8 +242,32 @@ assert.equal(isPetOverfed({ ...fullMeal, hunger: 95.01 }), true);
 const releasedMeal = useInventoryItem({ ...fullMeal, hunger: 95 }, 'bento', now);
 assert.equal(releasedMeal.inventory.bento, 7, 'feeding reopens at the 95 percent boundary');
 assert.equal(getItemUsePlan({ ...hungryBatch, hunger: 98 }, bento).quantity, 1, 'a companion that was not full has no arbitrary 95 percent cutoff');
-assert.equal(advancePet(fullMeal, now + 60 * 60 * 1000).isOverfed, false, 'offline hunger decay releases the persisted state');
+const afterOneHour = advancePet(fullMeal, now + 60 * 60 * 1000);
+assert.equal(afterOneHour.hunger, 111, 'natural decay consumes only its actual cost from overflow');
+assert.equal(afterOneHour.isOverfed, true, 'overflow keeps feeding blocked until it is digested');
+assert.equal(advancePet(fullMeal, now + 4 * 60 * 60 * 1000).isOverfed, false, 'offline decay eventually releases the persisted state');
 assert.equal(useInventoryItem({ ...fullMeal, isSleeping: true }, 'bento', now).isSleeping, true, 'a blocked feed does not wake the companion');
+
+// Recovery crosses the cap once and keeps fractions; deductions and saves never reapply the discount.
+for (const [hunger, expected] of [[30, 70], [60, 100], [90, 118], [99.5, 123.7]] as const) {
+  const initial = atLevel(1, { hunger, inventory: { bento: 1 } });
+  const fed = useInventoryItem(initial, 'bento', now);
+  closeTo(fed.hunger, expected, `feeding from ${hunger}`);
+  closeTo(getItemRecoveryPreview(initial, bento).actual.hunger!, expected - hunger, 'preview includes discounted overflow');
+}
+assert.equal(normalizePet(fullMeal, now).hunger, 118);
+const restoredMeal = parseSaveFileText(createSaveFileText(fullMeal, null, now), now).pet;
+assert.equal(restoredMeal.hunger, 118, 'save export/import retains overflow');
+assert.equal(restoredMeal.isOverfed, true);
+assert.equal(applyPetAction(fullMeal, 'clean', now).hunger, 116, 'care actions spend only their hunger cost');
+assert.equal(applyTimedEvent(fullMeal, { effect: { mood: 1 }, text: 'event' }, now, '').hunger, 118, 'unrelated events retain overflow');
+assert.equal(upgradePet({ ...fullMeal, hearts: 100 }, now).hunger, 123, 'level growth retains the stored excess');
+const sleepingMeal = applyPetAction({ ...fullMeal, energy: 50 }, 'sleep', now);
+const restoredSleep = normalizePet(sleepingMeal, now);
+assert.equal(restoredSleep.sleepStartHunger, 118, 'sleep snapshots retain overflow');
+closeTo(advancePet(restoredSleep, now + 60 * 60 * 1000).hunger, 116, 'sleep consumes overflow at its normal rate');
+assert.equal(normalizePet({ ...fullMeal, hunger: -1 }, now).hunger, 0);
+assert.equal(normalizePet({ ...fullMeal, hunger: Infinity }, now).hunger, createDefaultPet(now).hunger);
 
 for (const level of [1, 20, 99]) {
   const boosted = atLevel(level, { hunger: getPetStatCap(level) - 20, inventory: { bento: 99 } });
@@ -256,6 +282,8 @@ for (const id of ['medicine', 'energy_drink', 'golden_apple', 'birthday_cake'] a
   const recovered = useInventoryItem(specialBase, id, now);
   assert.equal(recovered.inventory[id], undefined, `${id} remains usable while full`);
   assert.ok(recovered.energy > specialBase.energy || recovered.health > specialBase.health);
+  assert.equal(recovered.hunger, id === 'golden_apple' ? 148 : 118, `${id} preserves stored overflow`);
+  assert.equal(getItemRecoveryPreview(specialBase, getInventoryItem(id)!).actual.hunger, recovered.hunger - specialBase.hunger);
 }
 
 for (const [ownedCount, expectedPreset] of [[1, 1], [4, 1], [5, 5], [9, 5], [10, 10], [99, 10]] as const) {
@@ -337,6 +365,7 @@ const almostFullMod = { ...boughtMod, hunger: getPetStatCap(20) - 7, energy: 0, 
 const limitedMod = useInventoryItem(almostFullMod, modItem.id, now, { item: modItem, quantity: 4 });
 assert.equal(limitedMod.inventory[modItem.id], 1, 'mod food uses the same automatic batch limit');
 assert.equal(limitedMod.energy, 6, 'uneaten mod food cannot grant secondary effects');
+closeTo(limitedMod.hunger, 196.2, 'mod food also retains 60 percent of its excess recovery');
 assert.equal(useInventoryItem(limitedMod, modItem.id, now, { item: modItem }).inventory[modItem.id], 1);
 
 console.log('stat scaling and batch checks passed');

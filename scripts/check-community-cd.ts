@@ -302,7 +302,7 @@ try {
   const { CommunityPage } = await server.ssrLoadModule('/src/ui/CommunityPage.tsx');
   const noop = () => {};
   for (const [tab, required] of [['village', '钓鱼小屋'], ['farm', 'data-place="coop"'], ['fishing', 'data-place="pond"'], ['board', '今日候选'], ['market', '工会回收']] as const) {
-    const html = renderToStaticMarkup(createElement(CommunityPage, { pet: ready(), initialTab: tab, portrait: 'furo.png', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, onGarden: noop }));
+    const html = renderToStaticMarkup(createElement(CommunityPage, { pet: ready(), initialTab: tab, portrait: 'furo.png', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, orchard: null }));
     assert(html.includes(required), tab); assert(!/NaN|src="undefined"/.test(html), tab);
   }
   const { AdventurePage } = await server.ssrLoadModule('/src/ui/AdventurePage.tsx');

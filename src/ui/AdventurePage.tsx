@@ -36,10 +36,11 @@ const actorNameFor = (id: string) => id === 'official.furo' ? 'Furo' : id === 'o
 const builtinPortrait = (id: string) => adventureActorIds.some(actor => actor === id) ? resolvePetStatusImages(getBuiltinPetMod(id)).content : undefined;
 
 const AdventureStatMeter = ({ kind, label, value, max, icon, hint }: { kind: string; label: string; value: number; max: number; icon: ReactNode; hint?: string }) => {
-  const amount = Math.max(0, Math.min(max, value));
+  const amount = Math.max(0, value);
+  const filled = Math.min(max, amount);
   return <div className={'adventure-stat-meter adventure-stat-meter--' + kind}>
     <div className="adventure-stat-label"><span>{icon}{label}</span><b>{Math.floor(amount)}/{max}</b>{hint && <small>{hint}</small>}</div>
-    <div className="adventure-stat-track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={amount} aria-valuetext={`${Math.floor(amount)}/${max}`}><span style={{ width: `${max > 0 ? amount / max * 100 : 0}%` }} /></div>
+    <div className="adventure-stat-track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={filled} aria-valuetext={`${Math.floor(amount)}/${max}`}><span style={{ width: `${max > 0 ? filled / max * 100 : 0}%` }} /></div>
   </div>;
 };
 

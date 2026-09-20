@@ -353,7 +353,7 @@ for (const mode of ['development', 'toy']) {
       const feedItems = core.getInventoryDefinitions(core.createBuiltinItemRegistry(), feedPet.inventory);
       const feedPreview = render(recovery.ItemRecoveryPreview, { pet: feedPet, item: feedItems[0], quantity: 10, favoriteFoodIds: [] });
       assert.ok(feedPreview.includes('本次只用 2 份') && feedPreview.includes('其余保留'));
-      assert.ok(feedPreview.includes(`${locale.t('ui.stats.hunger')} +50`));
+      assert.ok(feedPreview.includes(`${locale.t('ui.stats.hunger')} +68`));
       const fullPet = { ...feedPet, hunger: 99, isOverfed: true };
       const blockedPreview = render(recovery.ItemRecoveryPreview, { pet: fullPet, item: feedItems[0], quantity: 10 });
       assert.ok(blockedPreview.includes('吃撑了') && blockedPreview.includes('95%') && blockedPreview.includes('不消耗食物'));

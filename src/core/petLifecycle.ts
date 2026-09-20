@@ -15,7 +15,7 @@ import { applyTimedEvent, getRandomDailyEncounter, getRandomOfflineDiary, getRan
 import { neighborGiftDailyLimit } from './neighbors';
 import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, criticalHungerActionThreshold, getEnergyRecoveryIntervalMs, getPetEnergyCap, getPetStatCap, getPetStatThreshold, lowEnergyThreshold, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
 import type { NeighborEventContext, PetState } from './petTypes';
-import { updatePetSatiety } from './petStats';
+import { clampPetHunger, updatePetSatiety } from './petStats';
 import {
   getDefaultPomodoroRemainingMs,
   getPomodoroBonusReward,
@@ -459,7 +459,7 @@ const advanceUnprotectedSlice = (
   const elapsedHours = (to - from) / hourMs;
   const advanced: PetState = {
     ...pet,
-    hunger: clampPetStat(pet, pet.hunger + rates.hunger * elapsedHours),
+    hunger: clampPetHunger(pet, pet.hunger + rates.hunger * elapsedHours),
     mood: clampPetStat(pet, pet.mood + rates.mood * elapsedHours),
     cleanliness: clampPetStat(pet, pet.cleanliness + rates.cleanliness * elapsedHours),
     health: clampPetHealth(pet, pet.health + rates.health * elapsedHours),

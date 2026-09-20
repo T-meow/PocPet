@@ -1,5 +1,5 @@
 ﻿import { list, pick, t } from '../i18n';
-import { clampPetEnergy, clampPetHealth, clampPetStat, getPetEnergyCap, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
+import { clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetEnergyCap, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
 import type { ActionStreak, CareActionKey, PetState, RecentActivity } from './petTypes';
 import { randomInt } from './utils';
 
@@ -136,7 +136,7 @@ export const applyActionStreak = (pet: PetState, key: CareActionKey, now: number
     pet: {
       ...base,
       actionStreak: resetStreak,
-      hunger: clampPetStat(base, base.hunger + hunger),
+      hunger: clampPetHunger(base, base.hunger + hunger),
       mood: clampPetStat(base, base.mood + mood),
       cleanliness: clampPetStat(base, base.cleanliness + cleanliness),
       energy: clampPetEnergy(base, base.energy + (reaction.effect.energy ?? 0)),

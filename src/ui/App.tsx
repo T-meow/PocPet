@@ -129,7 +129,7 @@ import { GardenPage } from './GardenPage';
 import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
-import { CommunityPage, type CommunityTab } from './CommunityPage';
+import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
 import { ExpeditionPage } from './ExpeditionPage';
 import { isExpeditionAway } from '../core/expeditionData';
 import type { CommunityRoute } from '../core/communityTypes';
@@ -318,6 +318,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const notices = useNotices();
   const [communityRoute, setCommunityRoute] = useState<CommunityRoute>();
   const [communityTab, setCommunityTab] = useState<CommunityTab>('village');
+  const [communityPlace, setCommunityPlace] = useState<CommunityPlace | null>(null);
   const {
     activePage,
     isHomeRef,
@@ -446,7 +447,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       : undefined;
   const isPomodoroActionDisabled = !pet.pomodoro.isRunning && !canRunPomodoro;
   const currentBgmMode = getPageBgmMode(activePage, isShopOpen, pet.isSleeping, communityTab);
-  useWorldAudioFeedback(pet, activePage, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause), actorId);
+  useWorldAudioFeedback(pet, activePage === 'community' && communityPlace === 'orchard' ? 'garden' : activePage, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause), actorId);
   const achievementSummary = getAchievementSummary(pet);
   const hasAchievementNotice = achievementSummary.pendingReviewNotice || achievementSummary.claimable > 0;
   const gardenReminder = getGardenReminder(pet);
@@ -456,7 +457,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const handleOpenCommunity = () => {
-    setCommunityTab(pet.community.fishing.active || pet.community.fishing.pending ? 'fishing' : 'village');
+    setCommunityTab('village');
+    setCommunityPlace(null);
     setActivePage('community');
   };
 
@@ -667,14 +669,16 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleOpenGarden = () => {
     playAfterUnlock('open');
-    setActivePage('garden');
+    setCommunityTab('village');
+    setCommunityPlace('orchard');
+    setActivePage('community');
     setPet((current) => recordPetInteraction(current));
   };
 
   const handleCloseGarden = () => {
     playAfterUnlock('close');
     resetGardenClearConfirm();
-    setActivePage('home');
+    setCommunityPlace(null);
   };
 
   const handleOpenPartnerSchedule = () => {
@@ -1629,24 +1633,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onClaimAllRewards={handleClaimAllAchievementRewards}
           onOpenCg={handleOpenAchievementCg}
         />
-      ) : activePage === 'garden' ? (
-        <GardenPage
-          pet={pet}
-          itemIconMap={itemIconMap}
-          onBack={handleCloseGarden}
-          onUnlockSlot={handleUnlockGardenSlot}
-          onPlantTree={handlePlantTree}
-          onRecycleSapling={handleRecycleGardenSapling}
-          onWater={handleWaterTree}
-          onFertilize={handleFertilizeTree}
-          onNutrient={handleGardenNutrient}
-          onHarvest={handleHarvestTree}
-          onClear={handleRequestClearGardenSlot}
-          onUpgradeTool={handleUpgradeGardenTool}
-          onOpenShop={() => handleOpenShop('garden')}
-          compensationCoins={gardenCompensationCoins}
-          onClaimCompensation={hasClaimedGardenCompensation ? undefined : handleClaimGardenCompensation}
-        />
       ) : activePage === 'partnerSchedule' ? (
         <PartnerSchedulePage
           pet={pet}
@@ -1671,8 +1657,15 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'community' ? (
         <CommunityPage pet={pet} registry={itemRegistry} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+          place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
+          orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
+            onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}
+            onWater={handleWaterTree} onFertilize={handleFertilizeTree} onNutrient={handleGardenNutrient}
+            onHarvest={handleHarvestTree} onClear={handleRequestClearGardenSlot} onUpgradeTool={handleUpgradeGardenTool}
+            onOpenShop={() => handleOpenShop('garden')} compensationCoins={gardenCompensationCoins}
+            onClaimCompensation={hasClaimedGardenCompensation ? undefined : handleClaimGardenCompensation} />}
           onAdventure={() => { setCommunityRoute(undefined); setActivePage('adventure'); }}
-          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onGarden={handleOpenGarden} onShop={() => handleOpenShop()} onExpedition={() => setActivePage('expedition')}
+          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onExpedition={() => setActivePage('expedition')}
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage

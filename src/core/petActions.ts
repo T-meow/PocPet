@@ -19,8 +19,8 @@ import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, g
 import type { BuiltinItemId, BuyItemOptions, CareActionKey, ItemDefinition, ItemId, PetAction, PetBirthday, PetState, PomodoroDurations, RecentActivity, UseInventoryItemOptions } from './petTypes';
 import { defaultPomodoroState, getDefaultPomodoroRemainingMs, getPomodoroPhaseDurationMs, normalizePomodoroSettings, pickPomodoroActivity, pomodoroMinHealthThreshold, pomodoroPhaseLabels, pomodoroResetEventMinFocusMs } from './pomodoro';
 import { startSleepSnapshot, wakePet } from './petEvents';
-import { getItemStatEffect, getItemUsePlan, getPictureBookReward, goldenAppleRecoveryPercent, overfedMessage } from './itemEffects';
-import { updatePetSatiety } from './petStats';
+import { applyItemHungerEffect, getItemStatEffect, getItemUsePlan, getPictureBookReward, goldenAppleRecoveryPercent, overfedMessage } from './itemEffects';
+import { clampPetHunger, updatePetSatiety } from './petStats';
 import { randomInt } from './utils';
 import { formatPracticeSkillXp, isPartnerSchedulePetBusy } from './partnerSchedule';
 import { recordDishTaste } from './kitchen';
@@ -175,7 +175,7 @@ export const upgradePet = (pet: PetState, now = Date.now()): PetState => {
 
   const upgraded = {
     ...next,
-    hunger: clampPetStat(next, current.hunger + statCapPerLevel),
+    hunger: current.hunger + statCapPerLevel,
     mood: clampPetStat(next, current.mood + statCapPerLevel),
     cleanliness: clampPetStat(next, current.cleanliness + statCapPerLevel),
     energy: clampPetEnergy(next, current.energy + statCapPerLevel),
@@ -255,7 +255,7 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
           ...withActivity(base, 'happy', now),
           mood: clampPetStat(base, base.mood + scalePetStatDelta(base, basePlayMoodGain + (base.weather === 'sunny' ? 2 : 0))),
           energy: clampPetEnergy(base, base.energy - playEnergyCost),
-          hunger: clampPetStat(base, base.hunger + scalePetStatDelta(base, -4)),
+          hunger: clampPetHunger(base, base.hunger + scalePetStatDelta(base, -4)),
           health: clampPetHealth(base, base.health - healthDrop),
           recentEvent: `${t('pet.action.play', { name: base.name })}${base.weather === 'sunny' ? t('pet.weather.effect.sunnyPlay') : ''}${incidentText}${overuse.text}`,
         }, 'play', now), 'play', now), 'play');
@@ -270,7 +270,7 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
           ...withActivity(base, 'bath', now),
           cleanliness: clampPetStat(base, base.cleanliness + Math.min(80, scalePetStatDelta(base, 20 + (base.weather === 'rainy' ? 5 : 0) + seasonCleanBonus + achievementCareBonus))),
           energy: clampPetEnergy(base, base.energy - 3),
-          hunger: clampPetStat(base, base.hunger + scalePetStatDelta(base, -2)),
+          hunger: clampPetHunger(base, base.hunger + scalePetStatDelta(base, -2)),
           mood: clampPetStat(base, base.mood + Math.min(3, scalePetStatDelta(base, 1))),
           recentEvent: `${t('pet.action.clean', {
             name: base.name,
@@ -468,7 +468,7 @@ const useInventoryItemInternal = (
     return (wokePet ? incrementManualWake : (nextPet: PetState) => nextPet)(incrementAchievementItemUse(incrementAchievementCareAction(recordWishProgress(recordYearlyItemUse({
       ...withActivity(awakeCurrent, 'eat_cookie', now),
       isSleeping: false,
-      hunger: statCap,
+      hunger: Math.max(awakeCurrent.hunger, statCap),
       mood: statCap,
       cleanliness: statCap,
       energy: energyCap,
@@ -488,7 +488,7 @@ const useInventoryItemInternal = (
     const usedGoldenApple = recordYearlyItemUse(recordYearlyCareAction({
       ...withActivity(awakeCurrent, 'eat_cookie', now),
       isSleeping: false,
-      hunger: clampPetStat(awakeCurrent, awakeCurrent.hunger + (effect.hunger ?? 0)),
+      hunger: applyItemHungerEffect(awakeCurrent, item, effect.hunger ?? 0),
       mood: clampPetStat(awakeCurrent, awakeCurrent.mood + (effect.mood ?? 0) + scalePetStatDelta(awakeCurrent, wokePet ? -2 : 0)),
       cleanliness: clampPetStat(awakeCurrent, awakeCurrent.cleanliness + (effect.cleanliness ?? 0)),
       energy: clampPetEnergy(awakeCurrent, awakeCurrent.energy + (effect.energy ?? 0)),
@@ -572,7 +572,7 @@ const useInventoryItemInternal = (
     recordYearlyCareAction({
       ...withActivity(base, itemActivity[itemId] ?? defaultItemActivity, now),
       isSleeping: false,
-      hunger: clampPetStat(base, base.hunger + (effect.hunger ?? 0) * quantity),
+      hunger: applyItemHungerEffect(base, item, (effect.hunger ?? 0) * quantity),
       mood: clampPetStat(base, base.mood + (effect.mood ?? 0) * quantity + favoriteMoodBonus + scalePetStatDelta(base, wokePet ? -2 : 0)),
       cleanliness: clampPetStat(base, base.cleanliness + (effect.cleanliness ?? 0) * quantity),
       energy: clampPetEnergy(base, base.energy + (effect.energy ?? 0) * quantity),
@@ -643,7 +643,7 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
       hearts: heartGain.hearts,
       boostCards: heartGain.boostCards,
       mood: clampPetStat(base, base.mood + scalePetStatDelta(base, -12)),
-      hunger: clampPetStat(base, base.hunger - interactionCost.hunger),
+      hunger: clampPetHunger(base, base.hunger - interactionCost.hunger),
       cleanliness: clampPetStat(base, base.cleanliness - interactionCost.cleanliness),
       energy: nextEnergy,
       lastPetInteractionAt: now,
@@ -658,7 +658,7 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   const touched = recordWishProgress(recordYearlyCareAction({
     ...withActivity(base, 'happy', now, 3200),
     mood: clampPetStat(base, base.mood + actualEnergyCost * petInteractionMoodPerEnergy),
-    hunger: clampPetStat(base, base.hunger - interactionCost.hunger),
+    hunger: clampPetHunger(base, base.hunger - interactionCost.hunger),
     cleanliness: clampPetStat(base, base.cleanliness - interactionCost.cleanliness),
     energy: nextEnergy,
     lastPetInteractionAt: now,

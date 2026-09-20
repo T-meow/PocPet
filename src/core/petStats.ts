@@ -81,6 +81,10 @@ export const updatePetSatiety = (pet: PetState): PetState => {
 
 export const clampPetStat = (pet: PetState, value: number) => clampStat(value, getPetStatCap(pet));
 
+// Non-food changes keep any stored fullness above the cap without adding more.
+export const clampPetHunger = (pet: Pick<PetState, 'level' | 'hunger'>, value: number) =>
+  clampStat(value, Math.max(getPetStatCap(pet), pet.hunger));
+
 export const clampPetHealth = (pet: PetState, value: number) => clampHealth(value, getPetStatCap(pet));
 
 export const getPetEnergyCap = (pet: Pick<PetState, 'level' | 'classicEndgame'> & Partial<Pick<PetState, 'adventure' | 'community'>>) =>

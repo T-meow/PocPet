@@ -42,6 +42,8 @@ interface GardenPageProps {
   pet: PetState;
   itemIconMap: Partial<Record<string, string>>;
   onBack: () => void;
+  backLabel?: string;
+  embedded?: boolean;
   onUnlockSlot: (slotIndex: number) => void;
   onPlantTree: (slotIndex: number, treeId: GardenTreeId) => void;
   onRecycleSapling: (treeId: GardenTreeId) => void;
@@ -90,7 +92,7 @@ const weatherIcons: Record<WeatherType, LucideIcon> = {
 
 type GardenActionDialog = { kind: 'plant' | 'manage'; slotIndex: number } | { kind: 'tools' } | null;
 
-export const GardenPage = ({ pet, itemIconMap, onBack, onUnlockSlot, onPlantTree, onRecycleSapling, onWater, onFertilize, onNutrient, onHarvest, onClear, onUpgradeTool, onOpenShop, compensationCoins = 0, onClaimCompensation }: GardenPageProps) => {
+export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.back'), embedded = false, onUnlockSlot, onPlantTree, onRecycleSapling, onWater, onFertilize, onNutrient, onHarvest, onClear, onUpgradeTool, onOpenShop, compensationCoins = 0, onClaimCompensation }: GardenPageProps) => {
   const [actionDialog, setActionDialog] = useState<GardenActionDialog>(null);
   const [fertilizerQuantities, setFertilizerQuantities] = useState<Record<number, number>>({});
   const now = Date.now();
@@ -106,9 +108,9 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onUnlockSlot, onPlantTree
   const plantSlot = actionDialog?.kind === 'plant' ? view.garden.slots[actionDialog.slotIndex] : undefined;
 
   return (
-    <section className="garden-page" aria-label={t('ui.garden.aria')}>
-      <header className="garden-page__header">
-        <button type="button" className="icon-button" onClick={onBack} aria-label={t('ui.garden.back')} title={t('ui.garden.back')}>
+    <section className={`garden-page${embedded ? ' garden-page--embedded' : ''}`} aria-label={t('ui.garden.aria')}>
+      {!embedded && <header className="garden-page__header">
+        <button type="button" className="icon-button" onClick={onBack} aria-label={backLabel} title={backLabel}>
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
         <div className="garden-page__heading">
@@ -117,11 +119,11 @@ export const GardenPage = ({ pet, itemIconMap, onBack, onUnlockSlot, onPlantTree
             <strong>{t('ui.garden.lifetimeHarvest', { count: pet.garden.lifetimeHarvestCount })}</strong>
           </div>
         </div>
-      </header>
+      </header>}
 
       <section className={`garden-board v2-card scene-${environment.season}`}>
         <div className="v2-card-heading">
-          <div><p className="eyebrow">A LITTLE GARDEN</p><h3>{L('五块土地，一点期待', 'Five plots, little hopes')}</h3></div>
+          <div><p className="eyebrow">{embedded ? t('ui.garden.lifetimeHarvest', { count: pet.garden.lifetimeHarvestCount }) : 'A LITTLE GARDEN'}</p><h3>{L('五块土地，一点期待', 'Five plots, little hopes')}</h3></div>
           <button type="button" className="secondary-button" onClick={() => setActionDialog({ kind: 'tools' })}><Wrench size={17} />{t('ui.garden.toolsButton')}</button>
         </div>
         {onClaimCompensation && compensationCoins > 0 && (

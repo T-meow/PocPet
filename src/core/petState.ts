@@ -324,7 +324,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const community = normalizeCommunityState(raw.community);
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
-  const hunger = clampStat(isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap);
+  const hunger = Math.max(0, isNumber(raw.hunger) ? raw.hunger : fallback.hunger);
   const normalizedIsSleeping = Boolean(raw.isSleeping);
   const hasValidSleepSnapshot = normalizedIsSleeping
     && isNumber(raw.sleepStartedAt)
@@ -506,7 +506,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
       ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartMood) ? raw.sleepStartMood : isNumber(raw.mood) ? raw.mood : fallback.mood, statCap)
       : 0,
     sleepStartHunger: normalizedIsSleeping
-      ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartHunger) ? raw.sleepStartHunger : isNumber(raw.hunger) ? raw.hunger : fallback.hunger, statCap)
+      ? Math.max(0, hasValidSleepSnapshot && isNumber(raw.sleepStartHunger) ? raw.sleepStartHunger : hunger)
       : 0,
     sleepStartCleanliness: normalizedIsSleeping
       ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartCleanliness) ? raw.sleepStartCleanliness : isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, statCap)

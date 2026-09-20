@@ -15,7 +15,7 @@ import {
   partnerScheduleCategories,
   partnerScheduleDailyContributionTargetMs,
 } from './partnerScheduleEffects';
-import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, getPetStatScale, getPetStatThreshold, scalePetStatDelta } from './petStats';
+import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetStatScale, getPetStatThreshold, scalePetStatDelta } from './petStats';
 import { getWorkSeasonCoinBonus } from './season';
 import type {
   ActivePartnerSchedule,
@@ -477,7 +477,7 @@ const settleActiveCosts = (pet: PetState, now: number): PetState => {
   return {
     ...pet,
     energy: active.legacyPrepaid ? pet.energy : clampPetEnergy(pet, pet.energy - (preview.consumed.energy - previous.energy)),
-    hunger: active.legacyPrepaid ? pet.hunger : clampPetStat(pet, pet.hunger - (preview.consumed.hunger - previous.hunger)),
+    hunger: active.legacyPrepaid ? pet.hunger : clampPetHunger(pet, pet.hunger - (preview.consumed.hunger - previous.hunger)),
     mood: active.legacyPrepaid ? pet.mood : clampPetStat(pet, pet.mood - (preview.consumed.mood - previous.mood)),
     partnerSchedule: { ...pet.partnerSchedule, active: { ...active, costs: preview.total, settledProgressMs: preview.progress.progressMs } },
   };
@@ -507,7 +507,7 @@ const finishActiveSchedule = (pet: PetState, completedAt: number, outcome: 'comp
   return {
     ...pet,
     energy,
-    hunger: refund ? clampPetStat(pet, pet.hunger + preview.total.hunger - preview.consumed.hunger) : pet.hunger,
+    hunger: refund ? clampPetHunger(pet, pet.hunger + preview.total.hunger - preview.consumed.hunger) : pet.hunger,
     mood: refund ? clampPetStat(pet, pet.mood + preview.total.mood - preview.consumed.mood) : pet.mood,
     recentActivity: 'idle',
     recentActivityUntil: 0,

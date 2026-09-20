@@ -200,8 +200,8 @@ try {
   ]);
   const noop = () => {};
   for (const fixture of [fresh(), createCommunityTestPet('harvest', T), pet]) {
-    const html = renderToStaticMarkup(createElement(CommunityPage, { pet: fixture, portrait: 'furo.png', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, onGarden: noop }));
-    assert(html.includes('溪畔社区') && html.includes('data-scene="farm"'));
+    const html = renderToStaticMarkup(createElement(CommunityPage, { pet: fixture, portrait: 'furo.png', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, orchard: null }));
+    assert(html.includes('溪畔农场') && html.includes('data-scene="farm"'));
     assert(html.includes('data-place="field"') && html.includes('aria-haspopup="dialog"'));
     assert(!html.includes('community-place-dialog'), 'farm opens on the scene; operations wait for a place selection');
     assert(!/NaN|src="undefined"/.test(html));

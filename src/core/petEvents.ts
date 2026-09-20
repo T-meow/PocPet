@@ -4,7 +4,7 @@ import { grantDailyGachaTickets } from './goldenAppleGacha';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem } from './items';
 import { createNeighborGift, getNeighborEventRandom, pickNeighborEventValue, pickNeighborName } from './neighborGifts';
-import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetStat, getPetStatThreshold, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
+import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetStatThreshold, roundPetStatDisplayAmount, scalePetStatDelta } from './petStats';
 import type { ItemEffect, ItemId, NeighborEventContext, PetState, WeatherType } from './petTypes';
 import { hashString, pickRandom } from './utils';
 import { neighborGiftDailyLimit } from './neighbors';
@@ -216,7 +216,7 @@ export const applyTimedEvent = (pet: PetState, event: TimedEvent, now: number, p
   const effectText = getTimedEventEffectText(scaledEffect);
   const withEvent: PetState = {
     ...current,
-    hunger: clampPetStat(current, current.hunger + (scaledEffect.hunger ?? 0)),
+    hunger: clampPetHunger(current, current.hunger + (scaledEffect.hunger ?? 0)),
     mood: clampPetStat(current, current.mood + (scaledEffect.mood ?? 0)),
     cleanliness: clampPetStat(current, current.cleanliness + (scaledEffect.cleanliness ?? 0)),
     energy: clampPetEnergy(current, current.energy + (scaledEffect.energy ?? 0)),

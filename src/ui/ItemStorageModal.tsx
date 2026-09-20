@@ -85,8 +85,9 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
     </header>
     {mode === 'bag' && context?.showStats !== false && <div className="storage-stats" role="group" aria-label={t('ui.inventory.currentStats')}>{stats.map((key) => {
       const max = Math.round(key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet));
-      const value = Math.max(0, Math.min(max, Math.round(pet[key])));
-      return <div className={`storage-stat storage-stat--${key}`} key={key}><span>{t(`ui.stats.${key}`)}</span><strong>{value}<small>/{max}</small></strong><i role="progressbar" aria-label={t(`ui.stats.${key}`)} aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}><b style={{ width: `${value / max * 100}%` }} /></i></div>;
+      const value = Math.max(0, Math.round(pet[key]));
+      const filled = Math.min(max, value);
+      return <div className={`storage-stat storage-stat--${key}`} key={key}><span>{t(`ui.stats.${key}`)}</span><strong>{value}<small>/{max}</small></strong><i role="progressbar" aria-label={t(`ui.stats.${key}`)} aria-valuemin={0} aria-valuemax={max} aria-valuenow={filled} aria-valuetext={`${value} / ${max}`}><b style={{ width: `${filled / max * 100}%` }} /></i></div>;
     })}</div>}
     <div className="storage-body">
       <section className="storage-catalogue" aria-label={L('物品目录', 'Item catalogue')}>

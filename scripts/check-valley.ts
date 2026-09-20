@@ -203,11 +203,12 @@ const { createElement } = await import('react');
 const { renderToStaticMarkup } = await import('react-dom/server');
 const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error' });
 try {
-  const [{ CommunityPage }, { AdventureMap }, { getAdventureNodeScene }] = await Promise.all([
-    server.ssrLoadModule('/src/ui/CommunityPage.tsx'), server.ssrLoadModule('/src/ui/AdventureMap.tsx'), server.ssrLoadModule('/src/ui/adventureScenes.ts'),
+  const [{ CommunityPage }, { GardenPage }, { AdventureMap }, { getAdventureNodeScene }] = await Promise.all([
+    server.ssrLoadModule('/src/ui/CommunityPage.tsx'), server.ssrLoadModule('/src/ui/GardenPage.tsx'), server.ssrLoadModule('/src/ui/AdventureMap.tsx'), server.ssrLoadModule('/src/ui/adventureScenes.ts'),
   ]);
   const noop = () => {};
-  const props = { pet: campaign, portrait: '', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, onGarden: noop, onAdventure: noop };
+  const orchard = createElement(GardenPage, { pet: campaign, itemIconMap: {}, embedded: true });
+  const props = { pet: campaign, portrait: '', update: noop, onBack: noop, onExplore: noop, onKitchen: noop, onShop: noop, orchard, onAdventure: noop };
   for (const initialTab of ['village', 'fishing']) {
     const html = renderToStaticMarkup(createElement(CommunityPage, { ...props, initialTab }));
     assert(html.includes(`data-scene="${initialTab === 'village' ? 'farm' : 'fishing'}"`));
@@ -218,6 +219,19 @@ try {
     const html = renderToStaticMarkup(createElement(CommunityPage, { ...props, initialPlace }));
     assert(html.includes('role="dialog"') && html.includes('community-place-title'), initialPlace);
     assert(!/NaN|src="undefined"/.test(html), initialPlace);
+    assert(html.includes('dialog-shell--fullscreen'), `${initialPlace} operates in a full-screen dialog`);
+    assert.equal((html.match(/class="community-event"/g) ?? []).length, 1, 'recent information stays on the scene');
+    if (initialPlace === 'orchard') {
+      assert.equal((html.match(/<article class="garden-plot /g) ?? []).length, 5, 'orchard controls are inside the place dialog');
+      assert(!html.includes('garden-page__header'), 'the orchard uses the dialog header');
+    }
+  }
+  const closedOrchard = renderToStaticMarkup(createElement(CommunityPage, { ...props, initialPlace: 'orchard', place: null }));
+  assert(!closedOrchard.includes('role="dialog"'), 'a controlled close overrides the initial orchard request');
+  for (const place of ['coop', 'barn']) {
+    const pet = { ...campaign, community: { ...campaign.community, facilities: { ...campaign.community.facilities, [place]: { ...campaign.community.facilities[place as 'coop' | 'barn'], built: true } } } };
+    const html = renderToStaticMarkup(createElement(CommunityPage, { ...props, pet, place }));
+    assert(html.includes('添饲料') && html.includes('照料') && html.includes('收取'), `${place} exposes production controls after unlocking`);
   }
   const scenes = new Set<string>();
   for (const id of valleyQuestIds) {
@@ -227,5 +241,5 @@ try {
     assert(/^data:image\/svg\+xml[;,]/.test(scene)); scenes.add(scene);
   }
   assert.equal(scenes.size, 7);
-  console.log('Valley React passed: both scene entrances, all 13 place dialogs, seven task panels, completed-place revisits and distinct SVG scene assets. Visual/touch acceptance is manual.');
+  console.log('Valley React passed: both scene entrances, all 13 full-screen place dialogs, embedded orchard controls, controlled close, unlocked animal controls, seven task panels and distinct SVG scene assets. Visual/touch acceptance is manual.');
 } finally { await server.close(); }

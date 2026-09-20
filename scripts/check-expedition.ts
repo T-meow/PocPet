@@ -5,6 +5,8 @@ import { createCommunityTestPet } from './fixtures/community-pet';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import { advancePet } from '../src/core/petLifecycle';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
+import { getInventoryItem } from '../src/core/items';
+import { getItemRecoveryPreview } from '../src/core/itemEffects';
 import { createSaveFileText, parseSaveFileText, UnsupportedSaveVersionError } from '../src/core/saveCodec';
 import { reconcilePetClock } from '../src/core/gameClock';
 import { chooseExpeditionStep, claimExpedition, continueExpedition, getExpeditionHarvestLeft, getExpeditionStartReason, pauseExpedition, restExpedition, returnExpedition, selectExpeditionReturn, startExpedition, upgradeExpeditionBase, useExpeditionSupply } from '../src/core/expedition';
@@ -76,6 +78,21 @@ assert.equal(p.community.expedition.active!.bag.forest_berry_seed, 1);
 const homeFeed = useInventoryItem(p, 'dish_mushroom_rice', T); assert.deepEqual(homeFeed.inventory, p.inventory);
 assert(!applyPetAction(p, 'sleep', T).isSleeping);
 assert(!startPomodoro(p, T).pomodoro.isRunning);
+
+// Expedition meals retain overflow through saves and subsequent route costs.
+const supplyBase = ready();
+const supplyTrip = startExpedition({ ...supplyBase, inventory: { ...supplyBase.inventory, trail_mix: 2 } }, ['forest'], { trail_mix: 2 }, false, 'test.furo', 'Furo', 'manual', 1, T);
+const nearlyFullTrip = { ...supplyTrip, hunger: getPetStatCap(supplyTrip) - 10, isOverfed: false };
+const supplyId = nearlyFullTrip.community.expedition.active!.id;
+const supplyPreview = getItemRecoveryPreview(nearlyFullTrip, getInventoryItem('trail_mix')!, 1, []);
+const suppliedTrip = useExpeditionSupply(nearlyFullTrip, supplyId, nearlyFullTrip.community.expedition.active!.revision, 'trail_mix', T);
+assert.equal(suppliedTrip.hunger - nearlyFullTrip.hunger, supplyPreview.actual.hunger, 'expedition food uses the shared overflow preview');
+assert(suppliedTrip.hunger > getPetStatCap(suppliedTrip));
+assert.equal(suppliedTrip.community.expedition.active!.bag.trail_mix, 1);
+const reloadedTrip = roundTrip(suppliedTrip);
+assert.equal(reloadedTrip.hunger, suppliedTrip.hunger, 'expedition overflow survives save import');
+assert.equal(useExpeditionSupply(reloadedTrip, supplyId, reloadedTrip.community.expedition.active!.revision, 'trail_mix', T).community.expedition.active!.bag.trail_mix, 1, 'full expedition companions cannot eat again');
+assert.equal(choose(reloadedTrip, 'observe').hunger, reloadedTrip.hunger - 3, 'expedition steps consume only their hunger cost');
 
 // Base effects are bounded per trip; pausing is a safe, persistent checkpoint.
 p = createCommunityTestPet('long-trip', T); const paused = p.community.expedition.active!;

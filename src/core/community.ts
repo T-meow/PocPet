@@ -3,7 +3,7 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
 import { addSkillXp, practiceSkillXp } from './partnerSchedule';
-import { clampPetEnergy, clampPetStat, updatePetSatiety } from './petStats';
+import { clampPetEnergy, clampPetHunger, updatePetSatiety } from './petStats';
 import type { Inventory, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getCommunityDay, acceptCommunityTask, cancelCommunityTask, claimCommunityTask, recordCommunityTaskEvent } from './communityCommissions';
@@ -41,7 +41,7 @@ export const repairCommunityGarden = (pet: PetState, expectedStep: number, now =
   const c = pet.community, config = communityConfig;
   if (!canSpendCompanionTime(pet) || !c.irrigationFound || c.gardenBuilt || c.repairStep !== expectedStep || expectedStep >= 2) return pet;
   if (pet.hunger < config.repairHunger || pet.energy < config.repairEnergy) return fail(pet, '修复需要 4 饱食、4 体力，请先休整。');
-  return updatePetSatiety({ ...pet, hunger: clampPetStat(pet, pet.hunger - config.repairHunger), energy: clampPetEnergy(pet, pet.energy - config.repairEnergy), lastInteractionAt: now,
+  return updatePetSatiety({ ...pet, hunger: clampPetHunger(pet, pet.hunger - config.repairHunger), energy: clampPetEnergy(pet, pet.energy - config.repairEnergy), lastInteractionAt: now,
     community: { ...c, repairStep: c.repairStep + 1 }, partnerSchedule: { ...pet.partnerSchedule, skills: { ...pet.partnerSchedule.skills, garden: addSkillXp(pet.partnerSchedule.skills.garden, practiceSkillXp) } },
     recentEvent: expectedStep === 0 ? '一起清理了菜地的杂草，园艺练习已记入技能。接下来疏通水渠。' : '水渠已经疏通，装好找到的阀芯、备齐建材就能开放菜地。' });
 };
