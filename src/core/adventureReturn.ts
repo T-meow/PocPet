@@ -22,7 +22,7 @@ export const getAdventureRewardPreview = (pet: PetState, now = pet.lastUpdatedAt
   }
   if (trip?.region === 'tutorial' || trip?.purpose) return { steps, complete, first, hearts: 0, coins: 0 };
   if (trip && trip.rulesVersion >= 7) {
-    const earned = complete ? earnExplorationPay(pet, 'manual', now) : { coins: 0, hearts: 0 };
+    const earned = complete ? earnExplorationPay(pet, 'manual', now, 'valley', trip.rewardsVersion === 1) : { coins: 0, hearts: 0 };
     return { steps, complete, first, hearts: earned.hearts, coins: earned.coins };
   }
   if (trip && trip.rulesVersion >= 3) return { steps, complete, first, hearts: complete ? Math.round(22 * getPetStatScale(pet)) : 0, coins: 0 };
@@ -33,7 +33,7 @@ export const finishAdventure = (pet: PetState, now: number, forced = false): Pet
   const trip = pet.adventure.active;
   if (!trip || pet.adventure.pending) return pet;
   const reward = getAdventureRewardPreview(pet, now);
-  if (trip.rulesVersion >= 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = earnExplorationPay(pet, 'manual', now).pet;
+  if (trip.rulesVersion >= 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = earnExplorationPay(pet, 'manual', now, 'valley', trip.rewardsVersion === 1).pet;
   if (trip.rulesVersion < 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = recordLegacyPatrolPay(pet, trip.completedDay ?? getDailyResetDateKey(now), now);
   const items = { ...trip.bag };
   if (trip.tool) items.trail_rope = (items.trail_rope ?? 0) + 1;

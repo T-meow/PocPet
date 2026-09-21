@@ -130,7 +130,7 @@ try {
       let s = discovered.community.fishing.active!; assert(s);
       assert.equal(s.water, water, 'active casts in new waters survive reload');
       discovered = actCommunityFishing(discovered, s.id, 0, 'hook', s.biteAt);
-      while (discovered.community.fishing.active) { s = discovered.community.fishing.active; discovered = actCommunityFishing(discovered, s.id, s.revision, s.tension + 32 >= 100 ? 'slack' : 'reel', s.lastActionAt + 700); }
+      while (discovered.community.fishing.active) { s = discovered.community.fishing.active; discovered = actCommunityFishing(discovered, s.id, s.revision, 'reel', s.lastActionAt + 700); }
       const pending = discovered.community.fishing.pending!; assert(pending);
       discovered = claimCommunityFish(discovered, pending.id);
     }
@@ -201,7 +201,7 @@ try {
   assert.deepEqual(resumed.community.ranchDay, frozen.community.ranchDay);
   const legacy = ready() as any; delete legacy.community.waterAccess; delete legacy.community.forageResearch; delete legacy.community.ranchDay; delete legacy.community.processing; delete legacy.community.discoveredCrops;
   legacy.community.schemaVersion = 4;
-  const migrated = normalizePet(legacy, T); assert(isWaterOpen(migrated, 'pond')); assert(isWaterOpen(migrated, 'upstream')); assert.equal(migrated.community.schemaVersion, 8);
+  const migrated = normalizePet(legacy, T); assert(isWaterOpen(migrated, 'pond')); assert(isWaterOpen(migrated, 'upstream')); assert.equal(migrated.community.schemaVersion, 10);
   assert.deepEqual(migrated.inventory, legacy.inventory); assert.deepEqual(migrated.community.fishing.journal, legacy.community.fishing.journal);
   console.log(`Food production passed: 16 crops, 12 wild ingredients, 7 processors, 18 fish, ${recipes.length} recipes, ${audited} purchase-chain scenarios, milk batches, regional quotas, saves, freeze and recovery across levels/skills/trophies.`);
 } finally { Date.now = originalNow; }

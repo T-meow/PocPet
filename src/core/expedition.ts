@@ -14,7 +14,8 @@ import { wildIngredientIds, wildIngredients } from './foodCatalog';
 import { regionalTreasures, regionalTreasureIds, type RegionalTreasureId } from './regionalTreasures';
 import { spendToolUse, toolDurabilityLabel } from './toolDurability';
 import { toolDefinitions, type DurableToolId } from './fieldEquipmentData';
-import { advanceExplorationBudget, earnExplorationPay, getExplorationBudget, recordValleyObservation, spendExplorationHarvest } from './explorationBudget';
+import { advanceExplorationBudget, earnExplorationPay, getExplorationBudget, recordValleyObservation, spendExplorationHarvest, settleExplorationLoot } from './explorationBudget';
+import { getDecorationEffects } from './decorationEffects';
 import { getExpeditionCampStep, getValleyExpeditionChoices, isValleyExpedition } from './valleyExpedition';
 import { valleyGatherTargets, type ValleyGatherTarget, type ValleyTravelStyle } from './valleyExplorationData';
 import { getExplorationBagCapacity } from './explorationBackpack';
@@ -84,7 +85,7 @@ export const startExpedition = (pet: PetState, route: RegionId[], bag: Inventory
   const rationQuote = mode === 'idle' ? quoteExpeditionRations(pet, route[0], parts, options.rations) : undefined;
   const checked = mode === 'manual' && style !== 'walk' && route.includes('valley');
   const trip: ExpeditionTrip = { rulesVersion: checked ? 4 : 3, ...(checked ? { checkState: createExplorationCheckState(`${pet.createdAt}:expedition:${s.nextId}:${startAt}`) } : {}), id: `expedition:${s.nextId}`, revision: 0, mode, actorId, actorName, route: [...route], leg: 0, step: 0, bag: { ...bag }, ground: {}, tool, rested: [], paused: false,
-    style, target, harvestSpent: 0, energySpent: 0, healthLost: 0, paidActions: 0, reservedHarvests: mode === 'idle' ? parts : 0,
+    style, target, rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, harvestSpent: 0, energySpent: 0, healthLost: 0, paidActions: 0, reservedHarvests: mode === 'idle' ? parts : 0,
     ...(rationQuote ? { rationPlan: lockRationPlan(rationQuote, parts, `${pet.createdAt}:${s.nextId}:${startAt}`) } : {}),
     startedAt: startAt, endsAt: startAt + (mode === 'idle' ? parts * 3600000 : 0), settledParts: 0, parts: mode === 'idle' ? parts : 1, coins: 0, hearts: 0, journal: [`和${actorName}一起出发，目的地是${route.map(id => regions[id].name).join(' → ')}。`] };
   if (mode === 'idle') {
@@ -182,6 +183,7 @@ export const chooseExpeditionStep = (pet: PetState, id: string, revision: number
   const use = !checked && choice.equipment ? spendToolUse(next, choice.equipment, choice.equipment === 'trail_rope') : undefined;
   if (choice.equipment && !checked && !use) return pet;
   next = use?.pet ?? next;
+  const usedBefore = next.community.expedition.loop?.used ?? 0;
   if (choice.harvest) next = spendExplorationHarvest(next, choice.harvest, now);
   else if (!isValleyExpedition(t) && getExpeditionEvent(t) === 'gather' && Object.keys(choice.finds).length) next = reserveHarvest(next, region, 1, now);
   if (choice.research) {
@@ -205,13 +207,19 @@ export const chooseExpeditionStep = (pet: PetState, id: string, revision: number
   next = withExpedition(next, { regions: first ? { ...state.regions, [region]: { ...state.regions[region], surveyed: true, storyAt: now, actorId: t.actorId, actorName: t.actorName } } : state.regions,
     active: { ...t, paidActions: (t.paidActions ?? 0) + Number(choice.hunger > 0 || choice.energy > 0), harvestSpent: (t.harvestSpent ?? 0) + (choice.harvest ?? 0), energySpent: Math.max(0, (t.energySpent ?? 0) + (checked?.energySpent ?? choice.energy)), healthLost: Math.max(0, (t.healthLost ?? 0) + (checked?.healthLost ?? -Math.min(0, choice.health))), tool: t.tool && !(choice.equipment === 'trail_rope' && (checked?.toolBroken || use?.broken)), revision: revision + 1, step: t.step + 1, coins: t.coins + (first ? 20 : 0), hearts: t.hearts + (first ? 4 : 0), journal: append(t, checked ? checked.pet.recentEvent : `${regions[region].name} · ${choice.title}`), ...(checked ? { checkState: checked.state, bag: choice.mealItem ? removeInventoryItem(t.bag, choice.mealItem) : t.bag } : {}) } });
   next = putFinds(next, checked?.result.finds ?? choice.finds);
+  if (t.rewardsVersion === 1) {
+    const count = (next.community.expedition.loop?.used ?? 0) - usedBefore;
+    const successful = choice.research?.kind !== 'treasure' && (!checked || ['steady', 'success', 'excellent'].includes(checked.result.outcome));
+    const extra = settleExplorationLoot(next, count, 'manual', region, now, successful ? checked?.result.finds ?? choice.finds : {}, t.gatherBonus ?? 0);
+    next = putFinds(extra.pet, extra.finds);
+  }
   if (isValleyExpedition(t) && t.style !== 'short') {
     if (t.style !== 'walk') {
       const observed = recordValleyObservation(next, `${t.step}:${choice.observation ?? (choice.id.endsWith(':b') || choice.id === 'gather:2' ? 'b' : 'a')}`, now);
       next = putFinds(observed.pet, observed.finds);
     }
     if (t.step + 1 === 6 && t.style !== 'walk') {
-      const earned = earnExplorationPay(next, 'manual', now); next = earned.pet;
+      const earned = earnExplorationPay(next, 'manual', now, 'valley', t.rewardsVersion === 1); next = earned.pet;
       const current = next.community.expedition.active!;
       next = withExpedition(next, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });
       const loop = next.community.expedition.loop;
@@ -223,7 +231,7 @@ export const chooseExpeditionStep = (pet: PetState, id: string, revision: number
     }
   }
   if (t.rulesVersion >= 3 && region !== 'valley' && t.step + 1 === getExpeditionCampStep(t)) {
-    const earned = earnExplorationPay(next, 'manual', now, region); next = earned.pet;
+    const earned = earnExplorationPay(next, 'manual', now, region, t.rewardsVersion === 1); next = earned.pet;
     const current = next.community.expedition.active!;
     next = withExpedition(next, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });
   }
@@ -244,7 +252,7 @@ export const useExpeditionSupply = (pet: PetState, id: string, revision: number,
   if (!Object.entries(recovery).some(([key, value]) => value > pet[key as keyof typeof recovery])) return fail(pet, '当前不需要这份补给。');
   return updatePetSatiety(incrementAchievementItemUse({ ...withExpedition(pet, { active: { ...t, energySpent: Math.max(0, (t.energySpent ?? 0) - (recovery.energy - pet.energy)), healthLost: Math.max(0, (t.healthLost ?? 0) - (recovery.health - pet.health)), revision: revision + 1, bag: removeInventoryItem(t.bag, itemId) } }), ...recovery, recentEvent: `使用${item.name} ×1，其余补给留在行囊。` }, itemId as ItemId));
 };
-export const getBaseUpgrade = (level: number, region: RegionId = 'valley') => level === 0 ? { coins: 120, wood: 3, stone: 2, name: '修好休息基地', benefit: '开放挂机；每趟最多恢复本趟损失的体力 6、健康 3，可扎营暂停' } : { coins: 180, wood: 2, stone: 3, name: '修通往返步道', benefit: region === 'valley' ? '完善基地；累计采集 80 次并制作溪光水景后，溪谷巡路每日酬谢升至 2400 金币' : '以后经过此地可走捷径，安全通路的体力消耗降低 20%' };
+export const getBaseUpgrade = (level: number, region: RegionId = 'valley') => level === 0 ? { coins: 120, wood: 3, stone: 2, name: '修好休息基地', benefit: '开放挂机；每趟最多恢复本趟损失的体力 6、健康 3，可扎营暂停' } : { coins: 180, wood: 2, stone: 3, name: '修通往返步道', benefit: region === 'valley' ? '完善基地；累计采集 80 次并制作溪光水景后，溪谷巡路每日固定金币升至 1800，另有通用探索实物' : '以后经过此地可走捷径，安全通路的体力消耗降低 20%' };
 export const upgradeExpeditionBase = (pet: PetState, region: RegionId, expectedLevel: number, now = Date.now()): PetState => {
   if (pet.timePause) return pet;
   pet = advancePet(pet, now);

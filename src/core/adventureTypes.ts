@@ -31,6 +31,8 @@ export interface AdventureTrip {
   paidActions?: number;
   rested?: boolean;
   checkState?: import('./explorationChecks').ExplorationCheckState;
+  rewardsVersion?: 1;
+  gatherBonus?: number;
 }
 
 export interface AdventureResult {
@@ -55,7 +57,7 @@ export interface AdventureResult {
 }
 
 export interface AdventureState {
-  schemaVersion: 6;
+  schemaVersion: 7;
   backpackLevel: number;
   valleyCompleted: import('./valleyQuests').ValleyQuestId[];
   starterClaimed: boolean;

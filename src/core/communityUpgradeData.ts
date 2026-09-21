@@ -41,7 +41,7 @@ export const getAnimalCapacity = (community: CommunityState, id: AnimalId) => {
 };
 export const getFishingLevelEffects = (level: number) => {
   const index = Math.max(1, Math.min(5, Math.floor(level) || 1)) - 1;
-  return { energy: [3, 3, 2, 2, 1][index], hunger: index ? 1 : 2, windowSeconds: 20 + index * 5, tension: 32 - index * 2, strongTension: 24 - index * 2 };
+  return { energy: [3, 3, 2, 2, 1][index], hunger: index ? 1 : 2, waitSeconds: 8 - index };
 };
 export const openTutorialGarden = (community: CommunityState, adventure: AdventureState): CommunityState =>
   community.gardenBuilt || !((adventure.completed.tutorial ?? 0) > 0) ? community : { ...community, gardenBuilt: true, irrigationFound: true, repairStep: 2 };

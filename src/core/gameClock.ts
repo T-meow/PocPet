@@ -213,9 +213,13 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
       animals: pet.community.animals ? Object.fromEntries(Object.entries(pet.community.animals).map(([id, state]) => [id, { ...state, nextAt: state.nextAt === undefined ? undefined : shiftTimestamp(state.nextAt, offsetMs) }])) as PetState['community']['animals'] : pet.community.animals,
       fishing: pet.community.fishing ? { ...pet.community.fishing, active: preserveSessions && pet.community.fishing.active ? {
         ...pet.community.fishing.active,
-        biteAt: shiftTimestamp(pet.community.fishing.active.biteAt, offsetMs),
-        expiresAt: shiftTimestamp(pet.community.fishing.active.expiresAt, offsetMs),
-        lastActionAt: shiftTimestamp(pet.community.fishing.active.lastActionAt, offsetMs),
+        ...(pet.community.fishing.active.mode === 'idle' ? {
+          startedAt: shiftTimestamp(pet.community.fishing.active.startedAt, offsetMs),
+          endsAt: shiftTimestamp(pet.community.fishing.active.endsAt, offsetMs),
+        } : {
+          biteAt: shiftTimestamp(pet.community.fishing.active.biteAt, offsetMs),
+          lastActionAt: shiftTimestamp(pet.community.fishing.active.lastActionAt, offsetMs),
+        }),
       } : offsetMs === 0 ? pet.community.fishing.active : undefined } : pet.community.fishing,
       market: pet.community.market ? { ...pet.community.market,
         lastVisitAt: shiftTimestamp(pet.community.market.lastVisitAt, offsetMs),

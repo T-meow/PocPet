@@ -13,7 +13,8 @@ import { acceptCommunityTask, advanceCommunityBoard, canClaimCommunityTask, canc
 import { advanceCommunityMarket, getCommunitySaleable, getMarketCapacity, getMarketQuote, listCommunityGoods, recycleCommunityGoods, setCommunityMarketOpen, unlistCommunityGoods, upgradeCommunityMarket } from '../src/core/communityMarket';
 import { getCommunitySale } from '../src/core/communityEconomy';
 import { normalizeCommunityState } from '../src/core/communityState';
-import { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureStartReason } from '../src/core/adventure';
+import { advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureStartReason } from '../src/core/adventure';
+import { startAdventure } from './fixtures/legacy-exploration';
 import { canCraftRecipe, craftRecipe } from '../src/core/kitchen';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
 import { getShopItem, createItemRegistry, getInventoryDefinitions } from '../src/core/items';
@@ -87,7 +88,7 @@ assert.equal(roundTrip(care, T + 24 * H).community.animals.coop.cared, true);
 const lifecycleFarm = advancePet(farm, T + 24 * H);
 assert.equal(lifecycleFarm.community.animals.coop.stock, 6);
 
-// Manual fishing: atomic bait/costs, early/duplicate actions, slack, failure, cancel,
+// Manual fishing: atomic bait/costs, early/duplicate clicks, cancel,
 // save/reload during a session, full warehouse and permanent journal after use/sale.
 const catchFish = (pet: PetState, water: WaterId = 'pond', at = T) => {
   pet = startCommunityFishing(refill(pet), water, 'fishing_bait', false, at);
@@ -99,7 +100,7 @@ const catchFish = (pet: PetState, water: WaterId = 'pond', at = T) => {
   while (pet.community.fishing.active) {
     const a = pet.community.fishing.active;
     clock += 1000;
-    pet = actCommunityFishing(pet, id, a.revision, a.tension >= 60 ? 'slack' : 'reel', clock);
+    pet = actCommunityFishing(pet, id, a.revision, 'reel', clock);
   }
   assert(pet.community.fishing.pending, 'manual sequence catches a fish');
   assert.equal(actCommunityFishing(pet, id, 0, 'reel', clock), pet);
@@ -110,29 +111,31 @@ assert.equal(fishingStart.inventory.fishing_bait, 19); assert.equal(fishingStart
 assert(getAdventureStartReason(fishingStart, 'valley', T, 'commission').includes('鱼竿'));
 assert(!canCraftRecipe(fishingStart, 'milk_custard', false, 1));
 assert.equal(advanceCommunityFishing(fishingStart, T + H).community.fishing.pending, undefined);
-assert.equal(advanceCommunityFishing(fishingStart, T + H).community.fishing.active, undefined);
+assert.equal(advanceCommunityFishing(fishingStart, T + H).community.fishing.active?.id, fishingStart.community.fishing.active!.id);
 assert.equal(Object.keys(advanceCommunityFishing(fishingStart, T + H).community.fishing.journal).length, 0);
 const resumedFishing = loadStoredPetJson(createSaveFileText(fishingStart, null, T), T + 8000);
 assert(resumedFishing.status === 'ok' && resumedFishing.pet.community.fishing.active?.id === fishingStart.community.fishing.active!.id, 'normal save reload preserves a live bite window');
 const expiredFishing = loadStoredPetJson(createSaveFileText(fishingStart, null, T), T + H);
-assert(expiredFishing.status === 'ok' && !expiredFishing.pet.community.fishing.active && !expiredFishing.pet.community.fishing.pending, 'offline reload never manufactures fish');
+assert(expiredFishing.status === 'ok' && expiredFishing.pet.community.fishing.active && !expiredFishing.pet.community.fishing.pending, 'offline reload keeps the waiting cast without manufacturing fish');
 const cancelled = cancelCommunityFishing(fishingStart, fishingStart.community.fishing.active!.id);
 assert.equal(cancelled.inventory.fishing_bait, 19); assert.equal(cancelCommunityFishing(cancelled, 'stale'), cancelled);
 let failFish = actCommunityFishing(fishingStart, fishingStart.community.fishing.active!.id, 0, 'hook', T + 8000);
 for (let i = 0; i < 3; i++) { const a = failFish.community.fishing.active!; failFish = actCommunityFishing(failFish, a.id, a.revision, 'reel', T + 9000 + 1000 * i); }
-assert(!failFish.community.fishing.active && !failFish.community.fishing.pending);
+assert.equal(failFish.community.fishing.active?.clicks, 3);
+assert(!failFish.community.fishing.pending, 'a fourth click is still required');
 let caught = catchFish(ready());
 const basket = caught.community.fishing.pending!;
-assert.equal(basket.fish, 'pond_crucian');
-caught.inventory[basket.fish] = 9999;
+const basketFish = basket.catches[0];
+assert.equal(basketFish.fish, 'pond_crucian');
+caught.inventory[basketFish.fish] = 9999;
 assert(claimCommunityFish(caught, basket.id).community.fishing.pending);
-caught.inventory[basket.fish] = 0;
+caught.inventory[basketFish.fish] = 0;
 caught = claimCommunityFish(roundTrip(caught), basket.id);
 assert.equal(claimCommunityFish(caught, basket.id), caught);
-caught = recycleCommunityGoods(caught, basket.fish, 1, 1);
-assert.equal(caught.community.fishing.journal[basket.fish]?.count, 1);
-assert.equal(roundTrip(caught).community.fishing.journal[basket.fish]?.largest, basket.size);
-const futureSave = JSON.parse(createSaveFileText(caught, null, T)); futureSave.pet.community.schemaVersion = 9;
+caught = recycleCommunityGoods(caught, basketFish.fish, 1, 1);
+assert.equal(caught.community.fishing.journal[basketFish.fish]?.count, 1);
+assert.equal(roundTrip(caught).community.fishing.journal[basketFish.fish]?.largest, basketFish.size);
+const futureSave = JSON.parse(createSaveFileText(caught, null, T)); futureSave.pet.community.schemaVersion = 11;
 assert.throws(() => parseSaveFileText(JSON.stringify(futureSave), T), UnsupportedSaveVersionError);
 assert(!canCraftRecipe(fresh(), 'creek_fish_soup', false, 1));
 for (const recipe of ['creek_fish_soup', 'carp_rice', 'river_grill', 'milk_custard'] as const) {
@@ -255,7 +258,7 @@ assert.equal(recycleCommunityGoods(sold, 'golden_apple', 1, sold.inventory.golde
 
 // Module migration, invalid inputs, time rollback and gated shops.
 const legacy = normalizeCommunityState({ schemaVersion: 1, gardenBuilt: true, herbDiscovered: true, boardDay: '2026-09-18', acceptedToday: ['search:2026-09-18'], commission: { id: 'search:2026-09-18', found: true, acceptedAt: T } });
-assert.equal(legacy.schemaVersion, 8); assert(legacy.commission?.found); assert.equal(legacy.facilities.barn.built, false);
+assert.equal(legacy.schemaVersion, 10); assert(legacy.commission?.found); assert.equal(legacy.facilities.barn.built, false);
 assert.equal(normalizePet({ ...createDefaultPet(T), community: undefined }, T).community.market.level, 0);
 assert.equal(getItemPurchaseQuote(fresh(), 'river_bait', 1, T).canPurchase, false);
 assert.equal(getItemPurchaseQuote(ready(), 'river_bait', 1, T).canPurchase, true);

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import { advancePet } from '../src/core/petLifecycle';
 import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
-import { advanceAdventure, claimAdventureResult, getAdventureStartReason, returnFromAdventure, startAdventure } from '../src/core/adventure';
+import { advanceAdventure, claimAdventureResult, getAdventureStartReason, returnFromAdventure } from '../src/core/adventure';
+import { startAdventure, startExpedition } from './fixtures/legacy-exploration';
 import { getAdventureSteps } from '../src/core/adventureData';
 import { facilities, facilityIds, facilityStories, isWaterOpen, waterIds } from '../src/core/communityData';
 import { buildCommunityFacility } from '../src/core/communityFacilities';
@@ -12,7 +13,7 @@ import { upgradeCommunityFacility } from '../src/core/communityUpgrades';
 import { advanceCommunityAnimals, feedCommunityAnimal } from '../src/core/communityFarm';
 import { actCommunityFishing, buildWaterBoardwalk, claimCommunityFish, startCommunityFishing } from '../src/core/communityFishing';
 import { getMarketQuote, listCommunityGoods, setCommunityMarketOpen, upgradeCommunityMarket } from '../src/core/communityMarket';
-import { chooseExpeditionStep, getExpeditionChoices, getExpeditionHarvestLeft, startExpedition } from '../src/core/expedition';
+import { chooseExpeditionStep, getExpeditionChoices, getExpeditionHarvestLeft } from '../src/core/expedition';
 import { advanceExplorationBudget, spendExplorationHarvest } from '../src/core/explorationBudget';
 import { acceptSpecialtyOrder, getSpecialtyCandidates } from '../src/core/communitySpecialtyOrders';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
@@ -252,7 +253,7 @@ const energy = [3, 3, 2, 2, 1], hunger = [2, 1, 1, 1, 1];
 for (let level = 1; level <= 5; level++) {
   const base = ready(); base.community.upgrades.fishing_hut = level;
   const cast = startCommunityFishing(base, 'pond', 'fishing_bait', false, T);
-  assert.equal(cast.community.fishing.active!.expiresAt - cast.community.fishing.active!.biteAt, (20 + (level - 1) * 5) * 1000);
+  assert.equal(cast.community.fishing.active!.biteAt - T, (9 - level) * 1000);
   assert.equal(cast.community.toolWear.fishing_float, undefined); assert.equal(cast.community.toolWear.landing_net, undefined);
 }
 for (let level = 1; level <= 5; level++) for (const water of waterIds) for (const strong of [false, true]) {
@@ -263,23 +264,23 @@ for (let level = 1; level <= 5; level++) for (const water of waterIds) for (cons
   const session = pet.community.fishing.active!;
   assert(session); assert.equal(session.hutLevel, level);
   assert.equal(before.energy - pet.energy, energy[level - 1]); assert.equal(before.hunger - pet.hunger, hunger[level - 1]);
-  assert.equal(session.expiresAt - session.biteAt, (30 + (level - 1) * 5) * 1000);
-  for (const tool of [strong ? 'reinforced_rod' : 'fishing_rod', 'fishing_float', 'landing_net'] as const) assert.equal(pet.community.toolWear[tool], 1);
+  assert.equal(session.biteAt - T, (9 - level) * 1000);
+  assert.equal(session.requiredClicks, strong ? 2 : 3);
+  for (const tool of [strong ? 'reinforced_rod' : 'fishing_rod', 'landing_net'] as const) assert.equal(pet.community.toolWear[tool], 1);
   pet = reload(pet);
   pet.community.upgrades.fishing_hut = 5; // The in-flight snapshot stays authoritative even when the saved hut level changes.
   pet = actCommunityFishing(pet, session.id, 0, 'hook', session.biteAt);
   pet = actCommunityFishing(pet, session.id, 1, 'reel', session.biteAt + 600);
-  assert.equal(pet.community.fishing.active!.tension, 20 + (strong ? 24 : 32) - (level - 1) * 2);
-  assert.equal(pet.community.fishing.active!.progress, 36);
+  assert.equal(pet.community.fishing.active!.clicks, 1);
   let at = session.biteAt + 600;
   while (pet.community.fishing.active) {
     const s = pet.community.fishing.active; at += 600;
-    pet = actCommunityFishing(pet, s.id, s.revision, s.tension >= 50 ? 'slack' : 'reel', at);
+    pet = actCommunityFishing(pet, s.id, s.revision, 'reel', at);
   }
   const pending = pet.community.fishing.pending!; assert(pending);
-  const count = pet.inventory[pending.fish] ?? 0;
+  const caughtFish = pending.catches[0].fish, count = pet.inventory[caughtFish] ?? 0;
   pet = claimCommunityFish(pet, pending.id);
-  assert.equal(pet.inventory[pending.fish], count + 1);
+  assert.equal(pet.inventory[caughtFish], count + 1);
   assert.equal(claimCommunityFish(pet, pending.id), pet);
 }
 
@@ -296,7 +297,7 @@ for (const version of [6, 7]) {
   raw.community.crop = { id: 'herb', plantedAt: T - H, readyAt: T + H, watered: true, fertilized: true };
   delete raw.community.plots; delete raw.community.upgrades; delete raw.community.fishing.active.hutLevel;
   const migrated = normalizePet(raw, T);
-  assert.equal(migrated.community.schemaVersion, 8);
+  assert.equal(migrated.community.schemaVersion, 10);
   assert.deepEqual(migrated.community.plots, [{ id: 1, crop: raw.community.crop }]);
   assert.equal(migrated.community.fishing.active!.hutLevel, 1);
   assert.deepEqual(migrated.community.facilities, legacy.community.facilities);

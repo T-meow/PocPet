@@ -22,7 +22,8 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import { getDailyResetDateKey } from './dailyReset';
 import { completeValleyQuest, getValleyQuestReason, isValleyQuest, valleyQuests, valleyQuestIds } from './valleyQuests';
 import { spendToolUse } from './toolDurability';
-import { advanceExplorationBudget, getExplorationBudget, spendExplorationHarvest } from './explorationBudget';
+import { advanceExplorationBudget, getExplorationBudget, spendExplorationHarvest, settleExplorationLoot } from './explorationBudget';
+import { getDecorationEffects } from './decorationEffects';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { createExplorationCheckState, type ExplorationCheckAction } from './explorationChecks';
 import { applyExplorationCheck, previewExplorationAction } from './explorationCheckActions';
@@ -80,7 +81,7 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   let inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   if (tool) inventory = removeInventoryItem(inventory, 'trail_rope');
   return { ...pet, inventory, lastInteractionAt: now,
-    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: region === 'valley' ? 9 : 8, ...(region === 'valley' ? { checkState: createExplorationCheckState(id) } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: 'coin_hoard' as const } : {}) } },
+    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: region === 'valley' ? 9 : 8, ...(region === 'valley' ? { checkState: createExplorationCheckState(id) } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: 'coin_hoard' as const } : {}) } },
     recentEvent: region === 'tutorial' ? L('从前哨门口开始踩点探索，先走完附近的四个节点吧。', 'Starting your first scouting trip: four stops close to the outpost.') : L('从溪谷入口出发，随时可以带着收获返回。', 'Setting out from the valley entrance. You can return with your discoveries at any time.') };
 };
 
@@ -145,6 +146,7 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
   const finds: Inventory = {};
   if (modern) {
     pet = advanceExplorationBudget(pet, now);
+    const usedBefore = pet.community.expedition.loop?.used ?? 0;
     if (checked) {
       if (choice.harvest && (getExplorationBudget(pet, now)?.available ?? 0) >= choice.harvest) pet = spendExplorationHarvest(pet, choice.harvest, now);
       Object.assign(finds, checked.result.finds);
@@ -152,14 +154,25 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
       pet = spendExplorationHarvest(pet, 1, now);
       Object.assign(finds, expectedStep === 3 ? { bamboo_shoot: 5 } : choiceId === 'bank' ? { valley_mushroom: 3 } : { community_wood: 4, community_stone: 3 });
     }
+    if (trip.rewardsVersion === 1) {
+      const successful = !checked || ['steady', 'success', 'excellent'].includes(checked.result.outcome);
+      const extra = settleExplorationLoot(pet, (pet.community.expedition.loop?.used ?? 0) - usedBefore, 'manual', 'valley', now, successful ? finds : {}, trip.gatherBonus ?? 0);
+      pet = extra.pet;
+      for (const [item, amount] of Object.entries(extra.finds)) finds[item] = (finds[item] ?? 0) + amount;
+    }
     const state = pet.community.expedition;
     if (complete && state.loop && !state.loop.firstTreasure) {
-      finds.coin_hoard = 1;
+      finds.coin_hoard = (finds.coin_hoard ?? 0) + 1;
       pet = { ...pet, community: { ...pet.community, expedition: { ...state, loop: { ...state.loop, firstTreasure: true } } } };
     }
   }
   const found: Inventory = { ...discovery.items, ...(modern ? finds : trip.purpose ? {} : trip.region === 'tutorial' ? complete ? { map_handbook: 1, coin_hoard: 1 } : {}
     : choiceId === 'bank' ? { apple: 2 } : choiceId === 'slope' ? { orange: 1 } : choiceId === 'overlook' && trip.rulesVersion >= 3 ? { [trip.rulesVersion >= 4 ? trip.treasure ?? getAdventureTripTreasure(trip.id) : 'coin_hoard']: 1 } : {}) };
+  if (modern) {
+    const collection = { ...pet.community.expedition.collection };
+    for (const item of ['coin_hoard', 'valley_amber', 'ancient_gold_bar'] as const) if (found[item]) collection[item] = (collection[item] ?? 0) + found[item];
+    pet = { ...pet, community: { ...pet.community, expedition: { ...pet.community.expedition, collection } } };
+  }
   for (const [id, amount] of Object.entries(found)) {
     if (getAdventureBagCount(bag) + amount <= getExplorationBagCapacity(pet)) bag = addInventoryItem(bag, id, amount);
     else loot[id] = amount;

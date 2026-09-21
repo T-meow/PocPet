@@ -2,11 +2,11 @@ import { getInventoryItem } from './items';
 import { getItemRecoveryPreview, itemStatKeys } from './itemEffects';
 import { updatePetSatiety } from './petStats';
 import type { Inventory, ItemId, PetState } from './petTypes';
-import type { ExpeditionTrip } from './expeditionTypes';
 import type { RationReturn } from './explorationRations';
 
 const compareId = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
-export const getRemainingRations = (trip: ExpeditionTrip, now: number): Inventory => {
+type RationTrip = { startedAt: number; endsAt: number; actorId: string; rationPlan?: { food: Inventory } };
+export const getRemainingRations = (trip: RationTrip, now: number): Inventory => {
   if (!trip.rationPlan) return {};
   const duration = trip.endsAt - trip.startedAt;
   const remaining = Math.max(0, Math.min(duration, trip.endsAt - now));
@@ -24,7 +24,7 @@ export const getRemainingRations = (trip: ExpeditionTrip, now: number): Inventor
 
 // The food was deducted at departure. Apply only normal eating recovery here;
 // calling the public inventory action would advance the lifecycle recursively.
-export const eatReturningRations = (pet: PetState, trip: ExpeditionTrip, now: number) => {
+export const eatReturningRations = (pet: PetState, trip: RationTrip, now: number) => {
   const summary: RationReturn = { eaten: {}, shared: {}, neighbor: trip.actorId === 'official.mint' ? 'official.furo' : 'official.mint' };
   for (const [id, count] of Object.entries(getRemainingRations(trip, now))) {
     const item = getInventoryItem(id as ItemId);

@@ -27,7 +27,7 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
     if (oldFish.active && !fish.active) return fish.pending?.id === oldFish.active.id ? 'game_catch' : 'game_miss';
     if (oldFish.pending && !fish.pending) return 'purchase';
     if (oldFish.active && fish.active && fish.active.revision > oldFish.active.revision) {
-      return fish.active.phase !== oldFish.active.phase || fish.active.progress > oldFish.active.progress ? 'fishing_reel' : 'tap';
+      return fish.active.mode === 'manual' && oldFish.active.mode === 'manual' && (fish.active.phase !== oldFish.active.phase || fish.active.clicks > oldFish.active.clicks) ? 'fishing_reel' : 'tap';
     }
     if (!a.gardenBuilt && b.gardenBuilt) return 'notification';
     for (const id of Object.keys(b.facilities) as FacilityId[]) {
@@ -83,7 +83,7 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
 export const createFishingBiteCue = () => {
   let announcedId: string | undefined;
   return (session: FishingSession | undefined, now: number) => {
-    if (!session || session.phase !== 'waiting' || now < session.biteAt || now >= session.expiresAt || announcedId === session.id) return false;
+    if (!session || session.mode !== 'manual' || session.phase !== 'waiting' || now < session.biteAt || announcedId === session.id) return false;
     announcedId = session.id;
     return true;
   };

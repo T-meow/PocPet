@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { advanceAdventure, claimAdventureResult, getAdventureChoiceReason, getAdventureStartReason, returnFromAdventure, startAdventure, useAdventureSupply } from '../src/core/adventure';
+import { advanceAdventure, claimAdventureResult, getAdventureChoiceReason, getAdventureStartReason, returnFromAdventure, useAdventureSupply } from '../src/core/adventure';
+import { startAdventure } from './fixtures/legacy-exploration';
 import { chooseAdventureReturnItems, enforceAdventureHealth } from '../src/core/adventureReturn';
 import { getAdventureBagCount, getAdventureItemPurchaseCapacity, isAdventureSupply } from '../src/core/adventureState';
 import { getAdventureSteps } from '../src/core/adventureData';

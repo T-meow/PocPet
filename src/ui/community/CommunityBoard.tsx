@@ -31,7 +31,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?
     const active = tasks.some(value => value.id === task.id);
     const def = commissionDefinitions[task.template], used = accepted.includes(task.id), sameKind = tasks.some(t => t.template === task.template);
     return <CommunityDetailDialog title={def.name} eyebrow={active ? '已接取 · 不过期' : used ? '今日已接过' : '今日候选'} onClose={close}>
-      <div className="community-letter"><span className="community-letter-art" aria-hidden="true">{noteArt[task.template].glyph}</span><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{def.coins} 金币{def.reward ? ' · 木料 ×1 · 石料 ×1' : ''}</p></div>
+      <div className="community-letter"><span className="community-letter-art" aria-hidden="true">{noteArt[task.template].glyph}</span><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{task.rewardCoins ?? def.coins} 金币{def.reward ? ' · 木料 ×1 · 石料 ×1' : ''}</p></div>
       {active ? <>
         {def.event && <p className="community-note">{task.found ? '✓ 已记录有效行动' : '○ 等待接取后的有效行动'}</p>}
         {Object.entries(def.take ?? {}).map(([id, n]) => <p key={id}>交付 {registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id} ×{n} · 持有 {pet.inventory[id] ?? 0}</p>)}
@@ -60,7 +60,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?
           const def = commissionDefinitions[task.template], active = tasks.some(value => value.id === task.id), used = accepted.includes(task.id);
           const ready = active && canClaimCommunityTask(pet, task);
           return <button type="button" className="community-pinned-note" key={task.id} data-tone={noteArt[task.template].tone} data-active={active} data-ready={ready} aria-haspopup="dialog" onClick={() => setSelected(task.id)}>
-            <Pin className="community-note-pin" size={18} aria-hidden="true" /><span className="community-note-label">{ready ? '可以交付' : active ? '进行中 · 不过期' : used ? '今日已接过' : '今日候选'}</span><span className="community-note-art" aria-hidden="true">{noteArt[task.template].glyph}</span><strong>{def.name}</strong><span className="community-note-excerpt">{def.detail}</span><span className="community-note-bottom"><span><Coins size={15} />{def.coins} 金币{def.reward ? ' ＋ 建材' : ''}</span>{active ? <Check size={16} /> : <ArrowUpRight size={16} />}</span>
+            <Pin className="community-note-pin" size={18} aria-hidden="true" /><span className="community-note-label">{ready ? '可以交付' : active ? '进行中 · 不过期' : used ? '今日已接过' : '今日候选'}</span><span className="community-note-art" aria-hidden="true">{noteArt[task.template].glyph}</span><strong>{def.name}</strong><span className="community-note-excerpt">{def.detail}</span><span className="community-note-bottom"><span><Coins size={15} />{task.rewardCoins ?? def.coins} 金币{def.reward ? ' ＋ 建材' : ''}</span>{active ? <Check size={16} /> : <ArrowUpRight size={16} />}</span>
           </button>;
         })}
         {!candidates.length && <div className="community-board-memo"><span aria-hidden="true">✎</span><p>完成踩点教学后，邻居们就会把委托贴在这里。</p></div>}

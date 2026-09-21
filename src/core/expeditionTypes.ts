@@ -22,6 +22,8 @@ export interface ExpeditionTrip {
   rationPlan?: import('./explorationRations').RationPlan;
   refundCoins?: number;
   checkState?: import('./explorationChecks').ExplorationCheckState;
+  rewardsVersion?: 1;
+  gatherBonus?: number;
 }
 export interface ExpeditionReceipt {
   id: string; mode: 'manual' | 'idle'; route: RegionId[]; items: Inventory; overflow: Inventory; tool: boolean;
@@ -36,10 +38,10 @@ export interface CommunityProject {
   lastDay: string; firstAt?: number; actorId?: string; actorName?: string;
 }
 export interface ExpeditionState {
-  schemaVersion: 3; nextId: number;
+  schemaVersion: 4; nextId: number;
   regions: Record<RegionId, RegionProgress>;
   projects: Record<ProjectId, CommunityProject>;
-  collection: Partial<Record<ExpeditionItemId, number>>;
+  collection: Partial<Record<ExpeditionItemId | import('./adventureTypes').AdventureTreasureId, number>>;
   loop?: import('./explorationBudget').ExplorationBudget;
   active?: ExpeditionTrip; pending?: ExpeditionReceipt;
   lastReceipt?: Pick<ExpeditionReceipt, 'id' | 'reason' | 'at' | 'route' | 'journal' | 'lastCheck' | 'rationReturn'>;

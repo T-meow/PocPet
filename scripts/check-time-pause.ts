@@ -144,13 +144,12 @@ try {
   for (const reeling of [false, true]) {
     const fish = startCommunityFishing(createCommunityTestPet('commissions', T), 'pond', 'fishing_bait', false, T);
     assert(fish.community.fishing.active);
-    if (reeling) fish.community.fishing.active = { ...fish.community.fishing.active, phase: 'reeling', progress: 25, tension: 30, biteAt: T, expiresAt: T + 25_000 };
+    if (reeling) fish.community.fishing.active = { ...fish.community.fishing.active, phase: 'reeling', clicks: 1, biteAt: T };
     const f = prepareTimePause(fish, T, quiet);
     const r = resumePetTime(parseSaveFileText(createSaveFileText(f, null, T), later).pet, later);
     assert(r.community.fishing.active, 'fishing is not discarded by timestamp rebasing');
     assert.equal(r.community.fishing.active.biteAt - later, f.community.fishing.active!.biteAt - T);
-    assert.equal(r.community.fishing.active.expiresAt - later, f.community.fishing.active!.expiresAt - T);
-    assert.equal(r.community.fishing.active.progress, f.community.fishing.active!.progress);
+    assert.equal(r.community.fishing.active.clicks, f.community.fishing.active!.clicks);
     assert.deepEqual(r.inventory, f.inventory, 'bait is neither refunded nor consumed twice');
   }
   let game = startMiniGame({ ...createDefaultPet(T), level: 4, inventory: { toy_ball: 1 } }, 'catch', 'normal', 'test.furo', 'freeze-catch', T);

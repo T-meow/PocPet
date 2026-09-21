@@ -191,7 +191,7 @@ const oldTrip = start(baseline, 'seeds');
 oldTrip.adventure.active!.purpose = 'irrigation'; // Old in-progress routes still load and finish.
 const oldState = { ...oldTrip.adventure, schemaVersion: 4, valleyCompleted: undefined };
 const migrated = normalizeAdventureState(oldState);
-assert.equal(migrated.schemaVersion, 6);
+assert.equal(migrated.schemaVersion, 7);
 assert.deepEqual(migrated.valleyCompleted, []);
 assert.equal(migrated.active?.purpose, 'irrigation');
 assert.equal(migrated.active?.id, oldTrip.adventure.active!.id);

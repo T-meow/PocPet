@@ -206,7 +206,7 @@ for (const project of ['exhibition', 'observatory'] as const) for (const theme o
 // Save migration preserves A-D; newer E schemas/rules are refused rather than discarded.
 const legacy = ready(); delete (legacy.community as any).expedition; (legacy.community as any).schemaVersion = 2;
 const migrated = normalizePet(legacy, T); assert(migrated.community.gardenBuilt); assert(migrated.community.facilities.barn.built); assert(!migrated.community.expedition.regions.valley.surveyed);
-const newer = JSON.parse(createSaveFileText(ready(), null, T)); newer.pet.community.expedition.schemaVersion = 4;
+const newer = JSON.parse(createSaveFileText(ready(), null, T)); newer.pet.community.expedition.schemaVersion = 5;
 assert.throws(() => parseSaveFileText(JSON.stringify(newer), T), UnsupportedSaveVersionError);
 const newerTrip = JSON.parse(createSaveFileText(createCommunityTestPet('idle', T), null, T)); newerTrip.pet.community.expedition.active.rulesVersion = 5;
 assert.throws(() => parseSaveFileText(JSON.stringify(newerTrip), T), UnsupportedSaveVersionError);

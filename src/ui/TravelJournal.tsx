@@ -13,6 +13,7 @@ import { DialogShell } from './DialogShell';
 import '../styles/outpost.css';
 import type { ExplorationCheckResult } from '../core/explorationChecks';
 import { ExplorationCheckSummary } from './ExplorationCheck';
+import { adventureTreasureIds } from '../core/adventureItems';
 
 interface TravelRecord {
   id: string; at: number; title: string; status: string; detail?: string;
@@ -59,7 +60,8 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
   const records = getTravelRecords(pet), expedition = pet.community.expedition;
   const stories = regionIds.filter(id => expedition.regions[id].surveyed);
   const memories = projectIds.filter(id => expedition.projects[id].completed > 0);
-  const products = Object.entries(expeditionProducts).filter(([id]) => (expedition.collection[id as keyof typeof expeditionProducts] ?? 0) > 0);
+  const discoveredProducts = { ...expeditionProducts, ...Object.fromEntries(adventureTreasureIds.map(id => [id, { name: getInventoryItem(id)!.name, glyph: id === 'coin_hoard' ? '🪙' : '✦' }])) };
+  const products = Object.entries(discoveredProducts).filter(([id]) => (expedition.collection[id as keyof typeof expedition.collection] ?? 0) > 0);
   const observations = expedition.loop?.observations ?? [];
   return <DialogShell className="outpost-dialog outpost-journal" backdropClassName="outpost-backdrop" labelId="travel-journal-title" onClose={onClose}>
     <header className="outpost-header"><span className="outpost-symbol" data-tone="lilac"><BookOpen size={22} /></span><div><small>前哨基地</small><h2 id="travel-journal-title">旅行日志</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭旅行日志，返回前哨"><X size={21} /></button></header>

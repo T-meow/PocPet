@@ -7,12 +7,16 @@ import { lockRationSegments, standardRationPrice } from '../../src/core/explorat
 // Current version 9/4 journeys are covered by check-exploration-checks.ts.
 export const startAdventure: typeof startCurrentAdventure = (...args) => {
   const p = startCurrentAdventure(...args), t = p.adventure.active;
-  if (t?.rulesVersion === 9) { const { checkState: _state, ...legacy } = t; return { ...p, adventure: { ...p.adventure, active: { ...legacy, rulesVersion: 8 } } }; }
+  if (t?.rulesVersion === 9) { const { checkState: _state, rewardsVersion: _rewards, gatherBonus: _bonus, ...legacy } = t; return { ...p, adventure: { ...p.adventure, active: { ...legacy, rulesVersion: 8 } } }; }
   return p;
 };
 export const startExpedition: typeof startCurrentExpedition = (...args) => {
   const p = startCurrentExpedition(...args), t = p.community.expedition.active;
-  if (t?.rulesVersion === 4 && t.mode === 'manual') { const { checkState: _state, ...legacy } = t; return { ...p, community: { ...p.community, expedition: { ...p.community.expedition, active: { ...legacy, rulesVersion: 3 } } } }; }
+  if (t) {
+    const { rewardsVersion: _rewards, gatherBonus: _bonus, ...legacy } = t;
+    if (legacy.rulesVersion === 4 && legacy.mode === 'manual') { const { checkState: _state, ...fixed } = legacy; return { ...p, community: { ...p.community, expedition: { ...p.community.expedition, active: { ...fixed, rulesVersion: 3 } } } }; }
+    return { ...p, community: { ...p.community, expedition: { ...p.community.expedition, active: legacy } } };
+  }
   return p;
 };
 

@@ -2,7 +2,7 @@ import { expeditionBagCount, isExpeditionAway, regions } from './expeditionData'
 import type { ExpeditionItemId, ExpeditionReceipt } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 import { getPetStatCap } from './petStats';
-import { advanceExplorationBudget, earnExplorationPay, settleReservedHarvest } from './explorationBudget';
+import { advanceExplorationBudget, earnExplorationPay, settleReservedHarvest, settleExplorationLoot } from './explorationBudget';
 import { valleyGatherFinds } from './valleyExplorationData';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
@@ -78,7 +78,11 @@ export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
           pet = settleReservedHarvest(pet, 1, false);
           const region = t.route[0];
           pet = putExpeditionFinds(pet, region === 'valley' ? valleyGatherFinds(t.target ?? 'valley_mushroom', true) : { [regions[region].product]: 2 });
-          const earned = earnExplorationPay(pet, 'hour', at, region);
+          if (t.rewardsVersion === 1) {
+            const extra = settleExplorationLoot(pet, 1, 'hour', region, at);
+            pet = putExpeditionFinds(extra.pet, extra.finds);
+          }
+          const earned = earnExplorationPay(pet, 'hour', at, region, t.rewardsVersion === 1);
           pet = earned.pet;
           const current = pet.community.expedition.active!;
           pet = withExpedition(pet, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });

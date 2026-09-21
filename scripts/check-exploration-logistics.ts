@@ -138,10 +138,10 @@ assert.equal(continuous.community.expedition.active!.energySpent, 0); assert.equ
 for (const region of regionIds) {
   const p = ready(), q = quoteExpeditionRations(p, region, 8), profile = explorationTravel[region];
   assert.equal(q.reason, ''); assert.equal(q.coins, profile.meals * 28 * 4);
-  assert.equal(q.chance, 3); assert(q.hunger >= profile.nutrition * 4); assert.equal(q.count, profile.meals * 4);
+  assert.equal(q.chance, 5); assert(q.hunger >= profile.nutrition * 4); assert.equal(q.count, profile.meals * 4);
 }
 assert(!isTravelFood('golden_apple')); assert(!isTravelFood('birthday_cake')); assert(!isTravelFood('blanket'));
-assert.equal(getRationTreasureChance(0, 3), 1); assert.equal(getRationTreasureChance(10000, 3), 15);
+assert.equal(getRationTreasureChance(0, 3), 5); assert.equal(getRationTreasureChance(10000, 3), 20);
 assert(quoteExpeditionRations(ready(), 'valley', 2, { food: { dish_carrot_rice: 1 }, autoFill: false }).reason, 'one nourishing dish still fails quantity');
 assert(quoteExpeditionRations(ready(), 'valley', 2, { food: { apple: 7 }, autoFill: true }).reason);
 assert(quoteExpeditionRations({ ...ready(), inventory: { dish_carrot_rice: 3 } }, 'valley', 4, { food: { dish_carrot_rice: 6 }, autoFill: false }).reason);
@@ -184,7 +184,7 @@ assert.equal(advancePet(resumed, T + 26 * H).community.expedition.pending!.items
 const rollback = reconcilePetClock(atTwo, T + H).pet;
 assert.equal(advancePet(rollback, T + 3 * H).community.expedition.pending!.items.creek_aquamarine, 1);
 let richFuture = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 4, T, { rations: { food: { dish_valley_travel_bento: 6 }, autoFill: true } });
-assert.equal(richFuture.community.expedition.active!.rationPlan!.chance, 15);
+assert.equal(richFuture.community.expedition.active!.rationPlan!.chance, 20);
 richFuture.community.expedition.active!.rationPlan!.discoveries[0].roll = 5;
 richFuture = returnExpedition(read(richFuture), richFuture.community.expedition.active!.id, T + 2 * H);
 assert.equal(richFuture.community.expedition.pending!.items.creek_aquamarine, 1, 'the entire journey uses the packed food quality');

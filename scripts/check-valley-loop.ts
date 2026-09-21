@@ -97,13 +97,13 @@ let ledger = ready(), paid = 0, hearts = 0;
 for (const kind of ['hour', 'manual', 'hour', 'hour', 'manual', 'manual', 'hour', 'hour', 'manual', 'manual'] as const) {
   const earned = earnExplorationPay(ledger, kind, T); ledger = read(earned.pet); paid += earned.coins; hearts += earned.hearts;
 }
-assert.equal(paid, 2400); assert.equal(hearts, 22);
+assert.equal(paid, 1800); assert.equal(hearts, 22);
 assert.equal(earnExplorationPay(ledger, 'manual', T).coins, 0);
 const banked = getExplorationBudget(ledger, T + 10 * 24 * H)!;
 assert.equal(banked.vouchers.length, 12); assert.equal(banked.available, 24);
 const weak = ready(false), frozenFace = weak.community.expedition.loop!.vouchers[0].face;
 weak.community.expedition.regions.valley.base = 2; weak.community.expedition.loop!.used = 80; weak.community.decorations = ['creek_fountain'];
-assert.equal(getExplorationTier(weak), 3); assert.equal(earnExplorationPay(weak, 'manual', T).coins, frozenFace, 'already issued quotes do not appreciate');
+assert.equal(getExplorationTier(weak), 3); assert.equal(earnExplorationPay(weak, 'manual', T).coins, Math.floor(frozenFace * .75), 'already issued quotes do not appreciate');
 
 // New chapter has no three-node shortcut, and old completed chapters migrate without resetting.
 let novice = createCommunityTestPet('community', T);
@@ -152,7 +152,7 @@ assert.equal(entry.adventure.active!.bag.coin_hoard, undefined); assert.equal(en
 entry = returnFromAdventure(entry, entry.adventure.active!.id, T);
 assert.equal(entry.adventure.pending!.coins, 600);
 entry = claimAdventureResult(entry, entry.adventure.pending!.id);
-assert.equal(earnExplorationPay(entry, 'hour', T).coins, 240);
+assert.equal(earnExplorationPay(entry, 'hour', T).coins, 180);
 
 // Finite observation rewards cannot replay through reload or repeated routes.
 let observed = ready(), amber = 0, bars = 0;

@@ -5,6 +5,8 @@ import { valleyGatherTargets } from './valleyExplorationData';
 import { explorationTravel } from './explorationTravelData';
 import { normalizeRationPlan, normalizeRationReturn, normalizeRationSegments } from './explorationRations';
 import { normalizeExplorationCheckResult, normalizeExplorationCheckState } from './explorationChecks';
+import { adventureTreasureIds } from './adventureItems';
+import type { ExpeditionItemId } from './expeditionTypes';
 
 const obj = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
 const n = (v: unknown, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
@@ -22,7 +24,7 @@ const bag = (v: unknown, max = expeditionCapacity): Inventory => {
 };
 const route = (v: unknown): RegionId[] => Array.isArray(v) && v.length >= 1 && v.length <= 3 && new Set(v).size === v.length && v.every(id => regionIds.includes(id)) ? v : [];
 const journal = (v: unknown): string[] => Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(-12).map(x => x.slice(0, 240)) : [];
-export const defaultExpeditionState = (): ExpeditionState => ({ schemaVersion: 3, nextId: 1,
+export const defaultExpeditionState = (): ExpeditionState => ({ schemaVersion: 4, nextId: 1,
   regions: Object.fromEntries(regionIds.map(id => [id, { surveyed: false, base: 0, harvestDay: '', harvestUsed: 0 }])) as ExpeditionState['regions'],
   projects: Object.fromEntries(projectIds.map(id => [id, { completed: 0, stage: 0, lastDay: '' }])) as ExpeditionState['projects'], collection: {},
 });
@@ -32,13 +34,15 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
   const loop = obj(v.loop);
   if (stamp(loop.refillAt) && day(loop.day)) {
     const voucherIds = new Set<string>(), heartIds = new Set<string>();
-    state.loop = { refillAt: loop.refillAt, available: n(loop.available, 24), used: n(loop.used), day: day(loop.day),
+    state.loop = { refillAt: loop.refillAt, available: n(loop.available, 24), used: n(loop.used), day: day(loop.day), ...(loop.lootSettledThrough !== undefined ? { lootSettledThrough: n(loop.lootSettledThrough, n(loop.used)) } : {}),
       vouchers: (Array.isArray(loop.vouchers) ? loop.vouchers : []).slice(0, 12).flatMap((entry: unknown) => {
         const q = obj(entry), key = `${q.day}:${q.slot}`;
         if (!day(q.day) || ![0, 1, 2, 3].includes(q.slot) || ![150, 300, 600].includes(q.face) || voucherIds.has(key)) return [];
         const paid = [0, 40, 80, 100].includes(q.paid) ? q.paid : 100;
         const region: RegionId | undefined = regionIds.includes(q.region) ? q.region : paid ? 'valley' : undefined;
-        voucherIds.add(key); return [{ day: q.day, slot: q.slot, face: q.face, paid, ...(region ? { region, quote: q.quote > 0 ? n(q.quote, 1320) : Math.floor(q.face * explorationTravel[region].payPercent / 100) } : {}) }];
+        const lootRegion: RegionId | undefined = regionIds.includes(q.lootRegion) ? q.lootRegion : undefined;
+        voucherIds.add(key); return [{ day: q.day, slot: q.slot, face: q.face, paid, ...(region ? { region, quote: q.quote > 0 ? n(q.quote, 1320) : Math.floor(q.face * explorationTravel[region].payPercent / 100) } : {}),
+          ...(q.rewardsVersion === 1 ? { rewardsVersion: 1 as const, lootUsed: n(q.lootUsed, 100), ...(lootRegion ? { lootRegion, lootQuote: q.lootQuote > 0 ? n(q.lootQuote, 1320) : Math.floor(q.face * explorationTravel[lootRegion].payPercent / 100) } : {}) } : {}) }];
       }),
       heartDays: (Array.isArray(loop.heartDays) ? loop.heartDays : []).slice(0, 3).flatMap((entry: unknown) => {
         const q = obj(entry); if (!day(q.day) || heartIds.has(q.day)) return [];
@@ -56,7 +60,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
     state.projects[id] = { completed: n(p.completed), stage: theme ? n(p.stage, 2) : 0, theme, lastDay: day(p.lastDay),
       ...(n(p.completed) > 0 && stamp(p.firstAt) ? { firstAt: p.firstAt, actorId: label(p.actorId), actorName: label(p.actorName) } : {}) };
   }
-  for (const id of Object.keys(expeditionProducts) as (keyof typeof expeditionProducts)[]) {
+  for (const id of [...Object.keys(expeditionProducts), ...adventureTreasureIds] as ExpeditionItemId[]) {
     const count = n(obj(v.collection)[id]); if (count) state.collection[id] = count;
   }
   const p = obj(v.pending), pr = route(p.route);
@@ -80,6 +84,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
       energySpent: n(a.energySpent, 10000), healthLost: amount(a.healthLost, 10000),
       paidActions: a.paidActions === undefined && a.rulesVersion < 3 ? style === 'walk' ? 0 : n(a.step, campStep) : n(a.paidActions, campStep),
       ...(a.rulesVersion >= 4 && a.mode === 'manual' ? { checkState: normalizeExplorationCheckState(a.checkState, label(a.id)) } : {}),
+      ...(a.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: amount(a.gatherBonus, 35) } : {}),
       ...(modern ? { style, target: valleyGatherTargets.includes(a.target) ? a.target : 'valley_mushroom', harvestSpent: n(a.harvestSpent, 2), reservedHarvests: n(a.reservedHarvests, parts - n(a.settledParts, parts)), rationsRemaining: n(a.rationsRemaining, Math.max(0, Math.ceil(parts / 2) - 1)) } : {}),
       ...(a.rulesVersion >= 3 && a.mode === 'idle' ? a.rationPlan !== undefined ? { rationPlan: normalizeRationPlan(a.rationPlan, parts) } : { rationSegments: normalizeRationSegments(a.rationSegments, parts) } : {}) };
     if (trip.mode === 'manual' || ar.length === 1 && trip.endsAt - trip.startedAt === trip.parts * 3600000) state.active = trip;

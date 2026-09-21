@@ -1,5 +1,6 @@
 import { recordEarnedCoins } from './achievements';
-import { getCommunitySale } from './communityEconomy';
+import { getCommunitySale, getPurchasedSaleCeiling } from './communityEconomy';
+import { getDecorationEffects } from './decorationEffects';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
 import { clampCoins } from './petStats';
@@ -14,7 +15,11 @@ export const getMarketQuote = (pet: PetState, id: string) => {
   const sale = getCommunitySale(id);
   const knowledge = Math.min(10, Math.floor(pet.partnerSchedule.skills.study.level / 2) * 2), building = Math.max(0, pet.community.market.level - 1) * 5;
   const bonus = 20 + knowledge + building;
-  return sale ? { ...sale, knowledge, building, bonus, price: sale.exchangeOnly ? sale.base : Math.floor(sale.base * (100 + bonus) / 100) } : undefined;
+  if (!sale) return undefined;
+  const original = sale.exchangeOnly ? sale.base : Math.floor(sale.base * (100 + bonus) / 100);
+  const decoration = sale.exchangeOnly ? 0 : getDecorationEffects(pet).golden_sign;
+  const price = Math.min(Math.floor(original * (1 + decoration / 100)), Math.max(original, getPurchasedSaleCeiling(id)));
+  return { ...sale, knowledge, building, bonus: bonus + Math.round((price - original) / sale.base * 100), decoration, decorationCoins: price - original, price };
 };
 // Old saves may retain reserve entries; explicit listing and recycling use current stock.
 export const getCommunitySaleable = (pet: PetState, id: string) => Math.max(0, pet.inventory[id] ?? 0);

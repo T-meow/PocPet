@@ -8,6 +8,7 @@ import { getCommunityDay, acceptCommunityTask, cancelCommunityTask, claimCommuni
 import type { CommunityCrop, CommunityRoute } from './communityTypes';
 import { communityCrops, getCropUnlockReason } from './foodCatalog';
 import { spendToolUse } from './toolDurability';
+import { getDecorationEffects } from './decorationEffects';
 export { communityCrops } from './foodCatalog';
 
 export const communityConfig = { herbHours: 6, carrotHours: 4, herbYield: 4, carrotYield: 3, commissionCoins: 40, orderCoins: 80, orderHearts: 5 } as const;
@@ -37,7 +38,7 @@ export const plantCommunityCrop = (pet: PetState, plotId: number, id: keyof type
   const plot = c.plots.find(plot => plot.id === plotId);
   if (!definition || !plot || !Number.isFinite(now) || pet.timePause || !canSpendCompanionTime(pet) || !c.gardenBuilt || plot.crop || getCropUnlockReason(pet, id) || (pet.inventory[definition.seed] ?? 0) < 1) return pet;
   const plantedAt = Math.max(now, pet.lastUpdatedAt);
-  return { ...setPlotCrop(pet, plotId, { id, plantedAt, readyAt: plantedAt + definition.hours * 3600000 }), inventory: removeInventoryItem(pet.inventory, definition.seed), recentEvent: `第 ${plotId} 块菜地种下了一份期待。成熟后会一直等你，不会因离线枯萎。` };
+  return { ...setPlotCrop(pet, plotId, { id, plantedAt, readyAt: plantedAt + Math.round(definition.hours * 3600000 * (1 - getDecorationEffects(pet).creek_fountain / 100)) }), inventory: removeInventoryItem(pet.inventory, definition.seed), recentEvent: `第 ${plotId} 块菜地种下了一份期待。成熟后会一直等你，不会因离线枯萎。` };
 };
 export const careCommunityCrop = (pet: PetState, plotId: number, plantedAt: number, action: 'water' | 'fertilize', now = Date.now()): PetState => {
   const crop = pet.community.plots.find(plot => plot.id === plotId)?.crop;

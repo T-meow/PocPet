@@ -3,15 +3,16 @@ import type { Inventory, ItemId, PetState } from './petTypes';
 import type { RegionId } from './expeditionTypes';
 import { explorationTravel } from './explorationTravelData';
 import { hashString } from './utils';
+import { getDecorationEffects } from './decorationEffects';
 
 export interface RationSelection { food: Inventory; autoFill: boolean }
 export interface RationQuote {
   food: Inventory; used: Inventory; purchased: number; coins: number; count: number;
-  hunger: number; score: number; chance: number; minimum: number; maximum: number; nutrition: number; reason: string;
+  hunger: number; score: number; chance: number; baseChance: number; decorationBonus: number; minimum: number; maximum: number; nutrition: number; reason: string;
 }
 export interface RationDiscovery { roll: number; settled: boolean; won: boolean }
 export interface RationPlan {
-  version: 1; food: Inventory; purchased: number; coins: number; hunger: number; score: number; chance: number;
+  version: 1 | 2; food: Inventory; purchased: number; coins: number; hunger: number; score: number; chance: number; baseChance?: number; decorationBonus?: number;
   discoveries: RationDiscovery[];
 }
 export interface RationReturn {
@@ -24,7 +25,7 @@ export const isTravelFood = (id: string) => {
   const item = getInventoryItem(id as ItemId);
   return Boolean(item && item.usable !== false && item.kind === 'food' && !['golden_apple', 'birthday_cake'].includes(id) && (item.effect.hunger ?? 0) > 0);
 };
-export const getRationTreasureChance = (score: number, minimum: number) => Math.max(1, Math.min(15, 3 + 9 * (score / (54 * minimum) - 1)));
+export const getRationTreasureChance = (score: number, minimum: number) => minimum > 0 ? Math.max(5, Math.min(20, 5 + 15 * (score / (54 * minimum) - 1))) : 0;
 export const quoteExpeditionRations = (pet: PetState, region: RegionId, hours: number, selection?: RationSelection): RationQuote => {
   const profile = explorationTravel[region], used: Inventory = {};
   const validDuration = [2, 4, 8].includes(hours);
@@ -45,10 +46,11 @@ export const quoteExpeditionRations = (pet: PetState, region: RegionId, hours: n
   else if (count < minimum || hunger < nutrition) reason ||= `全程需要至少 ${minimum} 份、${nutrition} 基础饱食`;
   if (Object.entries(used).some(([id, n]) => (pet.inventory[id] ?? 0) < n)) reason ||= '库存料理不足，请调整携带数量';
   if (pet.coins < coins) reason ||= '标准补给所需金币不足';
-  return { food, used, purchased, coins, count, hunger, score, chance: minimum ? getRationTreasureChance(score, minimum) : 0, minimum, maximum, nutrition, reason };
+  const baseChance = getRationTreasureChance(score, minimum), decorationBonus = minimum ? getDecorationEffects(pet).star_dome : 0;
+  return { food, used, purchased, coins, count, hunger, score, baseChance, decorationBonus, chance: baseChance + decorationBonus, minimum, maximum, nutrition, reason };
 };
 export const lockRationPlan = (quote: RationQuote, hours: number, tripId: string): RationPlan => ({
-  version: 1, food: { ...quote.food }, purchased: quote.purchased, coins: quote.coins, hunger: quote.hunger, score: quote.score, chance: quote.chance,
+  version: 2, food: { ...quote.food }, purchased: quote.purchased, coins: quote.coins, hunger: quote.hunger, score: quote.score, chance: quote.chance, baseChance: quote.baseChance, decorationBonus: quote.decorationBonus,
   discoveries: Array.from({ length: hours / 2 }, (_, index) => ({ roll: hashString(`${tripId}:ration:${index}`) % 1000000 / 10000, settled: false, won: false })),
 });
 
@@ -64,10 +66,11 @@ const normalizeFood = (raw: unknown, limit = 56): Inventory => {
   return food;
 };
 export const normalizeRationPlan = (raw: unknown, hours: number): RationPlan => {
-  const value = record(raw), s = value.version === 1 ? value : {}, food = normalizeFood(s.food);
+  const value = record(raw), s = value.version === 1 || value.version === 2 ? value : {}, food = normalizeFood(s.food);
   const purchased = Math.floor(finite(s.purchased, food.trail_mix ?? 0));
   const discoveries = Array.isArray(s.discoveries) ? s.discoveries : [];
-  return { version: 1, food, purchased, coins: Math.floor(finite(s.coins, purchased * standardRationPrice)), hunger: finite(s.hunger, 100000), score: finite(s.score, 1000000), chance: finite(s.chance, 15),
+  return { version: s.version === 2 ? 2 : 1, food, purchased, coins: Math.floor(finite(s.coins, purchased * standardRationPrice)), hunger: finite(s.hunger, 100000), score: finite(s.score, 1000000), chance: finite(s.chance, s.version === 2 ? 26 : 15),
+    ...(s.version === 2 ? { baseChance: finite(s.baseChance, 20), decorationBonus: finite(s.decorationBonus, 6) } : {}),
     discoveries: Array.from({ length: hours / 2 }, (_, index) => {
       const d = record(discoveries[index]);
       return { roll: typeof d.roll === 'number' && d.roll >= 0 && d.roll < 100 ? d.roll : 100, settled: d.settled === true, won: d.settled === true && d.won === true };

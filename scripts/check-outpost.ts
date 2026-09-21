@@ -139,7 +139,7 @@ try {
   assert(discoveryLog.includes('过去的社区回忆') && !discoveryLog.includes('选择这个主题'));
 
   const farm = render(community.CommunityPage, { ...props, onBack: noop, onExplore: noop, onAdventure: noop, onOpenOutpost: noop, initialPlace: 'journey', orchard: null });
-  assert(farm.includes('珍宝展台') && farm.includes('制作溪光水景'));
+  assert(farm.includes('我的装饰') && farm.includes('溪光水景') && farm.includes('查看制作材料'));
   assert(farm.includes('旅途与日常'));
   assert(!farm.includes('办一次河岸聚餐') && !farm.includes('查看社区项目'));
   const farmProps = { ...props, onBack: noop, onExplore: noop, onAdventure: noop, onOpenOutpost: noop, initialPlace: 'growth', orchard: null };

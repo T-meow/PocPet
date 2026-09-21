@@ -34,7 +34,7 @@ export const getAdventureItemPurchaseCapacity = (pet: PetState, id: string) => {
     + (id === 'trail_rope' ? Number(Boolean(expedition.active?.tool)) + Number(Boolean(expedition.pending?.tool)) : 0);
   return Math.max(0, inventoryItemLimit - (pet.inventory[id] ?? 0) - reserved);
 };
-export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 6, backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
+export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 7, backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
 export const isAdventureMapUnlocked = (state: AdventureState) => (state.completed.tutorial ?? 0) > 0;
 const dayKey = (raw: unknown) => typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
 const route = (raw: unknown) => typeof raw === 'string' && ['irrigation', 'seeds', 'commission', ...facilityIds, ...valleyQuestIds].includes(raw) ? raw as CommunityRoute : undefined;
@@ -82,6 +82,7 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   return { id: text(value.id), region: value.region, actorId: text(value.actorId), actorName: text(value.actorName, 32), startedAt: count(value.startedAt), choices,
     rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true,
     ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
+    ...(value.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: typeof value.gatherBonus === 'number' && Number.isFinite(value.gatherBonus) ? Math.max(0, Math.min(35, value.gatherBonus)) : 0 } : {}),
     energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length), rested: value.rested === true,
     neighborId: !tutorial && adventureActorIds.some(id => id === value.neighborId && id !== value.actorId) ? String(value.neighborId) : undefined,
     shopStock, purchases: legacy ? value.bought === true ? 1 : 0 : count(value.purchases),
@@ -112,11 +113,11 @@ export const normalizeAdventureState = (raw: unknown): AdventureState => {
     return latest ? [[region, latest]] : [];
   }));
   return {
-    schemaVersion: 6, backpackLevel: normalizeBackpackLevel(value.backpackLevel), valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
+    schemaVersion: 7, backpackLevel: normalizeBackpackLevel(value.backpackLevel), valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
     completed: Object.fromEntries(adventureDestinationIds.filter(id => count(completed[id]) > 0).map(id => [id, count(completed[id])])),
     discoveries: Array.isArray(value.discoveries) ? [...new Set(value.discoveries.filter((id): id is string => typeof id === 'string' && /^(valley:[0-5]|tutorial:[0-3])$/.test(id)))].slice(0, adventureStepCount + adventureTutorialStepCount) : [],
     lastCompletedDay,
-    active: pending ? undefined : normalizeTrip(value.active, ![2, 3, 4, 5, 6].includes(Number(value.schemaVersion)), explorationBackpackCapacities[normalizeBackpackLevel(value.backpackLevel)]), pending,
+    active: pending ? undefined : normalizeTrip(value.active, ![2, 3, 4, 5, 6, 7].includes(Number(value.schemaVersion)), explorationBackpackCapacities[normalizeBackpackLevel(value.backpackLevel)]), pending,
     journal,
   };
 };

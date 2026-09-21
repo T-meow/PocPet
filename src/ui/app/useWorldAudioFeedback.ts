@@ -15,12 +15,12 @@ export const useWorldAudioFeedback = (pet: PetState, page: ActivePage, blocked: 
   }, [pet, page, blocked, actorId]);
 
   const biteCue = useRef(createFishingBiteCue());
-  const session = pet.community.fishing.active;
+  const session = pet.community.fishing.active?.mode === 'manual' ? pet.community.fishing.active : undefined;
   useEffect(() => {
     if (blocked || page !== 'community' || !session || session.phase !== 'waiting') return;
     const timer = window.setTimeout(() => {
       if (biteCue.current(session, Date.now())) playSfx('fishing_bite');
     }, Math.max(0, session.biteAt - Date.now()));
     return () => window.clearTimeout(timer);
-  }, [blocked, page, session?.id, session?.biteAt, session?.expiresAt, session?.phase]);
+  }, [blocked, page, session?.id, session?.biteAt, session?.phase]);
 };

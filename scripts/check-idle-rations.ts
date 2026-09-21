@@ -37,7 +37,7 @@ try {
     const p = ready(), q = quoteExpeditionRations(p, region, hours), profile = explorationTravel[region];
     assert.equal(q.reason, ''); assert.equal(q.minimum, profile.meals * hours / 2); assert.equal(q.maximum, q.minimum * 2);
     assert.equal(q.nutrition, profile.nutrition * hours / 2); assert.equal(q.purchased, q.minimum); assert.equal(q.coins, q.purchased * 28);
-    assert.equal(q.chance, 3); assert.deepEqual(q.food, { trail_mix: q.purchased }); assert.deepEqual(q.used, {});
+    assert.equal(q.chance, 5); assert.deepEqual(q.food, { trail_mix: q.purchased }); assert.deepEqual(q.used, {});
   }
   const draft = { food: { dish_carrot_rice: 14 }, autoFill: false }, snapshot = JSON.stringify(draft);
   assert.equal(quoteExpeditionRations(ready(), 'station', 8, draft).reason.includes('至少'), true);

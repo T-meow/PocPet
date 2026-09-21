@@ -165,7 +165,7 @@ const legacy = { ...old.community, schemaVersion: 3, market: {
   log: [{ itemId: 'egg', quantity: 1, coins: 4, at: T - M }],
 } };
 const migrated = normalizeCommunityState(legacy);
-assert.equal(migrated.schemaVersion, 8);
+assert.equal(migrated.schemaVersion, old.community.schemaVersion);
 assert.deepEqual(migrated.market.listings.map(row => [row.id, row.slotIndex, row.quantity, row.unitPrice]), [[5, 0, 2, 4], [7, 1, 4, 5]]);
 assert.deepEqual([migrated.market.revenue, migrated.market.premium, migrated.market.sold, migrated.market.visitors], [120, 20, 30, 9]);
 assert.equal(migrated.market.log[0].customer, 'legacy');

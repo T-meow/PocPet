@@ -21,6 +21,7 @@
     "check:farm-progression": "tsx scripts/check-farm-progression.ts",
     "check:community-cd": "tsx scripts/check-community-cd.ts",
     "check:community-market": "tsx scripts/check-community-market.ts",
+    "check:decorations": "tsx scripts/check-decorations.ts && tsx scripts/check-decorations-ui.ts",
     "check:food-production": "tsx scripts/check-food-production.ts",
     "check:field-equipment": "tsx scripts/check-field-equipment.ts",
     "check:expedition": "tsx scripts/check-expedition.ts",

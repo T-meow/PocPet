@@ -55,21 +55,21 @@ const bite = createFishingBiteCue();
 assert.equal(bite(waiting, waiting.biteAt - 1), false);
 assert.equal(bite(waiting, waiting.biteAt), true);
 assert.equal(bite(waiting, waiting.biteAt + 100), false, 'one bite cue per cast');
-assert.equal(createFishingBiteCue()(waiting, waiting.expiresAt), false, 'expired bites remain silent');
+assert.equal(createFishingBiteCue()(waiting, waiting.biteAt + 3600000), true, 'a saved waiting cast stays available');
 let fishing = actCommunityFishing(cast, waiting.id, waiting.revision, 'hook', waiting.biteAt);
 assert.equal(getWorldActionSfx(cast, fishing, 'community'), 'fishing_reel');
 assert.equal(createFishingBiteCue()(fishing.community.fishing.active, waiting.biteAt), false);
 let at = waiting.biteAt;
-for (const action of ['reel', 'reel', 'slack', 'reel', 'reel'] as const) {
+for (const action of ['reel', 'reel', 'reel'] as const) {
   at += 700;
   const active = fishing.community.fishing.active!;
   const next = actCommunityFishing(fishing, active.id, active.revision, action, at);
-  assert.equal(getWorldActionSfx(fishing, next, 'community'), next.community.fishing.pending ? 'game_catch' : action === 'slack' ? 'tap' : 'fishing_reel');
+  assert.equal(getWorldActionSfx(fishing, next, 'community'), next.community.fishing.pending ? 'game_catch' : 'fishing_reel');
   fishing = next;
 }
 assert.ok(fishing.community.fishing.pending);
 assert.equal(getWorldActionSfx(fishing, claimCommunityFish(fishing, fishing.community.fishing.pending.id), 'community'), 'purchase');
-assert.equal(getWorldActionSfx(cast, advanceCommunityFishing(cast, waiting.expiresAt), 'community'), 'game_miss');
+assert.equal(getWorldActionSfx(cast, advanceCommunityFishing(cast, waiting.biteAt + 3600000), 'community'), undefined, 'elapsed time alone does not catch or discard a manual cast');
 assert.equal(getWorldActionSfx(ready, cast, 'home'), undefined, 'world cues stay in their visible activity');
 assert.equal(getWorldActionSfx(ready, { ...cast, createdAt: ready.createdAt + 1 }, 'community'), undefined, 'switching pets does not sound like starting an activity');
 

@@ -86,11 +86,12 @@ try {
   p = fresh(); p.inventory = { fishing_rod: 1, fishing_bait: 2, fishing_float: 1, landing_net: 1 };
   p.community.toolWear = { fishing_rod: 19, fishing_float: 19, landing_net: 19 };
   p = startCommunityFishing(p, 'pond', 'fishing_bait', false, T, { float: true, net: true });
-  assert.equal(p.community.fishing.active!.expiresAt - p.community.fishing.active!.biteAt, 30000);
+  assert.equal(p.community.fishing.active!.requiredClicks, 3);
+  assert.equal(p.inventory.fishing_float, 1, 'retired bite-window equipment is not consumed');
   assert.equal(p.inventory.fishing_rod ?? 0, 0); assert.equal(p.inventory.landing_net ?? 0, 0);
   p = read(p); const fishSession = p.community.fishing.active!;
   p = actCommunityFishing(p, fishSession.id, 0, 'hook', T + 9000);
-  for (const [i, action] of (['reel', 'reel', 'slack', 'reel'] as const).entries()) p = actCommunityFishing(p, fishSession.id, i + 1, action, T + 10000 + i * 1000);
+  for (let i = 0; i < 3; i++) p = actCommunityFishing(p, fishSession.id, i + 1, 'reel', T + 10000 + i * 1000);
   assert(p.community.fishing.pending, 'last durability still completes a fish using the saved net bonus');
   p = claimCommunityFish(p, fishSession.id); assert(!p.community.fishing.pending);
   const noNet = fresh(), rejected = startCommunityFishing(noNet, 'pond', 'fishing_bait', false, T, { net: true });
@@ -202,7 +203,7 @@ try {
   assert(getMarketQuote(fresh(), 'dish_cream_matsutake')!.price > 81);
 
   const legacy = planted as any; delete legacy.community.toolWear; delete legacy.community.treasureResearch; delete legacy.community.decorations; legacy.community.schemaVersion = 5;
-  p = normalizePet(legacy, T); assert.equal(p.community.schemaVersion, 8); assert.equal(getToolUsesLeft(p, 'field_watering_can'), 16); assert.deepEqual(p.inventory, legacy.inventory);
+  p = normalizePet(legacy, T); assert.equal(p.community.schemaVersion, 10); assert.equal(getToolUsesLeft(p, 'field_watering_can'), 16); assert.deepEqual(p.inventory, legacy.inventory);
   p.community.toolWear = { field_watering_can: 3, prospector_pick: 4 }; p.community.treasureResearch = { star_sapphire: 9 };
   p.community.decorations = ['amber_lantern'];
   const frozen = prepareTimePause(p, T), later = T + 30 * D, restored = read(frozen, later);
@@ -222,8 +223,8 @@ try {
     for (const id of [...fieldEquipmentItems.map(item => item.id), ...regionalTreasureIds]) assert.match(itemIcons[id], /\.webp(?:\?|$)/, `${id} has an adopted item icon`);
     const { decorationIcons } = await server.ssrLoadModule('/src/decorationAssets.ts');
     p = fresh(); p.community.decorations = ['amber_lantern'];
-    const html = renderToStaticMarkup(createElement(TreasureDisplay, { pet: p, update: () => {} }));
-    assert(html.includes('已陈列')); assert(!html.includes('undefined'));
+    const html = renderToStaticMarkup(createElement(TreasureDisplay, { pet: p, onSelect: () => {} }));
+    assert(html.includes('Lv.1')); assert(!html.includes('undefined'));
     for (const id of communityDecorationIds) {
       assert(html.includes(communityDecorations[id].name), `${id} can be reviewed in the display`);
       assert(html.includes(decorationIcons[id]), `${id} renders its finished decoration artwork`);

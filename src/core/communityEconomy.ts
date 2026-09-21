@@ -30,6 +30,8 @@ const purchasedCost = (id: string): number => {
   purchasedCosts.set(id, cost);
   return cost;
 };
+// Only the new decoration uplift is capped; historical base prices stay intact.
+export const getPurchasedSaleCeiling = (id: string) => Math.floor(purchasedCost(id));
 const gatheringValue = (id: string): number => {
   if (Object.prototype.hasOwnProperty.call(wildIngredients, id)) return wildIngredients[id as keyof typeof wildIngredients].base;
   if (Object.prototype.hasOwnProperty.call(fish, id)) return fish[id as keyof typeof fish].base;
