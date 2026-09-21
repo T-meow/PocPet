@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { advanceAdventure, buyAdventureSupply, claimAdventureResult, claimAdventureStarter, discardAdventureItem, getAdventureRewardPreview, getAdventureServiceQuote, getAdventureStartReason, pickupAdventureLoot, redeemAdventureTreasure, returnFromAdventure, startAdventure, transportAdventureSupply, useAdventureSupply } from '../src/core/adventure';
 import { adventureBagCapacity, getAdventureRegions, getAdventureSteps } from '../src/core/adventureData';
 import { defaultAdventureState, getAdventureBagCount, isAdventureMapUnlocked, normalizeAdventureState } from '../src/core/adventureState';
-import { adventureTreasureIds, getAdventureTreasureValue } from '../src/core/adventureItems';
+import { adventureTreasureIds, getAdventureTreasureValue, getAdventureTripTreasure } from '../src/core/adventureItems';
 import { getDailyResetDateKey } from '../src/core/dailyReset';
 import { getEffectiveDailyDateKey } from '../src/core/gameClock';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
@@ -25,10 +25,15 @@ import { createAdventureActionGate, adventureActionCommitMs, adventureActionDura
 
 const now = new Date(2026, 8, 17, 12).getTime();
 const fresh = (level = 1): PetState => ({ ...createDefaultPet(now), adventure: { ...defaultAdventureState(), completed: { tutorial: 1 } }, level, hunger: getPetStatCap(level), mood: getPetStatCap(level), health: getPetStatCap(level), energy: getPetStatCap(level), coins: 1000, hearts: 100,
-  inventory: { dish_carrot_rice: 20, trail_mix: 15, berry_bait: 10, trail_rope: 1, apple: 5, golden_apple: 2, energy_drink: 10, rice: 10, egg: 10 } });
+  inventory: { dish_carrot_rice: 20, trail_mix: adventureBagCapacity + 3, berry_bait: 10, trail_rope: 1, apple: 5, golden_apple: 2, energy_drink: 10, rice: 10, egg: 10 } });
 const beginner = (): PetState => ({ ...fresh(), adventure: defaultAdventureState() });
 const tutorial = (pet = beginner(), bag: Inventory = {}) => startAdventure(pet, 'tutorial', 'official.furo', 'Furo', bag, false, now);
-const start = (pet = fresh(), bag: Inventory = { dish_carrot_rice: 5, berry_bait: 1, energy_drink: 2, apple: 1 }, tool = true) => startAdventure(pet, 'valley', 'official.furo', 'Furo', bag, tool, now);
+// Keep coverage of in-flight v6 saves, including their original costs, fruit and random treasure.
+// New departures and the shared v7 economy are exercised by check-valley-loop.ts.
+const start = (pet = fresh(), bag: Inventory = { dish_carrot_rice: 5, berry_bait: 1, energy_drink: 2, apple: 1 }, tool = true) => {
+  const next = startAdventure(pet, 'valley', 'official.furo', 'Furo', bag, tool, now), trip = next.adventure.active;
+  return trip ? { ...next, community: { ...next.community, expedition: { ...next.community.expedition, loop: undefined } }, adventure: { ...next.adventure, active: { ...trip, rulesVersion: 6 as const, treasure: getAdventureTripTreasure(trip.id) } } } : next;
+};
 const step = (pet: PetState, choice?: string) => {
   const trip = pet.adventure.active!;
   return advanceAdventure(pet, trip.id, trip.choices.length, choice ?? getAdventureSteps(trip.rulesVersion, trip.region)[trip.choices.length].choices[0].id, now);
@@ -111,7 +116,7 @@ try {
   assert.equal(startAdventure(nextTrip, undefined, 'official.furo', 'Furo', {}, false, now).adventure.active, undefined, 'unlocking the map never substitutes a default destination');
   assert.equal(useInventoryItem(nextTrip, 'coin_hoard', now).coins, nextTrip.coins + 360);
   assert.equal(isAdventureMapUnlocked(roundTrip({ ...nextTrip, inventory: {} }).adventure), true, 'map access is recorded independently of the keepsake');
-  let fullTutorial = tutorial(beginner(), { trail_mix: 12 });
+  let fullTutorial = tutorial(beginner(), { trail_mix: adventureBagCapacity });
   for (let i = 0; i < 4; i++) fullTutorial = step(fullTutorial);
   assert.deepEqual(fullTutorial.adventure.active!.loot, { map_handbook: 1, coin_hoard: 1 });
   fullTutorial = roundTrip(fullTutorial);
@@ -152,9 +157,9 @@ try {
   assert.equal(pet.energy, 100);
   assert.deepEqual(start(pet).adventure, pet.adventure);
   assert.equal(startAdventure(fresh(), 'coast', 'official.furo', 'Furo', {}, false, now).adventure.active, undefined);
-  for (const bag of [{ trail_mix: 13 }, { trail_mix: -1 }, { trail_mix: NaN }, { trail_mix: 1.5 }, { unknown: 1 }, { rice: 1 }]) assert.equal(start(fresh(), bag).adventure.active, undefined);
-  assert.equal(getAdventureBagCount(start(fresh(), { trail_mix: 12 }).adventure.active!.bag), adventureBagCapacity);
-  for (const base of [{ ...fresh(), isSleeping: true }, { ...fresh(), energy: 11 }, { ...fresh(), hunger: 44 }, { ...fresh(), inventory: {} }]) assert.equal(start(base).adventure.active, undefined);
+  for (const bag of [{ trail_mix: adventureBagCapacity + 1 }, { trail_mix: -1 }, { trail_mix: NaN }, { trail_mix: 1.5 }, { unknown: 1 }, { rice: 1 }]) assert.equal(start(fresh(), bag).adventure.active, undefined);
+  assert.equal(getAdventureBagCount(start(fresh(), { trail_mix: adventureBagCapacity }).adventure.active!.bag), adventureBagCapacity);
+  for (const base of [{ ...fresh(), isSleeping: true }, { ...fresh(), energy: 2 }, { ...fresh(), hunger: 3 }, { ...fresh(), inventory: {} }]) assert.equal(start(base).adventure.active, undefined);
   pet = step(pet, 'entrance');
   assert.equal(pet.hunger, 55); assert.equal(pet.energy, 88);
   assert.equal(advanceAdventure(pet, originalTrip.id, 0, 'entrance', now), pet);
@@ -168,13 +173,13 @@ try {
   assert.deepEqual(step(poor, 'bank').adventure, poor.adventure);
   assert.equal(returnFromAdventure(poor, originalTrip.id, now).adventure.active, undefined);
   const restored = eat(poor, 'dish_carrot_rice', 1);
-  assert.equal(restored.hunger, 61); assert.equal(restored.energy, 3);
+  assert.equal(restored.hunger, 61); assert.equal(restored.energy - poor.energy, getItemRecoveryPreview(poor, getInventoryItem('dish_carrot_rice')!, 1, []).actual.energy);
   assert.equal(restored.adventure.active?.bag.dish_carrot_rice, 4);
   assert.equal(useAdventureSupply(restored, originalTrip.id, poor.adventure.active!.revision, 'dish_carrot_rice', 1), restored);
   assert.equal(eat(poor, 'berry_bait'), poor);
-  for (const quantity of [0, -1, 1.5, NaN, 13]) assert.equal(eat(poor, 'dish_carrot_rice', quantity), poor);
+  for (const quantity of [0, -1, 1.5, NaN, adventureBagCapacity + 1]) assert.equal(eat(poor, 'dish_carrot_rice', quantity), poor);
   const batch = eat(poor, 'dish_carrot_rice', 2);
-  assert.equal(batch.hunger, 112.6); assert.equal(batch.energy, 5);
+  assert.equal(batch.hunger, 112.6); assert.equal(batch.energy - poor.energy, getItemRecoveryPreview(poor, getInventoryItem('dish_carrot_rice')!, 2, []).actual.energy);
   assert.equal(batch.adventure.active?.bag.dish_carrot_rice, 3);
   const preview = getItemRecoveryPreview(poor, getInventoryItem('dish_carrot_rice')!, 2, []);
   assert.equal(batch.hunger - poor.hunger, preview.actual.hunger);
@@ -184,7 +189,7 @@ try {
   assert.equal(limitedBatch.hunger, 130, 'travel meals retain 60 percent of the excess recovery');
   assert.equal(roundTrip(limitedBatch).hunger, 130, 'travel overflow survives save import');
   assert.equal(limitedBatch.adventure.active!.bag.dish_carrot_rice, 4, 'travel meals stop after the first filling serving');
-  assert.equal(limitedBatch.energy, almostFull.energy + 2);
+  assert.equal(limitedBatch.energy, almostFull.energy + getInventoryItem('dish_carrot_rice')!.effect.energy!);
   assert.equal(limitedBatch.isOverfed, true);
   assert.equal(limitedBatch.achievements.counters.totalItemUseCount, almostFull.achievements.counters.totalItemUseCount + 1);
   const blockedMeal = eat(limitedBatch, 'dish_carrot_rice', 4);
@@ -213,9 +218,9 @@ try {
   assert.equal(startPartnerSchedule(traveling, traveling.partnerSchedule.offers[0].id, now).partnerSchedule.active, undefined);
 
   // A full bag keeps both finds on the ground across reloads; the same fruit is never granted twice.
-  let full = step(step(start(fresh(), { trail_mix: 12 }), 'entrance'), 'bank');
+  let full = step(step(start(fresh(), { trail_mix: adventureBagCapacity }), 'entrance'), 'bank');
   assert.deepEqual(full.adventure.active!.loot, { apple: 2 });
-  assert.equal(getAdventureBagCount(full.adventure.active!.bag), 12);
+  assert.equal(getAdventureBagCount(full.adventure.active!.bag), adventureBagCapacity);
   assert.deepEqual(roundTrip(full).adventure.active, full.adventure.active);
   assert.deepEqual(step(full, 'apple').adventure, full.adventure);
   assert.deepEqual(returnFromAdventure(full, full.adventure.active!.id, now).adventure, full.adventure);
@@ -239,17 +244,17 @@ try {
   assert.deepEqual(richStep(full, 'rope').adventure, full.adventure);
   const settledFinds = finish(full);
   assert.equal(settledFinds.inventory.apple, 5, 'eaten/lured fruit is not granted at return');
-  assert.equal(settledFinds.inventory.trail_mix, 13, 'two discarded rations stay discarded');
+  assert.equal(settledFinds.inventory.trail_mix, adventureBagCapacity + 1, 'two discarded rations stay discarded');
   assert.equal(settledFinds.inventory.trail_rope, undefined);
-  let abandoned = step(step(start(fresh(), { trail_mix: 12 }), 'entrance'), 'bank');
+  let abandoned = step(step(start(fresh(), { trail_mix: adventureBagCapacity }), 'entrance'), 'bank');
   abandoned = discard(abandoned, 'apple', 2, 'loot');
   assert.deepEqual(abandoned.adventure.active!.loot, {});
   assert.equal(finish(abandoned).inventory.apple, 5);
-  const partialFit = ['entrance', 'bank'].reduce(richStep, start(fresh(), { trail_mix: 11 }));
+  const partialFit = ['entrance', 'bank'].reduce(richStep, start(fresh(), { trail_mix: adventureBagCapacity - 1 }));
   assert.deepEqual(partialFit.adventure.active!.loot, { apple: 2 });
   const onePicked = pickupAdventureLoot(partialFit, partialFit.adventure.active!.id, partialFit.adventure.active!.revision, 'apple', 1);
   assert.equal(onePicked.adventure.active!.loot.apple, 1);
-  assert.equal(getAdventureBagCount(onePicked.adventure.active!.bag), 12);
+  assert.equal(getAdventureBagCount(onePicked.adventure.active!.bag), adventureBagCapacity);
 
   let shop = serviceTrip();
   assert.ok(shop.adventure.active!.neighborId);
@@ -276,11 +281,11 @@ try {
   assert.equal(deliver(shop, 'apple'), shop);
   for (const state of [
     { ...beforeBuy, coins: 0 },
-    { ...beforeBuy, adventure: { ...beforeBuy.adventure, active: { ...beforeBuy.adventure.active!, bag: { trail_mix: 12 } } } },
+    { ...beforeBuy, adventure: { ...beforeBuy.adventure, active: { ...beforeBuy.adventure.active!, bag: { trail_mix: adventureBagCapacity } } } },
     { ...beforeBuy, adventure: { ...beforeBuy.adventure, active: { ...beforeBuy.adventure.active!, neighborId: undefined } } },
   ]) assert.equal(buy(state, 'trail_mix'), state);
   for (const state of [{ ...beforeDelivery, hearts: 3 }, { ...beforeDelivery, inventory: {} }]) assert.equal(deliver(state, 'dish_carrot_rice', 2), state);
-  const noSpace = { ...beforeDelivery, adventure: { ...beforeDelivery.adventure, active: { ...beforeDelivery.adventure.active!, bag: { trail_mix: 12 } } } };
+  const noSpace = { ...beforeDelivery, adventure: { ...beforeDelivery.adventure, active: { ...beforeDelivery.adventure.active!, bag: { trail_mix: adventureBagCapacity } } } };
   assert.equal(deliver(noSpace, 'apple'), noSpace);
   assert.equal(getAdventureServiceQuote(beforeBuy, 'golden_apple', 1, 'buy').canTrade, false);
 
@@ -349,7 +354,7 @@ try {
   assert.equal(exchanged.coins, collected.coins + getAdventureTreasureValue(rewardId));
   assert.equal(exchanged.inventory[rewardId], undefined);
   assert.equal(useInventoryItem(exchanged, rewardId, now).coins, exchanged.coins);
-  assert.equal(start(exchanged).adventure.active, undefined);
+  assert(startAdventure(exchanged, 'valley', 'official.furo', 'Furo', {}, false, now).adventure.active);
   assert.equal(collected.adventure.completed.valley, 1);
   assert.equal(collected.adventure.discoveries.length, 6);
   assert.equal(collected.adventure.journal.length, 1);
@@ -379,7 +384,7 @@ try {
     let meals = 0, drinks = 0, hunger = 0, energy = 0;
     const choices = ['entrance', branch, encounter, crossing, 'clearing', 'overlook'];
     for (const [i, id] of choices.entries()) {
-      const choice = getAdventureSteps()[i].choices.find(value => value.id === id)!;
+      const choice = getAdventureSteps(6)[i].choices.find(value => value.id === id)!;
       while (state.hunger < choice.hunger) {
         const stock = state.adventure.active!.bag;
         const appleReserve = encounter === 'apple' && i <= 2 ? 1 : 0;
@@ -439,7 +444,7 @@ try {
     assert.ok(getAdventureStartReason(done, region, now));
     assert.equal(startAdventure(done, region, 'official.furo', 'Furo', {}, false, now).adventure.active, undefined);
   }
-  const fullFinal = richStep({ ...richStep(serviceTrip(), 'clearing'), adventure: { ...serviceTrip().adventure, active: { ...serviceTrip().adventure.active!, choices: ['entrance', 'bank', 'lure', 'rope', 'clearing'], bag: { trail_mix: 12 } } } }, 'overlook');
+  const fullFinal = richStep({ ...richStep(serviceTrip(), 'clearing'), adventure: { ...serviceTrip().adventure, active: { ...serviceTrip().adventure.active!, choices: ['entrance', 'bank', 'lure', 'rope', 'clearing'], bag: { trail_mix: adventureBagCapacity } } } }, 'overlook');
   assert.deepEqual(fullFinal.adventure.active!.loot, { [fullFinal.adventure.active!.treasure!]: 1 });
   assert.deepEqual(roundTrip(fullFinal).adventure.active, fullFinal.adventure.active);
   const treasureTrip = fullFinal.adventure.active!;
@@ -466,7 +471,7 @@ try {
     assert.equal(redeemed.coins, atHome.coins + getAdventureTreasureValue(treasure));
     assert.equal(useInventoryItem(redeemed, treasure, now).coins, redeemed.coins);
     assert.deepEqual(start({ ...fresh(), inventory: { [treasure]: 1 } }, { [treasure]: 1 }, false).adventure.active, undefined, 'treasure is not an initial supply');
-    const onGround = richStep({ ...seeded, adventure: { ...seeded.adventure, active: { ...seeded.adventure.active!, choices: ['entrance', 'bank', 'lure', 'rope', 'clearing'], bag: { trail_mix: 12 } } } }, 'overlook');
+    const onGround = richStep({ ...seeded, adventure: { ...seeded.adventure, active: { ...seeded.adventure.active!, choices: ['entrance', 'bank', 'lure', 'rope', 'clearing'], bag: { trail_mix: adventureBagCapacity } } } }, 'overlook');
     const ground = roundTrip(onGround);
     assert.deepEqual(ground.adventure.active!.loot, { [treasure]: 1 });
     const leaveBehind = discard(ground, treasure, 1, 'loot');
@@ -492,18 +497,18 @@ try {
   const tomorrowBeforeReset = new Date(2026, 8, 18, 4, 59, 59).getTime();
   const tomorrowAfterReset = new Date(2026, 8, 18, 5).getTime();
   const recovered = { ...collected, hunger: 100, energy: 100 };
-  assert.equal(startAdventure(recovered, 'valley', 'official.furo', 'Furo', {}, false, tomorrowBeforeReset).adventure.active, undefined);
+  assert(startAdventure(recovered, 'valley', 'official.furo', 'Furo', {}, false, tomorrowBeforeReset).adventure.active);
   const repeated = startAdventure(recovered, 'valley', 'official.furo', 'Furo', { berry_bait: 1 }, true, tomorrowAfterReset);
   assert.ok(repeated.adventure.active);
   let repeatDone = repeated;
   for (const id of ['entrance', 'bank', 'lure', 'rope', 'clearing', 'overlook']) repeatDone = advanceAdventure({ ...repeatDone, hunger: 100, energy: 100 }, repeatDone.adventure.active!.id, repeatDone.adventure.active!.choices.length, id, tomorrowAfterReset);
-  assert.equal(repeatDone.adventure.active!.bag[repeatDone.adventure.active!.treasure!], 1);
+  assert.equal(repeatDone.adventure.active!.bag.coin_hoard, undefined, 'repeat entrances do not mint treasure');
   assert.equal(getAdventureRewardPreview(repeatDone).hearts, 22);
   assert.equal(getAdventureRewardPreview(repeatDone).first, false);
   const repeatReturned = returnFromAdventure(repeatDone, repeatDone.adventure.active!.id, tomorrowAfterReset);
   const repeatClaimed = claimAdventureResult(repeatReturned, repeatReturned.adventure.pending!.id);
   assert.equal(repeatClaimed.adventure.completed.valley, 2);
-  assert.equal(startAdventure({ ...repeatClaimed, hunger: 100, energy: 100 }, 'valley', 'official.furo', 'Furo', {}, false, tomorrowAfterReset).adventure.active, undefined);
+  assert(startAdventure({ ...repeatClaimed, hunger: 100, energy: 100 }, 'valley', 'official.furo', 'Furo', {}, false, tomorrowAfterReset).adventure.active);
   const delayedReturn = returnFromAdventure(completed, completed.adventure.active!.id, tomorrowAfterReset);
   const delayedClaim = claimAdventureResult(delayedReturn, delayedReturn.adventure.pending!.id);
   assert.equal(delayedClaim.adventure.lastCompletedDay.valley, getDailyResetDateKey(now));
@@ -547,7 +552,7 @@ try {
   assert.ok(gate.run(() => { commits += 100; }));
   assert.ok(gate.run(() => { commits++; }, 'sway', false));
   tick(time + 5000);
-  assert.equal(commits, 6, 'leaving animation mode clears a queued action before an immediate operation');
+  assert.equal(commits, 106, 'immediate inventory actions do not cancel the queued movement');
   assert.equal(phases.at(-1)?.phase, 'idle');
   console.log('Adventure action gate passed: immediate hall/map actions, 700 ms exploration lead-in, 1050 ms lock, repeated clicks, nested callbacks and cleanup.');
 }
@@ -607,7 +612,7 @@ try {
     const result = render(returned);
     assert.ok(result.includes(english ? 'Finds and returned supplies' : '收获与归还物资'));
     assert.ok(result.indexOf('adventure-hud') < result.indexOf('adventure-stage') && result.indexOf('adventure-stage') < result.indexOf('adventure-modal-backdrop'));
-    const pendingLoot = ['entrance', 'bank'].reduce(richStep, start(fresh(), { trail_mix: 12 }));
+    const pendingLoot = ['entrance', 'bank'].reduce(richStep, start(fresh(), { trail_mix: adventureBagCapacity }));
     assert.ok(render(pendingLoot).includes('storage-item-grid'));
     for (const panel of ['bag', 'shop', 'delivery', 'pack', 'loot', 'supplies']) {
       const pet = panel === 'loot' ? pendingLoot : panel === 'shop' || panel === 'bag' || panel === 'delivery' ? route : fresh();
@@ -639,7 +644,7 @@ try {
     assert.ok(hall.includes(english ? 'Landscape' : '横屏查看') && hall.includes(english ? 'Panorama' : '看全景'));
     const today = getEffectiveDailyDateKey(fresh());
     const doneHall = render({ ...fresh(), adventure: { ...fresh().adventure, completed: { tutorial: 1, valley: 1 }, lastCompletedDay: { valley: today } } });
-    assert.ok(doneHall.includes(english ? 'Today’s valley scouting is complete' : '今天的溪谷入口探查已完成'));
+    assert.ok(doneHall.includes('随时可出发') && doneHall.includes('采集机会'));
     assert.ok(doneHall.includes(english ? 'Pack for the trip' : '出发整备'), 'preparation stays available after finishing today');
     const renderMap = (state: PetState, region?: string, node?: string) => renderToStaticMarkup(createElement(map.AdventureMap, {
       adventure: state.adventure, today, selection: region ? { region, node } : undefined, portrait: assets.petStatusImages.content, landscape: false,
@@ -664,8 +669,8 @@ try {
     assert.ok(renderMap(returned, 'observatory').includes(english ? 'Collect your previous bag' : '先领取上次行囊'));
     const completedState = { ...fresh(), adventure: { ...fresh().adventure, completed: { tutorial: 1, valley: 1 }, lastCompletedDay: { valley: today }, discoveries: Array.from({ length: 6 }, (_, i) => `valley:${i}`) } };
     const completedMap = renderMap(completedState, 'valley', 'entrance');
-    assert.ok(!completedMap.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
-    assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, 'valley', 'entrance', today), 'complete');
+    assert.ok(completedMap.includes(english ? 'Enter landmark · Pack to leave' : '进入节点 · 整备出发'));
+    assert.equal(mapData.getAdventureNodeStatus(completedState.adventure, 'valley', 'entrance', today), 'available');
     assert.equal(mapData.getAdventureNodeStatus({ ...completedState.adventure, lastCompletedDay: { valley: '2026-09-16' } }, 'valley', 'entrance', '2026-09-17'), 'available');
     const treasurePack = renderToStaticMarkup(createElement(storage.AdventureStorage, { ...shared, pet: { ...fresh(), inventory: { valley_amber: 1, ancient_gold_bar: 1, dish_carrot_rice: 2 } }, panel: 'pack', bag: { dish_carrot_rice: 1 }, tool: false, onPack: noop, onTool: noop, onDepart: noop, onPanel: noop, onClose: noop }));
     assert.ok(treasurePack.includes('data-item-id="valley_amber"') && treasurePack.includes('data-item-id="ancient_gold_bar"'), 'treasure is visible in the combined warehouse');

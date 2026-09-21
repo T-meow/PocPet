@@ -13,8 +13,9 @@ export const createAdventureActionGate = (notify: (state: AdventureActionState) 
 }) => {
   let busy = false;
   let committing = false;
+  let generation = 0;
   let handles: unknown[] = [];
-  const cancel = () => { handles.forEach(clock.cancel); handles = []; busy = false; };
+  const cancel = () => { generation++; handles.forEach(clock.cancel); handles = []; busy = false; notify({ phase: 'idle', motion: 'sway' }); };
   return {
     isBusy: () => busy,
     cancel,
@@ -22,18 +23,21 @@ export const createAdventureActionGate = (notify: (state: AdventureActionState) 
       // Shared dialogs may delegate to an already guarded parent callback.
       if (committing) { action(); return true; }
       if (!animated) {
-        cancel();
-        notify({ phase: 'idle', motion });
         action();
         return true;
       }
       if (busy) return false;
       busy = true;
+      const token = ++generation;
+      let committed = false;
       notify({ phase: 'acting', motion });
       handles = [clock.schedule(() => {
+        if (token !== generation || committed) return;
+        committed = true;
         committing = true;
-        try { action(); } finally { committing = false; notify({ phase: 'settling', motion }); }
+        try { action(); } finally { committing = false; if (token === generation) notify({ phase: 'settling', motion }); }
       }, adventureActionCommitMs), clock.schedule(() => {
+        if (token !== generation) return;
         handles = []; busy = false; notify({ phase: 'idle', motion });
       }, adventureActionDurationMs)];
       return true;

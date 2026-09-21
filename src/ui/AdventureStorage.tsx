@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Backpack, Trash2, X } from 'lucide-react';
 import { buyAdventureSupply, discardAdventureItem, getAdventureServiceQuote, pickupAdventureLoot, redeemAdventureTreasure, transportAdventureSupply, useAdventureSupply } from '../core/adventure';
-import { adventureBagCapacity, adventureTransportLimit, createAdventureShopStock, getAdventureShopPrice } from '../core/adventureData';
+import { adventureTransportLimit, createAdventureShopStock, getAdventureShopPrice } from '../core/adventureData';
+import { getExplorationBagCapacity } from '../core/explorationBackpack';
 import { adventureItems, getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
 import { getAdventureBagCount, getAdventureItemPurchaseCapacity, isAdventureSupply } from '../core/adventureState';
 import { getInventoryDefinitions } from '../core/items';
@@ -29,9 +30,10 @@ interface Props {
   perform?: (action: () => void) => void;
 }
 export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, destination, purpose, onPack, onTool, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
+  const capacity = getExplorationBagCapacity(pet);
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [discard, setDiscard] = useState<{ tripId: string; revision: number; id: ItemId; name: string; quantity: number; source: 'bag' | 'loot' | 'tool' }>();
-  if (panel === 'pack') return <AdventurePreparation pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} purpose={purpose} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
+  if (panel === 'pack') return <AdventurePreparation pet={pet} update={update} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} purpose={purpose} onPack={onPack} onTool={onTool} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
   const trip = pet.adventure.active;
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? { ...trip?.bag, ...(trip?.tool ? { trail_rope: 1 } : {}) }
@@ -46,8 +48,8 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, desti
   const switchTarget = panel === 'shop' || panel === 'delivery' || panel === 'loot' ? 'bag' : panel === 'supplies' ? 'pack' : panel === 'bag' && getAdventureBagCount(trip?.loot ?? {}) ? 'loot' : panel === 'bag' && trip?.choices.length === 4 && trip.neighborId ? 'shop' : undefined;
   const quantityLimit = (id: ItemId) => {
     if (panel === 'shop' || panel === 'delivery') return getAdventureServiceQuote(pet, id, 1, panel === 'shop' ? 'buy' : 'transport').limit;
-    if (panel === 'supplies') return Math.min(adventureBagCapacity, getAdventureItemPurchaseCapacity(pet, id), getItemPurchaseQuote(pet, id, adventureBagCapacity).quantity);
-    return Math.min(adventureBagCapacity, stock[id] ?? 0);
+    if (panel === 'supplies') return Math.min(capacity, getAdventureItemPurchaseCapacity(pet, id), getItemPurchaseQuote(pet, id, capacity).quantity);
+    return Math.min(capacity, stock[id] ?? 0);
   };
   const note = panel === 'loot' ? L('可以收进行囊、当场使用或放弃；所有操作都会保存。', 'Collect, use here or leave behind. Every choice is saved.')
     : panel === 'bag' ? L('这里只显示随身物资。战利品可直接兑换金币，腾出背包空间。', 'Only carried supplies are shown. Exchange treasure for coins to free bag space.')
@@ -60,7 +62,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, desti
       switchLabel: switchTarget ? titles[switchTarget] : undefined }}
     tileInfo={shopping ? item => ({ price: (panel === 'shop' ? getAdventureShopPrice(item.id, trip?.rulesVersion) : getItemPurchaseQuote(pet, item.id).totalPrice) + L(' 金币', ' coins'), mark: panel === 'shop' && !(stock[item.id] ?? 0) ? L('已售完', 'Sold out') : undefined }) : undefined}
     footer={<>
-      {trip && <span>{L('行囊', 'Bag')} {getAdventureBagCount(trip.bag)}/12 · {L('工具', 'Tool')} {trip.tool ? 1 : 0}/1</span>}
+      {trip && <span>{L('行囊', 'Bag')} {getAdventureBagCount(trip.bag)}/{capacity} · {L('工具', 'Tool')} {trip.tool ? 1 : 0}/1</span>}
       {panel === 'delivery' && <span>{L('每份 2 小心心；本趟还可送 ', '2 hearts per item; remaining allowance: ')}{Math.max(0, (trip?.rulesVersion === 1 ? 1 : adventureTransportLimit) - (trip?.transportedCount ?? 0))}</span>}
       {panel === 'shop' && <span>{note}</span>}
       {panel === 'loot' && <span>{L('背包满时可先吃掉补给、兑换战利品，或在旅行背包里整理空间。', 'If full, use supplies, exchange treasure, or make room in your travel bag.')}</span>}
@@ -81,7 +83,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, desti
       const source = panel === 'loot' ? 'loot' : id === 'trail_rope' ? 'tool' : 'bag';
       const usePlan = getItemUsePlan(pet, item, quantity);
       return <>
-        {source === 'loot' && <button className="storage-primary" disabled={getAdventureBagCount(trip.bag) + quantity > adventureBagCapacity} onClick={() => perform(() => update(current => pickupAdventureLoot(current, trip.id, trip.revision, id, quantity)))}><Backpack size={16} />{L('收起 ×', 'Collect ×')}{quantity}</button>}
+        {source === 'loot' && <button className="storage-primary" disabled={getAdventureBagCount(trip.bag) + quantity > capacity} onClick={() => perform(() => update(current => pickupAdventureLoot(current, trip.id, trip.revision, id, quantity)))}><Backpack size={16} />{L('收起 ×', 'Collect ×')}{quantity}</button>}
         {source !== 'tool' && (isAdventureTreasure(id) ? <button className="storage-primary" onClick={() => perform(() => update(current => redeemAdventureTreasure(current, trip.id, trip.revision, quantity, source, id)))}>{exchange}</button> : item.usable && <button className="storage-primary" disabled={!canRecover(id, quantity)} title={usePlan.blocked ? overfedMessage : undefined} onClick={() => perform(() => update(current => useAdventureSupply(current, trip.id, trip.revision, id, usePlan.quantity, source)))}>{usePlan.blocked ? '吃撑了，先消化一下' : `${source === 'loot' ? L('当场食用 ×', 'Eat here ×') : L('使用 ×', 'Use ×')}${usePlan.quantity}`}</button>)}
         <button className="storage-secondary adventure-discard" onClick={() => perform(() => setDiscard({ tripId: trip.id, revision: trip.revision, id, name: item.displayName, quantity, source }))}><Trash2 size={16} />{L('丢弃 ×', 'Discard ×')}{quantity}</button>
       </>;

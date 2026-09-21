@@ -6,7 +6,9 @@ import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultFestivalStories, normalizeFestivalStories } from './festivalStories';
 import { defaultAdventureState, normalizeAdventureState } from './adventureState';
+import { getExplorationBagCapacity } from './explorationBackpack';
 import { defaultCommunityState, normalizeCommunityState } from './communityState';
+import { openTutorialGarden } from './communityUpgradeData';
 import { enforceAdventureHealth } from './adventureReturn';
 import { settleExpeditionTime } from './expeditionReturn';
 import { isPetOverfed } from './petStats';
@@ -321,7 +323,11 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const yearlyStats = normalizeYearlyStats(raw.yearlyStats, now, currentDailyDateKey);
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
   const adventure = normalizeAdventureState(raw.adventure);
-  const community = normalizeCommunityState(raw.community);
+  const community = openTutorialGarden(normalizeCommunityState(raw.community, getExplorationBagCapacity({ adventure })), adventure);
+  // Older saves recorded the seven stories separately from regional travel.
+  if (adventure.valleyCompleted.includes('valley_camp') && !community.expedition.regions.valley.surveyed) {
+    community.expedition.regions.valley = { ...community.expedition.regions.valley, surveyed: true, storyAt: now };
+  }
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
   const hunger = Math.max(0, isNumber(raw.hunger) ? raw.hunger : fallback.hunger);

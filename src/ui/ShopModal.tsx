@@ -1,29 +1,37 @@
+import { useState } from 'react';
+import { Recycle } from 'lucide-react';
 import { getDailyBiscuitClaimInfo, getDailyShopDiscountInfo, getItemPurchaseQuote, type InventoryItemDefinition, type ItemId, type PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
 import { currencyIcon } from '../assets';
 import { t } from '../i18n';
 import { formatCompactNumber } from './numberFormat';
 import { ItemStorageModal } from './ItemStorageModal';
+import { CommunityRecycleModal } from './CommunityRecycleModal';
 import { getCommunityPurchaseReason } from '../core/communityData';
 import type { ItemBrowseState } from './itemBrowse';
 
 interface ShopModalProps {
   pet: PetState;
   items: readonly InventoryItemDefinition[];
+  recycleItems: readonly InventoryItemDefinition[];
   browse: ItemBrowseState;
   onBrowseChange: (state: ItemBrowseState) => void;
   itemIconMap: Partial<Record<string, string>>;
   onClose: () => void;
   onOpenInventory: () => void;
   onBuyItem: (itemId: ItemId, quantity: number) => void;
+  onRecycleItem: (itemId: ItemId, quantity: number, expectedStock: number) => void;
   onExchangeHeart: () => void;
   isHeartExchangeCoolingDown: boolean;
 }
 
-export const ShopModal = ({ pet, items, browse, onBrowseChange, itemIconMap, onClose, onOpenInventory, onBuyItem }: ShopModalProps) => {
+export const ShopModal = ({ pet, items, recycleItems, browse, onBrowseChange, itemIconMap, onClose, onOpenInventory, onBuyItem, onRecycleItem }: ShopModalProps) => {
+  const [page, setPage] = useState<'shop' | 'recycle'>('shop');
   const now = Date.now();
   const discountInfo = getDailyShopDiscountInfo(pet, now);
+  if (page === 'recycle') return <CommunityRecycleModal pet={pet} items={recycleItems} itemIconMap={itemIconMap} onClose={onClose} onBack={() => setPage('shop')} onRecycle={onRecycleItem} />;
   return <ItemStorageModal mode="shop" pet={pet} items={items} browse={browse} onBrowseChange={onBrowseChange} itemIconMap={itemIconMap} onClose={onClose} onSwitch={onOpenInventory}
+    footer={<button type="button" className="storage-switch" onClick={() => setPage('recycle')}><Recycle size={17} />社区回收</button>}
     tileInfo={(item) => {
       const quote = getItemPurchaseQuote(pet, item.id, 1, now, item);
       const discount = discountInfo?.items.find((entry) => entry.itemId === item.id);

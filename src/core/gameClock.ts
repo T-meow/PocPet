@@ -59,6 +59,8 @@ const findLatestStoredDailyDateKey = (value: unknown, fallback: string, now: num
   const yearlyStats = object(pet.yearlyStats);
   const community = object(pet.community);
   const expedition = object(community.expedition);
+  record(object(expedition.loop).day);
+  record(object(community.specialtyOrders).acceptedDay);
   Object.values(object(expedition.regions)).forEach(value => record(object(value).harvestDay));
   Object.values(object(expedition.projects)).forEach(value => record(object(value).lastDay));
 
@@ -73,6 +75,7 @@ const findLatestStoredDailyDateKey = (value: unknown, fallback: string, now: num
     pomodoro.dailyFocusDate,
     community.boardDay,
     community.seedForageDay,
+    object(community.ranchDay).day,
   ].forEach(record);
   recordArray(yearlyStats.activeDateKeys);
   Object.values(companionYears).slice(0, 100).forEach(recordArray);
@@ -201,8 +204,10 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
       adventure: { ...pet.adventure, active: pet.adventure.active ? { ...pet.adventure.active, startedAt: shiftTimestamp(pet.adventure.active.startedAt, offsetMs) } : undefined },
     } : {}),
     community: pet.community ? { ...pet.community,
-      expedition: pet.community.expedition ? { ...pet.community.expedition, active: pet.community.expedition.active ? { ...pet.community.expedition.active, startedAt: shiftTimestamp(pet.community.expedition.active.startedAt, offsetMs), endsAt: shiftTimestamp(pet.community.expedition.active.endsAt, offsetMs) } : undefined } : pet.community.expedition,
-      crop: pet.community.crop ? { ...pet.community.crop, plantedAt: shiftTimestamp(pet.community.crop.plantedAt, offsetMs), readyAt: shiftTimestamp(pet.community.crop.readyAt, offsetMs) } : undefined,
+      expedition: pet.community.expedition ? { ...pet.community.expedition,
+        loop: pet.community.expedition.loop ? { ...pet.community.expedition.loop, refillAt: shiftTimestamp(pet.community.expedition.loop.refillAt, offsetMs) } : undefined,
+        active: pet.community.expedition.active ? { ...pet.community.expedition.active, startedAt: shiftTimestamp(pet.community.expedition.active.startedAt, offsetMs), endsAt: shiftTimestamp(pet.community.expedition.active.endsAt, offsetMs) } : undefined } : pet.community.expedition,
+      plots: pet.community.plots.map(plot => ({ ...plot, crop: plot.crop ? { ...plot.crop, plantedAt: shiftTimestamp(plot.crop.plantedAt, offsetMs), readyAt: shiftTimestamp(plot.crop.readyAt, offsetMs) } : undefined })),
       commission: preserveSessions ? pet.community.commission : pet.community.commission ? { ...pet.community.commission, acceptedAt: shiftTimestamp(pet.community.commission.acceptedAt, offsetMs) } : undefined,
       tasks: preserveSessions ? pet.community.tasks : pet.community.tasks?.map(task => ({ ...task, acceptedAt: shiftTimestamp(task.acceptedAt, offsetMs) })),
       animals: pet.community.animals ? Object.fromEntries(Object.entries(pet.community.animals).map(([id, state]) => [id, { ...state, nextAt: state.nextAt === undefined ? undefined : shiftTimestamp(state.nextAt, offsetMs) }])) as PetState['community']['animals'] : pet.community.animals,
@@ -212,7 +217,10 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
         expiresAt: shiftTimestamp(pet.community.fishing.active.expiresAt, offsetMs),
         lastActionAt: shiftTimestamp(pet.community.fishing.active.lastActionAt, offsetMs),
       } : offsetMs === 0 ? pet.community.fishing.active : undefined } : pet.community.fishing,
-      market: pet.community.market ? { ...pet.community.market, lastVisitAt: shiftTimestamp(pet.community.market.lastVisitAt, offsetMs) } : pet.community.market,
+      market: pet.community.market ? { ...pet.community.market,
+        lastVisitAt: shiftTimestamp(pet.community.market.lastVisitAt, offsetMs),
+        nextVisitAt: pet.community.market.nextVisitAt === undefined ? undefined : shiftTimestamp(pet.community.market.nextVisitAt, offsetMs),
+      } : pet.community.market,
     } : pet.community,
     miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: preserveSessions ? {
       ...pet.miniGames.active,
@@ -253,6 +261,9 @@ const getCalendarDateKey = (value: unknown) => {
 
 export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): PetState => {
   const currentDateKey = getDailyResetDateKey(now);
+  const loop = pet.community?.expedition?.loop;
+  const loopOffset = loop && loop.day > currentDateKey ? Date.parse(currentDateKey + 'T12:00:00Z') - Date.parse(loop.day + 'T12:00:00Z') : 0;
+  const rebaseLoopDay = (day: string) => loopOffset ? new Date(Date.parse(day + 'T12:00:00Z') + loopOffset).toISOString().slice(0, 10) : day;
   const currentYear = Number.parseInt(currentDateKey.slice(0, 4), 10);
   const currentCalendarDateKey = getCalendarDateKey(getLocalCalendarDate(now));
   const hasFutureCreatedAt = isFiniteTimestamp(pet.createdAt) && pet.createdAt > now;
@@ -348,7 +359,10 @@ export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): P
     pomodoro,
     yearlyStats,
     community: pet.community ? { ...pet.community, boardDay: rebaseFutureDateKey(pet.community.boardDay, currentDateKey), seedForageDay: rebaseFutureDateKey(pet.community.seedForageDay, currentDateKey),
+      specialtyOrders: pet.community.specialtyOrders ? { ...pet.community.specialtyOrders, acceptedDay: rebaseFutureDateKey(pet.community.specialtyOrders.acceptedDay, currentDateKey) } : pet.community.specialtyOrders,
+      ranchDay: pet.community.ranchDay ? { ...pet.community.ranchDay, day: rebaseFutureDateKey(pet.community.ranchDay.day, currentDateKey) } : pet.community.ranchDay,
       expedition: pet.community.expedition ? { ...pet.community.expedition,
+        loop: loop ? { ...loop, day: rebaseLoopDay(loop.day), vouchers: loop.vouchers.map(v => ({ ...v, day: rebaseLoopDay(v.day) })), heartDays: loop.heartDays.map(v => ({ ...v, day: rebaseLoopDay(v.day) })) } : undefined,
         regions: Object.fromEntries(Object.entries(pet.community.expedition.regions).map(([id, r]) => [id, { ...r, harvestDay: rebaseFutureDateKey(r.harvestDay, currentDateKey) }])) as PetState['community']['expedition']['regions'],
         projects: Object.fromEntries(Object.entries(pet.community.expedition.projects).map(([id, p]) => [id, { ...p, lastDay: rebaseFutureDateKey(p.lastDay, currentDateKey) }])) as PetState['community']['expedition']['projects'],
       } : pet.community.expedition,

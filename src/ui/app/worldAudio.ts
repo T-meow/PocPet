@@ -32,11 +32,9 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
     if (!a.gardenBuilt && b.gardenBuilt) return 'notification';
     for (const id of Object.keys(b.facilities) as FacilityId[]) {
       if (!a.facilities[id].built && b.facilities[id].built) return 'notification';
-      if (b.facilities[id].work > a.facilities[id].work) return 'action_work_play_medicine';
     }
-    if (b.repairStep > a.repairStep) return 'action_work_play_medicine';
-    if (a.crop && !b.crop) return 'world_harvest';
-    if (!a.crop && b.crop) return 'world_harvest';
+    if (Object.entries(b.upgrades).some(([id, level]) => level > a.upgrades[id as keyof typeof a.upgrades])) return 'notification';
+    if (b.plots.some(plot => Boolean(plot.crop) !== Boolean(a.plots.find(previous => previous.id === plot.id)?.crop))) return 'world_harvest';
     for (const id of ['coop', 'barn'] as AnimalId[]) {
       if (b.animals[id].stock < a.animals[id].stock) return 'world_harvest';
       if (b.animals[id].feed > a.animals[id].feed) return 'tap';

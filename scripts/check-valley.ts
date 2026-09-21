@@ -4,7 +4,7 @@ import { getAdventureSteps } from '../src/core/adventureData';
 import { chooseAdventureReturnItems, enforceAdventureHealth } from '../src/core/adventureReturn';
 import { getAdventureNodeStatus } from '../src/core/adventureMap';
 import { getAdventureBagCount, normalizeAdventureState } from '../src/core/adventureState';
-import { buildCommunityGarden, deliverCommunityOrder, harvestCommunityCrop, plantCommunityCrop, repairCommunityGarden, saveCommunitySeed } from '../src/core/community';
+import { deliverCommunityOrder, harvestCommunityCrop, plantCommunityCrop } from '../src/core/community';
 import { acceptCommunityTask, claimCommunityTask, deliverCommunityParcel } from '../src/core/communityCommissions';
 import { canCraftRecipe, craftRecipe } from '../src/core/kitchen';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
@@ -53,7 +53,7 @@ const complete = (p: PetState, id: ValleyQuestId) => {
 
 // Existing players need no reset; new players must finish the entry once.
 const baseline = fresh();
-assert(getAdventureStartReason(baseline, 'valley', T), 'daily entrance is already complete');
+assert.equal(getAdventureStartReason(baseline, 'valley', T), '', 'repeat entry remains playable');
 assert.equal(getValleyQuestReason(baseline.adventure, 'valley_gather'), '');
 assert(getValleyQuestReason({ ...baseline.adventure, completed: { tutorial: 1 } }, 'valley_gather'));
 assert.equal(getAdventureNodeStatus(baseline.adventure, 'valley', 'crossing', '2026-09-19'), 'locked');
@@ -97,7 +97,7 @@ for (const id of valleyQuestIds) {
       for (let n = 0; n < index; n++) p = step(p, valleyQuests[id].steps[n].choices[0].id);
       const hunger = p.hunger;
       p = step(p, option.id);
-      assert.equal(p.hunger, hunger - option.hunger);
+      assert.equal(p.hunger, hunger - Math.ceil(option.hunger * 1.5));
       if (option.item) assert.equal(p.adventure.active!.bag[option.item] ?? 0, 0);
       if (option.tool) assert(p.adventure.active!.tool);
       for (let n = index + 1; n < 3; n++) p = step(p, valleyQuests[id].steps[n].choices[0].id);
@@ -111,32 +111,30 @@ sad = { ...sad, mood: 0 };
 assert.equal(getAdventureChoiceReason(sad, valleyQuests.valley_lookout.steps[1].choices[0]), '');
 assert(getAdventureChoiceReason(sad, valleyQuests.valley_lookout.steps[1].choices[1]));
 
-// Story materials alone build the first field and sustain the herb/porridge loop.
+// The tutorial opens the field; two story seeds sustain the herb/porridge loop.
 let farmer = complete(complete(baseline, 'valley_gather'), 'valley_ridge');
 farmer = rest(farmer);
-farmer = buildCommunityGarden(repairCommunityGarden(repairCommunityGarden(farmer, 0, T), 1, T));
 assert(farmer.community.gardenBuilt);
-farmer = plantCommunityCrop(farmer, 'herb', T);
-farmer = harvestCommunityCrop(reload(farmer, T + 6 * H), T, T + 6 * H);
-farmer = saveCommunitySeed(farmer);
+farmer = plantCommunityCrop(farmer, 1, 'herb', T);
+farmer = harvestCommunityCrop(reload(farmer, T + 6 * H), 1, T, T + 6 * H);
 assert.equal(farmer.inventory.creek_herb_seed, 1);
-assert.equal(farmer.inventory.creek_herb, 2);
+assert.equal(farmer.inventory.creek_herb, 6, 'first story supplies two herbs before the first harvest');
 assert(canCraftRecipe(farmer, 'herb_porridge', false, 1));
 farmer = craftRecipe(farmer, 'herb_porridge', false, 1, 'valley-first-porridge', T + 6 * H);
 farmer = deliverCommunityOrder(farmer);
 assert(farmer.community.firstOrderDelivered);
 assert.equal(deliverCommunityOrder(farmer), farmer);
-assert(plantCommunityCrop(farmer, 'herb', T + 6 * H).community.crop, 'retained seed starts the next harvest');
+assert(plantCommunityCrop(farmer, 1, 'herb', T + 6 * H).community.plots[0].crop, 'retained seed starts the next harvest');
 
 // Full bag, forced return, full warehouse and partial claims preserve discoveries and pay once.
-let full = start({ ...baseline, inventory: { trail_rope: 1, dish_carrot_rice: 12, creek_herb_seed: 9999 } }, 'valley_gather', { dish_carrot_rice: 12 }, true);
+let full = start({ ...baseline, inventory: { trail_rope: 1, dish_carrot_rice: 24, creek_herb_seed: 9999 } }, 'valley_gather', { dish_carrot_rice: 24 }, true);
 for (const event of valleyQuests.valley_gather.steps) full = step(full, event.choices[0].id);
-assert.equal(full.adventure.active!.loot.creek_herb_seed, 1);
+assert.equal(full.adventure.active!.loot.creek_herb_seed, 2);
 assert(full.adventure.valleyCompleted.includes('valley_gather'));
 full = reload(enforceAdventureHealth({ ...full, health: 19 }, T));
 const receiptId = full.adventure.pending!.id;
 assert(full.adventure.pending!.complete && full.adventure.pending!.salvage);
-assert.equal(chooseAdventureReturnItems(full, receiptId, { dish_carrot_rice: 12, creek_herb_seed: 1 }), full);
+assert.equal(chooseAdventureReturnItems(full, receiptId, { dish_carrot_rice: 24, creek_herb_seed: 1 }), full);
 full = chooseAdventureReturnItems(full, receiptId, { dish_carrot_rice: 8, creek_herb_seed: 1, community_wood: 2, community_stone: 1 });
 assert.equal(getAdventureBagCount(full.adventure.pending!.items), 13);
 full = reload(claimAdventureResult(full, receiptId));
@@ -188,10 +186,11 @@ assert.equal(repeat.adventure.pending!.hearts, 0);
 assert(repeat.community.commission?.found);
 
 // Version 4 migration preserves the old in-progress route, without inventing stories.
-const oldTrip = start(baseline, 'irrigation');
+const oldTrip = start(baseline, 'seeds');
+oldTrip.adventure.active!.purpose = 'irrigation'; // Old in-progress routes still load and finish.
 const oldState = { ...oldTrip.adventure, schemaVersion: 4, valleyCompleted: undefined };
 const migrated = normalizeAdventureState(oldState);
-assert.equal(migrated.schemaVersion, 5);
+assert.equal(migrated.schemaVersion, 6);
 assert.deepEqual(migrated.valleyCompleted, []);
 assert.equal(migrated.active?.purpose, 'irrigation');
 assert.equal(migrated.active?.id, oldTrip.adventure.active!.id);
@@ -203,8 +202,9 @@ const { createElement } = await import('react');
 const { renderToStaticMarkup } = await import('react-dom/server');
 const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error' });
 try {
-  const [{ CommunityPage }, { GardenPage }, { AdventureMap }, { getAdventureNodeScene }] = await Promise.all([
+  const [{ CommunityPage }, { GardenPage }, { AdventureMap }, { getAdventureNodeScene }, { CommunityFarm }, { CommunityField }, { CommunityBoard }] = await Promise.all([
     server.ssrLoadModule('/src/ui/CommunityPage.tsx'), server.ssrLoadModule('/src/ui/GardenPage.tsx'), server.ssrLoadModule('/src/ui/AdventureMap.tsx'), server.ssrLoadModule('/src/ui/adventureScenes.ts'),
+    server.ssrLoadModule('/src/ui/community/CommunityFarm.tsx'), server.ssrLoadModule('/src/ui/community/CommunityField.tsx'), server.ssrLoadModule('/src/ui/community/CommunityBoard.tsx'),
   ]);
   const noop = () => {};
   const orchard = createElement(GardenPage, { pet: campaign, itemIconMap: {}, embedded: true });
@@ -228,11 +228,34 @@ try {
   }
   const closedOrchard = renderToStaticMarkup(createElement(CommunityPage, { ...props, initialPlace: 'orchard', place: null }));
   assert(!closedOrchard.includes('role="dialog"'), 'a controlled close overrides the initial orchard request');
-  for (const place of ['coop', 'barn']) {
-    const pet = { ...campaign, community: { ...campaign.community, facilities: { ...campaign.community.facilities, [place]: { ...campaign.community.facilities[place as 'coop' | 'barn'], built: true } } } };
-    const html = renderToStaticMarkup(createElement(CommunityPage, { ...props, pet, place }));
-    assert(html.includes('添饲料') && html.includes('照料') && html.includes('收取'), `${place} exposes production controls after unlocking`);
+  const checkProductionActions = (html: string, harvestable: boolean) => {
+    const buttons = (html.match(/<button\b[\s\S]*?<\/button>/g) ?? []).filter(button => !button.includes('community-plot-card'));
+    assert.deepEqual(buttons.map(button => button.replace(/<[^>]+>/g, '')), ['收获', '照料'], 'the scene has only the two production actions');
+    assert.equal(buttons[0].includes('disabled=""'), !harvestable, 'only available produce can be harvested');
+    assert(buttons[1].includes('aria-haspopup="dialog"'), 'care opens its operations dialog');
+    assert(!html.includes('community-card') && !html.includes('role="dialog"'), 'operations stay out of the illustrated scene until requested');
+  };
+  for (const place of ['coop', 'barn'] as const) {
+    for (const stock of [0, 4]) {
+      const pet = { ...rest(campaign), community: { ...campaign.community, facilities: { ...campaign.community.facilities, [place]: { ...campaign.community.facilities[place], built: true } }, animals: { ...campaign.community.animals, [place]: { ...campaign.community.animals[place], stock } } } };
+      const html = renderToStaticMarkup(createElement(CommunityFarm, { ...props, pet, only: place }));
+      assert(html.includes(`data-production-scene="${place}"`));
+      checkProductionActions(html, stock > 0);
+      if (stock) assert(html.includes(`×${stock} · 等你收获`));
+    }
   }
+  const now = Date.now();
+  for (const crop of [undefined, { id: 'herb' as const, plantedAt: now - H, readyAt: now + H }, { id: 'carrot' as const, plantedAt: now - 2 * H, readyAt: now - H }]) {
+    const pet = { ...rest(campaign), community: { ...campaign.community, gardenBuilt: true, plots: [{ id: 1, crop }] } };
+    const html = renderToStaticMarkup(createElement(CommunityField, { ...props, pet }));
+    assert(html.includes('data-production-scene="field"'));
+    checkProductionActions(html, Boolean(crop && crop.readyAt < now));
+    assert(html.includes(!crop ? '等待播种' : crop.readyAt > now ? '正在慢慢生长' : '可以收获了'));
+  }
+  const board = renderToStaticMarkup(createElement(CommunityBoard, { ...props, onFishing: noop, onFarm: noop }));
+  assert(board.includes('community-noticeboard') && board.includes('community-pinned-note'));
+  assert(board.includes('给修渠邻居') && board.includes('的一碗暖粥'), 'the permanent story is pinned alongside daily requests');
+  assert(board.includes('specialty-board') && !board.includes('交付并领取酬谢') && !board.includes('role="dialog"'), 'ordinary notes remain closed and specialty quotes are visible');
   const scenes = new Set<string>();
   for (const id of valleyQuestIds) {
     const html = renderToStaticMarkup(createElement(AdventureMap, { adventure: campaign.adventure, selection: { region: 'valley', node: valleyQuests[id].node }, landscape: false, onToggleLandscape: noop, onSelect: noop, onPrepare: noop, onResume: noop, onCollect: noop, onClose: noop, onVisit: noop }));
@@ -241,5 +264,5 @@ try {
     assert(/^data:image\/svg\+xml[;,]/.test(scene)); scenes.add(scene);
   }
   assert.equal(scenes.size, 7);
-  console.log('Valley React passed: both scene entrances, all 13 full-screen place dialogs, embedded orchard controls, controlled close, unlocked animal controls, seven task panels and distinct SVG scene assets. Visual/touch acceptance is manual.');
+  console.log('Valley React passed: both scene entrances, all 13 full-screen place dialogs, embedded orchard controls, controlled close, two-action production scenes in empty/growing/ready states, pinned noticeboard, seven task panels and distinct SVG scene assets. Visual/touch acceptance is manual.');
 } finally { await server.close(); }

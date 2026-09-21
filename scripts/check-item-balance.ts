@@ -58,12 +58,13 @@ try {
   assert.equal(item('berry_bait').price, 8);
   assert.equal(item('trail_rope').price, 80);
   assert(item('field_dressing').effect.health! / item('field_dressing').price < item('medicine').effect.health! / item('medicine').price, 'medicine keeps its stronger healing value at the cost of mood');
-  for (const id of ['trail_mix', 'field_dressing', 'comfort_charm'] as const) {
+  for (const id of ['trail_mix', 'field_dressing', 'comfort_charm', 'medicine'] as const) {
     for (const nearlyFull of [false, true]) {
       const p = normalizePet({ ...createDefaultPet(now), hunger: nearlyFull ? 97 : 20, health: nearlyFull ? 97 : 20, mood: nearlyFull ? 97 : 20, energy: nearlyFull ? 97 : 20, inventory: { [id]: 2 } }, now);
       const preview = getItemRecoveryPreview(p, item(id), 1, []);
       const used = useInventoryItem(p, id, now, { favoriteFoodIds: [] });
       for (const key of itemStatKeys) assert.equal(used[key] - p[key], preview.actual[key], `${id} ${key} cap-aware recovery`);
+      if (id === 'medicine') assert.equal(used.mood - p.mood, -1, 'emergency medicine costs exactly one mood point');
     }
   }
   assert.equal(achievementDefinitions.length, 106);
@@ -188,7 +189,7 @@ try {
   assert.equal(getAchievementEffects(care).careStatBonus, 2);
   const dirty = { ...care, cleanliness: 0, hunger: 500, energy: 300, mood: 0, health: 250 };
   const bath = applyPetAction(dirty, 'clean', now);
-  assert.equal(bath.cleanliness, 80); assert.equal(bath.health, dirty.health); assert.equal(bath.mood, 3); assert.equal(bath.energy, 297); assert.ok(Math.abs(bath.hunger - 488.2) < 0.00001);
+  assert.equal(bath.cleanliness, 120); assert.equal(bath.health, dirty.health); assert.equal(bath.mood, 3); assert.equal(bath.energy, 297); assert.ok(Math.abs(bath.hunger - 488.2) < 0.00001);
 
   for (const treeId of ['fruit_tree', 'care_tree', 'gift_tree'] as const) {
     const tree = growing(treeId);
@@ -203,6 +204,18 @@ try {
     const harvested = harvestTree(fed, 0, readyAt);
     assert.equal(fertilizeTree(harvested, 0, 'heart', readyAt).inventory.heart_fertilizer, 3, 'the next round accepts fertilizer on the same day');
   }
+  // Fixed seed fixtures straddle rolls 71/72 and 96/97, with all three jackpot rolls.
+  // Use a UTC instant so these saved harvests resolve identically in every timezone.
+  const moneyRoundAt = Date.UTC(2026, 6, 15, 4);
+  for (const [seedOffset, expectedCoins] of [[58, 575], [194, 1059], [32, 1743], [147, 1066], [74, 5673], [42, 5934], [94, 5370]]) {
+    const tree = growing('money_tree', 12 * hour, { plantedAt: moneyRoundAt - 12 * hour - seedOffset, naturalReadyAt: moneyRoundAt, nextReadyAt: moneyRoundAt });
+    const ready = advanceGarden(tree, moneyRoundAt);
+    assert.deepEqual(ready.garden.slots[0].pendingDrops, [{ kind: 'coins', amount: expectedCoins }], `money harvest seed ${seedOffset}`);
+    assert.equal(harvestTree(ready, 0, moneyRoundAt).coins - ready.coins, expectedCoins, 'collection pays the resolved amount');
+  }
+  const savedMoney = growing('money_tree', 12 * hour, { state: 'ready', pendingDrops: [{ kind: 'coins', amount: 6000 }] });
+  assert.equal(harvestTree(roundTrip(savedMoney), 0, now).coins - savedMoney.coins, 6000, 'already resolved harvests survive save/load and are not rerolled');
+
   for (const treeId of ['money_tree', 'golden_apple_tree'] as const) {
     const tree = growing(treeId, 72 * hour);
     assert.equal(fertilizeTree(tree, 0, 'normal', now).inventory.normal_fertilizer, 4);

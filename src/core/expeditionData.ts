@@ -1,19 +1,23 @@
 import type { RecipeId } from './companionActivityTypes';
 import type { ExpeditionItemId, ProjectId, RegionId } from './expeditionTypes';
 import type { PetState } from './petTypes';
+import { wildIngredients } from './foodCatalog';
+import { regionalTreasures } from './regionalTreasures';
 
 export const regionIds: RegionId[] = ['valley', 'hills', 'forest', 'coast', 'station'];
 export const projectIds: ProjectId[] = ['riverside', 'exhibition', 'observatory'];
-export const expeditionCapacity = 12;
+export const expeditionCapacity = 24;
 export const expeditionHarvestLimit = 3;
 export const expeditionProducts: Record<ExpeditionItemId, { name: string; glyph: string; base: number; use: string }> = {
-  valley_mushroom: { name: '溪谷野菇', glyph: '🍄', base: 10, use: '野菇焖饭；只在溪谷采集' },
-  hill_honey: { name: '花丘蜂蜜', glyph: '🍯', base: 14, use: '蜂蜜暖饮、社区聚餐' },
-  forest_berry: { name: '雾松林莓', glyph: '🫐', base: 12, use: '林莓奶饮；两份可留种' },
-  forest_berry_seed: { name: '林莓种子', glyph: '🌱', base: 0, use: '菜地种植；用完可回林地再找' },
-  pine_resin: { name: '松香树脂', glyph: '🌲', base: 12, use: '主题展览和观测站项目' },
+  ...wildIngredients,
+  ...regionalTreasures,
+  valley_mushroom: { name: '溪谷野菇', glyph: '🍄', base: 10, use: '野菇焖饭、鸡舍与小摊扩建；只在溪谷采集' },
+  hill_honey: { name: '花丘蜂蜜', glyph: '🍯', base: 14, use: '蜂蜜暖饮、社区聚餐、鸡舍与牛棚扩建' },
+  forest_berry: { name: '雾松林莓', glyph: '🫐', base: 12, use: '林莓奶饮与料理；种子在林地定向寻找，每次 2 份' },
+  forest_berry_seed: { name: '林莓种子', glyph: '🌱', base: 0, use: '林地定向寻找每次 2 份，消耗探索机会；每次播种消耗 1 份' },
+  pine_resin: { name: '松香树脂', glyph: '🌲', base: 12, use: '主题展览、观测站项目与牛棚扩建' },
   coast_kelp: { name: '潮池海藻', glyph: '🌊', base: 12, use: '海藻饭团；只在海岸采集' },
-  sea_glass: { name: '潮汐海玻璃', glyph: '💠', base: 18, use: '主题展览、观测站灯饰；收藏买家收购' },
+  sea_glass: { name: '潮汐海玻璃', glyph: '💠', base: 18, use: '主题展览、观测站灯饰与小摊扩建；收藏买家收购' },
   observatory_part: { name: '观测零件', glyph: '🔭', base: 18, use: '观测站远征准备项目' },
 };
 export const regions: Record<RegionId, { name: string; subtitle: string; color: string; glyph: string; base: string; story: string; storyText: string; gather: string; crossing: string; product: ExpeditionItemId; alternative: ExpeditionItemId; recipe?: RecipeId; unlockHint: string }> = {

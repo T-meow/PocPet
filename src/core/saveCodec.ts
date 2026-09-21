@@ -210,7 +210,7 @@ export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSumma
   createSaveFilePlainText(pet, activeMod, now);
 
 const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 5, community: 3 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 6, community: 8 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
@@ -219,9 +219,9 @@ const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
   const community = rawPet.community;
   const expedition = isObject(community) ? community.expedition : undefined;
   const expeditionTrip = isObject(expedition) ? expedition.active : undefined;
-  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 1 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 1) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 3 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 3) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const trip = isObject(adventure) ? adventure.active : undefined;
-  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 6) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 8) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
 };
 
 const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<string, unknown>) => {

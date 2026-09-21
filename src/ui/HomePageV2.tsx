@@ -41,7 +41,7 @@ export const HomePageV2 = (props: Props) => {
   const gardenGiftReady = props.gardenReminder === 'ready' || !pet.claimedRewardIds.includes(gardenCompensationRewardId);
   const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending || pet.community.expedition.pending)
     || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0)
-    || Boolean(pet.community.crop && pet.community.crop.readyAt <= Date.now());
+    || pet.community.plots.some(plot => plot.crop && plot.crop.readyAt <= Date.now());
   const farmHint = [
     pet.community.expedition.pending ? '远行收获待领取' : pet.community.expedition.active ? pet.community.expedition.active.paused ? '行程已在基地暂停，随时继续' : '伙伴正在远行，去看看进度' : pet.community.fishing.active ? '回到水边，继续这一竿' : undefined,
     props.gardenReminder === 'ready' ? '果园有果实可以收获' : gardenGiftReady ? '果园补偿待领取' : props.gardenReminder === 'withered' ? '果园有植物需要照顾' : undefined,
@@ -81,10 +81,10 @@ export const HomePageV2 = (props: Props) => {
             <strong>{L('一起做饭', 'Cook together')}</strong><small>{L('选一道菜，做点好吃的', 'Pick a recipe. Make something tasty.')}</small>
             <ClaimNotice show={!pet.kitchen.starterClaimed && !pet.adventure.active} />
           </button>
-          <button className="home-quick play" disabled={playLocked || Boolean(pet.adventure.active)} onClick={onOpenPlay}>
-            <span className="home-primary-icon"><Gamepad2 size={28} /></span>{playLocked ? <LockKeyhole className="home-entry-arrow" size={17} aria-hidden="true" /> : <ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />}
-            <strong>{!playLocked && activeGame ? L('继续游戏', 'Continue game') : L('一起游戏', 'Games together')}</strong>
-            <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : L('翻牌、接球，或吹一会儿泡泡', 'Cards, catch, or a few bubbles')}</small>
+          <button className="home-quick garden" onClick={props.onOpenCommunity ?? onOpenGarden}>
+            <span className="home-primary-icon"><Sprout size={28} /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
+            <strong>溪畔农场</strong><small>{farmHint}</small>
+            <ClaimNotice show={farmGiftReady} />
           </button>
         </div>
         <nav className="home-tools" aria-label={L('常用工具', 'Everyday essentials')}>
@@ -93,7 +93,10 @@ export const HomePageV2 = (props: Props) => {
           <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span><ClaimNotice show={!pet.claimedRewardIds.includes(goldenAppleGachaStarterGiftRewardId)} /></button>
         </nav>
         <div className="home-quick-grid home-services-grid">
-          <button className="home-quick garden" onClick={props.onOpenCommunity ?? onOpenGarden}><Sprout /><strong>溪畔农场</strong><small>{farmHint}</small><ClaimNotice show={farmGiftReady} /></button>
+          <button className="home-quick play" disabled={playLocked || Boolean(pet.adventure.active)} onClick={onOpenPlay}>
+            {playLocked ? <LockKeyhole /> : <Gamepad2 />}<strong>{!playLocked && activeGame ? L('继续游戏', 'Continue game') : L('一起游戏', 'Games together')}</strong>
+            <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : L('翻牌、接球，或吹一会儿泡泡', 'Cards, catch, or a few bubbles')}</small>
+          </button>
           <button className="home-quick schedule" onClick={onOpenPartnerSchedule}>
             <CalendarDays /><strong>{L('社区工作', 'Community work')}</strong><small>{pet.partnerSchedule.pendingResult ? L('报酬待领取', 'Rewards are ready') : pet.partnerSchedule.active ? L('正在帮忙', 'Lending a hand') : L('快速工作与邻里事务', 'Quick work and local requests')}</small>
             <ClaimNotice show={Boolean(pet.partnerSchedule.pendingResult)} />

@@ -30,11 +30,11 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   const reward = getKitchenHeartReward(pet, request.recipeId, request.banana);
   const skillXp = getKitchenSkillXpReward(pet, request.recipeId);
   const actions = getCookingActions(recipe.method, recipe.technique);
-  const canCook = canCraftRecipe(pet, request.recipeId, request.banana, request.quantity);
+  const canCook = canCraftRecipe(pet, request.recipeId, request.banana, request.quantity, request.milk);
   const back = () => { playSfx('close'); onBack(); };
   const submit = () => {
     setSubmitted(true);
-    updateRef.current((current) => craftRecipe(current, request.recipeId, request.banana, request.quantity, request.id));
+    updateRef.current((current) => craftRecipe(current, request.recipeId, request.banana, request.quantity, request.id, Date.now(), request.milk));
   };
   useEffect(() => {
     if (!progress.readyAt || result) return;
@@ -57,7 +57,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
     playSfx(cookingActionSound(next.action!));
   };
   const completedSteps = progress.step - (progress.readyAt ? 1 : 0);
-  const ingredients = getRecipeIngredients(recipe, request.banana);
+  const ingredients = getRecipeIngredients(recipe, request.banana, request.milk);
   const baseTotal = result?.baseHearts;
   const skillTotal = result?.skillHearts;
   return <DialogShell className="activity-modal cooking-modal" backdropClassName="activity-backdrop" labelId="cooking-title" onClose={back}>

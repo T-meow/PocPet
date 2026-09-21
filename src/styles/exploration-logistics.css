@@ -1,0 +1,16 @@
+.exploration-support { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 10px 0; }
+.exploration-support > .exp-warning,.exploration-support > .exp-quote { flex-basis: 100%; }
+.exploration-support > details { flex: 1 1 240px; }
+.exploration-support button,.exploration-backpack-upgrade button { min-height: 40px; }
+.exploration-backpack-upgrade { padding: 8px; }
+.exploration-backpack-upgrade select { max-width: 100%; }
+.exp-rations .exp-stock-list { max-height: 260px; overflow-y: auto; }
+.exp-rations details { margin: 10px 0; }
+.exp-rations label { gap: 8px; }
+.exp-rations input[type="number"] { min-width: 64px; }
+.exp-journey[data-action-phase="acting"] > .exp-card-heading .exp-icon,.exp-start[data-action-phase="acting"] svg { animation: expedition-step .7s ease-in-out; }
+.exp-journey[data-action-phase="settling"] > .exp-card-heading .exp-icon { animation: expedition-arrive .35s ease-out; }
+.exp-path { overflow-x: auto; }
+@keyframes expedition-step { 25% { transform: translateX(-3px) rotate(-5deg); } 75% { transform: translateX(4px) rotate(5deg); } }
+@keyframes expedition-arrive { 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .exp-journey .exp-icon,.exp-start svg { animation: none !important; } }

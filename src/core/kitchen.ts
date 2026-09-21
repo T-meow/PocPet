@@ -3,7 +3,7 @@ import { addInventoryItem, removeInventoryItem } from './items';
 import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practiceSkillXp } from './partnerSchedule';
 import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
-import type { CookingMethod, DishId, KitchenState, RecipeId } from './companionActivityTypes';
+import type { CookingMethod, DishId, KitchenState, RecipeId, MilkChoice } from './companionActivityTypes';
 import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes } from './kitchenRecipes';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
@@ -48,6 +48,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   const result = value.lastCraft;
   if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= 99 && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
     next.lastCraft = { id: result.id.slice(0, 128), dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
+    if (result.milk === 'farm_milk' || result.milk === 'ad_milk') next.lastCraft.milk = result.milk;
     if (typeof result.skillXp === 'number' && Number.isInteger(result.skillXp) && result.skillXp >= 0 && result.skillXp <= practiceSkillXp + kitchenFirstRecipeXp) next.lastCraft.skillXp = result.skillXp;
     if (typeof result.baseHearts === 'number' && Number.isFinite(result.baseHearts) && result.baseHearts >= 0 && typeof result.skillHearts === 'number' && Number.isFinite(result.skillHearts) && result.skillHearts >= 0 && typeof result.skillLevel === 'number' && Number.isInteger(result.skillLevel) && result.skillLevel >= 1 && result.skillLevel <= partnerScheduleMaxSkillLevel) {
       Object.assign(next.lastCraft, { baseHearts: result.baseHearts, skillHearts: result.skillHearts, skillLevel: result.skillLevel });
@@ -63,23 +64,24 @@ export const claimKitchenStarter = (pet: PetState): PetState => {
   const inventory = ['apple', 'orange', 'rice', 'egg'].reduce((stock, id) => addInventoryItem(stock, id as 'apple' | 'orange' | 'rice' | 'egg', 1), pet.inventory);
   return { ...pet, inventory, kitchen: { ...pet.kitchen, starterClaimed: true } };
 };
-export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false) => {
+export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false, milk?: MilkChoice) => {
+  if (milk !== undefined && milk !== 'farm_milk' && milk !== 'ad_milk') return 0;
   if (getRecipeUnlockReason(pet, recipeId)) return 0;
   const recipe = getRecipe(recipeId);
   if (!recipe) return 0;
-  return Math.max(0, Math.min(99, 9999 - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
+  return Math.max(0, Math.min(99, 9999 - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana, milk).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
 };
-export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number) => {
+export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, milk?: MilkChoice) => {
   const recipe = getRecipe(recipeId);
-  return Boolean(recipe && canSpendCompanionTime(pet) && pet.kitchen.equipment.includes(recipe.method) && Number.isInteger(quantity) && quantity >= 1 && quantity <= getCraftLimit(pet, recipeId, banana));
+  return Boolean(recipe && !pet.timePause && canSpendCompanionTime(pet) && pet.kitchen.equipment.includes(recipe.method) && Number.isInteger(quantity) && quantity >= 1 && quantity <= getCraftLimit(pet, recipeId, banana, milk));
 };
-export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, operationId: string, now = Date.now()): PetState => {
+export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, operationId: string, now = Date.now(), milk?: MilkChoice): PetState => {
   const recipe = getRecipe(recipeId);
-  if (!recipe || !operationId || pet.kitchen.recentOperationIds.includes(operationId) || !canCraftRecipe(pet, recipeId, banana, quantity)) return pet;
+  if (!recipe || !operationId || pet.kitchen.recentOperationIds.includes(operationId) || !canCraftRecipe(pet, recipeId, banana, quantity, milk)) return pet;
   const dishId = getDishId(recipe, banana);
   const first = !pet.kitchen.made[recipeId];
   let next: PetState = { ...pet, lastInteractionAt: now, kitchen: { ...pet.kitchen, made: { ...pet.kitchen.made, [recipeId]: (pet.kitchen.made[recipeId] ?? 0) + quantity }, firstMadeAt: first ? { ...pet.kitchen.firstMadeAt, [recipeId]: now } : pet.kitchen.firstMadeAt, recentOperationIds: [...pet.kitchen.recentOperationIds, operationId].slice(-32) } };
-  next.inventory = getRecipeIngredientEntries(recipe, banana).reduce((stock, ingredient) => removeInventoryItem(stock, ingredient.id, ingredient.quantity * quantity), pet.inventory);
+  next.inventory = getRecipeIngredientEntries(recipe, banana, milk).reduce((stock, ingredient) => removeInventoryItem(stock, ingredient.id, ingredient.quantity * quantity), pet.inventory);
   next.inventory = addInventoryItem(next.inventory, dishId, quantity);
   const reward = getKitchenHeartReward(pet, recipeId, banana);
   const skillXp = getKitchenSkillXpReward(pet, recipeId);
@@ -87,7 +89,7 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   const hearts = nextHearts - next.hearts;
   next = { ...next, hearts: nextHearts };
   if (skillXp > 0) next.partnerSchedule = { ...next.partnerSchedule, skills: { ...next.partnerSchedule.skills, cooking: addSkillXp(next.partnerSchedule.skills.cooking, skillXp) } };
-  next.kitchen.lastCraft = { id: operationId, dishId, quantity, hearts, baseHearts: reward.baseHearts * quantity, skillHearts: reward.skillHearts * quantity, skillLevel: reward.skillLevel, skillXp, at: now };
+  next.kitchen.lastCraft = { id: operationId, dishId, quantity, hearts, baseHearts: reward.baseHearts * quantity, skillHearts: reward.skillHearts * quantity, skillLevel: reward.skillLevel, skillXp, at: now, ...(milk ? { milk } : {}) };
   next.recentActivity = 'work_food';
   next.recentActivityUntil = now + 3000;
   next.recentEvent = activityText(`一起做好了 ${quantity} 份${dishName(dishId)}，收获 ${hearts} 颗心心。`, `Made ${quantity} × ${dishName(dishId)} together and earned ${hearts} hearts.`);

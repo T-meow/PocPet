@@ -3,7 +3,7 @@ import { advanceAdventure, claimAdventureResult, getAdventureChoiceReason, getAd
 import { chooseAdventureReturnItems, enforceAdventureHealth } from '../src/core/adventureReturn';
 import { getAdventureBagCount, getAdventureItemPurchaseCapacity, isAdventureSupply } from '../src/core/adventureState';
 import { getAdventureSteps } from '../src/core/adventureData';
-import { acceptCommunityCommission, buildCommunityGarden, cancelCommunityCommission, claimCommunityCommission, deliverCommunityOrder, getCommunityCommissionId, harvestCommunityCrop, plantCommunityCrop, repairCommunityGarden, saveCommunitySeed } from '../src/core/community';
+import { acceptCommunityCommission, cancelCommunityCommission, claimCommunityCommission, deliverCommunityOrder, getCommunityCommissionId, harvestCommunityCrop, plantCommunityCrop } from '../src/core/community';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import { advancePet } from '../src/core/petLifecycle';
 import { getPetEnergyCap, getPetStatCap, getPetStatScale } from '../src/core/petStats';
@@ -18,12 +18,12 @@ import { createCommunityTestPet } from './fixtures/community-pet';
 const T = new Date(2026, 8, 18, 10).getTime(), H = 3600000;
 const fresh = () => createCommunityTestPet('community', T);
 const roundTrip = (pet: PetState, at = T) => parseSaveFileText(createSaveFileText(pet, null, at), at).pet;
-const start = (pet: PetState, at = T) => startAdventure(pet, 'valley', 'official.furo', 'Furo', {}, true, at, 'irrigation');
+const start = (pet: PetState, at = T) => startAdventure(pet, 'valley', 'official.furo', 'Furo', {}, true, at, 'seeds');
 const node = (pet: PetState, choice: string, at = T) => {
   const trip = pet.adventure.active!;
   return advanceAdventure(pet, trip.id, trip.choices.length, choice, at);
 };
-const completeShort = (pet: PetState, at = T) => node(node(node(start(pet, at), 'search_path', at), 'search_bank', at), 'search_find', at);
+const completeShort = (pet: PetState, at = T) => node(node(node(start({ ...pet, hunger: getPetStatCap(pet), energy: getPetEnergyCap(pet) }, at), 'search_path', at), 'search_bank', at), 'search_find', at);
 const collect = (pet: PetState, at = T) => {
   const back = returnFromAdventure(pet, pet.adventure.active!.id, at);
   return claimAdventureResult(back, back.adventure.pending!.id);
@@ -36,33 +36,27 @@ pet = acceptCommunityCommission(pet, id, T);
 assert.equal(acceptCommunityCommission(pet, id, T), pet);
 pet = roundTrip(completeShort(pet));
 assert(pet.community.irrigationFound && pet.community.herbDiscovered && pet.community.commission?.found);
-assert.equal(pet.adventure.active?.bag.creek_herb_seed, 1);
+assert.equal(pet.adventure.active?.bag.creek_herb_seed, 2);
 pet = collect(pet);
 assert.equal(pet.adventure.completed.valley, undefined);
 assert.equal(pet.adventure.lastCompletedDay.valley, undefined);
-assert.equal(pet.inventory.creek_herb_seed, 1);
+assert.equal(pet.inventory.creek_herb_seed, 2);
 const coins = pet.coins;
 pet = claimCommunityCommission(pet, id);
 assert.equal(pet.coins, coins + 40);
 assert.equal(claimCommunityCommission(pet, id), pet);
 assert.equal(acceptCommunityCommission(pet, id, T), pet);
-pet = repairCommunityGarden(pet, 0, T);
-assert.equal(repairCommunityGarden(pet, 0, T), pet);
-pet = repairCommunityGarden(pet, 1, T);
-pet = buildCommunityGarden(pet);
 assert(pet.community.gardenBuilt);
-assert.equal(buildCommunityGarden(pet), pet);
 assert.equal(getPetEnergyCap(pet), 107);
 assert.equal(getPetStatScale(pet), 1);
-pet = plantCommunityCrop(pet, 'herb', T);
-assert.equal(pet.inventory.creek_herb_seed ?? 0, 0);
-assert.equal(harvestCommunityCrop(pet, T, T + H), pet);
+pet = plantCommunityCrop(pet, 1, 'herb', T);
+assert.equal(pet.inventory.creek_herb_seed, 1);
+assert.equal(harvestCommunityCrop(pet, 1, T, T + H), pet);
 pet = roundTrip(pet, T + 6 * H);
-pet = harvestCommunityCrop(pet, T, T + 6 * H);
+pet = harvestCommunityCrop(pet, 1, T, T + 6 * H);
 assert.equal(pet.inventory.creek_herb, 4);
-assert.equal(harvestCommunityCrop(pet, T, T + 6 * H), pet);
-pet = saveCommunitySeed(pet);
-assert.equal(pet.inventory.creek_herb, 2); assert.equal(pet.inventory.creek_herb_seed, 1);
+assert.equal(harvestCommunityCrop(pet, 1, T, T + 6 * H), pet);
+assert.equal(pet.inventory.creek_herb, 4); assert.equal(pet.inventory.creek_herb_seed, 1);
 assert(canCraftRecipe(pet, 'herb_porridge', false, 1));
 pet = craftRecipe(pet, 'herb_porridge', false, 1, 'community-cook-one', T + 6 * H);
 assert.equal(craftRecipe(pet, 'herb_porridge', false, 1, 'community-cook-one', T + 6 * H), pet);
@@ -82,7 +76,7 @@ lost.inventory = {};
 lost = collect(completeShort({ ...lost, inventory: { trail_rope: 1 } }));
 assert.equal(lost.inventory.creek_herb_seed, undefined);
 lost = collect(completeShort({ ...lost, inventory: { trail_rope: 1 } }, T + 24 * H), T + 24 * H);
-assert.equal(lost.inventory.creek_herb_seed, 1);
+assert.equal(lost.inventory.creek_herb_seed, 2);
 
 // Accepted quests outlive 5 a.m.; prior exploration/stock does not complete a new one.
 let quest = acceptCommunityCommission(fresh(), id, T);
@@ -96,7 +90,7 @@ assert.equal(quest.community.commission?.id, newId); assert.equal(quest.communit
 const cancelled = cancelCommunityCommission(quest, newId);
 assert.equal(acceptCommunityCommission(cancelled, newId, T + 24 * H), cancelled);
 let dailyDone = fresh(); dailyDone.adventure.lastCompletedDay.valley = '2026-09-18';
-assert(getAdventureStartReason(dailyDone, 'valley', T));
+assert.equal(getAdventureStartReason(dailyDone, 'valley', T), '');
 assert(start(dailyDone).adventure.active);
 
 // Strict proportional boundaries, including level 99 and growth/trophy energy caps.
@@ -128,10 +122,10 @@ let rescued = enforceAdventureHealth(createCommunityTestPet('salvage', T), T);
 let receipt = rescued.adventure.pending!;
 assert(receipt.salvage); assert.equal(claimAdventureResult(rescued, receipt.id), rescued);
 assert.equal(getAdventureItemPurchaseCapacity({ ...rescued, inventory: { trail_rope: 9998 } }, 'trail_rope'), 0, 'a tool awaiting return selection still reserves warehouse space');
-assert.equal(chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 12, creek_herb_seed: 1 }), rescued);
-rescued = chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 11, creek_herb_seed: 1 });
-assert.equal(chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 12 }), rescued);
-assert.equal(getAdventureBagCount(rescued.adventure.pending!.items), 13); // 12 + independent tool
+assert.equal(chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 24, creek_herb_seed: 1 }), rescued);
+rescued = chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 23, creek_herb_seed: 1 });
+assert.equal(chooseAdventureReturnItems(rescued, receipt.id, { dish_carrot_rice: 24 }), rescued);
+assert.equal(getAdventureBagCount(rescued.adventure.pending!.items), 25); // 24 + independent tool
 rescued.inventory.creek_herb_seed = 9999;
 rescued = claimAdventureResult(roundTrip(rescued), receipt.id);
 assert.equal(rescued.adventure.pending?.items.creek_herb_seed, 1);
@@ -182,7 +176,7 @@ assert(getAdventureChoiceReason(sad, sadChoices[1]));
 assert.equal(node(sad, 'search_bank').adventure.active?.choices.length, 2);
 let waitingCrop = createCommunityTestPet('harvest', T);
 waitingCrop.inventory.creek_herb = 9998;
-assert(harvestCommunityCrop(waitingCrop, waitingCrop.community.crop!.plantedAt, T).community.crop);
+assert(harvestCommunityCrop(waitingCrop, 1, waitingCrop.community.plots[0].crop!.plantedAt, T).community.plots[0].crop);
 const fullQuest = completeShort(acceptCommunityCommission(fresh(), id, T));
 let waitingQuest = collect(fullQuest); waitingQuest.inventory.community_wood = 9999;
 assert(claimCommunityCommission(waitingQuest, id).community.commission?.found);

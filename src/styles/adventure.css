@@ -93,9 +93,9 @@
 .adventure-page[data-action-phase="acting"] :is(.adventure-buddy-image,.adventure-actor--you img) { animation: adventure-sway .7s ease-in-out both; transform-origin: 50% 90%; }
 .adventure-page[data-action-phase="acting"][data-motion="walk"] :is(.adventure-buddy-image,.adventure-actor--you img) { animation-name: adventure-walk; }
 .adventure-page[data-action-phase="settling"] :is(.adventure-buddy-image,.adventure-actor--you img) { animation: adventure-happy .35s ease-out both; }
-.adventure-page[data-action-phase="acting"] :is(.adventure-dialogue,.adventure-modal-backdrop > section) { animation: adventure-soft-out .7s ease both; }
-.adventure-page[data-action-phase="settling"] :is(.adventure-dialogue,.adventure-modal-backdrop > section) { animation: adventure-soft-in .35s ease both; }
-.adventure-page[data-action-phase="acting"] button,.adventure-page[data-action-phase="settling"] button { cursor: progress; }
+.adventure-page[data-action-phase="acting"] .adventure-scene-view { animation: adventure-soft-out .7s ease both; }
+.adventure-page[data-action-phase="settling"] .adventure-scene-view { animation: adventure-soft-in .35s ease both; }
+.adventure-page[data-action-phase="acting"] .adventure-choices button:disabled,.adventure-page[data-action-phase="settling"] .adventure-choices button:disabled { cursor: progress; }
 .adventure-page--panorama :is(.adventure-cast,.adventure-dialogue) { display: none; }
 .adventure-page--panorama .adventure-content { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); }
 .adventure-page--panorama .adventure-scene-view { height: 100%; max-height: none; aspect-ratio: auto; }
@@ -116,7 +116,7 @@
 .adventure-preparation .storage-grid-scroll { scrollbar-gutter: stable; }
 .adventure-stage .adventure-preparation .storage-item-grid { grid-template-columns: repeat(auto-fill,minmax(88px,1fr)); gap: 7px; }
 .adventure-preparation .storage-item-tile { aspect-ratio: auto; min-height: 96px; padding: 5px; }.adventure-preparation .storage-tile-picture { height: 62px; padding-top: 13px; }.adventure-preparation .storage-tile-picture img { max-height: 54px; }.adventure-preparation .storage-tile-name { font-size: 11px; margin-top: 3px; }
-.adventure-pack-slots { display: flex; gap: 3px; flex-shrink: 0; margin: 0 0 7px; }.adventure-pack-slots i { flex: 1; height: 5px; border-radius: 4px; background: #d9dfce; }.adventure-pack-slots [data-filled="true"] { background: #8ba368; }
+.adventure-pack-slots { display: grid; grid-template-columns: repeat(24, minmax(0,1fr)); gap: 3px; flex-shrink: 0; margin: 0 0 7px; }.adventure-pack-slots i { flex: 1; height: 5px; border-radius: 4px; background: #d9dfce; }.adventure-pack-slots [data-filled="true"] { background: #8ba368; }
 .adventure-pack-empty { margin: 14px 0; font-size: 12px; color: #88816d; line-height: 1.7; }
 .adventure-pack-tool { display: flex; align-items: center; flex-shrink: 0; gap: 8px; padding-top: 8px; font-size: 11px; border-top: 1px solid #d1dbc4; }.adventure-pack-tool span { color: #8e887b; }.adventure-pack-tool .storage-item-tile { flex: 1; min-height: 40px; flex-direction: row; }.adventure-pack-tool .storage-tile-picture { width: 35px; height: 35px; padding: 0; flex: none; }.adventure-pack-tool .storage-tile-count { display: none; }.adventure-pack-tool .storage-tile-name { font-size: 10px; }
 .adventure-transfer-status { flex-shrink: 0; min-height: 30px; padding: 4px 14px; text-align: center; font-size: 11px; color: #798153; }.adventure-transfer-status > span { display: inline-flex; align-items: center; gap: 7px; animation: adventure-transfer-in .5s ease both; }.adventure-transfer-status > [data-direction="out"] { animation-name: adventure-transfer-out; }.adventure-transfer-status img { width: 24px; height: 24px; object-fit: contain; }

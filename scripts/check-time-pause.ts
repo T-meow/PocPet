@@ -8,6 +8,7 @@ import { plantCommunityCrop } from '../src/core/community';
 import { feedCommunityAnimal } from '../src/core/communityFarm';
 import { startCommunityFishing } from '../src/core/communityFishing';
 import { listCommunityGoods, setCommunityMarketOpen } from '../src/core/communityMarket';
+import { getMarketVisit } from '../src/core/communityMarketRules';
 import { startPartnerSchedule } from '../src/core/partnerSchedule';
 import { startPomodoro, applyPetAction } from '../src/core/petActions';
 import { actMiniGame, startMiniGame } from '../src/core/miniGames';
@@ -35,8 +36,12 @@ const read = (text: string, now: number) => {
 };
 
 try {
-  let farm = plantCommunityCrop(createCommunityTestPet('commissions', T), 'carrot', T);
+  let farm = plantCommunityCrop(createCommunityTestPet('commissions', T), 1, 'carrot', T);
   farm = feedCommunityAnimal(farm, 'coop', 0, 2, T);
+  farm.community.market.seed = Array.from({ length: 1000 }, (_, index) => index + 1).find(seed => {
+    const visit = getMarketVisit(seed, 0);
+    return visit.delayMs > 10 * M && visit.customer === 'ordinary' && visit.quantity === 1;
+  })!;
   farm = listCommunityGoods(farm, 'egg', 2, 1, T);
   farm = setCommunityMarketOpen(farm, true, T);
   farm.garden.slots[0] = { ...farm.garden.slots[0], unlocked: true, treeId: 'fruit_tree', state: 'growing', plantedAt: T, naturalReadyAt: T + 12 * H, nextReadyAt: T + 12 * H, maxHarvests: 8 };
@@ -64,21 +69,25 @@ try {
   assert.deepEqual(resumed.metDate, frozen.metDate, 'calendar anniversaries are not shifted');
   assert.equal(resumed.createdAt, frozen.createdAt);
   for (const [deadline, oldDeadline] of [
-    [resumed.community.crop!.readyAt, frozen.community.crop!.readyAt],
+    [resumed.community.plots[0].crop!.readyAt, frozen.community.plots[0].crop!.readyAt],
     [resumed.community.animals.coop.nextAt!, frozen.community.animals.coop.nextAt!],
+    [resumed.community.market.nextVisitAt!, frozen.community.market.nextVisitAt!],
     [resumed.garden.slots[0].nextReadyAt, frozen.garden.slots[0].nextReadyAt],
     [resumed.boostCards.friendPassExpiresAt, frozen.boostCards.friendPassExpiresAt],
   ]) assert.equal(deadline - later, oldDeadline - at, 'remaining time is preserved');
   assert.equal(advancePet(resumed, later + 5 * M, quiet).ageSeconds, 900);
-  assert.equal(advancePet(resumed, later + 20 * M - 1, quiet).community.market.sold, 0);
-  assert.equal(advancePet(resumed, later + 20 * M, quiet).community.market.sold, 1, 'first visitor waits only the remaining 20 minutes');
+  const nextVisitorAt = resumed.community.market.nextVisitAt!;
+  assert.equal(advancePet(resumed, nextVisitorAt - 1, quiet).community.market.sold, 0);
+  assert.equal(advancePet(resumed, nextVisitorAt, quiet).community.market.sold, 2, 'first visitor keeps the remaining random wait and buys the two available basics');
+  assert.equal(resumed.community.market.seed, frozen.community.market.seed);
+  assert.equal(resumed.community.market.visitors, frozen.community.market.visitors);
   assert.equal(advancePet(resumed, resumed.community.animals.coop.nextAt! - 1, quiet).community.animals.coop.stock, 0);
   assert.equal(advancePet(resumed, resumed.community.animals.coop.nextAt!, quiet).community.animals.coop.stock, 2);
   assert.equal(resumePetTime(resumed, later + D), resumed, 'duplicate resume never shifts twice');
   const again = prepareTimePause(resumed, later, quiet);
-  assert.equal(resumePetTime(again, later + D).community.crop!.readyAt, resumed.community.crop!.readyAt + D);
+  assert.equal(resumePetTime(again, later + D).community.plots[0].crop!.readyAt, resumed.community.plots[0].crop!.readyAt + D);
   const backward = resumePetTime(frozen, T - H);
-  assert.equal(backward.community.crop!.readyAt - (T - H), frozen.community.crop!.readyAt - at);
+  assert.equal(backward.community.plots[0].crop!.readyAt - (T - H), frozen.community.plots[0].crop!.readyAt - at);
   assert.deepEqual(stats(backward), stats(frozen));
 
   const worker = createDefaultPet(T);

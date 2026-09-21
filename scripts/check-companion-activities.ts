@@ -88,7 +88,7 @@ assert.equal(thresholdMade.hearts, getKitchenHeartReward(thresholdPet, 'egg_rice
 const historicalCraft = { id: 'old-craft', dishId: 'dish_egg_rice' as const, quantity: 1, hearts: 40, at: now };
 assert.deepEqual(normalizeKitchenState({ lastCraft: historicalCraft }).lastCraft, historicalCraft, 'old rewards are displayed without recalculation');
 assert.deepEqual(normalizeKitchenState({ lastCraft: { ...historicalCraft, baseHearts: NaN, skillHearts: 2, skillLevel: 10 } }).lastCraft, historicalCraft);
-assert.deepEqual(getRecipe('plain_rice')?.effect, { hunger: 24 });
+assert.deepEqual(getRecipe('plain_rice')?.effect, { hunger: 24, energy: 8 });
 assert.deepEqual(getRecipeIngredientEntries(getRecipe('plain_rice')!), [{ id: 'rice', quantity: 1 }]);
 assert.deepEqual(getCookingActions('pan', 'simmer'), ['add', 'simmer', 'serve']);
 const riceMade = craftRecipe({ ...base, inventory: { rice: 1 } }, 'plain_rice', false, 1, 'plain-rice', now);
@@ -181,6 +181,7 @@ let catalogue = stocked();
 catalogue.community.herbDiscovered = true;
 for (const region of Object.values(catalogue.community.expedition.regions)) region.surveyed = true;
 for (const id of ['fishing_hut', 'upstream', 'barn'] as const) catalogue.community.facilities[id] = { found: true, work: 2, built: true };
+catalogue.community.waterAccess = { forest_pool: { found: true, built: true }, coast_pier: { found: true, built: true } };
 for (const recipe of recipes.filter((recipe) => recipe.method === 'pan' || recipe.method === 'mix')) catalogue = craftRecipe(catalogue, recipe.id, false, 1, `cook-${recipe.id}`, now);
 catalogue = buyKitchenEquipment(buyKitchenEquipment(catalogue, 'blender'), 'oven');
 assert.deepEqual(catalogue.kitchen.equipment, ['mix', 'pan', 'blender', 'oven']);
@@ -191,8 +192,8 @@ for (const { recipe, banana, id } of allDishes) {
   catalogue = craftRecipe(catalogue, recipe.id, banana, 1, `all-${id}`, now);
   catalogue = recordDishTaste(catalogue, id, actor, now);
 }
-assert.equal(Object.keys(catalogue.kitchen.made).length, 31);
-assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, 33);
+assert.equal(Object.keys(catalogue.kitchen.made).length, recipes.length);
+assert.equal(Object.keys(catalogue.kitchen.tasted[actor]).length, allDishes.length);
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'menu_page'));
 assert.ok(catalogue.companionMemories.entries.some((entry) => entry.kind === 'fruit_comparison'));
 const registered = getInventoryDefinitions(createBuiltinItemRegistry(), catalogue.inventory);
@@ -422,14 +423,14 @@ assert.deepEqual(imported.miniGames.active?.flipped, [0]);
 assert.equal(imported.miniGames.active?.paused, true);
 assert.equal(imported.miniGames.active?.elapsedMs, 0);
 Math.random = originalRandom;
-console.log('Companion activities: cooking process, skill hearts, all 33 dishes, year-round festival recipes, weighted ingredients, memories, three games, rewards, and save compatibility passed.');
+console.log(`Companion activities: cooking process, skill hearts, all ${allDishes.length} dishes, year-round festival recipes, weighted ingredients, memories, three games, rewards, and save compatibility passed.`);
 
 const storagePet = { ...stocked(), level: 20 };
 const storageRegistry = createBuiltinItemRegistry();
 const shopDefinitions = getShopDefinitions(storageRegistry);
 const ingredients = filterBrowseItems(shopDefinitions, 'ingredients');
 const food = filterBrowseItems(shopDefinitions, 'food');
-assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'tomato', 'greens', 'pork', 'cabbage', 'shiitake', 'glutinous_rice', 'braised_pork', 'red_bean_paste', 'mixed_nuts', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'pig_trotter', 'emergency_biscuit', 'soda_biscuit_box'].sort());
+assert.deepEqual(ingredients.map((item) => item.id).sort(), ['rice', 'egg', 'flour', 'carrot', 'tomato', 'greens', 'pork', 'cabbage', 'shiitake', 'glutinous_rice', 'braised_pork', 'red_bean_paste', 'mixed_nuts', 'apple', 'orange', 'banana', 'watermelon', 'ad_milk', 'strawberry_milk', 'farm_milk', 'pig_trotter', 'emergency_biscuit', 'soda_biscuit_box'].sort());
 for (const { id } of kitchenMaterials) assert.equal(food.some((item) => item.id === id), id === 'braised_pork' || id === 'mixed_nuts', 'only edible materials also appear in the food tab');
 for (const id of ['apple', 'banana', 'ad_milk', 'strawberry_milk', 'emergency_biscuit', 'braised_pork', 'mixed_nuts']) assert.equal(food.find((item) => item.id === id), ingredients.find((item) => item.id === id), 'both categories reference the same item');
 assert.equal(filterBrowseItems([...shopDefinitions, ...ingredients], 'all').length, shopDefinitions.length, 'All deduplicates shared ingredients');
@@ -484,9 +485,27 @@ try {
   const noop = () => {};
   const kitchenHtml = renderToStaticMarkup(createElement(KitchenModal, { pet: catalogue, actorId: actor, portrait: assets.petStatusImages.content, workingPortrait: assets.petActivityImages.work_food, icons: assets.itemIcons, registry: createBuiltinItemRegistry(), recipeId: 'egg_rice', banana: false, quantity: 1, onRecipe: noop, onBanana: noop, onQuantity: noop, update: noop, onClose: noop, onShop: noop, onFeed: noop }));
   assert.ok(kitchenHtml.includes('id="kitchen-title"'));
-  assert.equal((kitchenHtml.match(/class="recipe-card/g) ?? []).length, 31);
+  const recipeCards = kitchenHtml.match(/<button[^>]*class="recipe-card(?: selected)?"[^>]*>[\s\S]*?<\/button>/g) ?? [];
+  assert.equal(recipeCards.length, recipes.length);
   assert.ok(kitchenHtml.includes('白米饭') && kitchenHtml.includes('草莓饼干千层'));
+  assert.ok(kitchenHtml.includes('加工台') && kitchenHtml.includes('材料齐全') && kitchenHtml.includes('全部稀有度'));
+  assert.ok(!kitchenHtml.includes('value="bento"'), 'bento is no longer a separate recipe category');
+  for (const card of recipeCards) {
+    assert.ok(card.includes('recipe-category-tag') && card.includes('recipe-rarity-tag') && card.includes('storage-tile-tag--hunger'));
+    assert.ok(!/材料参考|回收|摆摊|做过|解锁|加工加价|采集加价/.test(card), 'recipe cards leave explanations in the detail dialog');
+  }
+  const { RecipeNotes } = await server.ssrLoadModule('/src/ui/kitchen/RecipeNotes.tsx');
+  const notesProps = { pet: catalogue, recipe: getRecipe('banana_shake')!, banana: false, milk: 'farm_milk' };
+  const farmMilkNotes = renderToStaticMarkup(createElement(RecipeNotes, notesProps));
+  const shopMilkNotes = renderToStaticMarkup(createElement(RecipeNotes, { ...notesProps, milk: 'ad_milk' }));
+  assert.ok(farmMilkNotes.includes('材料参考 / 份') && farmMilkNotes.includes('38 金币') && shopMilkNotes.includes('44 金币'), 'detail costs follow the selected milk');
+  assert.ok(farmMilkNotes.includes('回收 / 份') && farmMilkNotes.includes('摆摊 / 份') && farmMilkNotes.includes('做过'), 'price and cooking history remain available in details');
+  const { FoodProcessingPanel } = await server.ssrLoadModule('/src/ui/kitchen/FoodProcessingPanel.tsx');
+  const processingHtml = renderToStaticMarkup(createElement(FoodProcessingPanel, { pet: catalogue, update: noop, registry: createBuiltinItemRegistry(), icons: assets.itemIcons }));
+  assert.ok(processingHtml.includes('种子成本 24 金币，每份 3 金币') && !processingHtml.includes('src="undefined"'));
   const cookingProps = { pet: catalogue, request: { id: 'render-cook', recipeId: 'egg_rice', banana: false, quantity: 1 }, portrait: assets.petActivityImages.work_food, icons: assets.itemIcons, update: noop, onBack: noop, onFeed: noop };
+  const milkCookingHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, request: { ...cookingProps.request, recipeId: 'banana_shake', milk: 'farm_milk' } }));
+  assert.ok(milkCookingHtml.includes(assets.itemIcons.farm_milk) && !milkCookingHtml.includes(assets.itemIcons.ad_milk), 'the cooking animation uses the selected milk');
   for (const recipe of recipes) {
     const cookingHtml = renderToStaticMarkup(createElement(KitchenCookingModal, { ...cookingProps, request: { ...cookingProps.request, recipeId: recipe.id } }));
     assert.ok(cookingHtml.includes('id="cooking-title"') && !cookingHtml.includes('id="kitchen-title"'));
@@ -550,21 +569,23 @@ try {
   }
   assert.ok(!kitchenHtml.includes('src="undefined"'));
   const storageProps = { pet: storagePet, items: shopDefinitions, browse: { ...defaultBrowse, category: 'ingredients', selectedId: 'apple', quantity: 5 }, onBrowseChange: noop, itemIconMap: assets.itemIcons, onClose: noop };
-  const shopProps = { ...storageProps, onOpenInventory: noop, onBuyItem: noop, onExchangeHeart: noop, isHeartExchangeCoolingDown: false };
+  const shopProps = { ...storageProps, recycleItems: getInventoryDefinitions(storageRegistry, storagePet.inventory), onRecycleItem: noop, onOpenInventory: noop, onBuyItem: noop, onExchangeHeart: noop, isHeartExchangeCoolingDown: false };
   const inventoryProps = { ...storageProps, items: getInventoryDefinitions(storageRegistry, storagePet.inventory), isPetBusy: false, onOpenShop: noop, onOpenGarden: noop, onOpenKitchen: noop, onUseItem: noop };
   // These wrappers provide the same action renderer to the click-open detail dialog.
   const renderStorageActions = (component: any, props: any) => {
     const item = props.items.find((entry: any) => entry.id === props.browse.selectedId);
     assert.ok(item);
-    return renderToStaticMarkup(component(props).props.renderActions(item, props.browse.quantity));
+    const SelectedActions = () => component(props).props.renderActions(item, props.browse.quantity);
+    return renderToStaticMarkup(createElement(SelectedActions));
   };
   const shopHtml = renderToStaticMarkup(createElement(ShopModal, shopProps));
+  assert.ok(shopHtml.includes('社区回收'), 'the shop links to the recycling inventory page');
   const inventoryHtml = renderToStaticMarkup(createElement(InventoryModal, inventoryProps));
   const tiles = shopHtml.match(/<button class="storage-item-tile"[^>]*>/g) ?? [];
   assert.ok(tiles.length > 1);
   assert.equal(tiles.filter((tile) => tile.includes('data-tone=')).length, 1, 'category color is assigned only to the selected tile');
   assert.ok(tiles.find((tile) => tile.includes('data-tone='))?.includes('aria-pressed="true"'));
-  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, 22);
+  assert.equal((shopHtml.match(/class="storage-item-tile"/g) ?? []).length, ingredients.length);
   assert.ok(!shopHtml.includes('storage-detail') && !shopHtml.includes('storage-exchange') && !shopHtml.includes('data-buy-item='));
   assert.ok(tiles.every((tile) => tile.includes('aria-haspopup="dialog"') && tile.includes('aria-expanded="false"')));
   assert.ok(!inventoryHtml.includes('storage-detail') && !inventoryHtml.includes('data-use-item='));

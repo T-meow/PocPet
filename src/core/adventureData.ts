@@ -5,8 +5,9 @@ import { adventureTreasureValues } from './adventureItems';
 import type { CommunityRoute, FacilityId } from './communityTypes';
 import { facilities, facilityIds } from './communityData';
 import { getValleyQuestCosts, isValleyQuest, valleyQuests } from './valleyQuests';
+import { getRegionActionCost } from './explorationTravelData';
 
-export const adventureBagCapacity = 12;
+export const adventureBagCapacity = 24;
 export const adventureTransportCost = 2;
 export const adventureTransportLimit = 3;
 export const adventureShopPrices: Record<string, number> = { dish_egg_rice: 30, trail_mix: 36, berry_bait: 10 };
@@ -33,14 +34,14 @@ export const adventureJourneyName = (destination: AdventureDestinationId = 'vall
 export const adventureJourneyDetail = (purpose: CommunityRoute) => isValleyQuest(purpose)
   ? `首次成果：${valleyQuests[purpose].coins} 金币、${valleyQuests[purpose].hearts} 基础小心心。${valleyQuests[purpose].outcome}`
   : facilityIds.includes(purpose as FacilityId) ? `${facilities[purpose as FacilityId].clue}会永久记入建设记录。${facilities[purpose as FacilityId].benefit}。`
-    : '沿旧桥完成已接寻物／实地采集／送餐委托，寻找灌溉线索与香草。每日首次搜寻可带回香草种子 ×1，不领取完整探查战利品。';
+    : '沿旧桥完成已接寻物／实地采集／送餐委托，寻找溪谷香草。每日首次搜寻可带回香草种子 ×2，不领取完整探查战利品。';
 export const adventureJourneyCost = (purpose: CommunityRoute) => {
-  if (!isValleyQuest(purpose)) return '3 个节点 · 饱食 22～24、体力 8～11 · 安全路线不扣健康';
-  const cost = getValleyQuestCosts(purpose);
+  if (!isValleyQuest(purpose)) return '3 个节点 · 安全路线饱食 42、体力 24 · 不扣健康';
+  const cost = getValleyQuestCosts(purpose, 1.5);
   return `${valleyQuests[purpose].steps.length} 个节点 · 饱食 ${cost.hunger.join('～')}、体力 ${cost.energy.join('～')} · 一次性故事`;
 };
-export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`);
-export const adventureTreasureRewardText = (version: AdventureRulesVersion = 4) => version >= 4
+export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`) + '结算后免费开放第 1 块菜地（体力上限 +4）。';
+export const adventureTreasureRewardText = (version: AdventureRulesVersion = 7) => version >= 7 ? '巡路酬谢与挂机共用；每日 22 基础小心心。采集机会每 3 小时恢复，首次入口宝藏与手账里程碑仅领一次。' : version >= 4
   ? L(`通关：22 基础小心心＋随机战利品 ×1（${Math.min(...Object.values(adventureTreasureValues))}～${Math.max(...Object.values(adventureTreasureValues))} 金币）`, `Completion: 22 base hearts + 1 random treasure (${Math.min(...Object.values(adventureTreasureValues))}–${Math.max(...Object.values(adventureTreasureValues))} coins)`)
   : L(`通关：22 基础小心心＋金币堆 ×1（${adventureTreasureValues.coin_hoard} 金币）`, `Completion: 22 base hearts + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins)`);
 export const adventureDiscoveryNames = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial'
@@ -75,7 +76,7 @@ const legacyAdventureSteps = (): { title: string; story: string; choices: Advent
     ] },
   { title: L('旧木桥旁', 'By the old footbridge'), story: L('桥边有一段湿滑的浅滩。借助绳索，或沿着平缓处慢慢绕行。', 'A slippery bank lies beside the bridge. Use a rope or walk around the gentle bank.'),
     choices: [
-      { id: 'rope', label: L('借助探路绳通过', 'Use the trail rope'), detail: L('需要携带探路绳，不消耗工具。', 'Requires an equipped rope; the tool is kept.'), energy: 3, hunger: 2, tool: true },
+      { id: 'rope', label: L('借助探路绳通过', 'Use the trail rope'), detail: '需要携带探路绳，耐久 −1；用尽后损坏，未用尽返程归还。', energy: 3, hunger: 2, tool: true },
       { id: 'ford', label: L('沿平缓处绕行', 'Walk around the bank'), detail: L('不用工具也能安全通过。', 'A safe route without a tool.'), energy: 6, hunger: 4 },
     ] },
   { title: L('路边歇脚处', 'Wayside clearing'), story: L('树荫下有一处适合整理行囊的空地。先看看补给，再决定是否继续。', 'A shaded clearing is a good place to check your bag before continuing.'),
@@ -101,15 +102,18 @@ const tutorialSteps = (): ReturnType<typeof legacyAdventureSteps> => [
 const communitySteps = (purpose?: CommunityRoute): ReturnType<typeof legacyAdventureSteps> => {
   const target = purpose && facilityIds.includes(purpose as FacilityId) ? facilities[purpose as FacilityId] : undefined;
   return [
-  { title: '沿溪谷小径出发', story: target ? `照着邻居记下的方位，去寻找${target.clue}，让${target.name}重新热闹起来。` : '循着旧温室的标记，去找修渠的零件与溪谷香草。', choices: [{ id: 'search_path', label: '沿平缓小径前进', detail: '短途共三个节点，不领取每日完整探查奖励。', hunger: 8, energy: 3, mood: 2 }] },
+  { title: '沿溪谷小径出发', story: target ? `照着旧手账的方位，重访${target.name}附近。建设资格仍需完成对应溪谷故事。` : '循着旧温室的标记，寻找溪谷香草与邻居遗落的工具。', choices: [{ id: 'search_path', label: '沿平缓小径前进', detail: '短途共三个节点，不领取每日完整探查奖励。', hunger: 8, energy: 3, mood: 2 }] },
   { title: '旧桥附近', story: '浅滩可以抄近路，岸边也有稳妥的小径。', choices: [
     { id: 'search_bank', label: '沿岸边慢慢绕行', detail: '安全通过，不损失健康。', hunger: 8, energy: 5 },
     { id: 'search_shallows', label: '涉过浅滩', detail: '浅滩湿冷：健康 −8，心情 −3。', hunger: 6, energy: 2, health: -8, mood: -3, minMoodRatio: 0.3 },
   ] },
-  { title: target ? `${target.name}的修复线索` : '温室旁的发现', story: target ? `找到了${target.clue}！把修复方法记在手账里，回社区完成两项工作并备齐建材，就能开放${target.name}。` : '水渠旁有旧阀芯，石缝里长着香草；仔细找找邻居遗落的工具。', choices: [{ id: 'search_find', label: '完成定向搜寻', detail: '永久记下建设线索与香草配方；每日首次搜寻得到种子 1 份，已接寻物／采集委托同时推进。', hunger: 8, energy: 3, mood: 4 }] },
+  { title: '温室旁的发现', story: '石缝里长着香草，仔细收好种子，再找找邻居遗落的工具。设施建设资格由溪谷故事开放。', choices: [{ id: 'search_find', label: '完成定向搜寻', detail: '记下香草配方；每日首次搜寻得到种子 2 份，已接寻物／采集委托同时推进。', hunger: 8, energy: 3, mood: 4 }] },
 ];
 };
-export const getAdventureSteps = (version: AdventureRulesVersion = 5, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute) => isValleyQuest(purpose) ? valleyQuests[purpose].steps : purpose ? communitySteps(purpose) : destination === 'tutorial' ? tutorialSteps().map(step => ({ ...step, choices: step.choices.map(choice => ({ ...choice, ...(version >= 5 ? { mood: 2 } : {}) })) })) : legacyAdventureSteps().map(step => ({ ...step, choices: step.choices.map(choice => version === 1 ? choice : {
+export const getAdventureSteps = (version: AdventureRulesVersion = 8, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute, baseLevel = 0) => isValleyQuest(purpose) ? valleyQuests[purpose].steps.map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: Math.ceil(c.hunger * 1.5), energy: Math.ceil(c.energy * 1.5) } : c) })) : purpose ? communitySteps(purpose).map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: c.id === 'search_shallows' ? Math.ceil(14 * .75) : 14, energy: c.id === 'search_shallows' ? 6 : 8, mood: Math.min(0, c.mood ?? 0) } : version >= 7 ? { ...c, mood: Math.min(0, c.mood ?? 0) } : c) })) : destination === 'tutorial' ? tutorialSteps().map(step => ({ ...step, choices: step.choices.map(choice => ({ ...choice, ...(version >= 5 ? { mood: 2 } : {}) })) })) : legacyAdventureSteps().map((step, index) => ({ ...step, choices: step.choices.map(choice => version >= 7 ? {
+  ...choice, ...(version >= 8 ? { ...getRegionActionCost('valley', index), ...(index === 3 && (choice.tool || baseLevel >= 2) ? { energy: Math.ceil(getRegionActionCost('valley', index).energy * .8) } : {}) } : { hunger: [4, 6, 4, 6, 6, 4][index], energy: [3, 6, 3, 6, 3, 3][index] }), mood: 0,
+  detail: index === 1 ? choice.id === 'bank' ? '有采集机会时：机会 −1，野菇 ×3。' : '有采集机会时：机会 −1，木料 ×4、石料 ×3。' : index === 3 ? '有采集机会时：机会 −1，嫩笋 ×5。可安全通过。' : index === 5 ? '首次入口宝藏仅一次；完成巡路可领取尚未使用的酬谢。' : choice.detail,
+} : version === 1 ? choice : {
   ...choice, hunger: costs[choice.id][0], energy: costs[choice.id][1],
   ...(version >= 5 ? { mood: choice.id === 'bank' || choice.id === 'overlook' ? 4 : choice.id === 'detour' ? -3 : 0, ...(choice.id === 'slope' ? { health: -6, minMoodRatio: 0.3 } : {}) } : {}),
   detail: choice.id === 'slope' ? version === 2 ? L('发现橙子 ×1，额外获得 30 金币。', 'Find an orange and 30 extra coins.') : L('发现橙子 ×1，观察更远处的路。', 'Find an orange and survey the distant path.') : choice.id === 'overlook' && version >= 3 ? version >= 4 ? L('随机发现金币堆、溪谷琥珀或古老金条 ×1，可兑换金币。', 'Find one random coin hoard, valley amber or ancient gold bar to exchange for coins.') : L('固定发现金币堆 ×1，可兑换 360 金币。', 'Find a coin hoard worth 360 coins.') : choice.detail,

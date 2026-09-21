@@ -38,6 +38,10 @@ import { isNightTime } from './utils';
 import { adventureHealthRules, enforceAdventureHealth } from './adventureReturn';
 import { isExpeditionAway } from './expeditionData';
 import { settleExpeditionTime } from './expeditionReturn';
+import { advanceExplorationBudget } from './explorationBudget';
+import { explorationTravel } from './explorationTravelData';
+
+const travelStopsEnergyRecovery = (pet: PetState) => Boolean((pet.adventure.active?.rulesVersion ?? 0) >= 8 || (pet.community.expedition.active?.rulesVersion ?? 0) >= 2 && !pet.community.expedition.active?.paused);
 
 export const getEnergyRecoveryInfo = (pet: PetState, now = Date.now()) => {
   const current = normalizePet(pet, now);
@@ -47,7 +51,7 @@ export const getEnergyRecoveryInfo = (pet: PetState, now = Date.now()) => {
     return { intervalMs, remainingMs: 0, isFull: true, isPaused: false };
   }
 
-  if (isPartnerSchedulePetBusy(current)) {
+  if (isPartnerSchedulePetBusy(current) || travelStopsEnergyRecovery(current)) {
     return { intervalMs, remainingMs: intervalMs, isFull: false, isPaused: true };
   }
 
@@ -387,7 +391,7 @@ const getLifecycleRates = (pet: PetState, time: number): LifecycleRates => {
   const weatherMoodModifier = pet.weather === 'sunny' ? 0.75 : 1;
   const weatherCleanlinessModifier = pet.weather === 'rainy' ? 1.3 : 1;
   return {
-    hunger: scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
+    hunger: pet.community.expedition.active && pet.community.expedition.active.rulesVersion >= 2 && pet.community.expedition.active.mode === 'idle' ? pet.community.expedition.active.rulesVersion >= 3 ? -explorationTravel[pet.community.expedition.active.route[0]].idleHunger / 2 : -3 : scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
     mood: scalePetStatDelta(pet, pet.isSleeping
       ? 2
       : -(pressure > 0 ? 5 : 2) * weatherMoodModifier * getMoodDecaySeasonModifier(time)),
@@ -420,6 +424,7 @@ const getNextPressureBoundary = (pet: PetState, time: number, rates: LifecycleRa
 );
 
 const recoverEnergyUntil = (pet: PetState, time: number, intervalTime = time): PetState => {
+  if (travelStopsEnergyRecovery(pet)) return { ...pet, lastEnergyRecoveryAt: time };
   const energyCap = getPetEnergyCap(pet);
   if (pet.energy >= energyCap) {
     return pet.lastEnergyRecoveryAt === time ? pet : { ...pet, lastEnergyRecoveryAt: time };
@@ -442,6 +447,7 @@ const recoverEnergyUntil = (pet: PetState, time: number, intervalTime = time): P
 };
 
 const getNextEnergyRecoveryAt = (pet: PetState, time: number) => {
+  if (travelStopsEnergyRecovery(pet)) return Number.POSITIVE_INFINITY;
   if (pet.energy >= getPetEnergyCap(pet)) return Number.POSITIVE_INFINITY;
   const intervalMs = getEnergyRecoveryIntervalMs(pet, pet.isSleeping, time);
   const recoveryStartedAt = Math.min(pet.lastEnergyRecoveryAt, time);
@@ -457,8 +463,14 @@ const advanceUnprotectedSlice = (
   rates: LifecycleRates,
 ): PetState => {
   const elapsedHours = (to - from) / hourMs;
+  const trip = pet.community.expedition.active;
+  // Energy is an integer stat. Charge the cumulative elapsed cost, never round each frame.
+  const idleEnergy = trip && trip.rulesVersion >= 2 && trip.mode === 'idle'
+    ? Math.ceil(Math.max(0, Math.min(to, trip.endsAt) - trip.startedAt) / hourMs * (trip.rulesVersion >= 3 ? explorationTravel[trip.route[0]].idleEnergy / 2 : 3) - 1e-9) : undefined;
   const advanced: PetState = {
     ...pet,
+    ...(idleEnergy !== undefined && trip ? { community: { ...pet.community, expedition: { ...pet.community.expedition, active: { ...trip, energySpent: idleEnergy } } } } : {}),
+    energy: idleEnergy !== undefined ? clampPetEnergy(pet, pet.energy - Math.max(0, idleEnergy - (trip?.energySpent ?? 0))) : pet.energy,
     hunger: clampPetHunger(pet, pet.hunger + rates.hunger * elapsedHours),
     mood: clampPetStat(pet, pet.mood + rates.mood * elapsedHours),
     cleanliness: clampPetStat(pet, pet.cleanliness + rates.cleanliness * elapsedHours),
@@ -466,7 +478,12 @@ const advanceUnprotectedSlice = (
     ageSeconds: pet.ageSeconds + (to - from) / 1000,
     lastUpdatedAt: to,
   };
-  return settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recoverEnergyUntil(advanced, to, from)), to), to);
+  let recovered = recoverEnergyUntil(advanced, to, from);
+  if (trip && trip.mode === 'manual') recovered = { ...recovered, community: { ...recovered.community, expedition: { ...recovered.community.expedition,
+    active: { ...trip, energySpent: Math.max(0, (trip.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (trip.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } } };
+  const adventure = recovered.adventure.active;
+  if (adventure) recovered = { ...recovered, adventure: { ...recovered.adventure, active: { ...adventure, energySpent: Math.max(0, (adventure.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (adventure.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } };
+  return settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recovered), to), to);
 };
 
 const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetState => {
@@ -673,6 +690,10 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     recentActivityUntil: next.recentActivityUntil > now ? next.recentActivityUntil : 0,
   };
 
+  // Home encounters must not feed or restore a traveller based on frame size.
+  // Natural home decay/recovery after the trip's end has already been simulated above.
+  if (travelStopsEnergyRecovery(normalized)) return next;
+
   const pressure = getPressureCount(next);
   const offlineDiaryDue = !pomodoroWasRunning && lifecycleDeltaMs >= 30 * minuteMs;
   const offlineEventDue = !pomodoroWasRunning && lifecycleDeltaMs >= 2 * hourMs;
@@ -730,6 +751,6 @@ export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetS
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);
   pet = advanceCommunityMarket(pet, now);
-  return advanceCommunityBoard(pet, now);
+  return advanceExplorationBudget(advanceCommunityBoard(pet, now), now);
 };
 

@@ -16,12 +16,12 @@ const choice = (id: string, label: string, detail: string, hunger = 8, energy = 
 
 export const valleyQuests: Record<ValleyQuestId, ValleyQuest> = {
   valley_gather: {
-    node: 'gather', name: '水渠的第一滴水', summary: '顺着干涸的水渠寻找阀芯，把溪谷香草带回家。', outcome: '记下灌溉方法与香草配方，回农场修渠、种植，再给邻居送一碗暖粥。',
-    requires: [], coins: 20, hearts: 3, items: { creek_herb_seed: 1, community_wood: 2, community_stone: 1 },
+    node: 'gather', name: '水渠的第一滴水', summary: '顺着溪谷水渠辨认香草，把种子与暖粥配方带回家。', outcome: '带回香草种子 ×2，在已经开放的菜地种植，再给邻居送一碗暖粥。',
+    requires: [], coins: 20, hearts: 3, items: { creek_herb_seed: 2, creek_herb: 2, community_wood: 2, community_stone: 1 },
     steps: [
       { title: '溪边的旧刻痕', story: '石头上刻着一片叶子。旧水渠在这里分成两道，一道通往社区，一道没入草丛。', choices: [choice('trace', '沿水渠寻找', '记下水流通往农场的方向。')] },
       { title: '石缝里的香气', story: '几株香草仍守着浅浅的水洼。取种时留下根，明年这里还会绿起来。', choices: [choice('roots', '留下根，仔细收种', '普通路线，不需要工具。', 8, 5), choice('reach', '用绳索稳住身体', '探路绳保留；轻松够到石缝。', 6, 2, { tool: true })] },
-      { title: '让水流回去', story: '淤泥里躺着旧阀芯，旁边的手册写着香草暖粥的做法。社区那片荒地终于有了重新生长的希望。', choices: [choice('water', '记下修渠方法，收好种子', '带回香草种子、木料与石料；开放菜地修复线索。', 8, 3, { mood: 4 })] },
+      { title: '让水流回去', story: '浅浅的水流绕过石缝，旧手册里写着香草暖粥的做法。回到社区，就能把这份香气种进自己的菜地。', choices: [choice('water', '记下香草配方，收好种子', '带回香草种子 ×2、木料与石料。', 8, 3, { mood: 4 })] },
     ],
   },
   valley_ridge: {
@@ -92,9 +92,9 @@ export const getValleyQuestReason = (state: AdventureState, id: ValleyQuestId) =
   const missing = valleyQuests[id].requires.filter(required => !state.valleyCompleted?.includes(required));
   return missing.length ? `先完成「${missing.map(required => valleyQuests[required].name).join('」「')}」。` : '';
 };
-export const getValleyQuestCosts = (id: ValleyQuestId) => {
+export const getValleyQuestCosts = (id: ValleyQuestId, multiplier = 1) => {
   const steps = valleyQuests[id].steps;
-  const total = (stat: 'hunger' | 'energy', pick: typeof Math.min) => steps.reduce((sum, step) => sum + pick(...step.choices.map(option => option[stat])), 0);
+  const total = (stat: 'hunger' | 'energy', pick: typeof Math.min) => steps.reduce((sum, step) => sum + pick(...step.choices.map(option => Math.ceil(option[stat] * multiplier))), 0);
   return { hunger: [total('hunger', Math.min), total('hunger', Math.max)], energy: [total('energy', Math.min), total('energy', Math.max)] };
 };
 export const completeValleyQuest = (pet: PetState, id: ValleyQuestId): PetState => {
@@ -102,7 +102,8 @@ export const completeValleyQuest = (pet: PetState, id: ValleyQuestId): PetState 
   const facilities = { ...pet.community.facilities };
   for (const facility of valleyQuests[id].facilities ?? []) facilities[facility] = { ...facilities[facility], found: true };
   return { ...pet, adventure: { ...pet.adventure, valleyCompleted: [...pet.adventure.valleyCompleted, id] },
-    community: { ...pet.community, facilities, ...(id === 'valley_gather' ? { irrigationFound: true, herbDiscovered: true } : {}) } };
+    community: { ...pet.community, facilities, ...(id === 'valley_gather' ? { irrigationFound: true, herbDiscovered: true } : {}),
+      ...(id === 'valley_camp' ? { expedition: { ...pet.community.expedition, regions: { ...pet.community.expedition.regions, valley: { ...pet.community.expedition.regions.valley, surveyed: true, storyAt: pet.lastUpdatedAt, actorId: pet.adventure.active?.actorId, actorName: pet.adventure.active?.actorName } } } } : {}) } };
 };
 // A parcel is handed over at an actual bridge stop, never from another story's final screen.
 export const isAtCommunityBridge = (trip: AdventureTrip) => trip.region === 'valley' && (isValleyQuest(trip.purpose)

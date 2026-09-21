@@ -5,6 +5,7 @@ import { facilityIds } from '../../src/core/communityData';
 import { regionIds } from '../../src/core/expeditionData';
 import { chooseExpeditionStep, pauseExpedition, startExpedition } from '../../src/core/expedition';
 import type { PetState } from '../../src/core/petTypes';
+import { openTutorialGarden } from '../../src/core/communityUpgradeData';
 
 type TestScenario = 'community' | 'salvage' | 'harvest' | 'construction' | 'commissions' | 'projects' | 'long-trip' | 'idle';
 
@@ -17,9 +18,11 @@ export const createCommunityTestPet = (scenario: TestScenario, now: number): Pet
       berry_bait: 2, community_wood: 3, community_stone: 2, carrot_seed: 2, rice: 6 },
   };
   pet.adventure = { ...pet.adventure, completed: { tutorial: 1 }, starterClaimed: true, starterMealsClaimed: true };
+  pet.community = openTutorialGarden(pet.community, pet.adventure);
 
   if (scenario === 'salvage') {
-    pet = startAdventure(pet, 'valley', 'official.furo', 'Furo', { dish_carrot_rice: 12 }, true, now, 'irrigation');
+    pet.inventory.dish_carrot_rice = 24;
+    pet = startAdventure(pet, 'valley', 'official.furo', 'Furo', { dish_carrot_rice: 24 }, true, now, 'seeds');
     if (!pet.adventure.active) throw new Error('Unable to prepare the forced-return test');
     pet.adventure.active.choices = ['search_path'];
     pet.adventure.active.loot = { creek_herb_seed: 1 };
@@ -27,7 +30,7 @@ export const createCommunityTestPet = (scenario: TestScenario, now: number): Pet
   }
   if (scenario === 'harvest') {
     pet.community = { ...pet.community, irrigationFound: true, herbDiscovered: true, repairStep: 2,
-      gardenBuilt: true, crop: { id: 'herb', plantedAt: now - 6 * 3600000, readyAt: now } };
+      gardenBuilt: true, plots: [{ id: 1, crop: { id: 'herb', plantedAt: now - 6 * 3600000, readyAt: now } }] };
   }
   if (['construction', 'commissions', 'projects', 'long-trip', 'idle'].includes(scenario)) {
     pet.coins = 4500;
@@ -48,7 +51,7 @@ export const createCommunityTestPet = (scenario: TestScenario, now: number): Pet
         surveyed: true, base: 1, storyAt: now, actorId: 'test.furo', actorName: 'Furo' };
     }
     pet.inventory = { ...pet.inventory, valley_mushroom: 12, hill_honey: 12, forest_berry: 12, forest_berry_seed: 3,
-      pine_resin: 12, coast_kelp: 12, sea_glass: 12, observatory_part: 12, trail_mix: 6,
+      bamboo_shoot: 12, pine_resin: 12, coast_kelp: 12, sea_glass: 12, observatory_part: 12, trail_mix: 6,
       dish_herb_porridge: 6, dish_mushroom_rice: 6, dish_carp_rice: 6, dish_kelp_rice: 6 };
     pet.community.fishing.journal = {
       pond_crucian: { count: 1, firstAt: now, largest: 18 },
@@ -61,7 +64,7 @@ export const createCommunityTestPet = (scenario: TestScenario, now: number): Pet
 
   if (scenario === 'long-trip') {
     pet = startExpedition(pet, ['valley', 'hills', 'forest'], {}, true, 'test.furo', 'Furo', 'manual', 1, now);
-    for (const choice of ['gather', 'safe', 'story']) {
+    for (const choice of ['look:a', 'gather:1', 'look:a', 'gather:1', 'look:a', 'look:a']) {
       const trip = pet.community.expedition.active;
       if (!trip) throw new Error('Unable to prepare the checkpoint test');
       pet = chooseExpeditionStep(pet, trip.id, trip.revision, choice, now);
@@ -70,7 +73,7 @@ export const createCommunityTestPet = (scenario: TestScenario, now: number): Pet
     pet = pauseExpedition(pet, trip.id, trip.revision, now);
     if (!pet.community.expedition.active?.paused) throw new Error('Test expedition did not reach a checkpoint');
   } else if (scenario === 'idle') {
-    pet = startExpedition(pet, ['coast'], {}, false, 'test.furo', 'Furo', 'idle', 3, now);
+    pet = startExpedition(pet, ['coast'], {}, false, 'test.furo', 'Furo', 'idle', 4, now);
     if (!pet.community.expedition.active) throw new Error('Unable to prepare the timed expedition test');
   }
   return pet;

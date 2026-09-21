@@ -340,7 +340,13 @@ const getExtraDropChance = (slot: GardenSlot, garden: GardenState) => {
   return 0;
 };
 const pickInRange = (seed: string, min: number, max: number) => min + (hashString(seed) % (max - min + 1));
-const pickMoneyTreeCoins = (seed: string) => { const roll = hashString(seed + ':money-roll') % 100; if (roll < 70) return pickInRange(seed + ':money-common', 600, 1200); if (roll < 95) return pickInRange(seed + ':money-good', 1200, 2200); return pickInRange(seed + ':money-jackpot', 4000, 6000); };
+const pickMoneyTreeCoins = (seed: string) => {
+  const roll = hashString(seed + ':money-roll') % 100;
+  // 72% common / 25% good / 3% jackpot: about 18.6% less expected base income.
+  if (roll < 72) return Math.floor(pickInRange(seed + ':money-common', 600, 1200) * 85 / 100);
+  if (roll < 97) return Math.floor(pickInRange(seed + ':money-good', 1200, 2200) * 85 / 100);
+  return pickInRange(seed + ':money-jackpot', 4000, 6000);
+};
 const resolveExtraDrops = (pet: PetState, slot: GardenSlot, seed: string, now: number) => {
   const environmentChance = getGardenEnvironmentEffects(pet, now).extraDropChancePercent;
   const achievementChance = getAchievementEffects(pet).gardenExtraDropChancePercent;

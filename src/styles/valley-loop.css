@@ -1,0 +1,14 @@
+.valley-budget-values,.valley-mode-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.valley-budget-values>span{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-secondary,#69756b)}
+.valley-budget-values b{font-size:24px;color:var(--text-primary,#344d40)}
+.valley-budget-values small{font-size:12px;font-weight:400}
+.valley-mode-options button{display:flex;flex-direction:column;gap:6px;padding:12px 8px;border:1px solid #dbe2d5;border-radius:12px;background:#fafbf5;color:#415348;text-align:left;cursor:pointer}
+.valley-mode-options button[aria-pressed=true]{border-color:#678872;background:#e8f0e4;box-shadow:inset 0 0 0 1px #678872}
+.valley-mode-options small{font-size:11px;line-height:1.5}
+.specialty-board>header{display:flex;align-items:center;justify-content:space-between;gap:12px}.specialty-board>header>b{font-size:12px;white-space:nowrap}
+.specialty-order-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+.specialty-order{padding:18px;border:1px solid #dbddc9;border-radius:16px;background:#faf8ec;min-width:0}.specialty-order[data-urgent=true]{background:#fff3e1;border-color:#deb782}
+.specialty-rate{display:block;color:#89723e;font-size:12px;font-weight:700}.specialty-order img{width:64px;height:64px;object-fit:contain;float:right}.specialty-order h4{margin:16px 0 10px}.specialty-order>strong{color:#9a692f;font-size:21px}.specialty-order .community-actions{flex-direction:column;align-items:stretch}
+.valley-progress progress{width:100%;accent-color:#688e76}.valley-progress ol{padding:0;list-style:none}.valley-progress li{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid #e1e7db}.valley-progress li>span{color:#739280}.valley-progress li p{margin:6px 0;font-size:13px;line-height:1.6}.valley-progress li[data-done=true]>span{font-weight:700}.valley-progress .text-button{text-align:left}
+.exp-path{flex-wrap:wrap;row-gap:12px}.valley-budget small{line-height:1.7}
+@media(max-width:520px){.valley-mode-options{grid-template-columns:1fr}.valley-mode-options button{flex-direction:row;justify-content:space-between;align-items:center}.valley-budget-values{gap:6px}.valley-budget-values b{font-size:20px}.specialty-order-grid{grid-template-columns:1fr}}

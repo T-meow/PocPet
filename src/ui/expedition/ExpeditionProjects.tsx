@@ -8,6 +8,7 @@ import type { ItemId } from '../../core/petTypes';
 import type { ProjectId } from '../../core/expeditionTypes';
 import type { RecipeId } from '../../core/companionActivityTypes';
 import type { ExpeditionProps } from './types';
+import { TreasureDisplay } from './TreasureDisplay';
 
 export const ExpeditionProjects = ({ pet, update, actorId, actorName, onKitchen, onCommunity }: ExpeditionProps) => {
   const [themes, setThemes] = useState<Record<ProjectId, 'garden' | 'journey'>>({ riverside: 'garden', exhibition: 'journey', observatory: 'journey' });
@@ -22,5 +23,5 @@ export const ExpeditionProjects = ({ pet, update, actorId, actorName, onKitchen,
       {p.theme ? <><button className="exp-primary" disabled={!canSpendCompanionTime(pet) || !ready || p.stage === 2 && (pet.hunger < 4 || pet.energy < 4)} onClick={() => update(current => contributeCommunityProject(current, id, p.completed, p.stage, actorId, actorName))}>{p.stage < 2 ? `交付第 ${p.stage + 1} 阶段物资` : '邀请大家，开始举办'}</button><small className="exp-muted">交付会消耗显示的实物，已投入部分不再重复扣除。</small></> : <><button className="exp-primary" disabled={Boolean(reason)} onClick={() => update(current => startCommunityProject(current, id, theme))}>选择这个主题，开始准备</button>{reason && <small className="exp-muted">{reason}</small>}</>}
       <div className="exp-links"><button onClick={() => onKitchen(recipe)}><ChefHat size={15} />准备菜单</button><button onClick={onCommunity}>回社区取材</button></div>
     </article>;
-  })}</div>;
+  })}<TreasureDisplay pet={pet} update={update} /></div>;
 };

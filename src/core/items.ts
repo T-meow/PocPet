@@ -28,7 +28,7 @@ export const shopItems: readonly ShopItem[] = [
   ...adventureItems,
   ...kitchenMaterials.map((material): ShopItem => ({
     id: material.id, name: activityText(material.name, material.en), kind: 'food', price: material.price,
-    effect: material.edibleEffect ?? {}, usable: material.edibleEffect !== undefined, tags: ['kitchen_material'],
+    effect: material.edibleEffect ?? {}, usable: material.edibleEffect !== undefined, tags: ['kitchen_material', 'common', 'basic'],
     summary: material.edibleEffect
       ? activityText('可直接喂给伙伴，也可留作厨房食材。', 'Feed it to your companion or save it for cooking.')
       : activityText('厨房食材，用于制作料理。', 'An ingredient for cooking recipes.'),
@@ -195,7 +195,7 @@ export const shopItems: readonly ShopItem[] = [
     name: t('pet.shop.items.medicine.name'),
     kind: 'care',
     price: 34,
-    effect: { health: 45, mood: -5 },
+    effect: { health: 45, mood: -1 },
     summary: t('pet.shop.items.medicine.summary'),
   },
   {
@@ -308,7 +308,7 @@ export const shopItems: readonly ShopItem[] = [
 export const specialItems: readonly ShopItem[] = [
   ...adventureLootItems,
   ...communityFindItems,
-  ...allDishes.map(({ recipe, id, banana }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: getRecipeEffect(recipe, banana), tags: ['homemade'], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
+  ...allDishes.map(({ recipe, id, banana }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: getRecipeEffect(recipe, banana), tags: ['homemade', recipe.category, recipe.rarity, recipe.demand], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
   {
     id: 'birthday_cake',
     name: t('pet.shop.items.birthday_cake.name'),

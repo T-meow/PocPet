@@ -37,6 +37,7 @@ import itemApple from './assets/icon/item_apple.webp';
 import itemBanana from './assets/icon/item_banana.webp';
 import itemWatermelon from './assets/icon/item_watermelon.webp';
 import itemPictureBook from './assets/icon/item_picture_book.webp';
+import { newItemIcons } from './newItemIconAssets';
 import itemStrawberryMilk from './assets/icon/item_strawberry_milk.webp';
 import itemShampoo from './assets/icon/item_shampoo.webp';
 import itemToyBall from './assets/icon/item_toy_ball.webp';
@@ -81,7 +82,7 @@ export const itemIcons: Record<BuiltinItemId, string> = {
   trail_mix: trailMix,
   berry_bait: berryBait,
   trail_rope: trailRope,
-  map_handbook: itemPictureBook,
+  map_handbook: newItemIcons.map_handbook,
   coin_hoard: coinHoard,
   valley_amber: valleyAmber,
   ancient_gold_bar: ancientGoldBar,

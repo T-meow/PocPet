@@ -10,6 +10,10 @@ import { enforceAdventureHealth } from './adventureReturn';
 import { isAtCommunityBridge } from './valleyQuests';
 
 export const commissionDefinitions: Record<CommissionTemplate, { name: string; detail: string; coins: number; take?: Inventory; reward?: Inventory; event?: string }> = {
+  valley_basket: { name: '晚饭前的一篮野菇', detail: '交付溪谷野菇 ×3，可使用库存；溪谷定向采集一次即可备齐。', coins: 55, take: { valley_mushroom: 3 } },
+  valley_rice: { name: '邻居想尝尝野菇焖饭', detail: '交付野菇焖饭 ×1，可使用已有料理；读完温室手账后记下配方。', coins: 65, take: { dish_mushroom_rice: 1 } },
+  forest_delicacy: { name: '美食家的林间珍味', detail: '交付松茸 ×1；在雾松林地定向调查累计 3 次获得，可以使用库存。', coins: 85, take: { matsutake: 1 } },
+  tea_order: { name: '观星茶会的邀请', detail: '交付高山茶叶 ×1；在旧观测站定向调查累计 3 次获得，可以使用库存。', coins: 80, take: { mountain_tea: 1 } },
   search: { name: '旧桥边的工具包', detail: '接取后在溪谷旧桥搜寻；短途第三节点必定找到，不消耗库存。', coins: 40, reward: { community_wood: 1, community_stone: 1 }, event: 'search' },
   forage: { name: '一束新鲜野香草', detail: '接取后实地采集，溪谷旧桥得到香草 ×1；带回后交付。已有库存不能替代采集事实。', coins: 45, take: { creek_herb: 1 }, event: 'forage' },
   vegetables: { name: '邻里晚餐的配菜', detail: '交付胡萝卜 ×2，可以使用已有库存；商店或社区菜地获得。', coins: 28, take: { carrot: 2 } },
@@ -25,6 +29,9 @@ export const getCommunityDay = (pet: PetState, now = Date.now()) => [pet.communi
 export const getCommunityTasks = (pet: PetState): CommunityTask[] => [...(pet.community.commission ? [{ ...pet.community.commission, template: 'search' as const }] : []), ...pet.community.tasks];
 const unlocked = (pet: PetState, template: CommissionTemplate) => {
   const c = pet.community;
+  if (template === 'valley_rice') return c.expedition.regions.valley.surveyed || pet.adventure.valleyCompleted.includes('valley_story');
+  if (template === 'forest_delicacy') return c.expedition.regions.forest.surveyed;
+  if (template === 'tea_order') return c.expedition.regions.station.surveyed;
   if (template === 'forage') return c.herbDiscovered;
   if (template === 'fresh_porridge') return c.herbDiscovered && c.gardenBuilt;
   if (template === 'eggs') return c.facilities.coop.built;
@@ -37,7 +44,7 @@ const unlocked = (pet: PetState, template: CommissionTemplate) => {
 export const getCommunityCandidates = (pet: PetState, now = Date.now()): CommunityTask[] => {
   if (!(pet.adventure.completed.tutorial ?? 0)) return [];
   const day = getCommunityDay(pet, now), c = pet.community;
-  const production: CommissionTemplate[] = ['vegetables', 'eggs', 'milk', 'soup'];
+  const production: CommissionTemplate[] = ['valley_basket', 'valley_rice', 'vegetables', 'eggs', 'milk', 'soup', 'forest_delicacy', 'tea_order'];
   const activity: CommissionTemplate[] = ['delivery', 'forage', 'fish_pond', 'fish_upstream', 'fresh_porridge'];
   const pick = (list: CommissionTemplate[], salt: string) => { const choices = list.filter(id => unlocked(pet, id)); return choices[hashString(day + salt) % choices.length]; };
   const templates = c.boardDay === day && c.candidates.length === 3 ? c.candidates : ['search', pick(production, 'produce'), pick(activity, 'activity')] as CommissionTemplate[];
@@ -73,7 +80,7 @@ export const claimCommunityTask = (pet: PetState, id: string): PetState => {
   if (Object.entries(def.reward ?? {}).some(([id, quantity]) => (inventory[id] ?? 0) + quantity > inventoryItemLimit)) return { ...pet, recentEvent: '奖励物资的仓库已满，委托与奖励会继续保留。' };
   inventory = Object.entries(def.reward ?? {}).reduce((stock, [id, quantity]) => addInventoryItem(stock, id, quantity), inventory);
   const coins = clampCoins(pet.coins + def.coins) - pet.coins;
-  return recordEarnedCoins({ ...pet, inventory, coins: pet.coins + coins, community: { ...pet.community, commission: pet.community.commission?.id === id ? undefined : pet.community.commission, tasks: pet.community.tasks.filter(task => task.id !== id) }, recentEvent: `完成「${def.name}」，收到 ${coins} 金币${def.reward ? '、木料和石料各 1 份' : ''}。` }, coins);
+  return recordEarnedCoins({ ...pet, inventory, coins: pet.coins + coins, community: { ...pet.community, commissionsCompleted: pet.community.commissionsCompleted + 1, commission: pet.community.commission?.id === id ? undefined : pet.community.commission, tasks: pet.community.tasks.filter(task => task.id !== id) }, recentEvent: `完成「${def.name}」，收到 ${coins} 金币${def.reward ? '、木料和石料各 1 份' : ''}。` }, coins);
 };
 export const recordCommunityTaskEvent = (pet: PetState, event: string, now: number): PetState => {
   const tasks = pet.community.tasks.map(task => !task.found && now >= task.acceptedAt && commissionDefinitions[task.template].event === event ? { ...task, found: true } : task);

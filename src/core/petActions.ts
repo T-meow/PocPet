@@ -4,7 +4,6 @@ import { getAdventureTreasureValue, isAdventureTreasure } from './adventureItems
 import { activityText as L } from './kitchenRecipes';
 import { getAdventureItemPurchaseCapacity } from './adventureState';
 import { getCommunityPurchaseReason } from './communityData';
-import { getCommunitySaleable } from './communityMarket';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, dailyBiscuitClaimLimit, favoriteFoodIdSet, getDailyHeartExchangeInfo, getDailyShopDiscountInfo, getInventoryCount, getInventoryItem, getShopItem, giftItemIdSet, heartExchangeCoins, removeInventoryItem } from './items';
 import { applyBoostCardWorkBonus } from './boostCards';
@@ -266,9 +265,10 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
         const base = overuse.pet;
         const seasonCleanBonus = getCleanActionSeasonBonus(now);
         const achievementCareBonus = getAchievementEffects(base).careStatBonus;
+        const cleanlinessGain = Math.min(120, scalePetStatDelta(base, 20 + (base.weather === 'rainy' ? 5 : 0) + seasonCleanBonus + achievementCareBonus) * 1.5);
         return incrementAchievementCareAction(recordWishProgress(recordYearlyCareAction({
           ...withActivity(base, 'bath', now),
-          cleanliness: clampPetStat(base, base.cleanliness + Math.min(80, scalePetStatDelta(base, 20 + (base.weather === 'rainy' ? 5 : 0) + seasonCleanBonus + achievementCareBonus))),
+          cleanliness: clampPetStat(base, base.cleanliness + cleanlinessGain),
           energy: clampPetEnergy(base, base.energy - 3),
           hunger: clampPetHunger(base, base.hunger + scalePetStatDelta(base, -2)),
           mood: clampPetStat(base, base.mood + Math.min(3, scalePetStatDelta(base, 1))),
@@ -452,7 +452,6 @@ const useInventoryItemInternal = (
   }
 
   if (isAdventureTreasure(itemId)) {
-    if (quantity > getCommunitySaleable(current, itemId)) return { ...current, recentEvent: '这些战利品已设置自用保留量，请先在社区小摊调整保留。' };
     const coins = getAdventureTreasureValue(itemId) * quantity;
     if (clampCoins(current.coins + coins) !== current.coins + coins) return { ...current, recentEvent: '金币已满，战利品仍保留在仓库。' };
     return recordEarnedCoins({ ...current, coins: clampCoins(current.coins + coins), inventory: removeInventoryItem(current.inventory, itemId, quantity),

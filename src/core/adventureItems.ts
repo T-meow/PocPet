@@ -15,9 +15,9 @@ export const adventureLootItems: readonly ShopItem[] = [
   { id: 'coin_hoard', get name() { return L('一堆金币', 'Coin hoard'); }, kind: 'item', price: 0, effect: {}, usable: true, tags: ['adventure_treasure'],
     get summary() { return L(`探查中发现的战利品。每堆占 1 份行囊容量，可兑换 ${adventureTreasureValues.coin_hoard} 金币。`, `A scouting treasure. Takes one bag slot and can be exchanged for ${adventureTreasureValues.coin_hoard} coins.`); } },
   { id: 'valley_amber', get name() { return L('溪谷琥珀', 'Valley amber'); }, kind: 'item', price: 0, effect: {}, usable: true, tags: ['adventure_treasure'],
-    get summary() { return L(`溪水冲刷出的温润琥珀，里面封存着一片小叶。占 1 份行囊容量，可兑换 ${adventureTreasureValues.valley_amber} 金币。`, `A smooth amber stone washed out by the creek, with a tiny leaf inside. Takes one bag slot and can be exchanged for ${adventureTreasureValues.valley_amber} coins.`); } },
+    get summary() { return L(`溪水冲刷出的温润琥珀，里面封存着一片小叶。占 1 份行囊容量，可兑换 ${adventureTreasureValues.valley_amber} 金币。`, `A smooth amber stone washed out by the creek, with a tiny leaf inside. Takes one bag slot and can be exchanged for ${adventureTreasureValues.valley_amber} coins.`) + ' 也可摆摊，或在社区项目建造永久装饰「琥珀叶影灯」。'; } },
   { id: 'ancient_gold_bar', get name() { return L('古老金条', 'Ancient gold bar'); }, kind: 'item', price: 0, effect: {}, usable: true, tags: ['adventure_treasure'],
-    get summary() { return L(`留着岁月刻痕的小金条。占 1 份行囊容量，可兑换 ${adventureTreasureValues.ancient_gold_bar} 金币。`, `A small gold bar marked by age. Takes one bag slot and can be exchanged for ${adventureTreasureValues.ancient_gold_bar} coins.`); } },
+    get summary() { return L(`留着岁月刻痕的小金条。占 1 份行囊容量，可兑换 ${adventureTreasureValues.ancient_gold_bar} 金币。`, `A small gold bar marked by age. Takes one bag slot and can be exchanged for ${adventureTreasureValues.ancient_gold_bar} coins.`) + ' 也可摆摊，或在社区项目锻造永久装饰「鎏金社区铭牌」。'; } },
 ];
 
 export const adventureItems: readonly ShopItem[] = [
@@ -29,5 +29,5 @@ export const adventureItems: readonly ShopItem[] = [
     get summary() { return L('探索遭遇中用来引开挡路的小动物，使用后消耗一份。', 'Use one during an encounter to lure a small animal off the path.'); } },
   { id: 'trail_rope', get name() { return L('探路绳', 'Trail rope'); }, kind: 'item', price: 80,
     effect: {}, usable: false, tags: ['adventure_tool'],
-    get summary() { return L('放入工具位，过桥时节省体力与饱食度；可重复使用，返程归还。', 'Equip in the tool slot to cross with less hunger and energy. Reusable; returned after the trip.'); } },
+    get summary() { return L('放入工具位，过桥时节省体力与饱食度；可重复使用，返程归还。', 'Equip in the tool slot to cross with less hunger and energy. Reusable; returned after the trip.') + ' 耐久 16 次，选择绳索通路时扣 1 次；只携带不扣耐久。未用尽的绳索返程归还，用尽后损坏。'; } },
 ];

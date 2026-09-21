@@ -4,6 +4,9 @@ import type { RecipeId } from '../../core/companionActivityTypes';
 export interface CommunityPanelProps {
   pet: PetState; update: (action: (pet: PetState) => PetState) => void;
   registry?: ItemRegistry;
+  itemIconMap?: Partial<Record<string, string>>;
+  onAdventure?: () => void;
+  onExpedition?: (target?: import('../../core/valleyExplorationData').ValleyGatherTarget) => void;
   onExplore: (purpose: CommunityRoute) => void; onShop: () => void; onKitchen: (recipe?: RecipeId) => void;
 }
 export const timeLeft = (at: number, now = Date.now()) => {

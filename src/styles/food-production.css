@@ -1,0 +1,48 @@
+.recipe-filters { display: flex; flex-wrap: wrap; gap: .8rem; margin-block: 1rem; }
+.recipe-filters label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .85rem; flex: 1 1 150px; }
+.recipe-filters select, .food-processing input { min-width: 0; max-width: 100%; padding: .6rem; border: 1px solid #b8bba5; border-radius: .7rem; color: inherit; background: var(--panel-bg, #fffaf0); }
+.recipe-filters select { width: 100%; min-height: 44px; }
+.recipe-filters .recipe-filter-check { flex: 0 1 auto; flex-direction: row; align-items: center; }
+.kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.kitchen-recipe-book .recipe-card { gap: 10px; padding: 14px 10px; justify-content: flex-start; }
+.kitchen-recipe-book .recipe-card img { width: min(100%, 160px); height: auto; aspect-ratio: 1; }
+.kitchen-recipe-book .recipe-card strong { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.kitchen-recipe-book .recipe-card:focus-visible { outline: 3px solid #72977b; outline-offset: 3px; }
+.recipe-badges { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; }
+.recipe-card .recipe-badges { margin-top: auto; }
+.recipe-badge-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; max-width: 100%; }
+.recipe-badges .storage-tile-tag { gap: 3px; min-height: 25px; padding: 4px 7px; border-radius: 6px; font-size: 12px; line-height: 1.25; }
+.recipe-badges .storage-tile-tag svg { flex-shrink: 0; }
+.recipe-badges .recipe-category-tag { background: #fbe2d480; color: #94522e; }
+.recipe-badges .recipe-rarity-tag[data-rarity="common"] { background: #e8ebee; color: #52616b; }
+.recipe-badges .recipe-rarity-tag[data-rarity="fine"] { background: #e2efdf; color: #477544; }
+.recipe-badges .recipe-rarity-tag[data-rarity="rare"] { background: #dfedf9; color: #386eaa; }
+.recipe-badges .recipe-rarity-tag[data-rarity="epic"] { background: #eee2f8; color: #8856a3; }
+.recipe-badges .recipe-rarity-tag[data-rarity="legendary"] { background: #ffebc2; color: #936215; }
+.kitchen-recipe-modal .dish-plate { width: min(100%, 224px); height: auto; aspect-ratio: 1; }
+.recipe-notes { margin-block: 16px; padding: 12px; border: 1px solid #e5dfd1; border-radius: 12px; background: #fffdf8; color: #536174; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.recipe-notes dl { display: grid; gap: 6px; margin: 0; }
+.recipe-notes dl>div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+.recipe-notes dd { margin: 0; font-weight: 600; }
+.recipe-notes p { margin: 8px 0 0; }
+.kitchen-recipe-modal .ingredient>span { min-width: 0; overflow-wrap: anywhere; }
+.kitchen-recipe-modal .ingredient img { flex-shrink: 0; }
+.recipe-milk-choice { min-width: 0; border: 1px solid #c9c4ae; border-radius: 1rem; padding: .8rem; margin-block: .8rem; }
+.recipe-milk-choice .activity-choice { flex-wrap: wrap; }
+.recipe-milk-choice button[aria-pressed="true"] { outline: 2px solid #72977b; outline-offset: 2px; }
+.food-processing { display: grid; gap: .8rem; }
+.food-processing .recipe-grid { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); }
+.food-processing p, .recipe-milk-choice p { line-height: 1.6; }
+@media (max-width: 560px) {
+  .kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kitchen-recipe-book .recipe-card { padding: 12px 8px; }
+  .recipe-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .recipe-filters .recipe-filter-sort { grid-column: 1 / -1; }
+  .recipe-filters .recipe-filter-check { min-height: 36px; }
+  .kitchen-recipe-modal .recipe-ingredients { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 360px) {
+  .kitchen-recipe-book .recipe-grid { gap: 8px; }
+  .kitchen-recipe-book .recipe-card { padding: 10px 6px; }
+  .recipe-badges .storage-tile-tag { padding-inline: 5px; }
+}

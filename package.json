@@ -1,6 +1,6 @@
 {
   "name": "pocpet",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,9 +14,15 @@
     "check:companion-activities": "tsx scripts/check-companion-activities.ts",
     "check:adventure": "tsx scripts/check-adventure.ts",
     "check:valley": "tsx scripts/check-valley.ts",
+    "check:valley-loop": "tsx scripts/check-valley-loop.ts",
     "check:community": "tsx scripts/check-community.ts",
+    "check:farm-progression": "tsx scripts/check-farm-progression.ts",
     "check:community-cd": "tsx scripts/check-community-cd.ts",
+    "check:community-market": "tsx scripts/check-community-market.ts",
+    "check:food-production": "tsx scripts/check-food-production.ts",
+    "check:field-equipment": "tsx scripts/check-field-equipment.ts",
     "check:expedition": "tsx scripts/check-expedition.ts",
+    "check:exploration-logistics": "tsx scripts/check-exploration-logistics.ts",
     "check:festival-stories": "tsx scripts/check-festival-stories.ts",
     "check:garden-care": "tsx scripts/check-garden-care.ts",
     "check:item-balance": "tsx scripts/check-item-balance.ts",

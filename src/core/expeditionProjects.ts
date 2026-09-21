@@ -10,7 +10,7 @@ import type { ProjectId } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 
 export const communityProjects: Record<ProjectId, { name: string; description: string; memory: string; firstCoins: number; repeatCoins: number; themes: [string, string]; supplies: [Inventory, Inventory]; meals: [Inventory, Inventory] }> = {
-  riverside: { name: '河岸长桌聚餐', description: '用熟悉的家常味道，或旅途中发现的新滋味，招待修好社区的邻居。', memory: '晚风里的第一张长桌', firstCoins: 180, repeatCoins: 30, themes: ['田园家常', '远方风味'], supplies: [{ carrot: 3, egg: 2 }, { valley_mushroom: 2, hill_honey: 1 }], meals: [{ dish_herb_porridge: 2 }, { dish_mushroom_rice: 2 }] },
+  riverside: { name: '河岸长桌聚餐', description: '用菜地和溪谷的收获招待邻居；同一聚餐的首次奖励不会因更换主题重复发放。', memory: '晚风里的第一张长桌', firstCoins: 180, repeatCoins: 30, themes: ['田园家常', '溪谷家常'], supplies: [{ carrot: 3, egg: 2 }, { valley_mushroom: 2, bamboo_shoot: 3 }], meals: [{ dish_herb_porridge: 2 }, { dish_mushroom_rice: 2 }] },
   exhibition: { name: '溪畔主题展览', description: '用已经记下的鱼类或地区见闻布展，收藏记录不会因为交出实物而消失。', memory: '大家停在同一页手账前', firstCoins: 220, repeatCoins: 35, themes: ['水边生活', '森林与海风'], supplies: [{ pond_crucian: 2, pond_carp: 2 }, { pine_resin: 2, sea_glass: 2 }], meals: [{ dish_carp_rice: 1 }, { dish_kelp_rice: 1 }] },
   observatory: { name: '星空之夜准备', description: '修好照明、准备便当，让社区的伙伴也能坐到观测穹顶下。', memory: '穹顶下，我们都有一颗星', firstCoins: 320, repeatCoins: 45, themes: ['暖粥守夜', '海风便当'], supplies: [{ observatory_part: 3, pine_resin: 1, sea_glass: 1 }, { observatory_part: 3, pine_resin: 1, sea_glass: 1 }], meals: [{ dish_herb_porridge: 2 }, { dish_kelp_rice: 2 }] },
 };
@@ -18,7 +18,7 @@ export const getProjectReason = (pet: PetState, id: ProjectId, theme: 'garden' |
   const state = pet.community.expedition, p = state.projects[id];
   if (p.theme) return '项目已经接受，按当前主题继续准备即可';
   if (p.completed && p.lastDay >= getEffectiveDailyDateKey(pet, now)) return '今天已经举办过，明天可选择新主题';
-  if (id === 'riverside' && !(theme === 'garden' ? pet.community.firstOrderDelivered : state.regions.hills.surveyed)) return theme === 'garden' ? '先完成第一碗社区暖粥' : '先完成溪谷与山丘地区故事';
+  if (id === 'riverside' && !(theme === 'garden' ? pet.community.firstOrderDelivered : state.regions.hills.surveyed || state.regions.valley.surveyed && pet.community.firstOrderDelivered)) return theme === 'garden' ? '先完成第一碗社区暖粥' : '先点亮溪谷第一盏灯，并交付第一碗社区暖粥';
   if (id === 'exhibition') {
     if (theme === 'garden' && Object.keys(pet.community.fishing.journal).length < 2) return '鱼类手账记下任意两种鱼即可，不要求珍稀鱼';
     if (theme === 'journey' && (!state.regions.forest.surveyed || !state.regions.coast.surveyed)) return '先记录林地与海岸地区故事';

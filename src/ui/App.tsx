@@ -130,6 +130,7 @@ import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
 import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
+import { unlockLocalTestFacilities } from './app/localFacilityPreview';
 import { ExpeditionPage } from './ExpeditionPage';
 import { isExpeditionAway } from '../core/expeditionData';
 import type { CommunityRoute } from '../core/communityTypes';
@@ -150,6 +151,7 @@ import { PartnerSchedulePage } from './PartnerSchedulePage';
 import { RolePicker } from './RolePicker';
 import { SettingsModal, type SettingsPage } from './SettingsModal';
 import { ShopModal } from './ShopModal';
+import { recycleCommunityGoods } from '../core/communityMarket';
 import { YearReviewModal } from './YearReviewModal';
 import { formatCompactNumber } from './numberFormat';
 import { getLanguage, setLanguage, t, type LanguageCode } from '../i18n';
@@ -317,8 +319,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const appearanceController = useAppearance();
   const notices = useNotices();
   const [communityRoute, setCommunityRoute] = useState<CommunityRoute>();
+  const [expeditionTarget, setExpeditionTarget] = useState<import('../core/valleyExplorationData').ValleyGatherTarget>();
   const [communityTab, setCommunityTab] = useState<CommunityTab>('village');
   const [communityPlace, setCommunityPlace] = useState<CommunityPlace | null>(null);
+  const localFacilityPreviewAttempt = useRef('');
   const {
     activePage,
     isHomeRef,
@@ -451,6 +455,27 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const achievementSummary = getAchievementSummary(pet);
   const hasAchievementNotice = achievementSummary.pendingReviewNotice || achievementSummary.claimable > 0;
   const gardenReminder = getGardenReminder(pet);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || import.meta.env.VITE_POCPET_TEST_FACILITIES !== '1'
+      || window.location.origin !== 'http://127.0.0.1:5173'
+      || persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause) return;
+    const key = `pocpet.dev.facilities:${actorId}:${pet.createdAt}`;
+    if (localFacilityPreviewAttempt.current === key) return;
+    localFacilityPreviewAttempt.current = key;
+    try {
+      if (localStorage.getItem(key) === 'done') return;
+      const next = unlockLocalTestFacilities(pet);
+      if (next !== pet) {
+        const backupKey = `${key}:backup`;
+        if (!localStorage.getItem(backupKey)) localStorage.setItem(backupKey, createSaveFileText(pet, getStoredSaveIdentity() ?? activeMod?.manifest));
+        if (!saveAction(next, 'quiet')) return;
+      }
+      localStorage.setItem(key, 'done');
+    } catch (error) {
+      console.error('Local facility preview could not be saved.', error);
+    }
+  }, [pet, actorId, activeMod, persistenceError, pendingImportedSave, isImportingSave, timePauseBusy, saveAction]);
 
   const playAfterUnlock = (id: SfxId) => {
     void unlockAudio().then(() => playSfx(id));
@@ -1647,16 +1672,16 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         />
       ) : activePage === 'adventure' ? (
         <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} icons={itemIconMap} registry={itemRegistry}
-          communityRoute={communityRoute} onCommunity={handleOpenCommunity}
+          communityRoute={communityRoute} onCommunity={handleOpenCommunity} onExpedition={() => { setExpeditionTarget(undefined); setActivePage('expedition'); }}
           update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'expedition' ? (
-        <ExpeditionPage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} update={activities.update}
+        <ExpeditionPage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} update={activities.update} initialTarget={expeditionTarget} onStory={quest => { setCommunityRoute(quest); setActivePage('adventure'); }}
           onCommunity={handleOpenCommunity} onShop={() => handleOpenShop()}
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'community' ? (
-        <CommunityPage pet={pet} registry={itemRegistry} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+        <CommunityPage pet={pet} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
           orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
             onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}
@@ -1665,7 +1690,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             onOpenShop={() => handleOpenShop('garden')} compensationCoins={gardenCompensationCoins}
             onClaimCompensation={hasClaimedGardenCompensation ? undefined : handleClaimGardenCompensation} />}
           onAdventure={() => { setCommunityRoute(undefined); setActivePage('adventure'); }}
-          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onExpedition={() => setActivePage('expedition')}
+          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onExpedition={target => { setExpeditionTarget(target); setActivePage('expedition'); }}
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
@@ -1876,12 +1901,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <ShopModal
           pet={pet}
           items={displayShopItems}
+          recycleItems={ownedItems}
           browse={inventoryController.browse}
           itemIconMap={itemIconMap}
           onClose={handleCloseShop}
           onBrowseChange={inventoryController.setBrowse}
           onOpenInventory={handleOpenInventory}
           onBuyItem={handleBuyItem}
+          onRecycleItem={(id, quantity, expectedStock) => activities.update(p => recycleCommunityGoods(p, id, quantity, expectedStock))}
           onExchangeHeart={handleExchangeHeart}
           isHeartExchangeCoolingDown={isHeartExchangeCoolingDown}
         />

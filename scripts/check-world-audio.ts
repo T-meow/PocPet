@@ -75,14 +75,15 @@ assert.equal(getWorldActionSfx(ready, { ...cast, createdAt: ready.createdAt + 1 
 
 ready.community.gardenBuilt = true;
 ready.inventory.carrot_seed = 1;
-const planted = plantCommunityCrop(ready, 'carrot', now);
+const planted = plantCommunityCrop(ready, 1, 'carrot', now);
 assert.equal(getWorldActionSfx(ready, planted, 'community'), 'world_harvest');
-assert.equal(getWorldActionSfx(planted, harvestCommunityCrop(planted, planted.community.crop!.plantedAt, now), 'community'), undefined);
-assert.equal(getWorldActionSfx(planted, harvestCommunityCrop(planted, planted.community.crop!.plantedAt, planted.community.crop!.readyAt), 'community'), 'world_harvest');
+assert.equal(getWorldActionSfx(planted, harvestCommunityCrop(planted, 1, planted.community.plots[0].crop!.plantedAt, now), 'community'), undefined);
+assert.equal(getWorldActionSfx(planted, harvestCommunityCrop(planted, 1, planted.community.plots[0].crop!.plantedAt, planted.community.plots[0].crop!.readyAt), 'community'), 'world_harvest');
 
 ready.adventure.completed.tutorial = 1;
 const departed = startExpedition(ready, ['valley'], {}, false, 'official.furo', ready.name, 'manual', 1, now);
 assert.ok(departed.community.expedition.active);
+departed.community.expedition.active.rulesVersion = 1; // Existing three-stop journeys retain their story cue.
 assert.equal(getWorldActionSfx(ready, departed, 'expedition'), 'world_step');
 let journey = departed;
 for (const choice of ['gather', 'safe', 'story']) {

@@ -42,7 +42,7 @@ export const AdventureMap = ({ adventure, today, selection, portrait, landscape,
       : node === 'encounter' ? L('后续在这里遇见特殊来客，可以用食物引诱、绕路或其他方式应对。遭遇任务筹备中。', 'Future encounters offer food lures, detours and other choices. This task is coming later.')
         : node === 'camp' ? L('地图深处的落脚点，等后续旅程一起发现。营地任务筹备中。', 'A resting place deeper in the region awaits a future journey. Camp tasks are coming later.')
           : L('从入口再往前走，这里会有一段新的探索。该节点的任务正在筹备。', 'A new journey awaits beyond the entrance. This node is coming later.');
-  const legacy = activeHere && adventure.active!.rulesVersion < 3;
+  const legacy = activeHere && adventure.active!.rulesVersion < 7;
   const canPrepare = status === 'available' && !adventure.active && !adventure.pending;
 
   return <DialogShell className="adventure-dialog adventure-map-dialog" backdropClassName="adventure-modal-backdrop" labelId="adventure-map-title" onClose={onClose}>
@@ -81,7 +81,7 @@ export const AdventureMap = ({ adventure, today, selection, portrait, landscape,
           {scene && <img className="adventure-map-scene-preview" src={scene} alt={names[node] + L('场景', ' scene')} />}
           <h5>{quest?.name ?? (entry ? adventureTaskName() : L('后续探索', 'Further exploration'))}</h5><p>{nodeHint}</p>
           {questId && quest && <div className="adventure-map-task-summary"><span>{adventureJourneyCost(questId)}</span><small>{adventureJourneyDetail(questId)}</small><small>物资：{Object.entries(quest.items).map(([id, amount]) => `${getInventoryItem(id as ItemId)?.name ?? id} ×${amount}`).join('、')}</small>{status === 'locked' && <p className="adventure-blocked">{getValleyQuestReason(adventure, questId)}</p>}{status === 'complete' && <p>这段故事已写进手账。可回社区继续生产、建设与委托。</p>}</div>}
-          {entry && region.open && <div className="adventure-map-task-summary"><span>{L('6 段 · 每天一次 · 凌晨 5 点刷新', '6 steps · Once daily · Resets at 5 a.m.')}</span>{legacy ? <small>{L('本趟沿用出发时的消耗与奖励。', 'This trip keeps its original costs and rewards.')}</small> : <><small>{L('饱食度 300～345 · 体力 74～98', '300–345 hunger · 74–98 energy')}</small><small>{adventureTreasureRewardText(activeHere ? adventure.active!.rulesVersion : 4)}</small></>}</div>}</> : <><MapPin size={28} /><h4>{L('尚未选择目的地', 'No destination selected')}</h4><p>{L('点击地图上的具体地标，查看行程消耗与奖励，再整备出发。', 'Select a landmark on the map, review its costs and rewards, then prepare to leave.')}</p></>}
+          {entry && region.open && <div className="adventure-map-task-summary"><span>{'6 段 · 不限出发次数 · 采集与酬谢按积存机会结算'}</span>{legacy ? <small>{L('本趟沿用出发时的消耗与奖励。', 'This trip keeps its original costs and rewards.')}</small> : <><small>{'饱食度 30 · 体力 24 · 最多采集 2 次'}</small><small>{adventureTreasureRewardText(activeHere ? adventure.active!.rulesVersion : 7)}</small></>}</div>}</> : <><MapPin size={28} /><h4>{L('尚未选择目的地', 'No destination selected')}</h4><p>{L('点击地图上的具体地标，查看行程消耗与奖励，再整备出发。', 'Select a landmark on the map, review its costs and rewards, then prepare to leave.')}</p></>}
           <div className="adventure-map-detail-actions">
             {adventure.active ? <button className="primary-button" onClick={onResume}><ArrowRight size={17} />{L('继续当前探查', 'Resume current scouting')}</button>
               : adventure.pending ? <button className="primary-button" onClick={onCollect}><Backpack size={17} />{L('先领取上次行囊', 'Collect your previous bag')}</button>

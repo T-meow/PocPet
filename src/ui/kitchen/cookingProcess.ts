@@ -1,8 +1,8 @@
-import type { CookingMethod, RecipeId } from '../../core/companionActivityTypes';
+import type { CookingMethod, RecipeId, MilkChoice } from '../../core/companionActivityTypes';
 import type { SfxId } from '../../core/audio';
 import { activityText as L } from '../../core/kitchenRecipes';
 
-export interface KitchenCraftRequest { id: string; recipeId: RecipeId; banana: boolean; quantity: number; }
+export interface KitchenCraftRequest { id: string; recipeId: RecipeId; banana: boolean; quantity: number; milk?: MilkChoice; }
 export type CookingAction = 'add' | 'stir' | 'flip' | 'blend' | 'bake' | 'simmer' | 'serve';
 export interface CookingProgress { step: number; readyAt: number; action?: CookingAction; }
 export const createCookingProgress = (): CookingProgress => ({ step: 0, readyAt: 0 });
