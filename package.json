@@ -6,8 +6,9 @@
   "scripts": {
     "package": "node scripts/package.mjs",
     "check:package": "node --test scripts/check-package.mjs",
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node scripts/serve-dev.mjs",
     "serve:local": "node scripts/serve-dev.mjs --port 5173",
+    "save:test:facilities": "tsx scripts/create-facilities-save.ts",
     "build": "tsc --noEmit && vite build",
     "build:toy": "tsc --noEmit && vite build --mode toy",
     "check:date-rewards": "tsx scripts/check-date-rewards.ts",

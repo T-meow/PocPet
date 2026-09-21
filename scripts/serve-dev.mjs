@@ -1,18 +1,20 @@
 import { createServer } from 'vite';
+import { parseArgs } from 'node:util';
 
-const getArgValue = (name, fallback) => {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return fallback;
-  return process.argv[index + 1] ?? fallback;
-};
-
-const port = Number(getArgValue('--port', process.env.PORT ?? 5173));
+const { values } = parseArgs({ options: { port: { type: 'string' }, mode: { type: 'string' } } });
+const port = 5173;
+if (values.port !== undefined && values.port !== String(port)) {
+  throw new Error('PocPet 本地测试固定使用 http://127.0.0.1:5173，请复用已有服务。');
+}
+// Reusable imported fixtures replace the former one-off automatic unlock mode.
+process.env.VITE_POCPET_TEST_FACILITIES = '0';
 
 const server = await createServer({
+  mode: values.mode,
   server: {
     host: '127.0.0.1',
     port,
-    strictPort: false,
+    strictPort: true,
   },
 });
 
