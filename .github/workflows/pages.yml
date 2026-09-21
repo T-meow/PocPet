@@ -111,7 +111,7 @@ jobs:
           npm ci
           npm run check:release
           npm run build
-          node scripts/check-release.mjs --dist dist
+          node scripts/check.mjs --release --dist dist
 
       - name: Verify deployed build identity
         env:

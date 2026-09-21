@@ -6,9 +6,6 @@ const port = 5173;
 if (values.port !== undefined && values.port !== String(port)) {
   throw new Error('PocPet 本地测试固定使用 http://127.0.0.1:5173，请复用已有服务。');
 }
-// Reusable imported fixtures replace the former one-off automatic unlock mode.
-process.env.VITE_POCPET_TEST_FACILITIES = '0';
-
 const server = await createServer({
   mode: values.mode,
   server: {

@@ -1,8 +1,8 @@
 # PocPet CodeWiki
 
-本文是 PocPet 的长期代码地图和开发约定，面向维护者与后续代码代理。功能事实以代码为准；临时实施计划在功能落地后不继续保留，仍有长期价值的约束应合并到本文或对应用户指南。
+本文是 PocPet 的代码地图和维护参考。功能事实以代码为准，长期有效的约束集中在本文或对应用户指南。
 
-本次文档整理对应 `1.9.0`。版本发布前应重新核对根目录 `package.json`、`src-tauri/tauri.conf.json` 与 `src-tauri/Cargo.toml`。
+版本以根目录 `package.json` 为准；打包时同步 `src-tauri/tauri.conf.json`、Cargo 与锁文件。
 
 ## 1. 项目定位与技术栈
 
@@ -33,8 +33,8 @@ PocPet/
 |  |- assets/        图片与音频资源
 |  `- main.tsx       React 入口
 |- src-tauri/        Tauri/Rust、权限、图标和 Android 工程
-|- scripts/          专项规则检查和打包脚本
-|- docs/             长期开发文档与 Mod 指南
+|- scripts/          统一存档／报错检查、开发与打包工具
+|- docs/             Wiki、操作参考、数值表与素材规范
 |- release/          本地交付产物，不提交 Git
 `- dist/             Vite 构建输出
 ```
@@ -101,6 +101,13 @@ flowchart LR
 | `mod.ts` | Mod zip 与 manifest 解析、约束和运行时模型 |
 | `modStorage.ts` | Mod 库、IndexedDB 图片、对象 URL 生命周期 |
 | `saveCodec.ts` | 外部存档封装、校验、兼容读取和时间基线重置 |
+| `storage.ts`、`cloudSave.ts` | 本地与云端保存、冲突保护和恢复 |
+| `community.ts` | 农场设施与社区玩法公共入口 |
+| `communityFishing.ts`、`fishingState.ts` | 钓鱼操作、结算与状态兼容 |
+| `kitchen.ts`、`kitchenRecipes.ts` | 厨房操作、配方与恢复效果 |
+| `adventure.ts`、`expedition.ts` | 探查、手动与挂机行程 |
+| `explorationChecks.ts` | 探索技能判定、心情与消耗计算 |
+| `regionalTreasures.ts` | 地区珍宝与装饰基础配方 |
 | `audio.ts` | BGM/SFX 加载、解锁、静音和页面模式同步 |
 
 `src/core/pet.ts` 是公共门面。新增公共能力时在原模块实现并从这里显式导出，避免 UI 深度依赖内部模块。
@@ -116,7 +123,7 @@ flowchart LR
 3. 在对应 `normalize*State` 中处理缺字段、非法值和旧 schema。
 4. 在 `normalizePet` 中接入子状态。
 5. 在 `persistedPet.ts` 的白名单、序列化与回填中接入需要持久化的字段，补齐外部存档版本兼容检查。
-6. 增加旧存档、非法输入和重复加载的专项检查。
+6. 必要的旧档、非法输入和重复加载检查合并到 `scripts/check.mjs`。
 
 不要直接信任 `localStorage`、外部存档或 Mod 数据。数字必须处理 `NaN`、负数、越界和非整数；数组必须去重并限制长度；未知枚举值应回退或丢弃，不能让整个存档无法加载。厨房操作 ID、小游戏会话／结算／角色 ID、番茄钟结算 ID 最长 128 字符，相关回执应使用一致的规范化方式。
 
@@ -144,25 +151,17 @@ flowchart LR
 - 删除字段前至少保留一个可读取旧字段的迁移周期。
 - 导出格式、Mod 格式和用户生成内容必须保留 `schemaVersion`、验证规则与失败处理。
 
-### 5.5 已落地玩法的维护约束
+### 5.5 玩法状态的维护约束
 
 - 厨房：保留做饭、厨具、摆盘与试吃，研究搭配已移除。制作心心按料理技能及整链预算差额计算，不叠加角色等级／全局产心加成；批量制作与单份累计预算一致，升级料理不得重复领取前序预算。
 - 社区服务：进行中的工单保留开始时消耗／奖励快照，扣耗随进度结算；体力不足（含 0）也可接单，扣至 0 后继续完成，结算快照保留筋疲力尽提示，报酬不受影响。提前回家与完整完成分别处理，重复请求不重复扣费或发奖。快速工作与长工单的次数、资源规则分别维护。
 - 园艺：施肥互斥／次数、每日高级树减时与单轮状态分别判断；迁移保留付费加速、成熟时间及待领取收获，不复活枯树，不重抽已生成产物。
 - 扭蛋：补给箱固定内容直接展开，不增加第二次随机；整份容量校验先于扣费与随机状态推进。保留旧奖项 ID 的历史读取，金苹果按各属性实际有效上限恢复，不套普通料理效果倍率。
 - 节日：故事保存年份、版本、开始时伙伴、选项、进度和领奖状态，正文从脚本重建，不保存正文或图片快照。已开始故事可跨活动窗口继续，纪念册回看只读，容量不足保留待领奖励；自然日窗口与凌晨 5 点游戏日分开。
-- 冒险：行程保存出发身份、规则版本、随机结果和物资；重载不重抽，旧行程及待领取结果不按新数值重算。搬运／兑换／返程原子结算，满仓保留物资，日次数独立于有限长度手账。当前范围见 [冒险计划](冒险与前哨基地实现计划.md)。
+- 冒险：行程保存出发身份、规则版本、随机种子、临时效果和物资；重载不重抽，旧行程及待领取结果不按新数值重算。搬运／兑换／返程原子结算，满仓保留物资，日次数独立于有限长度手账。具体流程见 `adventure.ts`、`expedition.ts` 与共享判定模块。
 - 补偿与恢复：已领取标记、待领物资和存档身份稳定；新存档不冒领旧档补偿，失败恢复不覆盖原始备份。迁移账本只校验当前存档的记录；无法核实时保留原记录与待领额度、暂缓补偿，正常进度仍可保存。界面偏好、最近展示结果等临时数据不混入主存档。
 
-具体数值以 `items.ts`、`kitchen.ts`、`kitchenRecipes.ts`、`partnerSchedule.ts`、`garden.ts`、`goldenAppleGacha.ts`、`festivalStories.ts`、`adventure*.ts` 为准；专项检查位于 `scripts/check-*.ts`，不在文档重复维护数值全表。
-
-本轮存档修复（2026-09-18）：
-
-- 目标／授权：修复冒险高版本保护、超长 ID、损坏迁移记录阻断保存、存档检查旧断言四项问题；仅本地代码与必要回归。
-- 决定：未知版本拒绝读取；相关 ID 限长；损坏迁移记录保留原文，无法核实的补偿暂缓，正常进度仍可保存。
-- 进度／验证：四项修复与内存存储回归已完成；22 项专项检查、TypeScript 与差异检查通过。覆盖高版本阻写、超长 ID 幂等、损坏账本保留、恢复后按剩余额度发放及失败回滚。
-- 待办：无；已复核仅在确有待领补偿时提示的边界与最终差异。
-- 路径／禁动项：修改 `src/core/`、中文提示及 `scripts/check-save-v2.ts`；不操作真实玩家存档、不升版本、不打包、不提交或发布。
+数值查询见 [参考索引](README.md) 中的食材、工具和装饰表；实现以对应 `src/core/` 模块为准。
 
 ## 6. 时间边界
 
@@ -179,7 +178,7 @@ flowchart LR
 
 `useAppNavigation` 管理两类表面：
 
-- 页面：`home`、`achievements`、`garden`、`partnerSchedule`、`commonDreams`、`settings`、`memories`、`festival`、`adventure`。
+- 页面：`home`、`achievements`、`garden`、`partnerSchedule`、`commonDreams`、`settings`、`memories`、`festival`、`adventure`、`community`。
 - 工具弹窗：`inventory`、`shop`、`boostCards`、`gacha`、`kitchen`、`play`。
 
 `App.tsx` 当前仍是主要编排层。新的复杂业务优先写入 `core` 或 `ui/app` controller hook，不要继续把规则计算堆到 JSX 事件中。
@@ -267,7 +266,7 @@ flowchart LR
 
 ### 8.4 兼容验证清单
 
-每次修改弹窗至少检查：
+弹窗由用户按改动范围人工检查：
 
 1. 420px 桌面窗口和约 390px 手机宽度。
 2. 短列表、长列表、空状态和最长中英文/Mod 文案。
@@ -281,7 +280,7 @@ flowchart LR
 
 ## 9. Mod 系统
 
-Mod zip 的当前格式、路径和运行限制以 [mod.ts](../src/core/mod.ts) 的 manifest 类型、资源白名单和校验为准；旧版独立制作指南已不在当前仓库。
+Mod zip 的格式、路径和运行限制以 [mod.ts](../src/core/mod.ts) 的 manifest 类型、资源白名单和校验为准。
 
 代码侧主要边界：
 
@@ -311,7 +310,7 @@ Mod zip 的当前格式、路径和运行限制以 [mod.ts](../src/core/mod.ts) 
 3. 从 `pet.ts` 导出公共 API。
 4. 在 controller hook 或 `App.tsx` 编排调用，UI 只提交意图。
 5. 按语言规则更新文案、样式和帮助内容。
-6. 增加专项脚本，覆盖迁移、边界、重复点击和原子结算。
+6. 存档与异常处理的必要检查合并到统一入口，玩法和交互由人工试玩确认。
 
 ### 新增道具
 
@@ -330,29 +329,19 @@ Mod zip 的当前格式、路径和运行限制以 [mod.ts](../src/core/mod.ts) 
 
 ## 12. 验证与打包
 
-依赖已安装时，文档或代码交付前至少运行相关项：
+日常自动检查只有一个入口，代码改动按需要运行一次：
 
 ```powershell
-npm.cmd run build
-npm.cmd run check:date-rewards
-npm.cmd run check:garden-care
-npm.cmd run check:gacha
-npx.cmd tsx scripts/check-partner-schedule.ts
+npm.cmd test
 git diff --check
 ```
 
-按改动范围选择专项检查，不要求每个小改动都跑所有脚本。存档、共享规则或跨系统奖励变更应扩大验证范围。
+`npm test` 执行 TypeScript、存档往返／迁移／损坏保护／恢复、存储异常、行程持久化与入口模块加载。云端和原生存储使用内存替身，不接触真实玩家存档。它不判断画面、玩法节奏或数值平衡，这些交由用户人工验收。
+
+纯文档、文案和样式改动不例行构建。默认不新增按玩法拆分的自动化脚本；必要的存档和报错用例集中在 `scripts/check.mjs`。同一文件的 `--release`、`--artifacts` 模式仅供打包和 CI 核验版本、架构、内嵌资源与产物集合。固定试玩入口和合成存档见 [本地测试参考](本地测试与复用存档.md)。
 
 打包与发布以根目录 `README.md` 和 `AGENTS.md` 为准。本地默认仅 Windows x64 与 Android arm64（“完整包”同此范围）；32 位须明确要求。所有正式版本标签触发全平台 CI，手动 CI 默认两平台、显式 `full_build` 才全量，不按版本尾号决定。Android 测试包默认 debug keystore，`release/` 不提交 Git；仅本地修改不自动推送、打包或发布。
 
 ## 13. 文档维护
 
-当前文档入口见 [README](README.md)：保留架构与规范、可复用提示词／来源清单、未完成计划及待评审原型。已完成执行日志从 Git 历史查阅。
-
-大型任务可在开发期间创建中文实施计划，但完成后应执行以下之一：
-
-- 删除已失效的阶段、待办和临时数值推导；历史仍可从 Git 查看。
-- 把仍然有效的 schema、兼容性或维护约束合并进 CodeWiki。
-- 把用户需要长期查阅的格式与工作流合并进对应用户指南。
-
-不要让已经完成的实施计划与代码长期并存，否则后续维护者无法判断哪一份才是事实来源。
+文档入口见 [README](README.md)。只保留 Wiki、操作参考、当前数值、格式规范与素材来源；不保留实施记录、测试流水账、美术批次日志、未来规划或路线图。历史实现从 Git 查阅，长期约束合并进现有参考文档。

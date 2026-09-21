@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 if ($ReuseNative -and ($RebuildRust -or $env:GITHUB_ACTIONS -eq 'true')) { throw 'Native reuse is only allowed as an explicit local command.' }
-& node (Join-Path $root 'scripts/check-release.mjs')
+& node (Join-Path $root 'scripts/check.mjs') --release
 if ($LASTEXITCODE -ne 0) { throw 'Release metadata validation failed.' }
 $packageJson = Join-Path $root 'package.json'
 if (-not (Test-Path -LiteralPath $packageJson)) {
@@ -127,7 +127,7 @@ function Resolve-Keytool {
 function Ensure-DebugKeystore([string]$keytool) {
   if ($env:GITHUB_ACTIONS -eq 'true') {
     if (-not $env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64) {
-      throw 'CI requires the fixed Android test signing keystore. See docs/1.6.1-release.md.'
+      throw 'CI requires the fixed Android test signing keystore. See docs/打包流程与统一脚本.md.'
     }
     $ciKeystore = Join-Path $env:RUNNER_TEMP 'pocpet-debug.keystore'
     [IO.File]::WriteAllBytes($ciKeystore, [Convert]::FromBase64String($env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64))
@@ -263,7 +263,7 @@ Write-Host "Using $label Rust library:"
 Write-Host $sourceSo
 Write-Host ("Rust library timestamp: " + (Get-Item -LiteralPath $sourceSo).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))
 $artifactArch = if ($AndroidTarget -eq 'aarch64') { 'arm64' } else { 'armv7' }
-& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $sourceSo --arch $artifactArch
+& node (Join-Path $root 'scripts/check.mjs') --release --dist (Join-Path $root 'dist') --binary $sourceSo --arch $artifactArch
 if ($LASTEXITCODE -ne 0) { throw 'Rust library contains stale frontend assets or the wrong architecture.' }
 
 $androidVersionCode = Convert-VersionNameToCode $version
@@ -321,7 +321,7 @@ if ($LASTEXITCODE -ne 0) { throw 'apksigner sign failed.' }
 
 & $apksigner verify --verbose $finalApk
 if ($LASTEXITCODE -ne 0) { throw 'apksigner verify failed.' }
-& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $finalApk --arch $artifactArch
+& node (Join-Path $root 'scripts/check.mjs') --release --dist (Join-Path $root 'dist') --binary $finalApk --arch $artifactArch
 if ($LASTEXITCODE -ne 0) { throw 'APK content validation failed.' }
 $aapt = Resolve-BuildTool $sdk 'aapt.exe'
 $badging = (& $aapt dump badging $finalApk) -join "`n"

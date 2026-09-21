@@ -15,8 +15,8 @@ export const packageTypes = {
   android: { label: 'Android arm64 测试签名 APK', suffix: '.apk', windowsOnly: true, commands: [npm('package:android:arm64')] },
   'windows-x86': { label: 'Windows 32 位便携版', suffix: '-win32.exe', windowsOnly: true, commands: [npm('package:win:portable:x86')] },
   'android-armv7': { label: 'Android ARMv7 测试签名 APK', suffix: '-32bit.apk', windowsOnly: true, commands: [npm('package:android:armv7')] },
-  toy: { label: 'B 站 Toy ZIP', suffix: '-toy.zip', dist: 'dist-toy', edition: 'bilibili', commands: [npm('build:toy'), npm('check:toy'), node('scripts/check-release.mjs', '--dist', 'dist-toy', '--edition', 'bilibili')] },
-  web: { label: '普通网页版 ZIP', suffix: '-web.zip', dist: 'dist', edition: 'standard', commands: [npm('build'), node('scripts/check-release.mjs', '--dist', 'dist')] },
+  toy: { label: 'B 站 Toy ZIP', suffix: '-toy.zip', dist: 'dist-toy', edition: 'bilibili', commands: [npm('build:toy'), node('scripts/check.mjs', '--release', '--dist', 'dist-toy', '--edition', 'bilibili')] },
+  web: { label: '普通网页版 ZIP', suffix: '-web.zip', dist: 'dist', edition: 'standard', commands: [npm('build'), node('scripts/check.mjs', '--release', '--dist', 'dist')] },
 };
 const aliases = { default: ['windows', 'android'], full: ['windows', 'android'], all: ['windows', 'android'], win: ['windows'], apk: ['android'], bilibili: ['toy'] };
 const menu = ['default', ...Object.keys(packageTypes)];

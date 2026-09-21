@@ -25,7 +25,7 @@ $sourceRelative = [string]$targetConfig['Source']
 $outputSuffix = [string]$targetConfig['Suffix']
 
 $source = Join-Path $root $sourceRelative
-& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist') --binary $source --arch $Target
+& node (Join-Path $root 'scripts/check.mjs') --release --dist (Join-Path $root 'dist') --binary $source --arch $Target
 if ($LASTEXITCODE -ne 0) { throw 'Portable executable metadata or embedded frontend validation failed.' }
 $binaryVersion = (Get-Item -LiteralPath $source).VersionInfo.ProductVersion
 if ($binaryVersion -ne $version) { throw "Executable version mismatch: $binaryVersion (expected $version)." }

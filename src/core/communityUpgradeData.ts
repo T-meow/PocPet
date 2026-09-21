@@ -27,10 +27,10 @@ export const communityUpgrades: Record<CommunityUpgradeId, CommunityUpgrade[]> =
     { name: '小摊扩建至 12 格', effect: '增加 3 格货架，新上架加价率 +5 个百分点；已有货品保持原价', region: 'coast', coins: 500, items: cost(4, 2, { sea_glass: 3, tidal_pearl: 1 }) },
   ],
   fishing_hut: [
-    { name: '钓鱼小屋 · Lv.2', effect: '每竿体力 3／饱食 1，提竿窗口 25 秒，收线张力 +30／+22', region: 'hills', water: 'upstream', coins: 300, items: cost(6, 4, { hill_sunstone: 1 }) },
-    { name: '钓鱼小屋 · Lv.3', effect: '每竿体力 2／饱食 1，提竿窗口 30 秒，收线张力 +28／+20', region: 'forest', water: 'forest_pool', coins: 500, items: cost(8, 6, { forest_emerald: 1 }) },
-    { name: '钓鱼小屋 · Lv.4', effect: '每竿体力 2／饱食 1，提竿窗口 35 秒，收线张力 +26／+18', region: 'coast', water: 'coast_pier', coins: 700, items: cost(10, 8, { tidal_pearl: 1 }) },
-    { name: '钓鱼小屋 · Lv.5', effect: '每竿体力 1／饱食 1，提竿窗口 40 秒，收线张力 +24／+16', region: 'station', coins: 1000, items: cost(12, 10, { star_sapphire: 1 }) },
+    { name: '钓鱼小屋 · Lv.2', effect: '每竿体力 3／饱食 1，基础等待 7 秒', region: 'hills', water: 'upstream', coins: 300, items: cost(6, 4, { hill_sunstone: 1 }) },
+    { name: '钓鱼小屋 · Lv.3', effect: '每竿体力 2／饱食 1，基础等待 6 秒', region: 'forest', water: 'forest_pool', coins: 500, items: cost(8, 6, { forest_emerald: 1 }) },
+    { name: '钓鱼小屋 · Lv.4', effect: '每竿体力 2／饱食 1，基础等待 5 秒', region: 'coast', water: 'coast_pier', coins: 700, items: cost(10, 8, { tidal_pearl: 1 }) },
+    { name: '钓鱼小屋 · Lv.5', effect: '每竿体力 1／饱食 1，基础等待 4 秒', region: 'station', coins: 1000, items: cost(12, 10, { star_sapphire: 1 }) },
   ],
 };
 export const upgradeRegionNames: Record<RegionId, string> = { valley: '溪谷', hills: '风车山丘', forest: '雾松林地', coast: '潮汐海岸', station: '旧观测站' };

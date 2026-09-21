@@ -16,6 +16,7 @@ import { CommunityFacilities } from './community/CommunityFacilities';
 import { CommunityFarm } from './community/CommunityFarm';
 import { CommunityField } from './community/CommunityField';
 import { CommunityFishing } from './community/CommunityFishing';
+import { FishingDialog } from './community/FishingDialog';
 import { CommunityBoard } from './community/CommunityBoard';
 import { CommunityMarket } from './community/CommunityMarket';
 import { CommunitySceneArt } from './community/CommunitySceneArt';
@@ -32,6 +33,7 @@ import '../styles/decorations.css';
 
 interface Props {
   pet: PetState; portrait: string; update: (action: (pet: PetState) => PetState) => void;
+  actorId?: string; actorName?: string;
   onBack: () => void; onExplore: (purpose: CommunityRoute) => void; onKitchen: (recipe?: RecipeId) => void; onShop: () => void; orchard: ReactNode;
   initialTab?: CommunityTab; initialPlace?: CommunityPlace; tab?: CommunityTab; onTabChange?: (tab: CommunityTab) => void;
   place?: CommunityPlace | null; onPlaceChange?: (place: CommunityPlace | null) => void;
@@ -39,12 +41,12 @@ interface Props {
 }
 // Retain previous navigation values for callers; operations now live in dialogs.
 export type CommunityTab = 'village' | 'board' | 'field' | 'farm' | 'fishing' | 'market';
-export type CommunityPlace = 'field' | 'orchard' | 'coop' | 'barn' | 'hut' | 'pond' | 'upstream' | 'fishbook' | 'board' | 'market' | 'journey' | 'growth' | 'kitchen';
+export type CommunityPlace = 'field' | 'orchard' | 'coop' | 'barn' | 'hut' | 'hut_manage' | 'pond' | 'upstream' | 'fishbook' | 'board' | 'market' | 'journey' | 'growth' | 'kitchen';
 type Place = CommunityPlace;
-const fishingPlaces: readonly Place[] = ['hut', 'pond', 'upstream', 'fishbook', 'kitchen'];
-const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长', kitchen: '水边的料理' };
+const fishingPlaces: readonly Place[] = ['hut', 'hut_manage', 'pond', 'upstream', 'fishbook', 'kitchen'];
+const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', hut_manage: '小屋建设与水域', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长', kitchen: '水边的料理' };
 
-export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
+export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorName = pet.name, update, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
   const [localTab, setLocalTab] = useState<CommunityTab>(initialPlace && fishingPlaces.includes(initialPlace) ? 'fishing' : initialTab);
   const [selectedDecoration, setSelectedDecoration] = useState<CommunityDecorationId | null>(null);
   const tab = controlledTab ?? localTab;
@@ -72,7 +74,7 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
   };
   const animalStatus = (id: 'coop' | 'barn') => !c.facilities[id].built ? facilityStatus(id) : c.animals[id].stock ? `待收 ${c.animals[id].stock} 份` : c.animals[id].feed ? '正在生产' : '等待饲料';
   const fieldStatus = !c.gardenBuilt ? '踩点结算后免费开放' : mature ? `${matureCount} 块可以收获` : `${c.plots.filter(plot => plot.crop).length}/${c.plots.length} 块生长中`;
-  const fishStatus = c.fishing.pending ? '鱼获待收' : c.fishing.active ? '继续这一竿' : c.facilities.fishing_hut.built ? '准备抛竿' : '先修小屋';
+  const fishStatus = c.fishing.pending ? '鱼获待收' : c.fishing.active?.mode === 'idle' ? `挂机钓鱼 · ${c.fishing.active.settledCasts}/${c.fishing.active.plannedCasts} 条` : c.fishing.active ? '继续这一竿' : c.facilities.fishing_hut.built ? '准备抛竿' : '先修小屋';
   const adventure = () => { setPanel(null); onAdventure?.(); };
   const nextQuest = valleyQuestIds.find(id => !getValleyQuestReason(pet.adventure, id));
   const next = !mapUnlocked ? { title: '和伙伴完成第一次踩点', detail: '到前哨基地走完四个节点，展开溪谷地图。', label: '去前哨基地', action: adventure }
@@ -106,11 +108,12 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
     {hotspot('market', '溪畔小摊', c.market.open ? '营业中' : c.market.level ? '整理货架' : '修复与回收', 19, 87)}
   </>;
   let content: ReactNode;
+  const fishingPanel = c.facilities.fishing_hut.built && (panel === 'hut' || panel === 'pond' || panel === 'upstream' && c.facilities.upstream.built);
   if (panel === 'field') content = <CommunityField {...panelProps} />;
   else if (panel === 'orchard') content = orchard;
   else if (panel === 'coop' || panel === 'barn') content = c.facilities[panel].built ? <CommunityFarm {...panelProps} only={panel} /> : <CommunityFacilities {...panelProps} only={panel} />;
-  else if (panel === 'hut') content = c.facilities.fishing_hut.built ? <><CommunityFishing {...panelProps} initialWater={c.fishing.active?.water ?? 'pond'} view="controls" /><button className="secondary-button" onClick={() => openPlace('fishbook')}>翻开鱼类手账</button><button className="secondary-button" onClick={() => openPlace('upstream')}>查看上游步道</button></> : <CommunityFacilities {...panelProps} only="fishing_hut" />;
-  else if (panel === 'pond' || panel === 'upstream') content = !c.facilities.fishing_hut.built ? <CommunityFacilities {...panelProps} only="fishing_hut" /> : panel === 'upstream' && !c.facilities.upstream.built ? <CommunityFacilities {...panelProps} only="upstream" /> : <CommunityFishing key={panel} {...panelProps} initialWater={c.fishing.active?.water ?? panel} view="controls" />;
+  else if (panel === 'hut_manage') content = c.facilities.fishing_hut.built ? <><CommunityFishing {...panelProps} view="management" /><button className="secondary-button" onClick={() => openPlace('upstream')}>查看上游步道</button></> : <CommunityFacilities {...panelProps} only="fishing_hut" />;
+  else if (panel === 'hut' || panel === 'pond' || panel === 'upstream') content = !c.facilities.fishing_hut.built ? <CommunityFacilities {...panelProps} only="fishing_hut" /> : <CommunityFacilities {...panelProps} only="upstream" />;
   else if (panel === 'fishbook' || panel === 'kitchen') content = <CommunityFishing {...panelProps} view={panel === 'fishbook' ? 'journal' : 'recipes'} />;
   else if (panel === 'board') content = <CommunityBoard {...panelProps} onFishing={visitWater} onFarm={openPlace} />;
   else if (panel === 'market') content = c.facilities.stall.built ? <CommunityMarket {...panelProps} /> : <CommunityFacilities {...panelProps} only="stall" />;
@@ -125,7 +128,9 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
     </div>
     {!free && <p className="community-note">伙伴正在休息或忙碌，可以先看看场景与任务。{c.fishing.active && <button className="text-button" onClick={() => visitWater(c.fishing.active?.water)}>回到当前鱼竿</button>}</p>}
     <p className="community-event" role={panel ? undefined : 'status'}>{pet.recentEvent}</p>
+    {fishing && <div className="community-actions"><button className="secondary-button" onClick={() => openPlace('hut_manage')}>小屋建设与水域</button><button className="secondary-button" onClick={() => openPlace('fishbook')}>鱼类手账与金冠</button></div>}
+    {fishingPanel && <FishingDialog {...panelProps} portrait={portrait} actorId={actorId} actorName={actorName} initialWater={c.fishing.active?.water ?? c.fishing.pending?.water ?? (panel === 'upstream' ? 'upstream' : 'pond')} onClose={() => setPanel(null)} onManage={() => openPlace('hut_manage')} onShop={() => { setPanel(null); onShop(); }} />}
     {selectedDecoration && <DecorationDetail key={`${selectedDecoration}:${getDecorationLevel(pet, selectedDecoration)}`} pet={pet} update={update} id={selectedDecoration} onClose={() => setSelectedDecoration(null)} onOpenOutpost={panelProps.onOpenOutpost ? request => { setSelectedDecoration(null); panelProps.onOpenOutpost?.(request); } : undefined} />}
-    {panel && <DialogShell fullscreen className="community-place-dialog" backdropClassName="community-modal-backdrop" labelId="community-place-title" onClose={() => setPanel(null)}><header><div><small>{fishingPlaces.includes(panel) ? '钓鱼小屋' : '溪畔农场'}</small><h2 id="community-place-title">{titles[panel]}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="关闭地点窗口，返回场景"><X size={21} /></button></header><div className="community-dialog-content">{panel !== 'orchard' && !mapUnlocked && <p className="community-note">先去前哨完成踩点探索，就能在溪谷寻找建设线索。{onAdventure && <button className="text-button" onClick={adventure}>去前哨基地</button>}</p>}{!free && <p className="community-note">伙伴正在休息或忙碌；生产和建设操作会在空闲时开放。</p>}{content}</div></DialogShell>}
+    {panel && !fishingPanel && <DialogShell fullscreen className="community-place-dialog" backdropClassName="community-modal-backdrop" labelId="community-place-title" onClose={() => setPanel(null)}><header><div><small>{fishingPlaces.includes(panel) ? '钓鱼小屋' : '溪畔农场'}</small><h2 id="community-place-title">{titles[panel]}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="关闭地点窗口，返回场景"><X size={21} /></button></header><div className="community-dialog-content">{panel !== 'orchard' && !mapUnlocked && <p className="community-note">先去前哨完成踩点探索，就能在溪谷寻找建设线索。{onAdventure && <button className="text-button" onClick={adventure}>去前哨基地</button>}</p>}{!free && <p className="community-note">伙伴正在休息或忙碌；生产和建设操作会在空闲时开放。</p>}{content}</div></DialogShell>}
   </section>;
 };

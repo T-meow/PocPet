@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference = 'Stop'
 
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
-& node (Join-Path $root 'scripts/check-release.mjs') --dist (Join-Path $root 'dist')
+& node (Join-Path $root 'scripts/check.mjs') --release --dist (Join-Path $root 'dist')
 if ($LASTEXITCODE -ne 0) { throw 'Web release metadata validation failed.' }
 $packageJson = Join-Path $root 'package.json'
 if (-not (Test-Path -LiteralPath $packageJson)) {

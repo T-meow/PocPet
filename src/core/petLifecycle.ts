@@ -5,7 +5,8 @@ import { getAchievementEffects, incrementAchievementPomodoroFocus, incrementNatu
 import { canClaimBoostCardDailyReward } from './boostCards';
 import { advanceGarden } from './garden';
 import { advanceCommunityAnimals } from './communityFarm';
-import { advanceCommunityFishing } from './communityFishing';
+import { advanceCommunityFishing, isIdleFishing } from './communityFishing';
+import { fishingIntervalMs } from './fishingRules';
 import { advanceCommunityMarket } from './communityMarket';
 import { advanceCommunityBoard } from './communityCommissions';
 import { goldenAppleGachaDailyTicketLimit, resolveDailyGachaTicket } from './goldenAppleGacha';
@@ -41,7 +42,7 @@ import { settleExpeditionTime } from './expeditionReturn';
 import { advanceExplorationBudget } from './explorationBudget';
 import { explorationTravel } from './explorationTravelData';
 
-const travelStopsEnergyRecovery = (pet: PetState) => Boolean((pet.adventure.active?.rulesVersion ?? 0) >= 8 || (pet.community.expedition.active?.rulesVersion ?? 0) >= 2 && !pet.community.expedition.active?.paused);
+const travelStopsEnergyRecovery = (pet: PetState) => Boolean(isIdleFishing(pet) || (pet.adventure.active?.rulesVersion ?? 0) >= 8 || (pet.community.expedition.active?.rulesVersion ?? 0) >= 2 && !pet.community.expedition.active?.paused);
 
 export const getEnergyRecoveryInfo = (pet: PetState, now = Date.now()) => {
   const current = normalizePet(pet, now);
@@ -95,7 +96,7 @@ export const isPetLowEnergy = (pet: PetState) => pet.energy < lowEnergyThreshold
 export const isPetCriticallyHungry = (pet: PetState) => pet.hunger < getPetStatThreshold(pet, criticalHungerActionThreshold);
 
 export const canStartPomodoro = (pet: PetState) =>
-  !isPetLowEnergy(pet) && pet.health > getPetStatThreshold(pet, pomodoroMinHealthThreshold);
+  !pet.community.fishing.active && !isPetLowEnergy(pet) && pet.health > getPetStatThreshold(pet, pomodoroMinHealthThreshold);
 
 export const pausePomodoroForReason = (pet: PetState, now: number, recentEvent: string): PetState => {
   if (!pet.pomodoro.isRunning) {
@@ -391,7 +392,7 @@ const getLifecycleRates = (pet: PetState, time: number): LifecycleRates => {
   const weatherMoodModifier = pet.weather === 'sunny' ? 0.75 : 1;
   const weatherCleanlinessModifier = pet.weather === 'rainy' ? 1.3 : 1;
   return {
-    hunger: pet.community.expedition.active && pet.community.expedition.active.rulesVersion >= 2 && pet.community.expedition.active.mode === 'idle' ? pet.community.expedition.active.rulesVersion >= 3 ? -explorationTravel[pet.community.expedition.active.route[0]].idleHunger / 2 : -3 : scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
+    hunger: isIdleFishing(pet) ? 0 : pet.community.expedition.active && pet.community.expedition.active.rulesVersion >= 2 && pet.community.expedition.active.mode === 'idle' ? pet.community.expedition.active.rulesVersion >= 3 ? -explorationTravel[pet.community.expedition.active.route[0]].idleHunger / 2 : -3 : scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
     mood: scalePetStatDelta(pet, pet.isSleeping
       ? 2
       : -(pressure > 0 ? 5 : 2) * weatherMoodModifier * getMoodDecaySeasonModifier(time)),
@@ -483,7 +484,7 @@ const advanceUnprotectedSlice = (
     active: { ...trip, energySpent: Math.max(0, (trip.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (trip.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } } };
   const adventure = recovered.adventure.active;
   if (adventure) recovered = { ...recovered, adventure: { ...recovered.adventure, active: { ...adventure, energySpent: Math.max(0, (adventure.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (adventure.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } };
-  return settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recovered), to), to);
+  return advanceCommunityFishing(settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recovered), to), to), to);
 };
 
 const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetState => {
@@ -558,7 +559,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
   );
 
   const applyImmediateStateChanges = (time: number) => {
-    next = settleExpeditionTime(next, time);
+    next = advanceCommunityFishing(settleExpeditionTime(next, time), time);
     next = withWeatherForTime(next, time);
     if (next.partnerSchedule.active && time >= next.partnerSchedule.active.endsAt) {
       next = advancePartnerSchedule(next, time);
@@ -570,7 +571,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     while (transitionCount < 3) {
       transitionCount += 1;
       const idleAtNight = isNightTime(time) && time - next.lastInteractionAt >= autoSleepIdleMs;
-      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && !isExpeditionAway(next) && idleAtNight) {
+      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && !isExpeditionAway(next) && !next.community.fishing.active && idleAtNight) {
         next = startSleepSnapshot({
           ...next,
           isSleeping: true,
@@ -607,6 +608,8 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     let sliceEndsAt = Math.min(now, getNextCalendarBoundary(cursor));
     const expedition = next.community.expedition.active;
     if (expedition?.mode === 'idle') sliceEndsAt = Math.min(sliceEndsAt, expedition.startedAt + (expedition.settledParts + 1) * hourMs, expedition.endsAt);
+    const fishing = next.community.fishing.active;
+    if (fishing?.mode === 'idle') sliceEndsAt = Math.min(sliceEndsAt, fishing.startedAt + (fishing.settledCasts + 1) * fishingIntervalMs, fishing.endsAt);
 
     if (scheduleForInterval) {
       if (cursor < scheduleForInterval.startedAt) {
@@ -617,7 +620,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     }
 
     if (!protectedBySchedule && rates) {
-      if ((next.adventure.active || isExpeditionAway(next)) && rates.health < 0) {
+      if ((next.adventure.active || isExpeditionAway(next) || isIdleFishing(next)) && rates.health < 0) {
         const distance = next.health - getPetStatCap(next) * adventureHealthRules.retreat;
         // The first millisecond strictly below the line, including starting on it.
         sliceEndsAt = Math.min(sliceEndsAt, cursor + Math.max(1, Math.floor(distance / -rates.health * hourMs) + 1));

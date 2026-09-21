@@ -9,7 +9,7 @@ export type AchievementTabId = 'all' | 'companion' | 'growth' | 'life' | 'schedu
 const achievementTabCategories: Record<Exclude<AchievementTabId, 'all' | 'hidden'>, readonly AchievementCategory[]> = {
   companion: ['care', 'daily', 'date'],
   growth: ['growth', 'pomodoro'],
-  life: ['shop', 'inventory', 'garden', 'kitchen', 'play'],
+  life: ['shop', 'inventory', 'garden', 'kitchen', 'play', 'fishing'],
   schedule: ['schedule'],
 };
 

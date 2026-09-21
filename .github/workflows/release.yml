@@ -50,10 +50,10 @@ jobs:
       - name: Detect version and build scope
         id: meta
         shell: bash
-        run: node scripts/check-release.mjs --metadata
+        run: node scripts/check.mjs --release --metadata
 
   validate:
-    name: Versions, save compatibility and both editions
+    name: Save safety, module loading and both editions
     needs: metadata
     runs-on: ubuntu-22.04
     steps:
@@ -69,29 +69,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate versions and saves
+      - name: Check saves, errors and versions
         run: |
+          npm test
           npm run check:release
-          npm run check:release-policy
-          npm run check:save-recovery
-          npx tsx scripts/check-save-v2.ts
-          npx tsx scripts/check-cloud-save-v2.ts
-          npm run check:mint-compat
-          npm run check:companion-activities
-          npm run check:garden-care
-          npm run check:partner-schedule
-          npx tsx scripts/check-ui-v2.ts
-          npm run check:stat-scaling-batch
-          npm run check:offline-lifecycle
-          npm run check:toy
-          npm run check:updates
 
       - name: Build both editions
         run: |
           npm run build
-          node scripts/check-release.mjs --dist dist
+          node scripts/check.mjs --release --dist dist
           npm run build:toy
-          node scripts/check-release.mjs --dist dist-toy --edition bilibili
+          node scripts/check.mjs --release --dist dist-toy --edition bilibili
 
       - uses: actions/upload-artifact@v4
         if: needs.metadata.outputs.release_build == 'true'
@@ -326,7 +314,7 @@ jobs:
           name: standard-web
           path: dist
 
-      - run: node scripts/check-release.mjs --dist dist
+      - run: node scripts/check.mjs --release --dist dist
 
       - name: Build web zip
         if: needs.metadata.outputs.full_build == 'true'
@@ -370,7 +358,7 @@ jobs:
       - name: Build Linux bundles
         run: |
           npm run package:desktop
-          node scripts/check-release.mjs --dist dist --binary src-tauri/target/release/app --arch x64
+          node scripts/check.mjs --release --dist dist --binary src-tauri/target/release/app --arch x64
 
       - name: Export Linux artifacts
         shell: bash
@@ -424,7 +412,7 @@ jobs:
       - name: Build macOS bundle
         run: |
           npm run package:desktop -- --no-sign
-          node scripts/check-release.mjs --dist dist --binary src-tauri/target/release/app --arch "$(node -p process.arch)"
+          node scripts/check.mjs --release --dist dist --binary src-tauri/target/release/app --arch "$(node -p process.arch)"
 
       - name: Record macOS architecture
         id: arch
@@ -488,7 +476,7 @@ jobs:
           pattern: pocpet-*
 
       - name: Verify complete artifact set
-        run: node scripts/check-release-assets.mjs dist-release
+        run: node scripts/check.mjs --artifacts dist-release
 
       - name: Create client update manifest
         env:

@@ -2156,6 +2156,12 @@
           "title": "任务达人",
           "description": "完成至少 80% 的普通成就即可解锁。"
         },
+        "fishing_first": { "title": "第一竿收获", "description": "手动或挂机成功钓到第一条鱼。" },
+        "fishing_species_9": { "title": "水边见闻", "description": "在鱼类手账中记录 9 种鱼。" },
+        "fishing_species_18": { "title": "四水域鱼类手账", "description": "收集全部 18 种鱼。" },
+        "fishing_crowns_1": { "title": "第一顶金冠", "description": "钓到超过金冠门槛的大鱼，获得第一顶金冠。" },
+        "fishing_crowns_6": { "title": "金冠收藏家", "description": "为 6 种不同的鱼取得金冠。" },
+        "fishing_crowns_18": { "title": "金冠大师", "description": "为全部 18 种鱼取得金冠。" },
         "kitchen_first": {
           "title": "第一口热乎",
           "description": "成功制作第一份料理。"

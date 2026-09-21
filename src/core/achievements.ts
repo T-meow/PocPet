@@ -9,7 +9,7 @@ import { isNumber } from './utils';
 import { recipes } from './kitchenRecipes';
 import { inventoryItemLimit } from './saveMetadata';
 
-export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden' | 'kitchen' | 'play';
+export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden' | 'kitchen' | 'play' | 'fishing';
 export type AchievementRarity = 'normal' | 'rare' | 'hidden';
 
 export interface AchievementReward {
@@ -484,6 +484,13 @@ const getUnlockedNormalAchievementCount = (pet: PetState) =>
 
 const achievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'title' | 'description'>[] = [
   ...baseAchievementDefinitionConfigs,
+  { id: 'fishing_first', category: 'fishing', rarity: 'normal', target: 1, progress: pet => Object.values(pet.community.fishing.journal).reduce((n, entry) => n + (entry?.count ?? 0), 0), reward: { coins: 50, hearts: 5 } },
+  { id: 'fishing_species_9', category: 'fishing', rarity: 'normal', target: 9, progress: pet => Object.keys(pet.community.fishing.journal).length, reward: { coins: 150, hearts: 10 } },
+  { id: 'fishing_species_18', category: 'fishing', rarity: 'rare', target: 18, progress: pet => Object.keys(pet.community.fishing.journal).length, reward: { coins: 300, hearts: 20 } },
+  ...([{ target: 1, coins: 100, hearts: 5 }, { target: 6, coins: 300, hearts: 15 }, { target: 18, coins: 1000, hearts: 50 }] as const).map(({ target, coins, hearts }): Omit<AchievementDefinition, 'title' | 'description'> => ({
+    id: `fishing_crowns_${target}`, category: 'fishing', rarity: target === 1 ? 'normal' : 'rare', target,
+    progress: pet => Object.values(pet.community.fishing.journal).filter(entry => entry?.goldCrown).length, reward: { coins, hearts },
+  })),
   { id: 'kitchen_first', category: 'kitchen', rarity: 'normal', target: 1, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 50, hearts: 5 } },
   { id: 'kitchen_three', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => Object.keys(pet.kitchen.made).length, reward: { coins: 100, hearts: 10 } },
   { id: 'kitchen_eight', category: 'kitchen', rarity: 'rare', target: 8, progress: (pet) => recipes.filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length, reward: { coins: 200, hearts: 20 } },

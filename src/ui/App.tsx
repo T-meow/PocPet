@@ -130,7 +130,6 @@ import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
 import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
-import { unlockLocalTestFacilities } from './app/localFacilityPreview';
 import { currentExpeditionRequest, type OutpostRequest } from './outpostNavigation';
 import { isExpeditionAway } from '../core/expeditionData';
 import type { CommunityRoute } from '../core/communityTypes';
@@ -322,7 +321,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [outpostRequest, setOutpostRequest] = useState<OutpostRequest>();
   const [communityTab, setCommunityTab] = useState<CommunityTab>('village');
   const [communityPlace, setCommunityPlace] = useState<CommunityPlace | null>(null);
-  const localFacilityPreviewAttempt = useRef('');
   const {
     activePage,
     isHomeRef,
@@ -456,34 +454,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const hasAchievementNotice = achievementSummary.pendingReviewNotice || achievementSummary.claimable > 0;
   const gardenReminder = getGardenReminder(pet);
 
-  useEffect(() => {
-    if (!import.meta.env.DEV || import.meta.env.VITE_POCPET_TEST_FACILITIES !== '1'
-      || window.location.origin !== 'http://127.0.0.1:5173'
-      || persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause) return;
-    const key = `pocpet.dev.facilities:${actorId}:${pet.createdAt}`;
-    if (localFacilityPreviewAttempt.current === key) return;
-    localFacilityPreviewAttempt.current = key;
-    try {
-      if (localStorage.getItem(key) === 'done') return;
-      const next = unlockLocalTestFacilities(pet);
-      if (next !== pet) {
-        const backupKey = `${key}:backup`;
-        if (!localStorage.getItem(backupKey)) localStorage.setItem(backupKey, createSaveFileText(pet, getStoredSaveIdentity() ?? activeMod?.manifest));
-        if (!saveAction(next, 'quiet')) return;
-      }
-      localStorage.setItem(key, 'done');
-    } catch (error) {
-      console.error('Local facility preview could not be saved.', error);
-    }
-  }, [pet, actorId, activeMod, persistenceError, pendingImportedSave, isImportingSave, timePauseBusy, saveAction]);
-
   const playAfterUnlock = (id: SfxId) => {
     void unlockAudio().then(() => playSfx(id));
   };
 
   const handleOpenCommunity = () => {
-    setCommunityTab('village');
-    setCommunityPlace(null);
+    const fishing = petRef.current.community.fishing;
+    setCommunityTab(fishing.active || fishing.pending ? 'fishing' : 'village');
+    setCommunityPlace(fishing.active || fishing.pending ? 'pond' : null);
     setActivePage('community');
   };
   const handleOpenOutpost = (request?: OutpostRequest) => {
@@ -1684,7 +1662,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
-        <CommunityPage pet={pet} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+        <CommunityPage pet={pet} actorId={actorId} actorName={getSharePetName()} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
           orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
             onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}

@@ -17,10 +17,10 @@ export const communityShopItems: readonly ShopItem[] = [
   { id: 'community_wood', name: '修复木料', kind: 'item', price: 12, effect: {}, usable: false, summary: '商店购买或溪谷采集。用于农场设施建设、菜地扩容与设施升级。' },
   { id: 'community_stone', name: '修复石料', kind: 'item', price: 10, effect: {}, usable: false, summary: '商店购买或溪谷采集。用于农场设施建设、菜地扩容与设施升级。' },
   { id: 'animal_feed', name: '谷物饲料', kind: 'garden', price: 5, effect: {}, usable: false, summary: '鸡舍／牛棚每轮消耗 1 份；饲料容量随扩建为 3／5／8 份，产物容量为 6／10／16 份。不会自动购买。' },
-  { id: 'fishing_bait', name: '普通鱼饵', kind: 'item', price: 4, effect: {}, usable: false, summary: '每次抛竿消耗 1 份，取消或脱钩不返还。各水域每三竿至少一竿遇到基础料理鱼。' },
+  { id: 'fishing_bait', name: '普通鱼饵', kind: 'item', price: 4, effect: {}, usable: false, summary: '每竿消耗 1 份，手动收竿不返还。总竿数第 1、4、7…竿使用普通鱼饵时，遇到当前水域的基础料理鱼。挂机未使用的鱼饵会退回。' },
   { id: 'river_bait', name: '溪流鱼饵', kind: 'item', price: 8, effect: {}, usable: false, summary: '上游步道建成后可买。提高珍稀鱼出现机会；不会自动完成收线。' },
-  { id: 'fishing_rod', name: '普通钓竿', kind: 'item', price: 80, effect: {}, usable: false, summary: '耐久 20 竿，每次抛竿扣 1 次，取消或脱钩不返还；用尽后损坏。钓鱼小屋建成赠送 1 根。' },
-  { id: 'reinforced_rod', name: '柔韧钓竿', kind: 'item', price: 180, effect: {}, usable: false, summary: '耐久 45 竿，每次抛竿扣 1 次。钓鱼小屋建成后可买。同级每次收线张力比普通钓竿少 8；小屋 Lv.1–5 时为 +24／22／20／18／16。' },
+  { id: 'fishing_rod', name: '普通钓竿', kind: 'item', price: 80, effect: {}, usable: false, summary: '耐久 20 竿。上钩后点击收线 4 次即可收获；手动抛竿或挂机钓获时扣 1 次耐久。钓鱼小屋建成赠送 1 根。' },
+  { id: 'reinforced_rod', name: '柔韧钓竿', kind: 'item', price: 180, effect: {}, usable: false, summary: '耐久 45 竿。手动上钩后点击收线 3 次即可收获；挂机每条鱼扣 1 次耐久。钓鱼小屋建成后可买。' },
 ];
 export const communityFindItems: readonly ShopItem[] = [
   ...regionalTreasureIds.map((id): ShopItem => { const d = regionalTreasures[id]; return { id, name: d.name, kind: 'item', price: 0, effect: {}, usable: false, tags: ['region_treasure', d.rarity, 'collector'], summary: `${rarityNames[d.rarity]}珍宝。地区定向勘探累计 ${d.investigations} 点调查获得 1 件；${d.use}。回收 ${d.base} 金币，最高摆摊 ${Math.floor(d.base * 140 / 100)} 金币。` }; }),

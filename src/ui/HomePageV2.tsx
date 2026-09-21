@@ -43,7 +43,7 @@ export const HomePageV2 = (props: Props) => {
     || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0)
     || pet.community.plots.some(plot => plot.crop && plot.crop.readyAt <= Date.now());
   const farmHint = [
-    pet.community.fishing.active ? '回到水边，继续这一竿' : undefined,
+    pet.community.fishing.active?.mode === 'idle' ? '伙伴在小屋挂机钓鱼' : pet.community.fishing.active ? '回到水边，继续这一竿' : pet.community.fishing.pending ? '小屋有鱼获待领取' : undefined,
     props.gardenReminder === 'ready' ? '果园有果实可以收获' : gardenGiftReady ? '果园补偿待领取' : props.gardenReminder === 'withered' ? '果园有植物需要照顾' : undefined,
   ].filter(Boolean).join(' · ') || '果树、菜地、养殖、钓鱼与委托';
   const achievementGiftReady = getAchievementSummary(pet).claimable > 0;

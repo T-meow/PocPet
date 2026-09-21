@@ -121,7 +121,7 @@ const getWorkQuote = (pet: PetState, now: number, energyCost: number) => {
 export const getQuickWorkPreview = (pet: PetState, now = Date.now()) => {
   const quote = getWorkQuote(pet, now, getWorkEnergyCost(pet));
   const minimumCoins = quote.baseCoins + quote.achievementBonusCoins + quote.boostBonus.bonusCoins;
-  const reason = pet.partnerSchedule.active || (pet.adventure.active || isExpeditionAway(pet)) ? 'busy' : pet.isSleeping ? 'sleeping'
+  const reason = pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active ? 'busy' : pet.isSleeping ? 'sleeping'
     : isPetCriticallyHungry(pet) ? 'hunger' : pet.energy < quote.energyCost ? 'energy' : undefined;
   return { energyCost: quote.energyCost, minimumCoins, maximumCoins: minimumCoins + Math.max(1, Math.floor(quote.baseCoins * 0.15)),
     boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
@@ -668,6 +668,7 @@ export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
 export const startPomodoro = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
   if (current.pomodoro.isRunning) return current;
+  if (current.community.fishing.active) return { ...current, recentEvent: '伙伴正在钓鱼，收竿或返回后再开始专注。' };
   if (isExpeditionAway(current)) return { ...current, recentEvent: '伙伴正在远行，请先在基地暂停或返回，再开始专注。' };
 
 

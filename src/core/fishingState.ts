@@ -1,6 +1,6 @@
 import { fish, fishIds, waterIds } from './communityData';
 import type { CommunityState, FishingCatch, WaterId } from './communityTypes';
-import { getFishingClicks } from './fishingRules';
+import { getFishingClicks, isGoldCrownFish } from './fishingRules';
 import { isTravelFood, normalizeRationReturn } from './explorationRations';
 import type { Inventory } from './petTypes';
 
@@ -16,7 +16,7 @@ export const normalizeFishingState = (raw: unknown, community: CommunityState): 
   const f = obj(raw), state: CommunityState['fishing'] = { casts: n(f.casts), nextIdleId: Math.max(1, n(f.nextIdleId)), journal: {} };
   for (const id of fishIds) {
     const entry = obj(obj(f.journal)[id]);
-    if (n(entry.count) && stamp(entry.firstAt)) state.journal[id] = { count: n(entry.count), firstAt: entry.firstAt, largest: n(entry.largest, 200), ...(typeof entry.goldCrown === 'boolean' ? { goldCrown: entry.goldCrown } : {}) };
+    if (n(entry.count) && stamp(entry.firstAt)) state.journal[id] = { count: n(entry.count), firstAt: entry.firstAt, largest: n(entry.largest, 200), ...(entry.goldCrown === true || isGoldCrownFish(id, n(entry.largest, 200)) ? { goldCrown: true } : typeof entry.goldCrown === 'boolean' ? { goldCrown: false } : {}) };
   }
   if (!community.facilities.fishing_hut.built) return state;
   const open = (water: unknown): water is WaterId => water === 'pond' || water === 'upstream' && community.facilities.upstream.built || (water === 'forest_pool' || water === 'coast_pier') && community.waterAccess[water].built;
@@ -26,7 +26,7 @@ export const normalizeFishingState = (raw: unknown, community: CommunityState): 
     const legacy = fishIds.includes(p.fish) && !p.items;
     const found: FishingCatch[] = legacy ? [{ fish: p.fish, size: n(p.size, 200), newRecord: false, newCrown: false }] : catches(p.catches);
     const items: Inventory = legacy ? { [p.fish]: 1 } : Object.fromEntries(Object.entries(obj(p.items)).filter(([id, count]) => (fishIds.includes(id as typeof fishIds[number]) || id === 'fishing_bait' || id === 'river_bait') && n(count)).map(([id, count]) => [id, n(count, 9999)]));
-    if (Object.keys(items).length) state.pending = { id: text(p.id), mode: p.mode === 'idle' ? 'idle' : 'manual', catches: found, items, water: waterIds.includes(p.water) ? p.water : found[0] ? fish[found[0].fish].water : 'pond', at: n(p.at), reason: ['return', 'health', 'supplies'].includes(p.reason) ? p.reason : 'complete', ...(normalizeRationReturn(p.rationReturn) ? { rationReturn: normalizeRationReturn(p.rationReturn) } : {}) };
+    if (Object.keys(items).length || p.mode === 'idle' && stamp(p.at)) state.pending = { id: text(p.id), mode: p.mode === 'idle' ? 'idle' : 'manual', catches: found, items, water: waterIds.includes(p.water) ? p.water : found[0] ? fish[found[0].fish].water : 'pond', at: n(p.at), reason: ['return', 'health', 'supplies'].includes(p.reason) ? p.reason : 'complete', ...(normalizeRationReturn(p.rationReturn) ? { rationReturn: normalizeRationReturn(p.rationReturn) } : {}) };
   }
   if (state.pending) return state;
   const a = obj(f.active);
