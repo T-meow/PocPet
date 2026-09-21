@@ -8,7 +8,7 @@ export interface RegionProgress {
   storyAt?: number; actorId?: string; actorName?: string;
 }
 export interface ExpeditionTrip {
-  rulesVersion: 1 | 2 | 3; id: string; revision: number; mode: 'manual' | 'idle';
+  rulesVersion: 1 | 2 | 3 | 4; id: string; revision: number; mode: 'manual' | 'idle';
   actorId: string; actorName: string; route: RegionId[]; leg: number; step: number;
   bag: Inventory; ground: Inventory; tool: boolean; rested: RegionId[]; paused: boolean;
   startedAt: number; endsAt: number; settledParts: number; parts: number;
@@ -19,13 +19,17 @@ export interface ExpeditionTrip {
   reservedHarvests?: number; rationsRemaining?: number;
   paidActions?: number;
   rationSegments?: import('./explorationRations').RationSegment[];
+  rationPlan?: import('./explorationRations').RationPlan;
   refundCoins?: number;
+  checkState?: import('./explorationChecks').ExplorationCheckState;
 }
 export interface ExpeditionReceipt {
   id: string; mode: 'manual' | 'idle'; route: RegionId[]; items: Inventory; overflow: Inventory; tool: boolean;
   selected: boolean; coins: number; hearts: number; at: number; reason: 'complete' | 'return' | 'health'; journal: string[];
-  rulesVersion?: 1 | 2 | 3;
+  rulesVersion?: 1 | 2 | 3 | 4;
   refundCoins?: number;
+  rationReturn?: import('./explorationRations').RationReturn;
+  lastCheck?: import('./explorationChecks').ExplorationCheckResult;
 }
 export interface CommunityProject {
   completed: number; stage: number; theme?: 'garden' | 'journey';
@@ -38,5 +42,5 @@ export interface ExpeditionState {
   collection: Partial<Record<ExpeditionItemId, number>>;
   loop?: import('./explorationBudget').ExplorationBudget;
   active?: ExpeditionTrip; pending?: ExpeditionReceipt;
-  lastReceipt?: Pick<ExpeditionReceipt, 'id' | 'reason' | 'at' | 'route' | 'journal'>;
+  lastReceipt?: Pick<ExpeditionReceipt, 'id' | 'reason' | 'at' | 'route' | 'journal' | 'lastCheck' | 'rationReturn'>;
 }

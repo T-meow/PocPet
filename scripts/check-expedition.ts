@@ -9,7 +9,8 @@ import { getInventoryItem } from '../src/core/items';
 import { getItemRecoveryPreview } from '../src/core/itemEffects';
 import { createSaveFileText, parseSaveFileText, UnsupportedSaveVersionError } from '../src/core/saveCodec';
 import { reconcilePetClock } from '../src/core/gameClock';
-import { chooseExpeditionStep, claimExpedition, continueExpedition, getExpeditionChoices, getExpeditionCampStep, getExpeditionHarvestLeft, getExpeditionStartReason, pauseExpedition, restExpedition, returnExpedition, selectExpeditionReturn, startExpedition, upgradeExpeditionBase, useExpeditionSupply } from '../src/core/expedition';
+import { chooseExpeditionStep, claimExpedition, continueExpedition, getExpeditionChoices, getExpeditionCampStep, getExpeditionHarvestLeft, getExpeditionStartReason, pauseExpedition, restExpedition, returnExpedition, selectExpeditionReturn, upgradeExpeditionBase, useExpeditionSupply } from '../src/core/expedition';
+import { startExpedition } from './fixtures/legacy-exploration';
 import { expeditionBagCount, getRegionUnlocked, isExpeditionAway, regionIds } from '../src/core/expeditionData';
 import { contributeCommunityProject, getProjectDelivery, startCommunityProject } from '../src/core/expeditionProjects';
 import { getCommunitySale } from '../src/core/communityEconomy';
@@ -126,7 +127,7 @@ p = advancePet(p, T + H); assert.equal(p.community.expedition.active!.step, 6); 
 // Health uses the current cap; low health cannot be rescued by a late supply callback.
 for (const level of [1, 20, 99]) {
   let q = ready(); q.level = level; q = refill(q); const cap = getPetStatCap(q);
-  q.health = cap * .4 - .01; assert.match(getExpeditionStartReason(q, ['valley']), /40%/);
+  q.health = cap * .4 - .01; assert.match(getExpeditionStartReason(q, ['valley']), /健康不足/);
   q.health = cap * .4; q = startExpedition(q, ['valley'], { field_dressing: 1 }, false, 'test.furo', 'Furo', 'manual', 1, T);
   assert(q.community.expedition.active);
   q.health = cap * .2; q = normalizePet(q, T); assert(q.community.expedition.active);
@@ -157,7 +158,7 @@ let half = returnExpedition(p, timed.id, T + H / 2); assert.equal(expeditionBagC
 assert.equal(half.inventory.coast_kelp, beforeKelp);
 let chunked = advancePet(p, T + H); chunked = roundTrip(chunked, T + H); chunked = advancePet(chunked, T + 4 * H);
 const allAtOnce = advancePet(p, T + 4 * H);
-assert.deepEqual(chunked.community.expedition.pending, allAtOnce.community.expedition.pending);
+assert.deepEqual(chunked.community.expedition.pending, { ...allAtOnce.community.expedition.pending, journal: [] }, 'save/load preserves every settlement field while omitting the unused display log');
 assert.equal(allAtOnce.community.expedition.pending!.items.coast_kelp, 8);
 assert.equal(allAtOnce.community.expedition.pending!.coins, 840); assert.equal(allAtOnce.community.expedition.pending!.hearts, 22);
 assert.equal(allAtOnce.community.expedition.pending!.at, T + 4 * H);
@@ -207,7 +208,7 @@ const legacy = ready(); delete (legacy.community as any).expedition; (legacy.com
 const migrated = normalizePet(legacy, T); assert(migrated.community.gardenBuilt); assert(migrated.community.facilities.barn.built); assert(!migrated.community.expedition.regions.valley.surveyed);
 const newer = JSON.parse(createSaveFileText(ready(), null, T)); newer.pet.community.expedition.schemaVersion = 4;
 assert.throws(() => parseSaveFileText(JSON.stringify(newer), T), UnsupportedSaveVersionError);
-const newerTrip = JSON.parse(createSaveFileText(createCommunityTestPet('idle', T), null, T)); newerTrip.pet.community.expedition.active.rulesVersion = 4;
+const newerTrip = JSON.parse(createSaveFileText(createCommunityTestPet('idle', T), null, T)); newerTrip.pet.community.expedition.active.rulesVersion = 5;
 assert.throws(() => parseSaveFileText(JSON.stringify(newerTrip), T), UnsupportedSaveVersionError);
-postcss.parse(readFileSync(new URL('../src/styles/expedition.css', import.meta.url), 'utf8'));
+postcss.parse(readFileSync(new URL('../src/styles/outpost.css', import.meta.url), 'utf8'));
 console.log('E: five regions, production/recipes, bag/health, checkpoints, timed travel, clock/save migration and staged projects passed.');

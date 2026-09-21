@@ -41,9 +41,10 @@ export const finishAdventure = (pet: PetState, now: number, forced = false): Pet
   if (salvage) for (const [id, n] of Object.entries(trip.loot)) salvage[id] = (salvage[id] ?? 0) + n;
   const pending: AdventureResult = { ...reward, id: trip.id, region: trip.region, purpose: trip.purpose, actorId: trip.actorId, actorName: trip.actorName, endedAt: now,
     items: salvage ? {} : items, rewardsClaimed: false,
+    ...(trip.checkState?.last ? { lastCheck: trip.checkState.last } : {}),
     ...(forced ? { returnReason: 'health' as const } : {}), ...(salvage ? { salvage, salvageTool: trip.tool } : {}),
     ...(reward.complete ? { completedDay: trip.completedDay ?? getDailyResetDateKey(now) } : {}) };
-  return { ...pet, adventure: { ...pet.adventure, active: undefined, pending }, recentEvent: forced ? '健康低于 20%，已立即安全返程。已完成的发现保留，请收好本趟物资。' : '已经安全返回前哨基地，收好这一趟的行囊吧。' };
+  return { ...pet, adventure: { ...pet.adventure, active: undefined, pending }, recentEvent: forced ? '健康不足，已安全返程。已完成的发现保留，请收好本趟物资。' : '已经安全返回前哨基地，收好这一趟的行囊吧。' };
 };
 export const enforceAdventureHealth = (pet: PetState, now = pet.lastUpdatedAt): PetState => needsAdventureHealthReturn(pet) ? finishAdventure(pet, now, true) : pet;
 export const chooseAdventureReturnItems = (pet: PetState, resultId: string, chosen: Inventory): PetState => {

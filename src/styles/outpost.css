@@ -1,0 +1,253 @@
+.modal-backdrop.outpost-backdrop,
+.ui-v2-app .modal-backdrop.outpost-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, var(--safe-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, var(--safe-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  background: #26364566;
+}
+.dialog-shell.outpost-dialog,
+.ui-v2-app .dialog-shell.outpost-dialog {
+  --outpost-ink: #344253;
+  --outpost-muted: #728091;
+  --outpost-line: #e4e9ef;
+  --outpost-accent: #4e7d73;
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-width: none;
+  height: min(820px, calc(100vh - 48px - var(--safe-top, 0px) - var(--safe-bottom, 0px)));
+  max-height: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--outpost-line);
+  border-radius: 22px;
+  color: var(--outpost-ink);
+  background: #fff;
+  box-shadow: 0 24px 80px #2035502b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.outpost-dialog * { box-sizing: border-box; }
+.outpost-dialog h2, .outpost-dialog h3, .outpost-dialog p { margin: 0; }
+.outpost-dialog h2 { font-size: 21px; line-height: 1.4; }
+.outpost-dialog h3 { font-size: 16px; line-height: 1.5; }
+.outpost-dialog p { color: #626f7f; }
+.outpost-dialog small { font-size: 12px; color: var(--outpost-muted); font-weight: 400; }
+.outpost-dialog button, .outpost-dialog input, .outpost-dialog select { font: inherit; }
+.outpost-dialog button { cursor: pointer; touch-action: manipulation; }
+.outpost-dialog button:disabled { opacity: .48; cursor: default; }
+.outpost-dialog :is(button, summary, input, select):focus-visible { outline: 3px solid #91b7dd; outline-offset: 3px; }
+.outpost-dialog .outpost-header { display: flex; gap: 12px; align-items: center; flex-shrink: 0; padding: 18px 24px; margin: 0; border-bottom: 1px solid var(--outpost-line); background: #fff; }
+.outpost-header > div { min-width: 0; }
+.outpost-header > .icon-button { margin-left: auto; flex-shrink: 0; width: 44px; height: 44px; min-height: 44px; }
+.outpost-symbol { display: inline-grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; color: #4e7d73; background: #eaf5f0; }
+.outpost-symbol[data-tone=lilac] { color: #827298; background: #f1ecf9; }
+.outpost-symbol[data-tone=peach] { color: #a67c5d; background: #fff0e5; }
+.outpost-status { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px 24px; padding: 10px 24px; flex-shrink: 0; border-bottom: 1px solid var(--outpost-line); background: #f7fafc; font-size: 12px; color: #74818d; }
+.outpost-status b { color: #475666; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.outpost-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; background: #f6f8fb; }
+.outpost-scroll > * { flex-shrink: 0; }
+.outpost-form-content { display: grid; gap: 18px; padding: 24px; min-width: 0; }
+.outpost-section, .outpost-camp { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--outpost-line); border-radius: 16px; background: #fff; min-width: 0; }
+.outpost-section-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.outpost-section-heading > svg { color: var(--outpost-accent); flex-shrink: 0; }
+.outpost-section-heading > small { margin-left: auto; }
+.outpost-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.exp-select-label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; min-width: 0; }
+.exp-select-label select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #d9e1e8; border-radius: 10px; background: #fff; color: #3d4a59; }
+.outpost-duration { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.outpost-duration button { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-height: 82px; padding: 14px; border: 1px solid #dfe5eb; border-radius: 12px; color: #5d6979; background: #fafbfd; text-align: left; }
+.outpost-duration button b { font-size: 25px; color: #475c58; line-height: 1.3; }
+.outpost-duration button span { font-size: 12px; }
+.outpost-duration button[aria-pressed=true] { border-color: #6c9c8d; background: #edf7f2; box-shadow: inset 0 0 0 1px #6c9c8d; }
+.exp-rations { display: grid; gap: 18px; min-width: 0; }
+.outpost-estimate { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.outpost-estimate > div { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: #f0f6fc; }
+.outpost-estimate > div:nth-child(2) { background: #fff5e9; }
+.outpost-estimate strong { font-size: 26px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.outpost-estimate strong span { font-size: 12px; font-weight: 400; }
+.outpost-find-preview { padding: 12px 14px; border: 1px solid #e2ece6; border-radius: 10px; background: #f4faf6; font-weight: 600; }
+.outpost-find-preview small { display: block; margin-top: 3px; }
+.outpost-costs { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; color: #798493; }
+.outpost-costs b { color: #516171; margin-left: 4px; }
+.outpost-inline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.outpost-unlock-note { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #fff5e7; }
+.outpost-unlock-note p { flex: 1; }
+.outpost-note { font-size: 12px; line-height: 1.7; }
+.outpost-note > span { display: block; }
+.outpost-action-bar { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: auto; padding: 14px 24px; border-top: 1px solid var(--outpost-line); background: #fff; box-shadow: 0 -6px 22px #24384e08; }
+.outpost-action-bar > div { flex: 1; min-width: 0; }
+.outpost-action-bar small { display: block; }
+.outpost-action-bar > button { flex-shrink: 0; min-width: 132px; }
+.exp-primary, .exp-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 16px; border: 1px solid #d9e3e0; border-radius: 11px; background: #f3f8f5; color: #486f64; font-weight: 600; }
+.exp-primary { color: #fff; background: #537f70; border-color: #537f70; }
+.exp-link-button { padding: 9px 2px; min-height: 40px; border: 0; background: transparent; color: #537e99; text-align: left; font-size: 13px; }
+.outpost-dialog .exp-warning, .exp-warning { color: #a16642; font-size: 12px; line-height: 1.6; }
+.exp-muted { display: block; color: #7b8690; font-size: 12px; }
+.exp-bag { padding: 12px 0; border-top: 1px solid #e5eaf0; min-width: 0; }
+.exp-bag summary { cursor: pointer; color: #536574; font-size: 13px; min-height: 30px; }
+.exp-bag summary svg { vertical-align: middle; margin-right: 5px; }
+.exp-bag p, .exp-bag .exp-stock-list { margin-top: 12px; }
+.exp-rope { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; }
+.exp-rope input { margin-top: 4px; accent-color: #638a79; }
+.exp-stock-list { display: grid; gap: 8px; min-width: 0; }
+.exp-stock-list > label, .exp-stock-list > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: #f5f8fb; min-width: 0; }
+.exp-stock-list > label > span, .exp-stock-list > div > span { min-width: 0; overflow-wrap: anywhere; }
+.exp-stock-list small { display: block; }
+.exp-stock-list input { width: 70px; min-height: 40px; flex-shrink: 0; border: 1px solid #d7e0e8; border-radius: 8px; background: #fff; color: #465669; text-align: center; }
+.exp-stock-list button { min-height: 36px; padding: 5px 12px; border: 1px solid #d6e2dc; border-radius: 8px; background: #fff; color: #4c7566; }
+.exp-route-plan small { display: block; margin-top: 6px; }
+.exp-quote { display: grid; gap: 5px; padding: 14px; border-radius: 12px; background: #f2f7fc; font-size: 13px; }
+.outpost-camp-steps { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.outpost-camp-steps li { display: flex; align-items: center; gap: 8px; color: #919aa5; }
+.outpost-camp-steps li[data-done=true] { color: #547d6a; }
+.exp-card { display: grid; gap: 14px; padding: 20px; border: 1px solid #e1e8ee; border-radius: 16px; background: #fff; min-width: 0; }
+.exp-card-heading { display: flex; align-items: center; gap: 12px; }
+.exp-card-heading > div { flex: 1; min-width: 0; }
+.exp-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: #edf5ee; font-size: 25px; flex-shrink: 0; }
+.exp-timed { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 18px; border-radius: 12px; background: #edf6f3; color: #517d6c; }
+.exp-timed strong { font-size: 20px; }
+.exp-timed > span { margin-left: auto; font-size: 12px; }
+.exp-journey progress { width: 100%; height: 9px; accent-color: #79a894; }
+.exp-path { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.exp-path li { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #8593a0; }
+.exp-path li > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f0f3f7; }
+.exp-path li[aria-current=step] { color: #4d7b6b; font-weight: 600; }
+.exp-path li[aria-current=step] > span, .exp-path li[data-done=true] > span { background: #e5f1e9; }
+.exp-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.exp-choices > button { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 16px; border: 1px solid #dae5de; border-radius: 12px; background: #f7fbf8; color: #4b6659; text-align: left; }
+.exp-choices b { display: flex; justify-content: space-between; gap: 8px; }
+.exp-choices > button > span, .exp-choices em { font-size: 12px; font-style: normal; }
+.exp-camp { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border-radius: 14px; background: #f5f1fa; }
+.exp-journey-footer { display: flex; flex-wrap: wrap; gap: 8px 18px; border-top: 1px solid #e5eaf0; padding-top: 12px; }
+.exp-journey-footer button { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 7px 0; border: 0; color: #6a7685; background: transparent; }
+.exp-eyebrow { color: #748a7e; font-size: 12px; }
+.outpost-tabs { display: flex; gap: 8px; padding: 10px 24px; flex-shrink: 0; border-bottom: 1px solid var(--outpost-line); }
+.outpost-tabs button { border: 0; border-radius: 10px; padding: 10px 18px; min-height: 42px; background: transparent; color: #7b8592; }
+.outpost-tabs button[aria-pressed=true] { background: #f0ecf8; color: #76638f; font-weight: 600; }
+.outpost-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 48px 16px; text-align: center; color: #82979a; }
+.travel-timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.travel-timeline article { display: grid; gap: 10px; padding: 20px; border: 1px solid var(--outpost-line); border-radius: 14px; background: #fff; }
+.travel-record-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 11px; color: #85919d; }
+.travel-record-heading > span { color: #648b7f; }
+.travel-record-heading > span[data-pending=true] { color: #ae7b42; }
+.travel-record-rewards, .travel-item-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.travel-record-rewards > span, .travel-item-list > span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; background: #f3f6fa; font-size: 12px; color: #687a89; }
+.travel-record-rewards > span { color: #9b7d43; background: #fff6e5; }
+.travel-discoveries { display: grid; gap: 10px; }
+.travel-discoveries details { padding: 12px; border: 1px solid #e6ebf0; border-radius: 10px; }
+.travel-discoveries summary { cursor: pointer; font-size: 13px; }
+.travel-discoveries summary svg { vertical-align: middle; color: #74958a; margin-right: 5px; }
+.travel-discoveries details p { margin-top: 10px; }
+.travel-products { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.travel-products article { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.travel-products article > span { font-size: 25px; }
+.travel-products small { display: block; }
+.adventure-outpost-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+.adventure-outpost-actions > button { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 62px; padding: 12px; border: 1px solid #dbe6e1; border-radius: 13px; background: #f0f7f3; color: #547869; text-align: left; cursor: pointer; }
+.adventure-outpost-actions > button:last-child { color: #7d6d95; border-color: #e5dfee; background: #f6f2fb; }
+.adventure-outpost-actions > button > span { min-width: 0; }
+.adventure-outpost-actions small { display: block; color: #7c8b8d; font-size: 11px; line-height: 1.5; margin-top: 3px; }
+.adventure-outpost-actions svg { flex-shrink: 0; }
+.adventure-map-outpost { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e7e9; }
+.adventure-map-outpost > button { width: 100%; }
+@supports (height: 100dvh) {
+  .dialog-shell.outpost-dialog, .ui-v2-app .dialog-shell.outpost-dialog { height: min(820px, calc(100dvh - 48px - var(--safe-top, 0px) - var(--safe-bottom, 0px))); }
+}
+
+@media (max-width: 600px) {
+  .modal-backdrop.outpost-backdrop, .ui-v2-app .modal-backdrop.outpost-backdrop { padding: 0; }
+  .dialog-shell.outpost-dialog, .ui-v2-app .dialog-shell.outpost-dialog { width: 100%; height: 100vh; max-width: none; max-height: none; border: 0; border-radius: 0; }
+  .outpost-dialog .outpost-header { padding: calc(12px + var(--safe-top, env(safe-area-inset-top, 0px))) max(14px, env(safe-area-inset-right, 0px)) 12px max(14px, env(safe-area-inset-left, 0px)); gap: 10px; }
+  .outpost-dialog h2 { font-size: 19px; }
+  .outpost-symbol { width: 38px; height: 38px; border-radius: 12px; }
+  .outpost-status { gap: 6px 14px; padding: 9px 14px; font-size: 11px; }
+  .outpost-status b { margin-left: 2px; }
+  .outpost-form-content { gap: 12px; padding: 14px max(12px, env(safe-area-inset-right, 0px)) max(18px, var(--safe-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  .outpost-section, .outpost-camp, .exp-card { padding: 15px; gap: 12px; border-radius: 13px; }
+  .outpost-fields { grid-template-columns: 1fr; gap: 12px; }
+  .outpost-duration { gap: 7px; }
+  .outpost-duration button { padding: 10px 8px; min-height: 76px; }
+  .outpost-duration button b { font-size: 22px; }
+  .outpost-duration button span { font-size: 11px; }
+  .outpost-estimate { gap: 8px; }
+  .outpost-estimate > div { padding: 12px 10px; }
+  .outpost-estimate strong { font-size: 23px; }
+  .outpost-action-bar { gap: 10px; padding: 12px max(14px, env(safe-area-inset-right, 0px)) calc(12px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))) max(14px, env(safe-area-inset-left, 0px)); }
+  .outpost-action-bar > button { min-width: 106px; padding-inline: 12px; }
+  .outpost-action-bar strong { font-size: 13px; }
+  .outpost-action-bar small { font-size: 11px; }
+  .outpost-unlock-note { flex-wrap: wrap; }
+  .outpost-unlock-note p { flex-basis: 100%; }
+  .outpost-tabs { padding: 9px 14px; }
+  .exp-choices, .travel-products { grid-template-columns: 1fr; }
+  .exp-timed { padding: 14px; }
+  .exp-timed strong { font-size: 17px; }
+  .exp-timed > span { width: 100%; margin-left: 0; }
+  .travel-timeline article { padding: 15px; }
+  .adventure-outpost-actions { gap: 8px; }
+  .adventure-outpost-actions > button { padding: 10px; gap: 8px; font-size: 12px; }
+  @supports (height: 100dvh) {
+    .dialog-shell.outpost-dialog, .ui-v2-app .dialog-shell.outpost-dialog { height: 100dvh; }
+  }
+}
+
+/* Idle preparation shares the bounded packing grid, including manual rotation. */
+.modal-backdrop.outpost-backdrop--preparation,
+.ui-v2-app .modal-backdrop.outpost-backdrop--preparation { padding: max(4px,var(--safe-top,env(safe-area-inset-top,0px))) max(4px,env(safe-area-inset-right,0px)) max(4px,var(--safe-bottom,env(safe-area-inset-bottom,0px))) max(4px,env(safe-area-inset-left,0px)); overflow: hidden; }
+.dialog-shell.outpost-dialog--idle,
+.ui-v2-app .dialog-shell.outpost-dialog--idle { width: min(1040px,100%); height: 100%; max-height: 100%; border-radius: 10px; font-size: 12px; }
+.adventure-page > .modal-backdrop.outpost-backdrop--preparation { position: absolute; inset: 0; padding: 0; }
+.outpost-dialog--idle .outpost-header { padding: 4px 8px; gap: 8px; }
+.outpost-dialog--idle .outpost-header small { display: none; }
+.outpost-dialog--idle .outpost-header h2 { font-size: 16px; }
+.outpost-dialog--idle .outpost-symbol { width: 32px; height: 32px; }
+.outpost-dialog--idle .outpost-status { padding: 4px 8px; gap: 8px; font-size: 11px; }
+.outpost-dialog--idle .outpost-scroll--preparation { overflow: hidden; background: #fffdf9; }
+.outpost-scroll--preparation > .preparation-inventory { flex: 1; min-height: 0; }
+.idle-preparation-controls { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 4px 10px; padding: 4px 8px; }
+.idle-preparation-route { display: flex; gap: 6px; min-width: 0; }
+.idle-preparation-field { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; }
+.idle-preparation-field > span { flex-shrink: 0; font-size: 11px; color: #728091; }
+.idle-preparation-field select { flex: 1; min-width: 0; width: 100%; height: 36px; padding: 4px; border: 1px solid #d9e1e8; border-radius: 7px; background: #fff; color: #3d4a59; }
+.idle-preparation-controls .outpost-duration { gap: 4px; }
+.idle-preparation-controls .outpost-duration button { align-items: center; justify-content: center; min-height: 36px; padding: 4px 8px; border-radius: 7px; white-space: nowrap; font-size: 12px; }
+.idle-preparation-autofill { grid-column: 1/-1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; font-size: 11px; }
+.idle-preparation-autofill label { display: flex; align-items: center; gap: 4px; min-height: 28px; }
+.idle-preparation-autofill input { margin: 0; width: 16px; height: 16px; accent-color: #638a79; }
+.idle-preparation-autofill strong { color: #8f7348; font-size: 11px; }
+.outpost-dialog--idle .exp-rations { gap: 4px; margin-top: 8px; }
+.outpost-dialog--idle .exp-bag { padding: 4px 0; }
+.outpost-dialog--idle .exp-bag p { margin-top: 6px; font-size: 11px; }
+.outpost-dialog--idle .outpost-inline-actions { gap: 2px 12px; }
+.outpost-dialog--idle .outpost-inline-actions button { font-size: 11px; min-height: 36px; padding: 4px 0; }
+.outpost-dialog--idle .adventure-pack-pane h3 { font-size: 13px; }
+.outpost-dialog--idle .outpost-action-bar { position: static; flex-shrink: 0; gap: 6px; margin: 0; padding: 6px 8px; }
+.outpost-dialog--idle .outpost-action-bar > button { min-width: 100px; min-height: 44px; padding: 6px 10px; }
+.outpost-dialog--idle .outpost-action-bar strong { font-size: 12px; }
+.outpost-dialog--idle .outpost-action-bar small, .outpost-dialog--idle .outpost-action-bar .exp-warning { font-size: 10px; }
+.outpost-ration-return { padding: 10px; border-radius: 10px; background: #f0f6ea; }
+.outpost-ration-return p + p { margin-top: 6px; }
+@container preparation (max-width: 600px) {
+  .idle-preparation-controls { grid-template-columns: minmax(0,1fr); gap: 3px; padding: 4px 6px; }
+  .idle-preparation-field { flex-direction: column; align-items: stretch; gap: 1px; }
+  .idle-preparation-field > span { font-size: 10px; }
+  .idle-preparation-autofill { gap: 1px 4px; font-size: 10px; }
+  .idle-preparation-autofill strong { font-size: 10px; }
+}
+@container preparation (max-height: 480px) and (min-width: 600px) {
+  .outpost-dialog--idle .outpost-header { padding-block: 0; }
+  .outpost-dialog--idle .outpost-status { padding-block: 3px; }
+  .outpost-dialog--idle .adventure-stat-meter { grid-template-rows: 1fr 3px; gap: 2px; }
+  .outpost-dialog--idle .adventure-stat-track { height: 3px; }
+  .idle-preparation-controls { grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 4px 8px; }
+  .idle-preparation-autofill { grid-column: auto; flex-direction: column; align-items: flex-start; gap: 0; }
+  .idle-preparation-autofill label { min-height: 18px; }
+  .idle-preparation-field > span { display: none; }
+  .outpost-scroll--preparation .adventure-pack-footer { margin-top: 2px; }
+}

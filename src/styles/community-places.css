@@ -69,8 +69,8 @@
 .community-page .community-harvest-sign[data-ready=true] { color: #755324; border-color: #dcb46b; background: #fff0c9; }
 .community-page .community-production-footer { position: absolute; bottom: 0; left: 0; width: 100%; padding: 26px 24px 22px; background: linear-gradient(0deg, #faf7eeee 70%, #faf7ee00); }
 .community-page .community-production-caption { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 12px; color: #5e6357; font-size: 12px; text-align: center; }
-.community-page .community-production-dock { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.community-page .community-production-scene .community-production-dock > :is(.primary-button, .secondary-button) { width: 148px; min-height: 50px; border-radius: 15px; font-size: 15px; box-shadow: 0 4px 10px #735b3210; }
+.community-page .community-production-dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.community-page .community-production-scene .community-production-dock > :is(.primary-button, .secondary-button) { flex: 1 1 92px; min-width: 0; max-width: 148px; min-height: 50px; border-radius: 15px; font-size: 15px; box-shadow: 0 4px 10px #735b3210; }
 .community-page .community-production-scene .community-production-dock > .primary-button { color: #fff; border-color: #956d3e; background: #956d3e; }
 .community-page .community-production-scene .community-production-dock > .secondary-button { color: #596d85; border-color: #c6d3e3; background: #f8fbff; }
 .community-page .community-production-scene .community-production-dock > button:disabled { opacity: 1; color: #958b78; border-color: #d4cdbe; background: #eae5da; box-shadow: none; }

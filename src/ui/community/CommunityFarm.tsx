@@ -8,10 +8,10 @@ import { CommunityProductionScene } from './CommunityProductionScene';
 import type { CommunityPanelProps } from './types';
 import { timeLeft } from './types';
 import { getAnimalCapacity } from '../../core/communityUpgradeData';
-import { CommunityUpgradeTask } from './CommunityUpgradeTask';
+import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 
 const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap }: CommunityPanelProps & { id: AnimalId }) => {
-  const [careOpen, setCareOpen] = useState(false);
+  const [panel, setPanel] = useState<'care' | 'construction' | null>(null);
   const state = pet.community.animals[id], built = pet.community.facilities[id].built;
   const def = animals[id], free = canSpendCompanionTime(pet), name = facilities[id].name;
   const daily = getRanchDay(pet), capacity = getAnimalCapacity(pet.community, id);
@@ -22,8 +22,10 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
       status={status} detail={detail} supplies={`Lv.${pet.community.upgrades[id]} · 饲料 ${state.feed}/${capacity.feed} · 待收 ${state.stock}/${capacity.stock}${id === 'barn' && daily.cared && daily.collected && !daily.claimed ? ' · 照料窗口有今日牛奶可领' : ''}`}
       harvest={state.stock ? `${def.name} ×${state.stock} · 等你收获` : `${def.name}还在准备中`} ready={state.stock > 0}
       stock={state.stock} feed={state.feed} harvestDisabled={!free || !built || !state.stock}
-      onHarvest={() => update(p => collectCommunityAnimal(p, id, state.revision))} onCare={() => setCareOpen(true)} />
-    {careOpen && <CommunityDetailDialog title={`照料${name}`} eyebrow="添一点饲料，陪它待一会儿" onClose={() => setCareOpen(false)}>
+      onHarvest={() => update(p => collectCommunityAnimal(p, id, state.revision))} onCare={() => setPanel('care')}
+      onConstruction={built ? () => setPanel('construction') : undefined} />
+    {panel === 'construction' && <CommunityUpgradeDialog pet={pet} update={update} id={id} registry={registry} itemIconMap={itemIconMap} onClose={() => setPanel(null)} />}
+    {panel === 'care' && <CommunityDetailDialog title={`照料${name}`} eyebrow="添一点饲料，陪它待一会儿" onClose={() => setPanel(null)}>
       {!built ? <p>完成{name}的修复后，就能在这里喂养和收获。</p> : <>
         <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong>{status}</strong><p>每轮产出 2 份，基础 {def.hours} 小时。缺料或存满时暂停，离线不会失去动物。{pet.partnerSchedule.skills.garden.level >= 10 ? '园艺满级，周期缩短 8%。' : ''}</p></div></div>
         <section className="community-care-section"><h3>把食槽添满一点</h3><p>食槽 {state.feed}/{capacity.feed} · 饲料库存 {pet.inventory.animal_feed ?? 0}</p><div className="community-actions">
@@ -34,7 +36,6 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
           <button className="secondary-button" disabled={!free || !state.nextAt || state.cared || pet.energy < 2} onClick={() => update(p => careCommunityAnimal(p, id, state.revision))}>{state.cared ? '本轮已照料' : '照料一下 · 体力 −2'}</button>
         </section>
         <p className="community-care-footnote">待收{def.name} {state.stock}/{capacity.stock} · 仓库 {pet.inventory[def.item] ?? 0} 份</p>
-        <CommunityUpgradeTask pet={pet} update={update} id={id} registry={registry} itemIconMap={itemIconMap} />
         <button className="text-button" disabled={!free} onClick={() => onKitchen(id === 'coop' ? 'carrot_omelet' : 'milk_custard')}>用收获做{id === 'coop' ? '胡萝卜蛋饼' : '鲜奶蛋羹'}</button>
         {id === 'barn' && <section className="community-care-section"><h3>牧场今日心意</h3><p>当天在鸡舍或牛棚完成照料一次、收获一次，可任选一瓶奶，每日一次。</p><p>照料 {daily.cared ? '✓' : '○'} · 收获 {daily.collected ? '✓' : '○'} · {daily.claimed ? '今天已领取' : '完成后任选'}</p><div className="community-actions">{(['strawberry_milk', 'ad_milk'] as const).map(choice => <button key={choice} className="secondary-button" disabled={!free || !daily.cared || !daily.collected || daily.claimed || (pet.inventory[choice] ?? 0) >= 9999} onClick={() => update(p => claimRanchMilk(p, choice))}>{choice === 'ad_milk' ? 'AD 高钙奶' : '草莓牛奶'} ×1</button>)}</div><button className="text-button" onClick={() => onKitchen()}>打开厨房加工台 · 调制牛奶、奶油与奶酪</button></section>}
       </>}

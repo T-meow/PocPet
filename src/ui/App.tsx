@@ -131,7 +131,7 @@ import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
 import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
 import { unlockLocalTestFacilities } from './app/localFacilityPreview';
-import { ExpeditionPage } from './ExpeditionPage';
+import { currentExpeditionRequest, type OutpostRequest } from './outpostNavigation';
 import { isExpeditionAway } from '../core/expeditionData';
 import type { CommunityRoute } from '../core/communityTypes';
 import { KitchenModal } from './KitchenModal';
@@ -319,7 +319,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const appearanceController = useAppearance();
   const notices = useNotices();
   const [communityRoute, setCommunityRoute] = useState<CommunityRoute>();
-  const [expeditionTarget, setExpeditionTarget] = useState<import('../core/valleyExplorationData').ValleyGatherTarget>();
+  const [outpostRequest, setOutpostRequest] = useState<OutpostRequest>();
   const [communityTab, setCommunityTab] = useState<CommunityTab>('village');
   const [communityPlace, setCommunityPlace] = useState<CommunityPlace | null>(null);
   const localFacilityPreviewAttempt = useRef('');
@@ -485,6 +485,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     setCommunityTab('village');
     setCommunityPlace(null);
     setActivePage('community');
+  };
+  const handleOpenOutpost = (request?: OutpostRequest) => {
+    setCommunityRoute(undefined);
+    setOutpostRequest(request);
+    setActivePage('adventure');
   };
 
   const gardenController = useGardenController({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock });
@@ -1576,7 +1581,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   if (pet.timePause) return <TimePauseMask pet={pet} portrait={petStatusImageMap.content} onResume={() => {
     closeUtilityDialog();
     if (pet.community.fishing.active) setCommunityTab('fishing');
-    setActivePage(pet.adventure.active ? 'adventure' : pet.community.expedition.active ? 'expedition' : pet.community.fishing.active ? 'community' : 'home');
+    setOutpostRequest(pet.adventure.active || pet.adventure.pending ? undefined : currentExpeditionRequest(pet));
+    setCommunityRoute(undefined);
+    setActivePage(pet.adventure.active || pet.adventure.pending || pet.community.expedition.active || pet.community.expedition.pending ? 'adventure' : pet.community.fishing.active ? 'community' : 'home');
     resumeTime();
   }} persistenceError={persistenceError} onRetry={retryPersistence} />;
   return (
@@ -1672,14 +1679,10 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         />
       ) : activePage === 'adventure' ? (
         <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} icons={itemIconMap} registry={itemRegistry}
-          communityRoute={communityRoute} onCommunity={handleOpenCommunity} onExpedition={() => { setExpeditionTarget(undefined); setActivePage('expedition'); }}
+          communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
           update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
-      ) : activePage === 'expedition' ? (
-        <ExpeditionPage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} update={activities.update} initialTarget={expeditionTarget} onStory={quest => { setCommunityRoute(quest); setActivePage('adventure'); }}
-          onCommunity={handleOpenCommunity} onShop={() => handleOpenShop()}
-          onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'community' ? (
         <CommunityPage pet={pet} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
@@ -1689,8 +1692,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
             onHarvest={handleHarvestTree} onClear={handleRequestClearGardenSlot} onUpgradeTool={handleUpgradeGardenTool}
             onOpenShop={() => handleOpenShop('garden')} compensationCoins={gardenCompensationCoins}
             onClaimCompensation={hasClaimedGardenCompensation ? undefined : handleClaimGardenCompensation} />}
-          onAdventure={() => { setCommunityRoute(undefined); setActivePage('adventure'); }}
-          onExplore={purpose => { setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onExpedition={target => { setExpeditionTarget(target); setActivePage('expedition'); }}
+          onAdventure={() => handleOpenOutpost()}
+          onExplore={purpose => { setOutpostRequest(undefined); setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onOpenOutpost={handleOpenOutpost}
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
@@ -1714,7 +1717,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
-          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending), onOpen: () => { playAfterUnlock('open'); setCommunityRoute(undefined); setActivePage('adventure'); } }}
+          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active || pet.community.expedition.active), pending: Boolean(pet.adventure.pending || pet.community.expedition.pending), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
           hasAchievementNotice={hasAchievementNotice}
           onOpenShop={() => handleOpenShop()}
@@ -1827,6 +1830,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenShop={() => handleOpenShop()}
           onOpenGarden={handleOpenGarden}
           onOpenCommunity={() => { handleCloseInventory(); handleOpenCommunity(); }}
+          onOpenTravelCrafts={() => { handleCloseInventory(); handleOpenCommunity(); setCommunityPlace('journey'); }}
           onOpenKitchen={openKitchen}
           onUseItem={handleUseItem}
         />

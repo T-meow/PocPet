@@ -10,7 +10,7 @@ import { createFishingBiteCue, getPageBgmMode, getWorldActionSfx } from '../src/
 
 const now = new Date(2026, 8, 19, 12).getTime();
 const night = new Date(2026, 8, 19, 22).getTime();
-for (const page of ['community', 'adventure', 'expedition', 'home'] as const) {
+for (const page of ['community', 'adventure', 'home'] as const) {
   for (const time of [now, night]) {
     assert.equal(getPageBgmMode(page, true, false, 'fishing', time), 'shop');
     assert.equal(getPageBgmMode(page, false, true, 'fishing', time), 'sleep');
@@ -19,7 +19,7 @@ for (const page of ['community', 'adventure', 'expedition', 'home'] as const) {
 }
 for (const time of [now, night]) {
   assert.equal(getPageBgmMode('community', false, false, 'fishing', time), 'fishing');
-  assert.equal(getPageBgmMode('expedition', false, false, 'fishing', time), 'adventure');
+  assert.equal(getPageBgmMode('adventure', false, false, 'fishing', time), 'adventure');
   assert.equal(getPageBgmMode('adventure', false, false, 'village', time), 'adventure');
 }
 for (const tab of ['farm', 'field'] as const) {
@@ -84,13 +84,13 @@ ready.adventure.completed.tutorial = 1;
 const departed = startExpedition(ready, ['valley'], {}, false, 'official.furo', ready.name, 'manual', 1, now);
 assert.ok(departed.community.expedition.active);
 departed.community.expedition.active.rulesVersion = 1; // Existing three-stop journeys retain their story cue.
-assert.equal(getWorldActionSfx(ready, departed, 'expedition'), 'world_step');
+assert.equal(getWorldActionSfx(ready, departed, 'adventure'), 'world_step');
 let journey = departed;
 for (const choice of ['gather', 'safe', 'story']) {
   const trip = journey.community.expedition.active!;
   const next = chooseExpeditionStep(journey, trip.id, trip.revision, choice, now);
-  assert.equal(getWorldActionSfx(journey, next, 'expedition'), choice === 'story' ? 'pet_heart' : 'world_step');
-  assert.equal(getWorldActionSfx(next, chooseExpeditionStep(next, trip.id, trip.revision, choice, now), 'expedition'), undefined, 'stale action revisions do not replay feedback');
+  assert.equal(getWorldActionSfx(journey, next, 'adventure'), choice === 'story' ? 'pet_heart' : 'world_step');
+  assert.equal(getWorldActionSfx(next, chooseExpeditionStep(next, trip.id, trip.revision, choice, now), 'adventure'), undefined, 'stale action revisions do not replay feedback');
   journey = next;
 }
 

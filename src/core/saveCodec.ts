@@ -3,7 +3,7 @@ import { rebasePetFutureCalendarState, shiftPetRuntimeTimestamps } from './gameC
 import { appBuild } from '../platform/edition';
 import { t } from '../i18n';
 import { isSaveMetadata, normalizeSaveMetadata } from './saveMetadata';
-import { hydratePersistedPet, persistentPetKeys, toPersistedPet, type PersistedPetStateV2 } from './persistedPet';
+import { compactSaveEncoding, hydratePersistedPet, persistentPetKeys, toPersistedPet, type PersistedPetStateV2 } from './persistedPet';
 export type { PersistedPetStateV2 } from './persistedPet';
 
 export const saveFileSchemaVersion = 2;
@@ -50,6 +50,7 @@ export interface PocPetImportedSave extends SaveMigrationResult {
 
 export interface PocPetSaveFileV2 {
   schemaVersion: 2;
+  encoding?: typeof compactSaveEncoding;
   app: typeof appId;
   minimumReaderVersion: string;
   exportedAt: string;
@@ -189,6 +190,7 @@ const unprotectSaveFileText = (text: string) => {
 export const createSaveFilePlainText = (pet: PetState, activeMod?: PocPetSaveModSummary | null, now = Date.now()) => {
   const file: PocPetSaveFileV2 = {
     schemaVersion: saveFileSchemaVersion,
+    encoding: compactSaveEncoding,
     app: appId,
     minimumReaderVersion: minimumSaveReaderVersion,
     exportedAt: new Date(now).toISOString(),
@@ -219,13 +221,14 @@ const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
   const community = rawPet.community;
   const expedition = isObject(community) ? community.expedition : undefined;
   const expeditionTrip = isObject(expedition) ? expedition.active : undefined;
-  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 3 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 3) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 3 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 4) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const trip = isObject(adventure) ? adventure.active : undefined;
-  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 8) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 9) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
 };
 
 const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<string, unknown>) => {
-  if (Object.keys(parsed).some((key) => !['schemaVersion', 'app', 'minimumReaderVersion', 'exportedAt', 'pet', 'activeMod'].includes(key))) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (Object.keys(parsed).some((key) => !['schemaVersion', 'encoding', 'app', 'minimumReaderVersion', 'exportedAt', 'pet', 'activeMod'].includes(key))
+    || parsed.encoding !== undefined && parsed.encoding !== compactSaveEncoding) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const minimum = parsed.minimumReaderVersion;
   if (typeof minimum !== 'string' || !/^\d+\.\d+\.\d+$/.test(minimum)) throw new Error('Save file has an invalid minimum reader version.');
   const required = minimum.split('.').map(Number);
@@ -327,7 +330,7 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
     if (!isObject(parsed.pet)) throw new Error('Save file has invalid pet data.');
     if (parsed.schemaVersion === 2) assertSupportedV2(parsed, parsed.pet);
     assertSupportedModuleVersions(parsed.pet);
-    const rawPet = parsed.schemaVersion === 2 ? hydratePersistedPet(parsed.pet) : parsed.pet;
+    const rawPet = parsed.schemaVersion === 2 ? hydratePersistedPet(parsed.pet, parsed.encoding === compactSaveEncoding) : parsed.pet;
     if (!hasLegacyPetSaveFingerprint(rawPet)) throw new Error('Save file has invalid pet data.');
     const { exportedAt } = readEnvelopeExportedAt(parsed.exportedAt);
     const activeMod = parsed.activeMod === undefined ? undefined : readActiveModSummary(parsed.activeMod);

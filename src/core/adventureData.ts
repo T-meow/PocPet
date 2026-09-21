@@ -1,11 +1,18 @@
 import { activityText as L } from './kitchenRecipes';
 import type { AdventureDestinationId, AdventureRegionId, AdventureRulesVersion } from './adventureTypes';
-import type { ItemId } from './petTypes';
+import type { Inventory, ItemId } from './petTypes';
+import { createAdventureCheckSteps } from './explorationCheckData';
+import type { ExplorationCheckDefinition } from './explorationChecks';
 import { adventureTreasureValues } from './adventureItems';
 import type { CommunityRoute, FacilityId } from './communityTypes';
 import { facilities, facilityIds } from './communityData';
 import { getValleyQuestCosts, isValleyQuest, valleyQuests } from './valleyQuests';
 import { getRegionActionCost } from './explorationTravelData';
+
+export const getAdventureSteps = (version: AdventureRulesVersion = 9, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute, baseLevel = 0, bag?: Inventory): { title: string; story: string; choices: AdventureChoice[] }[] => {
+  const steps = getLegacyAdventureSteps(version >= 9 ? 8 : version, destination, purpose, baseLevel);
+  return version >= 9 && destination === 'valley' ? createAdventureCheckSteps(steps, purpose, bag) : steps;
+};
 
 export const adventureBagCapacity = 24;
 export const adventureTransportCost = 2;
@@ -36,9 +43,9 @@ export const adventureJourneyDetail = (purpose: CommunityRoute) => isValleyQuest
   : facilityIds.includes(purpose as FacilityId) ? `${facilities[purpose as FacilityId].clue}会永久记入建设记录。${facilities[purpose as FacilityId].benefit}。`
     : '沿旧桥完成已接寻物／实地采集／送餐委托，寻找溪谷香草。每日首次搜寻可带回香草种子 ×2，不领取完整探查战利品。';
 export const adventureJourneyCost = (purpose: CommunityRoute) => {
-  if (!isValleyQuest(purpose)) return '3 个节点 · 安全路线饱食 42、体力 24 · 不扣健康';
+  if (!isValleyQuest(purpose)) return '3 个节点 · 饱食基准 42、体力基准 24 · 心情与路线另计';
   const cost = getValleyQuestCosts(purpose, 1.5);
-  return `${valleyQuests[purpose].steps.length} 个节点 · 饱食 ${cost.hunger.join('～')}、体力 ${cost.energy.join('～')} · 一次性故事`;
+  return `${valleyQuests[purpose].steps.length} 个节点 · 饱食基准 ${cost.hunger.join('～')}、体力基准 ${cost.energy.join('～')} · 心情与判定另计 · 一次性故事`;
 };
 export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`) + '结算后免费开放第 1 块菜地（体力上限 +4）。';
 export const adventureTreasureRewardText = (version: AdventureRulesVersion = 7) => version >= 7 ? '巡路酬谢与挂机共用；每日 22 基础小心心。采集机会每 3 小时恢复，首次入口宝藏与手账里程碑仅领一次。' : version >= 4
@@ -59,6 +66,10 @@ export interface AdventureChoice {
   health?: number;
   mood?: number;
   minMoodRatio?: number;
+  check?: ExplorationCheckDefinition;
+  mealItem?: string;
+  finds?: Inventory;
+  harvest?: number;
 }
 const legacyAdventureSteps = (): { title: string; story: string; choices: AdventureChoice[] }[] => [
   { title: L('认清入口', 'Find your bearings'), story: L('大厅就在身后。先看看溪水的方向，把回来的路记在心里。', 'The hall is just behind you. Follow the water and remember your way back.'),
@@ -110,7 +121,7 @@ const communitySteps = (purpose?: CommunityRoute): ReturnType<typeof legacyAdven
   { title: '温室旁的发现', story: '石缝里长着香草，仔细收好种子，再找找邻居遗落的工具。设施建设资格由溪谷故事开放。', choices: [{ id: 'search_find', label: '完成定向搜寻', detail: '记下香草配方；每日首次搜寻得到种子 2 份，已接寻物／采集委托同时推进。', hunger: 8, energy: 3, mood: 4 }] },
 ];
 };
-export const getAdventureSteps = (version: AdventureRulesVersion = 8, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute, baseLevel = 0) => isValleyQuest(purpose) ? valleyQuests[purpose].steps.map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: Math.ceil(c.hunger * 1.5), energy: Math.ceil(c.energy * 1.5) } : c) })) : purpose ? communitySteps(purpose).map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: c.id === 'search_shallows' ? Math.ceil(14 * .75) : 14, energy: c.id === 'search_shallows' ? 6 : 8, mood: Math.min(0, c.mood ?? 0) } : version >= 7 ? { ...c, mood: Math.min(0, c.mood ?? 0) } : c) })) : destination === 'tutorial' ? tutorialSteps().map(step => ({ ...step, choices: step.choices.map(choice => ({ ...choice, ...(version >= 5 ? { mood: 2 } : {}) })) })) : legacyAdventureSteps().map((step, index) => ({ ...step, choices: step.choices.map(choice => version >= 7 ? {
+const getLegacyAdventureSteps = (version: AdventureRulesVersion = 8, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute, baseLevel = 0) => isValleyQuest(purpose) ? valleyQuests[purpose].steps.map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: Math.ceil(c.hunger * 1.5), energy: Math.ceil(c.energy * 1.5) } : c) })) : purpose ? communitySteps(purpose).map(step => ({ ...step, choices: step.choices.map(c => version >= 8 ? { ...c, hunger: c.id === 'search_shallows' ? Math.ceil(14 * .75) : 14, energy: c.id === 'search_shallows' ? 6 : 8, mood: Math.min(0, c.mood ?? 0) } : version >= 7 ? { ...c, mood: Math.min(0, c.mood ?? 0) } : c) })) : destination === 'tutorial' ? tutorialSteps().map(step => ({ ...step, choices: step.choices.map(choice => ({ ...choice, ...(version >= 5 ? { mood: 2 } : {}) })) })) : legacyAdventureSteps().map((step, index) => ({ ...step, choices: step.choices.map(choice => version >= 7 ? {
   ...choice, ...(version >= 8 ? { ...getRegionActionCost('valley', index), ...(index === 3 && (choice.tool || baseLevel >= 2) ? { energy: Math.ceil(getRegionActionCost('valley', index).energy * .8) } : {}) } : { hunger: [4, 6, 4, 6, 6, 4][index], energy: [3, 6, 3, 6, 3, 3][index] }), mood: 0,
   detail: index === 1 ? choice.id === 'bank' ? '有采集机会时：机会 −1，野菇 ×3。' : '有采集机会时：机会 −1，木料 ×4、石料 ×3。' : index === 3 ? '有采集机会时：机会 −1，嫩笋 ×5。可安全通过。' : index === 5 ? '首次入口宝藏仅一次；完成巡路可领取尚未使用的酬谢。' : choice.detail,
 } : version === 1 ? choice : {

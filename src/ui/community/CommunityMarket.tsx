@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PackagePlus, Store } from 'lucide-react';
+import { Hammer, PackagePlus, Store } from 'lucide-react';
 import type { ItemId } from '../../core/petTypes';
 import { getCommunitySale, getCuisineSaleNote } from '../../core/communityEconomy';
 import { getMarketCapacity, getMarketListingOffer, getMarketQuote, listCommunityGoods, setCommunityMarketOpen, unlistCommunityGoods } from '../../core/communityMarket';
-import { CommunityUpgradeTask } from './CommunityUpgradeTask';
+import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 import { marketStackLimit } from '../../core/communityMarketRules';
 import type { MarketReceipt } from '../../core/communityTypes';
 import { createBuiltinItemRegistry, getInventoryDefinitions, getInventoryItem } from '../../core/items';
@@ -22,7 +22,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap }: 
   const name = (id: string) => registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id;
   const icons: Partial<Record<string, string>> = itemIconMap ?? itemIcons;
   const icon = (id: string) => icons[id] ?? registry?.get(id)?.imageUrl ?? unknownItemIcon;
-  const [panel, setPanel] = useState<'stock' | 'manage' | null>(null);
+  const [panel, setPanel] = useState<'stock' | 'manage' | 'construction' | null>(null);
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [visitor, setVisitor] = useState<MarketReceipt>();
   const m = pet.community.market, free = canSpendCompanionTime(pet);
@@ -61,6 +61,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap }: 
       <footer className="community-production-footer"><div className="community-production-caption"><span>累计售出 {m.sold} 份 · 收入 {m.revenue} 金币</span><span>{m.open ? '客人随机到访，偶尔还有慷慨游客的大单' : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
         <button type="button" className="primary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('stock')}><PackagePlus size={20} />手动上架</button>
         <button type="button" className="secondary-button" disabled={!m.level} onClick={() => update(p => setCommunityMarketOpen(p, !m.open))}><Store size={20} />{m.open ? '收摊休息' : '开店营业'}</button>
+        <button type="button" className="secondary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('construction')}><Hammer size={20} />建设</button>
       </div></footer>
     </section>
     {panel === 'stock' && <ItemStorageModal mode="bag" pet={pet} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} quantityDisabled={!free}
@@ -76,9 +77,10 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap }: 
         const listing = m.listings.find(listing => listing.slotIndex === slotIndex);
         return <article key={slotIndex} data-slot={slotIndex}><small>第 {slotIndex + 1} 格</small>{listing ? <><img src={icon(listing.itemId)} alt="" /><strong>{name(listing.itemId)} ×{listing.quantity}</strong><small>{listing.unitPrice} 金币／份{listing.collector ? ' · 收藏品' : ''}</small><button className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, listing.id))}>下架剩余</button></> : <strong>空栏位</strong>}</article>;
       })}</div>
-      <CommunityUpgradeTask pet={pet} update={update} id="stall" registry={registry} itemIconMap={itemIconMap} />
+      <button type="button" className="secondary-button" aria-haspopup="dialog" onClick={() => setPanel('construction')}>货架建设与扩建</button>
       <details className="community-market-details"><summary>整理小摊与经营</summary><p>每隔 5–20 分钟随机来一位客人：50% 为普通客人，25% 为美食客人，15% 为收藏客人，10% 为慷慨游客。基础食材每次 2–4 份，特产 1–2 份，珍稀食材与高级料理由美食客人购买 1 份；收藏品沿用每次 1–3 份。慷慨游客通常一次购买 8–20 份。</p><p>慷慨游客中有 2% 会包下全部余货。闭店暂停客流，离线继续售卖已经上架的商品。</p><p>扩建每级增加 3 个栏位，新栏位上架报价增加 5 个百分点；未满栏位补货仍沿用原价。</p><button className="text-button" onClick={onShop}>去商店补充用品</button></details>
       <details className="community-market-details"><summary>翻看营业账本</summary><p>累计收入 {m.revenue} 金币，其中增值收入 {m.premium} 金币 · 接待 {m.visitors} 位客人。</p>{m.log.length ? <ul className="community-ledger">{m.log.map((entry, index) => <li key={`${entry.visit}:${entry.at}:${index}`}><span><strong>{entry.buyout ? '慷慨游客 · 全部买下' : customerNames[entry.customer]}</strong><span>{entry.items.map(item => `${name(item.itemId)} ×${item.quantity}`).join('、')}</span><small>{new Date(entry.at).toLocaleString('zh-CN', { hour12: false })}</small></span><b>+{entry.coins} 金币</b></li>)}</ul> : <p>还没有成交，下一位客人正在路上。</p>}</details>
     </CommunityDetailDialog>}
+    {panel === 'construction' && <CommunityUpgradeDialog pet={pet} update={update} id="stall" registry={registry} itemIconMap={itemIconMap} onClose={() => setPanel(null)} />}
   </>;
 };

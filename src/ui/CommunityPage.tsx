@@ -24,23 +24,24 @@ import '../styles/community-places.css';
 import '../styles/valley-loop.css';
 import { CommunityValleyProgress } from './community/CommunityValleyProgress';
 import { canClaimSpecialtyOrder } from '../core/communitySpecialtyOrders';
-import type { ValleyGatherTarget } from '../core/valleyExplorationData';
+import type { OutpostRequest } from './outpostNavigation';
+import { TreasureDisplay } from './community/TreasureDisplay';
 
 interface Props {
   pet: PetState; portrait: string; update: (action: (pet: PetState) => PetState) => void;
   onBack: () => void; onExplore: (purpose: CommunityRoute) => void; onKitchen: (recipe?: RecipeId) => void; onShop: () => void; orchard: ReactNode;
   initialTab?: CommunityTab; initialPlace?: CommunityPlace; tab?: CommunityTab; onTabChange?: (tab: CommunityTab) => void;
   place?: CommunityPlace | null; onPlaceChange?: (place: CommunityPlace | null) => void;
-  registry?: ItemRegistry; itemIconMap?: Partial<Record<string, string>>; onExpedition?: (target?: ValleyGatherTarget) => void; onAdventure?: () => void;
+  registry?: ItemRegistry; itemIconMap?: Partial<Record<string, string>>; onOpenOutpost?: (request: OutpostRequest) => void; onAdventure?: () => void;
 }
 // Retain previous navigation values for callers; operations now live in dialogs.
 export type CommunityTab = 'village' | 'board' | 'field' | 'farm' | 'fishing' | 'market';
 export type CommunityPlace = 'field' | 'orchard' | 'coop' | 'barn' | 'hut' | 'pond' | 'upstream' | 'fishbook' | 'board' | 'market' | 'journey' | 'growth' | 'kitchen';
 type Place = CommunityPlace;
 const fishingPlaces: readonly Place[] = ['hut', 'pond', 'upstream', 'fishbook', 'kitchen'];
-const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '溪谷与日常', growth: '旅途留下的成长', kitchen: '水边的料理' };
+const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长', kitchen: '水边的料理' };
 
-export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onExpedition, onAdventure }: Props) => {
+export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
   const [localTab, setLocalTab] = useState<CommunityTab>(initialPlace && fishingPlaces.includes(initialPlace) ? 'fishing' : initialTab);
   const tab = controlledTab ?? localTab;
   const [localPanel, setLocalPanel] = useState<Place | null>(() => initialPlace ?? (['field', 'board', 'market'].includes(tab) ? tab as Place : null));
@@ -52,7 +53,7 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
   const openPlace = (next: Place) => { setTab(fishingPlaces.includes(next) ? 'fishing' : 'village'); setPanel(next); };
   const visitWater = (water: WaterId = 'pond') => openPlace(water === 'upstream' ? 'upstream' : 'pond');
   const goKitchen = (recipe?: RecipeId) => { setPanel(null); onKitchen(recipe); };
-  const panelProps = { pet, update, onExplore, onKitchen: goKitchen, onShop, registry, itemIconMap, onAdventure: onAdventure ? () => { setPanel(null); onAdventure(); } : undefined, onExpedition: onExpedition ? (target?: ValleyGatherTarget) => { setPanel(null); onExpedition(target); } : undefined };
+  const panelProps = { pet, update, onExplore, onKitchen: goKitchen, onShop, registry, itemIconMap, onAdventure: onAdventure ? () => { setPanel(null); onAdventure(); } : undefined, onOpenOutpost: onOpenOutpost ? (request: OutpostRequest) => { setPanel(null); onOpenOutpost(request); } : undefined };
   const mapUnlocked = (pet.adventure.completed.tutorial ?? 0) > 0;
   const tasks = getCommunityTasks(pet), readyTasks = tasks.filter(task => canClaimCommunityTask(pet, task)).length + Number(canClaimSpecialtyOrder(pet));
   const activeTasks = tasks.length + Number(Boolean(c.specialtyOrders.active));
@@ -76,9 +77,9 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
           : !c.facilities.fishing_hut.built ? { title: '点亮水边的小屋', detail: '小屋建成就有普通钓竿。准备鱼饵，开始第一竿。', label: '看看钓鱼小屋', action: () => openPlace('hut') }
             : !Object.keys(c.fishing.journal).length ? { title: '把第一条鱼写进手账', detail: '点击栈桥准备鱼饵；成功的鱼获可做料理、交单或出售。', label: '去栈桥', action: () => visitWater() }
               : !pet.adventure.valleyCompleted.includes('valley_camp') ? { title: '走完溪谷的约定', detail: nextQuest ? valleyQuests[nextQuest].summary : '在地图查看前置，沿两条支路继续探索。', label: '打开溪谷地图', action: adventure }
-                : !c.expedition.regions.valley.base ? { title: '给下一次远行留个落脚点', detail: '修好温室休息间，开放 2／4／8 小时挂机探索。', label: '去建设基地', action: () => onExpedition?.('materials') }
+                : !c.expedition.regions.valley.base ? { title: '给下一次远行留个落脚点', detail: '修好温室休息间，开放 2／4／8 小时挂机探索。', label: '去建设基地', action: () => onOpenOutpost?.({ view: 'camp', region: 'valley' }) }
                   : !(c.expedition.loop?.idleCompleted ?? 0) ? { title: '让伙伴带回一篮溪谷收获', detail: '先接一份高价收购，再按需要安排挂机目标。', label: '看看特产收购', action: () => openPlace('board') }
-                    : !c.decorations.includes('creek_fountain') ? { title: '把一束溪光留在农场', detail: '累计勘探海蓝宝，用它与石料制作溪光水景。', label: '去溪谷勘探', action: () => onExpedition?.('aquamarine') }
+                    : !c.decorations.includes('creek_fountain') ? { title: '把一束溪光留在农场', detail: '累计勘探海蓝宝，用它与石料制作溪光水景。', label: pet.inventory.creek_aquamarine ? '去制作溪光水景' : '去溪谷勘探', action: () => pet.inventory.creek_aquamarine ? openPlace('journey') : onOpenOutpost?.({ view: 'route', region: 'valley', target: 'aquamarine' }) }
                       : { title: readyTasks ? '邻居的酬谢已经备好' : '今天想帮谁一点忙', detail: '邻里委托每日 2 单，特产收购每日另接 1 单；已接任务不过期。', label: '看看公告板', action: () => openPlace('board') };
   const hotspot = (id: Place, name: string, status: string, x: number, y: number, ready = false) => {
     const entersFishing = id === 'hut' && !fishing;
@@ -109,10 +110,9 @@ export const CommunityPage = ({ pet, portrait, update, onBack, onExplore, onKitc
   else if (panel === 'fishbook' || panel === 'kitchen') content = <CommunityFishing {...panelProps} view={panel === 'fishbook' ? 'journal' : 'recipes'} />;
   else if (panel === 'board') content = <CommunityBoard {...panelProps} onFishing={visitWater} onFarm={openPlace} />;
   else if (panel === 'market') content = c.facilities.stall.built ? <CommunityMarket {...panelProps} /> : <CommunityFacilities {...panelProps} only="stall" />;
-  else if (panel === 'growth') content = <section className="community-card"><p>首次成果永久增加体力上限，通过休息恢复新增容量。</p>{getAdventureGrowthSources(pet).map(source => <div className="community-growth-row" key={source.id} data-done={source.achieved}><span>{source.achieved ? '✓' : '○'} {source.name}</span><b>+{source.energy}</b></div>)}</section>;
-  else if (panel === 'journey') content = <><section className="community-card"><h3>溪谷 · 第一盏灯</h3><p>入口之后，两条支路在旧桥会合；接着探访上游和温室，跟随石芽的足迹，点亮休息间。</p><ol className="community-steps"><li data-done={Boolean(pet.adventure.completed.valley)}><span>{pet.adventure.completed.valley ? '✓' : '○'}</span>入口附近探查</li>{valleyQuestIds.map(id => <li key={id} data-done={pet.adventure.valleyCompleted.includes(id)}><span>{pet.adventure.valleyCompleted.includes(id) ? '✓' : '○'}</span><div><b>{valleyQuests[id].name}</b><small>{valleyQuests[id].outcome}</small></div></li>)}</ol><button className="primary-button" disabled={!onAdventure} onClick={adventure}>去前哨基地选择任务</button></section><section className="community-card"><h3>让每次收获都接得上下一次</h3><p>探索取得种子 → 香草收获 → 暖粥／鱼汤 → 邻里交单。鸡舍与牛棚提供蛋奶，委托和小摊的金币用于补给与建设。</p><div className="community-actions"><button className="secondary-button" onClick={() => setPanel('board')}>查看常驻与每日委托</button><button className="secondary-button" onClick={() => setPanel('growth')}>旅途留下的成长</button>{onExpedition && (pet.adventure.valleyCompleted.includes('valley_camp') || c.expedition.regions.valley.surveyed || c.expedition.active || c.expedition.pending) && <button className="secondary-button" onClick={() => onExpedition()}>野外基地与远行</button>}</div></section></>;
+  else if (panel === 'growth') content = <section className="community-card"><p>首次成果永久增加体力上限，通过休息恢复新增容量。</p>{getAdventureGrowthSources(pet).filter(source => source.achieved || !source.id.startsWith('project_')).map(source => <div className="community-growth-row" key={source.id} data-done={source.achieved}><span>{source.achieved ? '✓' : '○'} {source.name}</span><b>+{source.energy}</b></div>)}</section>;
+  else if (panel === 'journey') content = <><section className="community-card"><h3>从前哨出发，把收获带回农场</h3><p>地图里继续故事、采集与营地建设；回到农场，交付订单或制作收藏。</p><div className="community-actions"><button className="primary-button" disabled={!onAdventure} onClick={adventure}>去前哨基地</button>{onOpenOutpost && <><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'idle', region: 'valley' })}>安排挂机探索</button><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'journal' })}>旅行日志</button></>}<button className="secondary-button" onClick={() => setPanel('growth')}>旅途留下的成长</button></div></section><TreasureDisplay pet={pet} update={update} /><CommunityValleyProgress {...panelProps} onAdventure={adventure} onOpen={openPlace} /></>;
 
-  if (panel === 'journey') content = <><CommunityValleyProgress {...panelProps} onAdventure={adventure} onOpen={openPlace} />{content}</>;
   return <section className="community-page">
     <header className="community-header"><button className="icon-button" onClick={fishing ? () => changeScene('village') : onBack} aria-label={fishing ? '返回农场' : '返回小窝'}><ArrowLeft /></button><div><small>沿着溪流，慢慢生活</small><h2>{fishing ? '钓鱼小屋' : '溪畔农场'}</h2></div><span className="community-energy" aria-label={`体力 ${Math.floor(pet.energy)}/${getPetEnergyCap(pet)}`}><Zap size={16} />{Math.floor(pet.energy)}/{getPetEnergyCap(pet)}</span></header>
     <div className="community-scene-heading"><div><small>{fishing ? '溪水送来的一点闲暇' : '每一次发现，都在这里生长'}</small><h1>{fishing ? '风很轻，今天钓点什么？' : c.gardenBuilt ? '菜地有了水，日子慢慢热闹。' : '从一条水渠，开始新的日常。'}</h1></div><span className="community-season"><Leaf size={15} />{fishing ? `水域 ${waterIds.filter(id => isWaterOpen(pet, id)).length}/${waterIds.length} 已直通` : `已开放 ${builtCount}/6 处`}</span></div>

@@ -10,7 +10,7 @@ export const getPageBgmMode = (page: ActivePage, shopOpen: boolean, sleeping: bo
   if (shopOpen) return 'shop';
   if (sleeping) return 'sleep';
   if (page === 'community' && communityTab === 'fishing') return 'fishing';
-  if (page === 'adventure' || page === 'expedition') return 'adventure';
+  if (page === 'adventure') return 'adventure';
   if (isNightTime(now)) return 'night';
   if (page === 'garden' || page === 'community') return 'garden';
   if (page === 'partnerSchedule') return 'community';
@@ -58,7 +58,7 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
       return 'tap';
     }
   }
-  if (page === 'expedition') {
+  if (page === 'adventure') {
     const oldState = a.expedition, state = b.expedition, oldTrip = oldState.active, trip = state.active;
     if (state.pending && state.pending.id !== oldState.pending?.id) return state.pending.reason === 'health' ? 'error' : 'notification';
     if (oldState.pending && !state.pending) return 'purchase';

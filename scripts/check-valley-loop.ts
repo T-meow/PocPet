@@ -8,11 +8,12 @@ import { advancePet } from '../src/core/petLifecycle';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
 import { advanceExplorationBudget, earnExplorationPay, getExplorationBudget, getExplorationTier, recordValleyObservation, spendExplorationHarvest } from '../src/core/explorationBudget';
-import { chooseExpeditionStep, claimExpedition, getExpeditionChoices, getExpeditionStartReason, restExpedition, returnExpedition, selectExpeditionReturn, startExpedition, useExpeditionSupply } from '../src/core/expedition';
+import { chooseExpeditionStep, claimExpedition, getExpeditionChoices, getExpeditionStartReason, restExpedition, returnExpedition, selectExpeditionReturn, useExpeditionSupply } from '../src/core/expedition';
+import { startAdventure, startLegacyRationExpedition as startExpedition } from './fixtures/legacy-exploration';
 import { getRegionUnlocked } from '../src/core/expeditionData';
 import { completeValleyQuest, valleyQuestIds } from '../src/core/valleyQuests';
 import { getRecipeUnlockReason } from '../src/core/kitchenRecipes';
-import { advanceAdventure, claimAdventureResult, getAdventureStartReason, returnFromAdventure, startAdventure } from '../src/core/adventure';
+import { advanceAdventure, claimAdventureResult, getAdventureStartReason, returnFromAdventure } from '../src/core/adventure';
 import { pickupAdventureLoot } from '../src/core/adventure';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
 import { acceptSpecialtyOrder, cancelSpecialtyOrder, claimSpecialtyOrder, getSpecialtyCandidates, specialtyGoods } from '../src/core/communitySpecialtyOrders';
@@ -54,7 +55,7 @@ for (const hours of [2, 4, 8]) {
   const all = advancePet(p, T + hours * H);
   let chunks = p;
   for (let half = 1; half <= hours * 2; half++) chunks = read(advancePet(chunks, T + half * H / 2), T + half * H / 2);
-  assert.deepEqual(chunks.community.expedition.pending, all.community.expedition.pending);
+  assert.deepEqual(chunks.community.expedition.pending, { ...all.community.expedition.pending, journal: [] }, 'all settlement fields survive reload; display logs are transient');
   assert.equal(chunks.energy, all.energy, `frame size and reload do not change ${hours}h route costs; started ${p.energy}, ended at ${all.lastUpdatedAt}, active ${Boolean(all.community.expedition.active)}`);
   assert.equal(all.community.expedition.pending!.coins, hours * 240);
   assert.equal(all.community.expedition.pending!.items.valley_mushroom, hours * 2);
@@ -208,8 +209,8 @@ assert.equal(resumed.community.expedition.loop!.available, frozen.community.expe
 assert.equal(advancePet(resumed, resumeAt + .5 * H).community.expedition.active!.settledParts, 2);
 
 // Render the new board and progress without opening a browser or taking screenshots.
-const props = { pet: ready(), update: () => {}, onExplore: () => {}, onKitchen: () => {}, onShop: () => {}, onExpedition: () => {} };
+const props = { pet: ready(), update: () => {}, onExplore: () => {}, onKitchen: () => {}, onShop: () => {}, onOpenOutpost: () => {} };
 assert.match(renderToStaticMarkup(createElement(CommunitySpecialtyOrders, props)), /今日特产收购/);
-assert.match(renderToStaticMarkup(createElement(CommunityValleyProgress, { ...props, onAdventure: () => {}, onOpen: () => {} })), /第一区/);
+assert.match(renderToStaticMarkup(createElement(CommunityValleyProgress, { ...props, onAdventure: () => {}, onOpen: () => {} })), /溪谷生活进度/);
 postcss.parse(readFileSync(new URL('../src/styles/valley-loop.css', import.meta.url), 'utf8'));
 console.log('Valley loop: 2/4/8h settlement, recall/refund, full cargo, shared budgets, chapter migration, bounded rest, treasure, orders, rollback and UI rendering passed.');

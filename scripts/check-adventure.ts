@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { advanceAdventure, buyAdventureSupply, claimAdventureResult, claimAdventureStarter, discardAdventureItem, getAdventureRewardPreview, getAdventureServiceQuote, getAdventureStartReason, pickupAdventureLoot, redeemAdventureTreasure, returnFromAdventure, startAdventure, transportAdventureSupply, useAdventureSupply } from '../src/core/adventure';
+import { advanceAdventure, buyAdventureSupply, claimAdventureResult, claimAdventureStarter, discardAdventureItem, getAdventureRewardPreview, getAdventureServiceQuote, getAdventureStartReason, pickupAdventureLoot, redeemAdventureTreasure, returnFromAdventure, transportAdventureSupply, useAdventureSupply } from '../src/core/adventure';
+import { startAdventure } from './fixtures/legacy-exploration';
 import { adventureBagCapacity, getAdventureRegions, getAdventureSteps } from '../src/core/adventureData';
 import { defaultAdventureState, getAdventureBagCount, isAdventureMapUnlocked, normalizeAdventureState } from '../src/core/adventureState';
 import { adventureTreasureIds, getAdventureTreasureValue, getAdventureTripTreasure } from '../src/core/adventureItems';
@@ -644,7 +645,7 @@ try {
     assert.ok(hall.includes(english ? 'Landscape' : '横屏查看') && hall.includes(english ? 'Panorama' : '看全景'));
     const today = getEffectiveDailyDateKey(fresh());
     const doneHall = render({ ...fresh(), adventure: { ...fresh().adventure, completed: { tutorial: 1, valley: 1 }, lastCompletedDay: { valley: today } } });
-    assert.ok(doneHall.includes('随时可出发') && doneHall.includes('采集机会'));
+    assert.ok(doneHall.includes('挂机出发') && doneHall.includes('旅行日志'), 'the hall exposes both everyday travel functions');
     assert.ok(doneHall.includes(english ? 'Pack for the trip' : '出发整备'), 'preparation stays available after finishing today');
     const renderMap = (state: PetState, region?: string, node?: string) => renderToStaticMarkup(createElement(map.AdventureMap, {
       adventure: state.adventure, today, selection: region ? { region, node } : undefined, portrait: assets.petStatusImages.content, landscape: false,

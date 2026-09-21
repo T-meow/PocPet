@@ -20,17 +20,19 @@ interface InventoryModalProps {
   onOpenShop: () => void;
   onOpenGarden: () => void;
   onOpenCommunity?: () => void;
+  onOpenTravelCrafts?: () => void;
   onOpenKitchen: () => void;
   onUseItem: (itemId: ItemId, quantity: number) => void;
   favoriteFoodIds?: readonly ItemId[];
 }
 
-export const InventoryModal = ({ items, pet, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenCommunity, onOpenKitchen, onUseItem, favoriteFoodIds }: InventoryModalProps) => <ItemStorageModal
+export const InventoryModal = ({ items, pet, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenCommunity, onOpenTravelCrafts, onOpenKitchen, onUseItem, favoriteFoodIds }: InventoryModalProps) => <ItemStorageModal
   mode="bag" pet={pet} items={items} itemIconMap={itemIconMap} browse={browse} onBrowseChange={onBrowseChange} onClose={onClose} onSwitch={onOpenShop} quantityDisabled={isPetBusy} favoriteFoodIds={favoriteFoodIds}
   renderActions={(item, quantity) => {
-    if (onOpenCommunity && (fieldEquipmentItems.some(d => d.id === item.id) || regionalTreasureIds.some(id => id === item.id))) return <button className="storage-primary" onClick={onOpenCommunity}><Sprout size={17} />去社区使用／出售</button>;
+    if (onOpenTravelCrafts && regionalTreasureIds.some(id => id === item.id)) return <><button className="storage-primary" onClick={onOpenTravelCrafts}><Sprout size={17} />去农场制作装饰</button>{onOpenCommunity && <button className="storage-secondary" onClick={onOpenCommunity}>去农场出售</button>}</>;
+    if (onOpenCommunity && (fieldEquipmentItems.some(d => d.id === item.id) || regionalTreasureIds.some(id => id === item.id))) return <button className="storage-primary" onClick={onOpenCommunity}><Sprout size={17} />去农场使用／出售</button>;
     if (onOpenCommunity && ['carrot_seed', 'creek_herb_seed', 'community_wood', 'community_stone', 'animal_feed', 'fishing_bait', 'river_bait', 'fishing_rod', 'reinforced_rod', 'golden_koi', 'silver_grayling'].includes(item.id)) return <button className="storage-primary" onClick={onOpenCommunity}><Sprout size={17} />去溪畔社区</button>;
-    if (isAdventureTreasure(item.id)) return <><button className="storage-primary" disabled={isPetBusy || (pet.inventory[item.id] ?? 0) < quantity} onClick={() => onUseItem(item.id, quantity)}>{L(`兑换 ×${quantity} · ${getAdventureTreasureValue(item.id) * quantity} 金币`, `Exchange ×${quantity} · ${getAdventureTreasureValue(item.id) * quantity} coins`)}</button>{item.id !== 'coin_hoard' && onOpenCommunity && <button className="storage-secondary" onClick={onOpenCommunity}>留作装饰 · 去社区项目</button>}</>;
+    if (isAdventureTreasure(item.id)) return <><button className="storage-primary" disabled={isPetBusy || (pet.inventory[item.id] ?? 0) < quantity} onClick={() => onUseItem(item.id, quantity)}>{L(`兑换 ×${quantity} · ${getAdventureTreasureValue(item.id) * quantity} 金币`, `Exchange ×${quantity} · ${getAdventureTreasureValue(item.id) * quantity} coins`)}</button>{item.id !== 'coin_hoard' && (onOpenTravelCrafts || onOpenCommunity) && <button className="storage-secondary" onClick={onOpenTravelCrafts ?? onOpenCommunity}>留作装饰 · 去农场制作</button>}</>;
     if (item.kind === 'garden') return <button className="storage-primary" onClick={onOpenGarden}><Sprout size={17} />{t('ui.inventory.goGarden')}</button>;
     if (isDedicatedKitchenMaterial(item)) return <button className="storage-primary" onClick={onOpenKitchen}><ChefHat size={17} />{L('去厨房', 'Open kitchen')}</button>;
     const plan = getItemUsePlan(pet, item, quantity);

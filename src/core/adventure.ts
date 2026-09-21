@@ -24,6 +24,9 @@ import { completeValleyQuest, getValleyQuestReason, isValleyQuest, valleyQuests,
 import { spendToolUse } from './toolDurability';
 import { advanceExplorationBudget, getExplorationBudget, spendExplorationHarvest } from './explorationBudget';
 import { getExplorationBagCapacity } from './explorationBackpack';
+import { createExplorationCheckState, type ExplorationCheckAction } from './explorationChecks';
+import { applyExplorationCheck, previewExplorationAction } from './explorationCheckActions';
+import { advancePet } from './petLifecycle';
 
 const fail = (pet: PetState, message: string): PetState => ({ ...pet, recentEvent: message });
 export const getAdventureStartReason = (pet: PetState, region?: AdventureDestinationId, now = Date.now(), purpose?: CommunityRoute) => {
@@ -44,10 +47,12 @@ export const getAdventureStartReason = (pet: PetState, region?: AdventureDestina
   if (pet.isSleeping) return L('先叫醒伙伴，再一起出发。', 'Wake your companion before setting out.');
   if (pet.partnerSchedule.active) return L('等伙伴结束社区工作再出发。', 'Wait until community work ends.');
   if (pet.miniGames.active && !pet.miniGames.active.paused) return L('先暂停小游戏再出发。', 'Pause your game before setting out.');
-  if (getPetStatRatio(pet, 'health') < adventureHealthRules.departure) return '健康至少恢复到 40% 才能出发；低于 20% 将强制安全返程。';
-  const first = getAdventureSteps(8, region, purpose)[0].choices[0];
-  return pet.energy < first.energy || pet.hunger < first.hunger
-    ? L(`出发至少需要 ${first.hunger} 饱食度、${first.energy} 体力，请先补充状态。`, `Restore at least ${first.hunger} hunger and ${first.energy} energy before setting out.`) : '';
+  if (getPetStatRatio(pet, 'health') < adventureHealthRules.departure) return '健康不足，请先护理再出发。';
+  const firstChoices = getAdventureSteps(region === 'valley' ? 9 : 8, region, purpose)[0].choices;
+  const first = firstChoices.find(c => c.check?.mode === 'safe') ?? firstChoices[0];
+  const energy = first.check ? previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false }, { ...first, title: first.label, check: first.check }, '0').energy[1] : first.energy;
+  return pet.energy < energy || pet.hunger < first.hunger
+    ? L(`出发至少需要 ${first.hunger} 饱食度、${energy} 体力，请先补充状态。`, `Restore at least ${first.hunger} hunger and ${energy} energy before setting out.`) : '';
 };
 
 export const claimAdventureStarter = (pet: PetState): PetState => {
@@ -75,35 +80,57 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   let inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   if (tool) inventory = removeInventoryItem(inventory, 'trail_rope');
   return { ...pet, inventory, lastInteractionAt: now,
-    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 8, energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: 'coin_hoard' as const } : {}) } },
+    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: region === 'valley' ? 9 : 8, ...(region === 'valley' ? { checkState: createExplorationCheckState(id) } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: region === 'tutorial' || purpose ? {} : createAdventureShopStock(), purchases: 0, transportedCount: 0, ...(!purpose && region === 'valley' ? { treasure: 'coin_hoard' as const } : {}) } },
     recentEvent: region === 'tutorial' ? L('从前哨门口开始踩点探索，先走完附近的四个节点吧。', 'Starting your first scouting trip: four stops close to the outpost.') : L('从溪谷入口出发，随时可以带着收获返回。', 'Setting out from the valley entrance. You can return with your discoveries at any time.') };
 };
 
-export const getAdventureChoiceReason = (pet: PetState, choice: AdventureChoice) => {
-  if (needsAdventureHealthReturn(pet)) return '健康已低于撤退线，正在安全返程。';
-  if (choice.minMoodRatio && getPetStatRatio(pet, 'mood') < choice.minMoodRatio) return '心情不足 30%，可以选择普通路线或使用心情用品。';
+export const getAdventureCheckAction = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt): ExplorationCheckAction => ({
+  ...choice, title: choice.label, check: choice.check!,
+  finds: choice.harvest && (getExplorationBudget(pet, now)?.available ?? 0) < choice.harvest ? {} : choice.finds,
+});
+export const getAdventureChoicePreview = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt) => {
   const trip = pet.adventure.active;
+  if (!trip || trip.rulesVersion < 9 || !choice.check) return undefined;
+  const preview = previewExplorationAction(pet, trip, getAdventureCheckAction(pet, choice, now), String(trip.choices.length));
+  return { ...preview, reason: getAdventureChoicePrerequisiteReason(pet, choice) || preview.reason };
+};
+const getAdventureChoicePrerequisiteReason = (pet: PetState, choice: AdventureChoice) => {
+  if (needsAdventureHealthReturn(pet)) return '健康已低于撤退线，正在安全返程。';
+  const trip = pet.adventure.active;
+  if ((trip?.rulesVersion ?? 0) < 9 && choice.minMoodRatio && getPetStatRatio(pet, 'mood') < choice.minMoodRatio) return '心情不足 30%，可以选择普通路线或使用心情用品。';
   if (!trip || pet.isSleeping || pet.partnerSchedule.active) return L('当前无法继续探查。', 'Exploration cannot continue right now.');
   if (getAdventureBagCount(trip.loot)) return L('先收好、吃掉或放弃待拾取的物资。', 'Collect, eat or leave the supplies on the ground first.');
   if (choice.item && (trip.bag[choice.item] ?? 0) < 1) return L('行囊中缺少所需物资。', 'The required supply is missing from your travel bag.');
   if (choice.tool && !trip.tool) return L('本趟未携带探路绳。', 'You did not pack a trail rope.');
+  return '';
+};
+export const getAdventureChoiceReason = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt) => {
+  const prerequisite = getAdventureChoicePrerequisiteReason(pet, choice);
+  if (prerequisite) return prerequisite;
+  const preview = getAdventureChoicePreview(pet, choice, now);
+  if (preview) return preview.reason;
   if (pet.energy < choice.energy || pet.hunger < choice.hunger) return L('体力或饱食度不足，可使用补给或安全返回。', 'Not enough hunger or energy. Use supplies or return safely.');
   return '';
 };
 
-export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: number, choiceId: string, now = Date.now()): PetState => {
+export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: number, choiceId: string, now = Date.now(), expectedRevision?: number): PetState => {
   if (pet.timePause) return pet;
-  pet = enforceAdventureHealth(pet, now);
+  if (pet.adventure.active?.id !== tripId || pet.adventure.active.choices.length !== expectedStep) return pet;
+  if (expectedRevision !== undefined && pet.adventure.active.revision !== expectedRevision) return pet;
+  pet = pet.adventure.active?.rulesVersion === 9 ? advancePet(pet, now) : enforceAdventureHealth(pet, now);
   const trip = pet.adventure.active;
   if (!trip || trip.id !== tripId || trip.choices.length !== expectedStep) return pet;
-  const choice = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base)[expectedStep]?.choices.find(value => value.id === choiceId);
+  const choice = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[expectedStep]?.choices.find(value => value.id === choiceId);
   if (!choice) return pet;
-  const reason = getAdventureChoiceReason(pet, choice);
+  const reason = getAdventureChoiceReason(pet, choice, now);
   if (reason) return fail(pet, reason);
-  const ropeUse = choice.tool ? spendToolUse(pet, 'trail_rope', true) : undefined;
-  if (choice.tool && !ropeUse) return pet;
-  pet = ropeUse?.pet ?? pet;
+  const checked = trip.rulesVersion >= 9 && choice.check ? applyExplorationCheck(pet, trip, getAdventureCheckAction(pet, choice, now), String(expectedStep)) : undefined;
+  if (trip.rulesVersion >= 9 && !checked) return pet;
+  const ropeUse = !checked && choice.tool ? spendToolUse(pet, 'trail_rope', true) : undefined;
+  if (choice.tool && !checked && !ropeUse) return pet;
+  pet = checked?.pet ?? ropeUse?.pet ?? pet;
   let bag = choice.item ? removeInventoryItem(trip.bag, choice.item) : trip.bag;
+  if (checked && choice.mealItem) bag = removeInventoryItem(bag, choice.mealItem);
   const loot: Inventory = {};
   const complete = expectedStep + 1 === getAdventureStepCount(trip.region, trip.purpose);
   const quest = isValleyQuest(trip.purpose) ? trip.purpose : undefined;
@@ -118,7 +145,10 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
   const finds: Inventory = {};
   if (modern) {
     pet = advanceExplorationBudget(pet, now);
-    if ([1, 3].includes(expectedStep) && (getExplorationBudget(pet, now)?.available ?? 0) > 0) {
+    if (checked) {
+      if (choice.harvest && (getExplorationBudget(pet, now)?.available ?? 0) >= choice.harvest) pet = spendExplorationHarvest(pet, choice.harvest, now);
+      Object.assign(finds, checked.result.finds);
+    } else if ([1, 3].includes(expectedStep) && (getExplorationBudget(pet, now)?.available ?? 0) > 0) {
       pet = spendExplorationHarvest(pet, 1, now);
       Object.assign(finds, expectedStep === 3 ? { bamboo_shoot: 5 } : choiceId === 'bank' ? { valley_mushroom: 3 } : { community_wood: 4, community_stone: 3 });
     }
@@ -134,9 +164,9 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
     if (getAdventureBagCount(bag) + amount <= getExplorationBagCapacity(pet)) bag = addInventoryItem(bag, id, amount);
     else loot[id] = amount;
   }
-  return enforceAdventureHealth(updatePetSatiety({ ...pet, hunger: clampPetHunger(pet, pet.hunger - choice.hunger), energy: clampPetEnergy(pet, pet.energy - choice.energy), health: clampPetHealth(pet, pet.health + (choice.health ?? 0)), mood: clampPetStat(pet, pet.mood + (choice.mood ?? 0)), lastInteractionAt: now,
-    adventure: { ...pet.adventure, active: { ...trip, energySpent: (trip.energySpent ?? 0) + choice.energy, healthLost: (trip.healthLost ?? 0) - Math.min(0, choice.health ?? 0), paidActions: (trip.paidActions ?? 0) + Number(choice.hunger > 0 || choice.energy > 0), tool: trip.tool && !ropeUse?.broken, revision: trip.revision + 1, choices: [...trip.choices, choiceId], bag, loot, ...(complete ? { completedDay: getEffectiveDailyDateKey(pet, now) } : {}) } },
-    recentEvent: L(`${choice.label}：饱食度 −${choice.hunger}，体力 −${choice.energy}。`, `${choice.label}: hunger −${choice.hunger}, energy −${choice.energy}.`) + (ropeUse ? ` 探路绳耐久 −1${ropeUse.broken ? '，已用尽，返程不再归还' : ''}。` : '') }), now);
+  return enforceAdventureHealth(updatePetSatiety({ ...pet, ...(checked ? {} : { hunger: clampPetHunger(pet, pet.hunger - choice.hunger), energy: clampPetEnergy(pet, pet.energy - choice.energy), health: clampPetHealth(pet, pet.health + (choice.health ?? 0)), mood: clampPetStat(pet, pet.mood + (choice.mood ?? 0)) }), lastInteractionAt: now,
+    adventure: { ...pet.adventure, active: { ...trip, energySpent: Math.max(0, (trip.energySpent ?? 0) + (checked?.energySpent ?? choice.energy)), healthLost: Math.max(0, (trip.healthLost ?? 0) + (checked?.healthLost ?? -Math.min(0, choice.health ?? 0))), paidActions: (trip.paidActions ?? 0) + Number(choice.hunger > 0 || choice.energy > 0), tool: trip.tool && !ropeUse?.broken && !(checked?.toolBroken && choice.check?.tool === 'trail_rope'), revision: trip.revision + 1, choices: [...trip.choices, choiceId], bag, loot, ...(checked ? { checkState: { ...checked.state, last: { ...checked.result, finds: found } } } : {}), ...(complete ? { completedDay: getEffectiveDailyDateKey(pet, now) } : {}) } },
+    recentEvent: checked?.pet.recentEvent ?? L(`${choice.label}：饱食度 −${choice.hunger}，体力 −${choice.energy}。`, `${choice.label}: hunger −${choice.hunger}, energy −${choice.energy}.`) + (ropeUse ? ` 探路绳耐久 −1${ropeUse.broken ? '，已用尽，返程不再归还' : ''}。` : '') }), now);
 };
 
 const validQuantity = (pet: PetState, quantity: number) => Number.isInteger(quantity) && quantity > 0 && quantity <= getExplorationBagCapacity(pet);

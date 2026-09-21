@@ -6,7 +6,7 @@ export interface CommunityPanelProps {
   registry?: ItemRegistry;
   itemIconMap?: Partial<Record<string, string>>;
   onAdventure?: () => void;
-  onExpedition?: (target?: import('../../core/valleyExplorationData').ValleyGatherTarget) => void;
+  onOpenOutpost?: (request: import('../outpostNavigation').OutpostRequest) => void;
   onExplore: (purpose: CommunityRoute) => void; onShop: () => void; onKitchen: (recipe?: RecipeId) => void;
 }
 export const timeLeft = (at: number, now = Date.now()) => {

@@ -11,9 +11,10 @@ import { fieldEquipmentItems, toolDefinitions } from '../src/core/fieldEquipment
 import { getToolUsesLeft } from '../src/core/toolDurability';
 import { careCommunityCrop, getCommunityCropYield, harvestCommunityCrop, plantCommunityCrop } from '../src/core/community';
 import { actCommunityFishing, cancelCommunityFishing, claimCommunityFish, startCommunityFishing } from '../src/core/communityFishing';
-import { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureStartReason, discardAdventureItem } from '../src/core/adventure';
+import { advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureStartReason, discardAdventureItem } from '../src/core/adventure';
+import { startAdventure, startExpedition } from './fixtures/legacy-exploration';
 import { getAdventureSteps } from '../src/core/adventureData';
-import { chooseExpeditionStep, claimExpedition, getExpeditionChoices, getExpeditionHarvestLeft, restExpedition, returnExpedition, startExpedition } from '../src/core/expedition';
+import { chooseExpeditionStep, claimExpedition, getExpeditionChoices, getExpeditionHarvestLeft, restExpedition, returnExpedition } from '../src/core/expedition';
 import { regionalTreasures, regionalTreasureIds, communityDecorations, communityDecorationIds } from '../src/core/regionalTreasures';
 import { buildCommunityDecoration } from '../src/core/communityDecorations';
 import { regionIds, regions } from '../src/core/expeditionData';
@@ -216,7 +217,7 @@ try {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error' });
   try {
     const { createElement } = await import('react'), { renderToStaticMarkup } = await import('react-dom/server');
-    const { TreasureDisplay } = await server.ssrLoadModule('/src/ui/expedition/TreasureDisplay.tsx');
+    const { TreasureDisplay } = await server.ssrLoadModule('/src/ui/community/TreasureDisplay.tsx');
     const { itemIcons } = await server.ssrLoadModule('/src/assets.ts');
     for (const id of [...fieldEquipmentItems.map(item => item.id), ...regionalTreasureIds]) assert.match(itemIcons[id], /\.webp(?:\?|$)/, `${id} has an adopted item icon`);
     const { decorationIcons } = await server.ssrLoadModule('/src/decorationAssets.ts');

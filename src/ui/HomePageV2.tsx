@@ -39,11 +39,11 @@ export const HomePageV2 = (props: Props) => {
   const companionWish = getCompanionWish(pet, actorId);
   const friendGiftReady = canClaimBoostCardDailyReward(pet);
   const gardenGiftReady = props.gardenReminder === 'ready' || !pet.claimedRewardIds.includes(gardenCompensationRewardId);
-  const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending || pet.community.expedition.pending)
+  const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending)
     || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0)
     || pet.community.plots.some(plot => plot.crop && plot.crop.readyAt <= Date.now());
   const farmHint = [
-    pet.community.expedition.pending ? '远行收获待领取' : pet.community.expedition.active ? pet.community.expedition.active.paused ? '行程已在基地暂停，随时继续' : '伙伴正在远行，去看看进度' : pet.community.fishing.active ? '回到水边，继续这一竿' : undefined,
+    pet.community.fishing.active ? '回到水边，继续这一竿' : undefined,
     props.gardenReminder === 'ready' ? '果园有果实可以收获' : gardenGiftReady ? '果园补偿待领取' : props.gardenReminder === 'withered' ? '果园有植物需要照顾' : undefined,
   ].filter(Boolean).join(' · ') || '果树、菜地、养殖、钓鱼与委托';
   const achievementGiftReady = getAchievementSummary(pet).claimable > 0;
@@ -54,7 +54,7 @@ export const HomePageV2 = (props: Props) => {
     return dreamsUnlocked && !stage.complete && stage.requirementsMet && stage.coinsMet && stage.applesMet && Boolean(stage.rewardFits);
   }) || dreamsUnlocked && isClassicEndgameComplete(pet) && pet.classicEndgame.legacyCoinsInvested >= getClassicLegacyLevelCoinCost(pet.classicEndgame.legacyLevel + 1) && (pet.inventory.golden_apple ?? 0) >= getClassicLegacyAppleCost(pet.classicEndgame.legacyLevel + 1);
   const festivalGiftReady = Object.values(pet.festivalStories.runs).some(run => run.stage === 'complete' && !hasFestivalReward(pet, run));
-  const adventureGiftReady = Boolean(pet.adventure.pending) || !pet.adventure.active && (!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed);
+  const adventureGiftReady = Boolean(pet.adventure.pending || pet.community.expedition.pending) || !pet.adventure.active && !pet.community.expedition.active && (!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed);
   const today = !wish.claimed || Boolean(welcome) || Boolean(pet.partnerSchedule.pendingResult) || Boolean(props.gardenReminder) || friendGiftReady;
   const activeGame = pet.miniGames.active?.actorId === actorId ? pet.miniGames.active : undefined;
   const playLocked = pet.level < miniGameUnlockLevel;

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { createCommunityTestPet } from './fixtures/community-pet';
 import { createDefaultPet, normalizePet } from '../src/core/petState';
 import { getPetEnergyCap, getPetStatCap } from '../src/core/petStats';
-import { startExpedition, chooseExpeditionStep, getExpeditionChoices, getExpeditionCampStep, useExpeditionSupply, returnExpedition, claimExpedition, restExpedition, continueExpedition, selectExpeditionReturn } from '../src/core/expedition';
-import { advanceAdventure, startAdventure, useAdventureSupply, pickupAdventureLoot, returnFromAdventure, claimAdventureResult } from '../src/core/adventure';
+import { chooseExpeditionStep, getExpeditionChoices, getExpeditionCampStep, useExpeditionSupply, returnExpedition, claimExpedition, restExpedition, continueExpedition, selectExpeditionReturn } from '../src/core/expedition';
+import { advanceAdventure, useAdventureSupply, pickupAdventureLoot, returnFromAdventure, claimAdventureResult } from '../src/core/adventure';
+import { startAdventure, startExpedition } from './fixtures/legacy-exploration';
 import { getAdventureSteps } from '../src/core/adventureData';
 import { getBackpackUpgradeQuote, getExplorationBagCapacity, upgradeExplorationBackpack } from '../src/core/explorationBackpack';
 import { explorationTravel, getExpeditionEvent } from '../src/core/explorationTravelData';
@@ -137,19 +138,19 @@ assert.equal(continuous.community.expedition.active!.energySpent, 0); assert.equ
 for (const region of regionIds) {
   const p = ready(), q = quoteExpeditionRations(p, region, 8), profile = explorationTravel[region];
   assert.equal(q.reason, ''); assert.equal(q.coins, profile.meals * 28 * 4);
-  assert(q.segments.every(s => s.chance === 3 && s.hunger >= profile.nutrition && s.count === profile.meals));
+  assert.equal(q.chance, 3); assert(q.hunger >= profile.nutrition * 4); assert.equal(q.count, profile.meals * 4);
 }
 assert(!isTravelFood('golden_apple')); assert(!isTravelFood('birthday_cake')); assert(!isTravelFood('blanket'));
 assert.equal(getRationTreasureChance(0, 3), 1); assert.equal(getRationTreasureChance(10000, 3), 15);
-assert(quoteExpeditionRations(ready(), 'valley', 2, { meals: [{ dish_carrot_rice: 1 }], autoFill: false }).reason, 'one nourishing dish still fails quantity');
-assert(quoteExpeditionRations(ready(), 'valley', 2, { meals: [{ apple: 7 }], autoFill: true }).reason);
-assert(quoteExpeditionRations({ ...ready(), inventory: { dish_carrot_rice: 3 } }, 'valley', 4, { meals: [{ dish_carrot_rice: 3 }, { dish_carrot_rice: 3 }], autoFill: false }).reason);
+assert(quoteExpeditionRations(ready(), 'valley', 2, { food: { dish_carrot_rice: 1 }, autoFill: false }).reason, 'one nourishing dish still fails quantity');
+assert(quoteExpeditionRations(ready(), 'valley', 2, { food: { apple: 7 }, autoFill: true }).reason);
+assert(quoteExpeditionRations({ ...ready(), inventory: { dish_carrot_rice: 3 } }, 'valley', 4, { food: { dish_carrot_rice: 6 }, autoFill: false }).reason);
 
 for (const region of regionIds) for (const hours of [2, 4, 8]) {
   const base = ready(), p = startExpedition(base, [region], {}, false, 'test', 'test', 'idle', hours, T); assert(p.community.expedition.active);
   const all = advancePet(p, T + hours * H);
   let chunks = p; for (let i = 1; i <= hours * 4; i++) chunks = read(advancePet(chunks, T + i * H / 4), T + i * H / 4);
-  assert.deepEqual(chunks.community.expedition.pending, all.community.expedition.pending);
+  assert.deepEqual(chunks.community.expedition.pending, { ...all.community.expedition.pending, journal: [] }, 'all settlement fields survive reload; display logs are transient');
   assert.equal(chunks.energy, all.energy); assert(Math.abs(chunks.hunger - all.hunger) < 1e-6);
   assert.equal(all.energy, p.energy - explorationTravel[region].idleEnergy * hours / 2);
   assert(Math.abs(all.hunger - p.hunger + explorationTravel[region].idleHunger * hours / 2) < .001);
@@ -157,35 +158,37 @@ for (const region of regionIds) for (const hours of [2, 4, 8]) {
 }
 
 for (const elapsed of [0, .5, 2, 2 + 1 / H, 4, 7.9]) {
-  const p = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 8, T, { rations: { meals: [{ trail_mix: 1 }, { dish_carrot_rice: 1 }, {}, { trail_mix: 2 }], autoFill: true } });
-  const segments = p.community.expedition.active!.rationSegments!, opened = Math.max(1, Math.ceil(elapsed / 2));
+  const p = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 8, T, { rations: { food: { trail_mix: 3, dish_carrot_rice: 1 }, autoFill: true } });
   const back = returnExpedition(p, p.community.expedition.active!.id, T + elapsed * H), receipt = back.community.expedition.pending!;
-  assert.equal(receipt.refundCoins, segments.slice(opened).reduce((sum, s) => sum + s.price, 0));
-  assert.equal(receipt.items.trail_mix ?? 0, segments.slice(opened).reduce((sum, s) => sum + (s.food.trail_mix ?? 0), 0));
+  assert.equal(receipt.refundCoins, 0);
+  assert.equal(receipt.items.trail_mix ?? 0, 0);
+  assert.equal(receipt.items.dish_carrot_rice ?? 0, 0);
+  assert.deepEqual(back.inventory, p.inventory, 'recall never refunds or deducts warehouse food again');
+  const total = Object.values(p.community.expedition.active!.rationPlan!.food).reduce((sum, n) => sum + n, 0);
+  assert.equal(Object.values(receipt.rationReturn!.eaten).reduce((sum, n) => sum + n, 0) + Object.values(receipt.rationReturn!.shared).reduce((sum, n) => sum + n, 0), Math.floor(total * (8 - elapsed) / 8));
   const claimed = claimExpedition(read(back, T + elapsed * H), receipt.id);
-  assert.equal(claimed.achievements.counters.coinEarnedTotal - back.achievements.counters.coinEarnedTotal, receipt.coins, 'refund is not income');
+  assert.equal(claimed.achievements.counters.coinEarnedTotal - back.achievements.counters.coinEarnedTotal, receipt.coins);
   assert.equal(claimExpedition(claimed, receipt.id).coins, claimed.coins);
 }
 
 let lucky = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 4, T);
-lucky.community.expedition.active!.rationSegments![0].roll = 0;
-lucky.community.expedition.active!.rationSegments![1].roll = 99;
+lucky.community.expedition.active!.rationPlan!.discoveries[0].roll = 0;
+lucky.community.expedition.active!.rationPlan!.discoveries[1].roll = 99;
 lucky = read(lucky);
 const atTwo = advancePet(lucky, T + 2 * H); assert.equal(atTwo.community.expedition.active!.bag.creek_aquamarine, 1);
-assert.equal(atTwo.community.expedition.active!.rationSegments![1].started, false);
+assert.equal(atTwo.community.expedition.active!.rationPlan!.discoveries[1].settled, false);
 const atFour = advancePet(read(atTwo, T + 2 * H), T + 4 * H); assert.equal(atFour.community.expedition.pending!.items.creek_aquamarine, 1);
 const frozen = prepareTimePause(atTwo, T + 2 * H), resumed = resumePetTime(read(frozen, T + 24 * H), T + 24 * H);
-assert.equal(resumed.community.expedition.active!.rationSegments![0].roll, 0);
+assert.equal(resumed.community.expedition.active!.rationPlan!.discoveries[0].roll, 0);
 assert.equal(advancePet(resumed, T + 26 * H).community.expedition.pending!.items.creek_aquamarine, 1);
 const rollback = reconcilePetClock(atTwo, T + H).pet;
 assert.equal(advancePet(rollback, T + 3 * H).community.expedition.pending!.items.creek_aquamarine, 1);
-let richFuture = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 4, T, { rations: { meals: [{}, { dish_valley_travel_bento: 6 }], autoFill: true } });
-assert.equal(richFuture.community.expedition.active!.rationSegments![0].chance, 3);
-assert.equal(richFuture.community.expedition.active!.rationSegments![1].chance, 15);
-richFuture.community.expedition.active!.rationSegments![0].roll = 5;
+let richFuture = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 4, T, { rations: { food: { dish_valley_travel_bento: 6 }, autoFill: true } });
+assert.equal(richFuture.community.expedition.active!.rationPlan!.chance, 15);
+richFuture.community.expedition.active!.rationPlan!.discoveries[0].roll = 5;
 richFuture = returnExpedition(read(richFuture), richFuture.community.expedition.active!.id, T + 2 * H);
-assert.equal(richFuture.community.expedition.pending!.items.creek_aquamarine, undefined);
-assert.equal(richFuture.community.expedition.pending!.items.dish_valley_travel_bento, 6, 'future food neither consumed nor used to boost an earlier segment');
+assert.equal(richFuture.community.expedition.pending!.items.creek_aquamarine, 1, 'the entire journey uses the packed food quality');
+assert.equal(richFuture.community.expedition.pending!.items.dish_valley_travel_bento, undefined);
 const healthTie = { ...lucky, health: getPetStatCap(lucky) * (.2 + .08) - 1e-6, mood: 0, cleanliness: 0 };
 const retreated = advancePet(healthTie, T + 2 * H);
 assert.equal(retreated.community.expedition.pending!.reason, 'health'); assert.equal(retreated.community.expedition.pending!.items.creek_aquamarine, undefined);
@@ -195,13 +198,13 @@ let midnight = ready(); midnight.lastUpdatedAt = beforeReset; midnight.lastEnerg
 midnight = startExpedition(midnight, ['station'], {}, false, 'test', 'test', 'idle', 8, beforeReset);
 let midnightChunks = midnight;
 for (let i = 1; i <= 8; i++) midnightChunks = read(advancePet(midnightChunks, beforeReset + i * H), beforeReset + i * H);
-assert.deepEqual(midnightChunks.community.expedition.pending, advancePet(midnight, beforeReset + 8 * H).community.expedition.pending);
+assert.deepEqual(midnightChunks.community.expedition.pending, { ...advancePet(midnight, beforeReset + 8 * H).community.expedition.pending, journal: [] });
 assert.equal(midnightChunks.community.expedition.loop!.vouchers.length, 8, 'daily reset issues four new regional-neutral shares');
 
 // In-flight v2 rations and costs survive the v3 state migration.
 let legacyIdle = startExpedition(ready(), ['valley'], {}, false, 'test', 'test', 'idle', 8, T);
 legacyIdle.coins += 336; legacyIdle.inventory.trail_mix! -= 4;
-legacyIdle.community.expedition.active!.rulesVersion = 2; delete legacyIdle.community.expedition.active!.rationSegments;
+legacyIdle.community.expedition.active!.rulesVersion = 2; delete legacyIdle.community.expedition.active!.rationPlan;
 legacyIdle.community.expedition.active!.rationsRemaining = 3;
 (legacyIdle.community.expedition as any).schemaVersion = 2;
 legacyIdle = read(legacyIdle);
@@ -242,7 +245,7 @@ for (const [tier, level] of [['none', 1], ['gold', 20], ['diamond', 20], ['diamo
   const food = getInventoryItem('dish_carrot_rice')!, preview = getItemStatEffect(p, food);
   assert(preview.hunger! >= 60);
   if (mastery && !achievements && tier !== 'none') assert.equal(preview.hunger, Math.round(food.effect.hunger! * (tier === 'gold' ? 2.3 : 2.875)));
-  assert.equal(quoteExpeditionRations(p, 'station', 2, { meals: [{ dish_carrot_rice: 7 }], autoFill: false }).segments[0].hunger, food.effect.hunger! * 7, 'ration nutrition ignores trophy and other food bonuses');
+  assert.equal(quoteExpeditionRations(p, 'station', 2, { food: { dish_carrot_rice: 7 }, autoFill: false }).hunger, food.effect.hunger! * 7, 'ration nutrition ignores trophy and other food bonuses');
   for (let journey = 0; journey < 4; journey++) {
     p = startExpedition(p, ['station'], { dish_carrot_rice: 24 }, false, 'test', 'test', 'manual', 1, T);
     assert(p.community.expedition.active, `${tier}/${mastery}/${achievements} departure ${journey}`);
@@ -284,8 +287,8 @@ try {
   const [rations, prep, journey] = await Promise.all([server.ssrLoadModule('/src/ui/expedition/ExpeditionRations.tsx'), server.ssrLoadModule('/src/ui/expedition/RegionPreparation.tsx'), server.ssrLoadModule('/src/ui/expedition/ExpeditionJourney.tsx')]);
   const noop = () => {}, props = { pet: ready(), update: noop, actorId: 'test', actorName: 'test', portrait: '', onCommunity: noop, onKitchen: noop, onShop: noop };
   for (const region of regionIds) {
-    const html = renderToStaticMarkup(createElement(rations.ExpeditionRations, { pet: props.pet, region, hours: 8, setHours: noop, selection: { meals: [], autoFill: true }, onChange: noop }));
-    assert.match(html, /第 4 段/); assert.match(html, /复制到全部时段/);
+    const html = renderToStaticMarkup(createElement(rations.ExpeditionRations, { pet: props.pet, region, hours: 8, setHours: noop, selection: { food: {}, autoFill: true }, onChange: noop }));
+    assert.match(html, /全程至少/); assert.match(html, /吃饱后分给路过的邻居/); assert(!/第 4 段|复制到全部时段/.test(html));
     assert.match(renderToStaticMarkup(createElement(prep.RegionPreparation, { ...props, selected: region })), /永久旅行背包/);
   }
   const p = choose(startExpedition(ready(), ['forest'], {}, false, 'test', 'test', 'manual', 1, T));
@@ -295,3 +298,4 @@ try {
   postcss.parse(readFileSync(new URL('../src/styles/exploration-logistics.css', import.meta.url), 'utf8'));
 } finally { await server.close(); }
 console.log('Exploration UI SSR and stylesheet checks passed; no browser automation or screenshots.');
+await import('./check-idle-rations');

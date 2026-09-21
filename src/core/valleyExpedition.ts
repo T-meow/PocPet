@@ -4,12 +4,14 @@ import type { PetState } from './petTypes';
 import { getExplorationBudget } from './explorationBudget';
 import { valleyGatherFinds, valleyGatherNames, valleyPatrolEnergy, valleyPatrolHunger, valleyPatrolNodes } from './valleyExplorationData';
 import { explorationTravel, getRegionActionCost } from './explorationTravelData';
+import { getValleyCheckChoices } from './valleyCheckChoices';
 
 export const isValleyExpedition = (t: ExpeditionTrip) => t.rulesVersion >= 2 && t.route[t.leg] === 'valley';
 export const getExpeditionCampStep = (t: ExpeditionTrip) => isValleyExpedition(t) ? t.style === 'short' ? 2 : 6 : t.rulesVersion >= 3 ? explorationTravel[t.route[t.leg]].actions : 3;
 export const getValleyExpeditionChoices = (pet: PetState, now: number): ExpeditionChoice[] => {
   const t = pet.community.expedition.active!;
   if (t.step >= getExpeditionCampStep(t)) return [];
+  if (t.rulesVersion >= 4 && t.style !== 'walk') return getValleyCheckChoices(pet, now);
   const short = t.style === 'short', walk = t.style === 'walk', target = t.target ?? 'valley_mushroom';
   const hunger = walk ? 0 : t.rulesVersion >= 3 ? short ? 21 : getRegionActionCost('valley', t.step).hunger : short ? [8, 6][t.step] : valleyPatrolHunger[t.step];
   const energy = walk ? 0 : t.rulesVersion >= 3 ? short ? 12 : getRegionActionCost('valley', t.step).energy : short ? [8, 4][t.step] : valleyPatrolEnergy[t.step];

@@ -1,13 +1,22 @@
 import { itemIcons, unknownItemIcon } from '../../assets';
 import { getInventoryItem } from '../../core/items';
 import { canSpendCompanionTime } from '../../core/kitchen';
+import { facilities } from '../../core/communityData';
 import { getCommunityUpgradeQuote, upgradeRegionNames, type CommunityUpgradeId } from '../../core/communityUpgradeData';
 import { upgradeCommunityFacility } from '../../core/communityUpgrades';
 import { regionalTreasures, type RegionalTreasureId } from '../../core/regionalTreasures';
 import type { ItemId } from '../../core/petTypes';
 import type { CommunityPanelProps } from './types';
+import { CommunityDetailDialog } from './CommunityDetailDialog';
 
-export const CommunityUpgradeTask = ({ pet, update, id, registry, itemIconMap }: Pick<CommunityPanelProps, 'pet' | 'update' | 'registry' | 'itemIconMap'> & { id: CommunityUpgradeId }) => {
+type UpgradeProps = Pick<CommunityPanelProps, 'pet' | 'update' | 'registry' | 'itemIconMap'> & { id: CommunityUpgradeId };
+
+export const CommunityUpgradeDialog = ({ onClose, ...props }: UpgradeProps & { onClose: () => void }) => <CommunityDetailDialog
+  title={`${props.id === 'garden' ? '菜地' : facilities[props.id].name}建设`} eyebrow="建设与扩建 · 永久保留" onClose={onClose}>
+  <CommunityUpgradeTask {...props} />
+</CommunityDetailDialog>;
+
+export const CommunityUpgradeTask = ({ pet, update, id, registry, itemIconMap }: UpgradeProps) => {
   const quote = getCommunityUpgradeQuote(pet, id), { task } = quote;
   if (!task) return <p className="community-note">已完成全部扩建 · Lv.{quote.level}</p>;
   const source = (item: string) => item === 'community_wood' || item === 'community_stone' ? '商店购买／溪谷建材采集'

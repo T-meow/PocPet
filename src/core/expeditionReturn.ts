@@ -6,6 +6,8 @@ import { advanceExplorationBudget, earnExplorationPay, settleReservedHarvest } f
 import { valleyGatherFinds } from './valleyExplorationData';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
+import { eatReturningRations, rationReturnLines } from './expeditionRationReturn';
+import type { RationReturn } from './explorationRations';
 
 export const withExpedition = (pet: PetState, changes: Partial<PetState['community']['expedition']>): PetState => ({ ...pet, community: { ...pet.community, expedition: { ...pet.community.expedition, ...changes } } });
 export const putExpeditionFinds = (pet: PetState, finds: Inventory): PetState => {
@@ -26,12 +28,16 @@ export const finishExpedition = (pet: PetState, reason: ExpeditionReceipt['reaso
   let t = pet.community.expedition.active;
   if (!t || pet.community.expedition.pending) return pet;
   let refundCoins = 0;
+  let rationReturn: RationReturn | undefined;
   if (t.rulesVersion >= 2 && t.mode === 'idle') {
     pet = advanceExplorationBudget(pet, now);
     pet = settleReservedHarvest(pet, t.reservedHarvests ?? 0, true);
     const unopened = Math.max(0, Math.ceil(t.parts / 2) - Math.max(1, Math.ceil(Math.max(0, Math.min(now, t.endsAt) - t.startedAt) / 7200000)));
     if (t.rulesVersion === 2 && unopened) pet = putExpeditionFinds(pet, { trail_mix: unopened });
-    if (t.rulesVersion >= 3) {
+    if (t.rationPlan && reason !== 'complete') {
+      const result = eatReturningRations(pet, t, now);
+      pet = result.pet; rationReturn = result.summary;
+    } else if (!t.rationPlan && t.rulesVersion >= 3) {
       const current = pet.community.expedition.active!, bag = { ...current.bag };
       const started = Math.max(1, Math.ceil(Math.max(0, Math.min(now, t.endsAt) - t.startedAt) / 7200000));
       for (const [index, segment] of (t.rationSegments ?? []).entries()) {
@@ -45,9 +51,10 @@ export const finishExpedition = (pet: PetState, reason: ExpeditionReceipt['reaso
     if (state.loop && reason === 'complete') pet = withExpedition(pet, { loop: { ...state.loop, idleCompleted: state.loop.idleCompleted + 1 } });
     t = pet.community.expedition.active!;
   }
+  const foodLines = rationReturn ? rationReturnLines(rationReturn) : [];
   return { ...withExpedition(pet, { active: undefined, pending: { id: t.id, rulesVersion: t.rulesVersion, mode: t.mode, route: t.route, items: t.bag, overflow: t.ground,
-    selected: expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: t.journal } }),
-    recentEvent: reason === 'health' ? '健康低于 20%，伙伴已安全返回。发现与已经完成的故事保留，先整理行囊再入库。' : '远行结束了。收好物资，把今天的见闻带回社区。' };
+    selected: expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: [...t.journal, ...foodLines].slice(-12), ...(rationReturn ? { rationReturn } : {}), ...(t.checkState?.last ? { lastCheck: t.checkState.last } : {}) } }),
+    recentEvent: (reason === 'health' ? '健康不足，伙伴已安全返回。发现与已经完成的故事保留，先整理行囊再入库。' : '远行结束了。收好物资，把今天的见闻带回社区。') + foodLines.join('') };
 };
 // Only timed travel produces supplies from elapsed time. Manual trips never move offline.
 export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
@@ -56,7 +63,7 @@ export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
   if (!t || t.paused) return pet;
   const unhealthy = pet.health < getPetStatCap(pet) * .2;
   if (t.mode === 'idle') {
-    if (t.rulesVersion >= 3) {
+    if (t.rulesVersion >= 3 && !t.rationPlan) {
       t = { ...t, rationSegments: t.rationSegments?.map((s, index) => s.started || now <= t!.startedAt + index * 7200000 ? s : { ...s, started: true }) };
       pet = withExpedition(pet, { active: t });
     }
@@ -76,8 +83,13 @@ export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
           const current = pet.community.expedition.active!;
           pet = withExpedition(pet, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });
           if (t.rulesVersion >= 3 && hour % 2 === 0) {
-            const trip = pet.community.expedition.active!, index = hour / 2 - 1, segment = trip.rationSegments?.[index];
-            if (segment && !segment.settled) {
+            const trip = pet.community.expedition.active!, index = hour / 2 - 1, segment = trip.rationSegments?.[index], plan = trip.rationPlan, discovery = plan?.discoveries[index];
+            if (plan && discovery && !discovery.settled) {
+              const won = discovery.roll < plan.chance;
+              pet = withExpedition(pet, { active: { ...trip, rationPlan: { ...plan, discoveries: plan.discoveries.map((d, i) => i === index ? { ...d, settled: true, won } : d) } } });
+              const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === region)!;
+              if (won) pet = putExpeditionFinds(pet, { [treasure]: 1 });
+            } else if (!plan && segment && !segment.settled) {
               const won = segment.roll < segment.chance;
               pet = withExpedition(pet, { active: { ...trip, rationSegments: trip.rationSegments!.map((s, i) => i === index ? { ...s, started: true, settled: true, won } : s) } });
               const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === region)!;

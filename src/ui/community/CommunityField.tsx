@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { careCommunityCrop, getCommunityCropYield, communityCrops, harvestCommunityCrop, plantCommunityCrop } from '../../core/community';
-import { CommunityUpgradeTask } from './CommunityUpgradeTask';
+import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 import { toolDurabilityLabel } from '../../core/toolDurability';
 import { canSpendCompanionTime } from '../../core/kitchen';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
@@ -11,7 +11,7 @@ import { getCropUnlockReason } from '../../core/foodCatalog';
 
 export const CommunityField = (props: CommunityPanelProps) => {
   const { pet, update, onExplore, onKitchen, onShop, onAdventure } = props;
-  const [careOpen, setCareOpen] = useState(false);
+  const [panel, setPanel] = useState<'care' | 'construction' | null>(null);
   const [selectedId, setSelectedId] = useState(1);
   const c = pet.community, plot = c.plots.find(p => p.id === selectedId) ?? c.plots[0], crop = plot.crop, plotId = plot.id;
   const free = !pet.timePause && canSpendCompanionTime(pet), now = Date.now();
@@ -22,7 +22,7 @@ export const CommunityField = (props: CommunityPanelProps) => {
     {c.plots.map(p => <button type="button" key={p.id} aria-pressed={p.id === plotId} className="community-plot-card" onClick={() => setSelectedId(p.id)}>
       <strong>第 {p.id} 块菜地</strong><span>{p.crop ? `${communityCrops[p.crop.id].glyph} ${communityCrops[p.crop.id].name}` : '待播种'}</span><small>{p.crop ? now >= p.crop.readyAt ? '已成熟 · 可收获' : timeLeft(p.crop.readyAt, now) : '独立播种与照料'}</small>
     </button>)}
-    {c.plots.length < 3 && <button type="button" className="community-plot-card community-plot-expand" onClick={() => setCareOpen(true)}><strong>＋ 第 {c.plots.length + 1} 块</strong><span>查看扩建任务</span></button>}
+    {c.plots.length < 3 && <button type="button" className="community-plot-card community-plot-expand" aria-haspopup="dialog" onClick={() => setPanel('construction')}><strong>＋ 第 {c.plots.length + 1} 块</strong><span>查看扩建任务</span></button>}
   </div>;
   return <>
     {c.gardenBuilt && selector}
@@ -31,8 +31,10 @@ export const CommunityField = (props: CommunityPanelProps) => {
       supplies={crop ? `长势 ${Math.floor(growth * 100)}% · 这轮收获 ${getCommunityCropYield(pet, plotId)} 份` : c.gardenBuilt ? '16 种作物 · 从一颗种子开始' : '完成并结算新手踩点，菜地自动开放'}
       detail={crop ? ready ? '成熟的作物会一直等你' : `距离成熟 · ${timeLeft(crop.readyAt, now)}` : c.gardenBuilt ? '打开照料，挑选要种下的种子' : '免费开放第 1 块菜地，体力上限永久 +4'}
       harvest={crop ? `${communityCrops[crop.id].name} · ${ready ? '已经成熟' : '正在生长'}` : '这片土地还空着'} harvestDisabled={!free || !c.gardenBuilt || !ready}
-      onHarvest={() => { if (crop) update(p => harvestCommunityCrop(p, plotId, crop.plantedAt)); }} onCare={() => setCareOpen(true)} />
-    {careOpen && <CommunityDetailDialog title={c.gardenBuilt ? `照料第 ${plotId} 块菜地` : '开放第一块菜地'} eyebrow="顺着季节，照顾每一颗种子" onClose={() => setCareOpen(false)}>
+      onHarvest={() => { if (crop) update(p => harvestCommunityCrop(p, plotId, crop.plantedAt)); }} onCare={() => setPanel('care')}
+      onConstruction={c.gardenBuilt ? () => setPanel('construction') : undefined} />
+    {panel === 'construction' && <CommunityUpgradeDialog {...props} id="garden" onClose={() => setPanel(null)} />}
+    {panel === 'care' && <CommunityDetailDialog title={c.gardenBuilt ? `照料第 ${plotId} 块菜地` : '开放第一块菜地'} eyebrow="顺着季节，照顾每一颗种子" onClose={() => setPanel(null)}>
       {!c.gardenBuilt ? <>
         <p>到前哨基地完成四节点新手踩点并领取结算，第一块菜地自动免费开放，体力上限永久 +4。</p>
         {onAdventure && <button className="primary-button" onClick={onAdventure}>去前哨基地</button>}
@@ -47,11 +49,10 @@ export const CommunityField = (props: CommunityPanelProps) => {
           </div><small>精细收割可与堆肥叠加；仓库放不下时不扣镰刀耐久。</small></section>
           : <section className="community-care-section"><h3>今天想种些什么</h3><div className="community-seed-packets">{(Object.keys(communityCrops) as (keyof typeof communityCrops)[]).filter(id => id !== 'berry' || Boolean(pet.inventory.forest_berry_seed || c.expedition.regions.forest.surveyed)).map(id => {
             const d = communityCrops[id];
-            return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id)); setCareOpen(false); }}>
+            return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id)); setPanel(null); }}>
               <span aria-hidden="true">{d.glyph}</span><strong>{d.name}</strong><small>{d.hours} 小时 · 收获 {d.yield} 份</small><small>种子库存 {pet.inventory[d.seed] ?? 0}{d.seedPrice ? ` · 原价 ${d.seedPrice}` : ''}</small><b>{getCropUnlockReason(pet, id) || '种下种子 ×1'}</b>
             </button>;
           })}</div></section>}
-        <CommunityUpgradeTask {...props} id="garden" />
         <section className="community-care-section"><h3>补充种子</h3><p>香草种子来自溪谷每日首次搜寻 ×2、水渠故事首次奖励 ×2；林莓种子在林地定向寻找，每次 ×2，消耗探索机会。这两种种子商店不出售。</p><div className="community-actions">
           <button className="secondary-button" disabled={!free || Boolean(pet.adventure.pending)} onClick={() => onExplore('seeds')}>去溪谷补种子</button>
           <button className="secondary-button" onClick={onShop}>购买作物种子</button>

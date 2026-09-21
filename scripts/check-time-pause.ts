@@ -124,7 +124,9 @@ try {
     const pet = createCommunityTestPet(scenario, T);
     const f = prepareTimePause(pet, T + (scenario === 'idle' ? H + 5 * M : 0), quiet);
     const loaded = read(createSaveFileText(f, null, T + 2 * H), later);
-    assert.deepEqual(loaded.community.expedition, f.community.expedition);
+    assert.deepEqual(loaded.community.expedition, { ...f.community.expedition,
+      active: { ...f.community.expedition.active!, journal: [] },
+    }, 'frozen expedition progress survives without the unused display log');
     const r = resumePetTime(loaded, later), trip = r.community.expedition.active!;
     assert.equal(trip.paused, f.community.expedition.active!.paused, 'camp pauses stay paused');
     assert.equal(trip.endsAt - later, f.community.expedition.active!.endsAt - f.timePause!.pausedAt);

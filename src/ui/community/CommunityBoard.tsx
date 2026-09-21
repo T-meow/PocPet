@@ -20,7 +20,7 @@ const noteArt: Record<CommissionTemplate, { glyph: string; tone: string }> = {
 };
 
 export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?: WaterId) => void; onFarm?: (place: 'field' | 'coop' | 'barn') => void }) => {
-  const { pet, update, onExplore, onKitchen, onFishing, onFarm, registry, onExpedition } = props;
+  const { pet, update, onExplore, onKitchen, onFishing, onFarm, registry, onOpenOutpost } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const tasks = getCommunityTasks(pet), candidates = getCommunityCandidates(pet), day = getCommunityDay(pet), accepted = pet.community.boardDay === day ? pet.community.acceptedToday : [];
   const notes = [...tasks, ...candidates.filter(task => !tasks.some(active => active.id === task.id))];
@@ -36,7 +36,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?
         {def.event && <p className="community-note">{task.found ? '✓ 已记录有效行动' : '○ 等待接取后的有效行动'}</p>}
         {Object.entries(def.take ?? {}).map(([id, n]) => <p key={id}>交付 {registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id} ×{n} · 持有 {pet.inventory[id] ?? 0}</p>)}
         <div className="community-actions">
-          {task.template === 'valley_basket' && onExpedition && <button className="secondary-button" onClick={() => onExpedition('valley_mushroom')}>去溪谷采集野菇</button>}
+          {task.template === 'valley_basket' && onOpenOutpost && <button className="secondary-button" onClick={() => onOpenOutpost({ view: 'route', region: 'valley', target: 'valley_mushroom' })}>去溪谷采集野菇</button>}
           {task.template === 'valley_rice' && <button className="secondary-button" onClick={() => onKitchen('mushroom_rice')}>去厨房做野菇焖饭</button>}
           <button className="primary-button" disabled={!canClaimCommunityTask(pet, task) || Boolean(pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active)} onClick={() => { update(p => claimCommunityTask(p, task.id)); close(); }}>交付并领取酬谢</button>
           {!task.found && ['search', 'forage', 'delivery'].includes(task.template) && <button className="secondary-button" disabled={Boolean(pet.adventure.active || pet.adventure.pending || pet.community.fishing.active)} onClick={() => onExplore('commission')}>去溪谷短途{task.template === 'delivery' ? '送餐' : '搜寻'}</button>}

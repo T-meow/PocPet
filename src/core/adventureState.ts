@@ -9,6 +9,7 @@ import { facilityIds } from './communityData';
 import type { CommunityRoute } from './communityTypes';
 import { isValleyQuest, valleyQuestIds } from './valleyQuests';
 import { explorationBackpackCapacities, normalizeBackpackLevel } from './explorationTravelData';
+import { normalizeExplorationCheckResult, normalizeExplorationCheckState } from './explorationChecks';
 
 const object = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
 const count = (raw: unknown, max = Number.MAX_SAFE_INTEGER) => typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(max, Math.floor(raw))) : 0;
@@ -57,8 +58,8 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const value = object(raw);
   if (!text(value.id) || (value.region !== 'valley' && value.region !== 'tutorial') || !text(value.actorId)) return undefined;
   const tutorial = value.region === 'tutorial';
-  const purpose = !legacy && !tutorial && [5, 6, 7, 8].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
-  const rulesVersion = legacy && !tutorial ? 1 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
+  const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
+  const rulesVersion = legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
   const options = getAdventureSteps(rulesVersion, value.region, purpose);
   const choices: string[] = [];
   for (const choice of Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
@@ -80,6 +81,7 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const shopStock = Object.fromEntries(Object.entries(initialStock).map(([id, amount]): [string, number] => [id, legacy ? value.bought === true ? 0 : amount : count(savedStock[id], amount)]).filter(([, amount]) => amount > 0));
   return { id: text(value.id), region: value.region, actorId: text(value.actorId), actorName: text(value.actorName, 32), startedAt: count(value.startedAt), choices,
     rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true,
+    ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
     energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length), rested: value.rested === true,
     neighborId: !tutorial && adventureActorIds.some(id => id === value.neighborId && id !== value.actorId) ? String(value.neighborId) : undefined,
     shopStock, purchases: legacy ? value.bought === true ? 1 : 0 : count(value.purchases),
@@ -95,6 +97,7 @@ const normalizeResult = (raw: unknown): AdventureResult | undefined => {
   const complete = value.complete === true && steps === getAdventureStepCount(value.region, purpose);
   return { id: text(value.id), region: value.region, actorId: text(value.actorId), actorName: text(value.actorName, 32), endedAt: count(value.endedAt), steps, complete,
     purpose, first: complete && value.first === true, hearts: purpose && !isValleyQuest(purpose) ? 0 : count(value.hearts, 10000), coins: purpose && !isValleyQuest(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true,
+    ...(normalizeExplorationCheckResult(value.lastCheck) ? { lastCheck: normalizeExplorationCheckResult(value.lastCheck) } : {}),
     ...(value.returnReason === 'health' ? { returnReason: 'health' as const, ...(value.salvage && value.rewardsClaimed !== true ? { salvage: inventory(value.salvage), salvageTool: value.salvageTool === true } : {}) } : {}),
     ...(complete ? { completedDay: dayKey(value.completedDay) ?? getDailyResetDateKey(count(value.endedAt)) } : {}) };
 };

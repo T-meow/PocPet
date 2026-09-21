@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { advanceAdventure, claimAdventureResult, getAdventureChoiceReason, getAdventureStartReason, returnFromAdventure, startAdventure } from '../src/core/adventure';
+import { advanceAdventure, claimAdventureResult, getAdventureChoiceReason, getAdventureStartReason, returnFromAdventure } from '../src/core/adventure';
+import { startAdventure } from './fixtures/legacy-exploration';
 import { getAdventureSteps } from '../src/core/adventureData';
 import { chooseAdventureReturnItems, enforceAdventureHealth } from '../src/core/adventureReturn';
 import { getAdventureNodeStatus } from '../src/core/adventureMap';
@@ -230,9 +231,10 @@ try {
   assert(!closedOrchard.includes('role="dialog"'), 'a controlled close overrides the initial orchard request');
   const checkProductionActions = (html: string, harvestable: boolean) => {
     const buttons = (html.match(/<button\b[\s\S]*?<\/button>/g) ?? []).filter(button => !button.includes('community-plot-card'));
-    assert.deepEqual(buttons.map(button => button.replace(/<[^>]+>/g, '')), ['收获', '照料'], 'the scene has only the two production actions');
+    assert.deepEqual(buttons.map(button => button.replace(/<[^>]+>/g, '')), ['收获', '照料', '建设'], 'production scenes keep harvest, care and the existing construction entry');
     assert.equal(buttons[0].includes('disabled=""'), !harvestable, 'only available produce can be harvested');
     assert(buttons[1].includes('aria-haspopup="dialog"'), 'care opens its operations dialog');
+    assert(buttons[2].includes('aria-haspopup="dialog"'), 'construction opens its operations dialog');
     assert(!html.includes('community-card') && !html.includes('role="dialog"'), 'operations stay out of the illustrated scene until requested');
   };
   for (const place of ['coop', 'barn'] as const) {
@@ -264,5 +266,5 @@ try {
     assert(/^data:image\/svg\+xml[;,]/.test(scene)); scenes.add(scene);
   }
   assert.equal(scenes.size, 7);
-  console.log('Valley React passed: both scene entrances, all 13 full-screen place dialogs, embedded orchard controls, controlled close, two-action production scenes in empty/growing/ready states, pinned noticeboard, seven task panels and distinct SVG scene assets. Visual/touch acceptance is manual.');
+  console.log('Valley React passed: both scene entrances, all 13 full-screen place dialogs, embedded orchard controls, controlled close, production scenes with harvest, care and construction in empty/growing/ready states, pinned noticeboard, seven task panels and distinct SVG scene assets. Visual/touch acceptance is manual.');
 } finally { await server.close(); }

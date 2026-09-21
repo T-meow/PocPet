@@ -15,6 +15,7 @@ import { selectNeighborGift } from '../src/core/neighborGifts';
 import { getDailyResetDateKey } from '../src/core/dailyReset';
 import { startPomodoro } from '../src/core/petActions';
 import { advancePet } from '../src/core/petLifecycle';
+import './check-save-compaction';
 
 // This suite has no browser, disk writes, or real player/cloud storage.
 class MemoryStorage {
@@ -60,7 +61,7 @@ assert.equal(readLocal(fedText).isOverfed, true);
 const fedReload = readLocal(fedText, now + 1000);
 assert.equal(fedReload.isOverfed, true);
 assert.equal(useInventoryItem(fedReload, 'bento', now + 1000).inventory.bento, 4);
-assert.equal(readLocal(fedText, now + 60 * 60 * 1000).isOverfed, false);
+assert.equal(readLocal(fedText, now + 60 * 60 * 1000).isOverfed, advancePet(fedPet, now + 60 * 60 * 1000, quiet).isOverfed, 'loading preserves the same satiety decay as the running game');
 const { isOverfed: _satiety, ...beforeFeedingProtection } = fresh;
 assert.equal(normalizePet(beforeFeedingProtection, now).isOverfed, false);
 assert.equal(normalizePet({ ...beforeFeedingProtection, hunger: 100 }, now).isOverfed, true);
@@ -373,12 +374,12 @@ const current = JSON.parse(createSaveFileText(rich, null, now));
 const currentTrip = { id: 'version-check-trip', region: 'valley', actorId: 'official.mint', actorName: 'Mint', startedAt: now, rulesVersion: 4, revision: 2, choices: [], bag: { trail_mix: 1 }, loot: {}, tool: true, shopStock: {}, purchases: 0, transportedCount: 0, treasure: 'ancient_gold_bar' };
 const currentAdventure = { ...current.pet.adventure, active: currentTrip };
 const supportedAdventure = parseSaveFileText(JSON.stringify({ ...current, pet: { ...current.pet, adventure: currentAdventure } }), now).pet;
-assert.deepEqual(JSON.parse(JSON.stringify(supportedAdventure.adventure.active)), currentTrip, 'supported trips keep their rules, supplies and treasure');
+assert.deepEqual(supportedAdventure.adventure.active, normalizePet({ ...rich, adventure: currentAdventure }, now).adventure.active, 'supported trips keep their rules, supplies and treasure');
 const futurePets = Object.entries(current.pet).flatMap(([key, value]) => {
   if (!value || typeof value !== 'object' || !('schemaVersion' in value) || typeof value.schemaVersion !== 'number') return [];
   return [{ ...current.pet, [key]: { ...value, schemaVersion: value.schemaVersion + 1 } }];
 });
-futurePets.push({ ...current.pet, adventure: { ...currentAdventure, active: { ...currentTrip, rulesVersion: 7 } } });
+futurePets.push({ ...current.pet, adventure: { ...currentAdventure, active: { ...currentTrip, rulesVersion: 99 } } });
 const futureFiles = [
   { ...current, schemaVersion: 3 },
   { ...current, minimumReaderVersion: '2.0.0' },

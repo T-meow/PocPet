@@ -1,4 +1,4 @@
-import { HandHeart, ShoppingBasket } from 'lucide-react';
+import { Hammer, HandHeart, ShoppingBasket } from 'lucide-react';
 
 type SceneKind = 'field' | 'coop' | 'barn';
 type CropKind = import('../../core/foodCatalog').CropId;
@@ -6,6 +6,7 @@ interface Props {
   kind: SceneKind; title: string; subtitle: string; status: string; detail: string;
   supplies: string; harvest: string; ready: boolean; harvestDisabled: boolean;
   onHarvest: () => void; onCare: () => void;
+  onConstruction?: () => void;
   stock?: number; feed?: number; crop?: CropKind; growth?: number;
 }
 
@@ -92,11 +93,12 @@ const SceneArt = ({ kind, stock = 0, feed = 0, crop, growth = 0 }: Pick<Props, '
   <g fill="#f9f3dc"><circle cx="220" cy="539" r="4" /><circle cx="793" cy="510" r="5" /><circle cx="826" cy="455" r="4" /><circle cx="168" cy="425" r="3" /></g>
 </svg>;
 
-export const CommunityProductionScene = ({ kind, title, subtitle, status, detail, supplies, harvest, ready, harvestDisabled, onHarvest, onCare, ...art }: Props) => <section className="community-production-scene" data-production-scene={kind} data-ready={ready} aria-label={`${title}场景`}>
+export const CommunityProductionScene = ({ kind, title, subtitle, status, detail, supplies, harvest, ready, harvestDisabled, onHarvest, onCare, onConstruction, ...art }: Props) => <section className="community-production-scene" data-production-scene={kind} data-ready={ready} aria-label={`${title}场景`}>
   <header className="community-production-heading"><div><small>{subtitle}</small><h3>{title}</h3></div><span className="community-scene-status"><i />{status}</span></header>
   <div className="community-production-view"><SceneArt kind={kind} {...art} /><div className="community-harvest-sign" data-ready={ready}><ShoppingBasket size={18} /><span>{harvest}</span></div></div>
   <footer className="community-production-footer"><div className="community-production-caption"><span>{supplies}</span><span>{detail}</span></div><div className="community-production-dock">
     <button type="button" className="primary-button" disabled={harvestDisabled} onClick={onHarvest}><ShoppingBasket size={20} />收获</button>
     <button type="button" className="secondary-button" onClick={onCare} aria-haspopup="dialog"><HandHeart size={20} />照料</button>
+    {onConstruction && <button type="button" className="secondary-button" onClick={onConstruction} aria-haspopup="dialog"><Hammer size={20} />建设</button>}
   </div></footer>
 </section>;
