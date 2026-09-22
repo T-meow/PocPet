@@ -1,4 +1,6 @@
 import { Hammer, HandHeart, ShoppingBasket } from 'lucide-react';
+import { communityFacilityIcons } from '../../communityFacilityAssets';
+import { adventureLandmarkIcons } from '../../adventureLandmarkAssets';
 
 type SceneKind = 'field' | 'coop' | 'barn';
 type CropKind = import('../../core/foodCatalog').CropId;
@@ -63,7 +65,7 @@ const SceneArt = ({ kind, stock = 0, feed = 0, crop, growth = 0 }: Pick<Props, '
   <Tree x={885} y={335} scale={1.35} tone={kind === 'barn' ? '#bd9e8c' : '#a6b89b'} />
   <g stroke="#b69b75" strokeWidth="9" strokeLinecap="round"><path d="M132 323H878M132 348H878" /><path d="M145 307v61m61-61v61m62-61v61m460-61v61m62-61v61m62-61v61" /></g>
   {kind === 'field' ? <>
-    <g transform="translate(636 169)"><path d="M0 150V61L73 0l74 61v89Z" fill="#f8f3df" stroke="#92afb0" strokeWidth="8" /><path d="M5 62h135M73 6v144M0 107h147M32 35v115m82-115v115" stroke="#abc6c3" strokeWidth="5" /><path d="M48 150v-55h49v55" fill="#d4e5da" stroke="#92afb0" strokeWidth="5" /></g>
+    <image href={adventureLandmarkIcons.valley.story} x="606" y="135" width="206" height="206" preserveAspectRatio="xMidYMid meet" />
     <path d="M204 336q-21 76-49 167 69 35 197 48" fill="none" stroke="#f5eee2" strokeWidth="40" /><path d="M204 336q-21 76-49 167 69 35 197 48" fill="none" stroke="#9ec6cf" strokeWidth="23" /><path d="m184 400-7 24m-9 39-6 26m63 34 31 9" stroke="#e7f5f7" strokeWidth="4" strokeLinecap="round" />
     {[0, 1, 2].map(row => <g key={row} transform={`translate(${-row * 16} ${row * 69})`}>
       <path d="m283 311 436 0 45 49H260Z" fill="#b08a67" stroke="#f0dcbb" strokeWidth="9" strokeLinejoin="round" />
@@ -72,17 +74,7 @@ const SceneArt = ({ kind, stock = 0, feed = 0, crop, growth = 0 }: Pick<Props, '
     </g>)}
     <g transform="translate(746 463)"><ellipse cy="25" rx="40" ry="11" fill="#927057" opacity=".13" /><path d="M-25-25h45l-3 48h-38Z" fill="#84adb8" /><path d="M20-12q41-27 34 10Q50 10 18 5" fill="none" stroke="#84adb8" strokeWidth="8" /><path d="m-22-12-37-12-12 9 47 24" fill="#84adb8" /><path d="M-19-28q-8-37 33-26" fill="none" stroke="#6f939e" strokeWidth="6" /></g>
   </> : <>
-    <g transform={`translate(${kind === 'coop' ? 258 : 252} ${kind === 'coop' ? 176 : 155})`}>
-      <path d="M-19 92 153-14 324 92" fill="none" stroke="#eee2c4" strokeWidth="26" strokeLinejoin="round" />
-      <path d="M0 88 153-4 306 88v152H0Z" fill={kind === 'coop' ? '#edc694' : '#c68878'} />
-      <path d="M-22 95 153-19 328 95" fill={kind === 'coop' ? '#bf7e6b' : '#8f9cae'} stroke={kind === 'coop' ? '#9b685c' : '#697d96'} strokeWidth="12" strokeLinejoin="round" />
-      <path d="M20 123h267M20 160h267M20 196h267" stroke={kind === 'coop' ? '#d5b184' : '#b77b6a'} strokeWidth="3" />
-      <path d="M100 240V130q52-38 104 0v110" fill="#796955" stroke="#f4dfb9" strokeWidth="9" />
-      <path d="M102 153h100m-99 5 97 75m0-75-97 75" fill="none" stroke="#a18a6c" strokeWidth="8" />
-      <rect x="27" y="116" width="43" height="47" rx="4" fill="#c4d8db" stroke="#fff0cd" strokeWidth="7" /><path d="M48 117v44m-19-22h38" stroke="#fff0cd" strokeWidth="4" />
-      <circle cx="154" cy="62" r="18" fill="#fff0cd" /><path d="M148 74V51l15 11-15 12" fill={kind === 'coop' ? '#bf7e6b' : '#8f9cae'} />
-      {kind === 'coop' && <path d="m110 240-53 53h94l45-53" fill="#bfa47b" stroke="#a88a61" strokeWidth="5" />}
-    </g>
+    <image href={communityFacilityIcons[kind]} x="178" y="43" width="470" height="470" preserveAspectRatio="xMidYMid meet" />
     {kind === 'coop' ? <><Chicken x={440} y={464} scale={1.25} /><Chicken x={593} y={398} scale={1.05} cream /><Chicken x={655} y={474} scale={.85} /></> : <><Cow x={579} y={430} scale={1.1} /><g transform="translate(294 441)"><rect x="-55" y="-35" width="93" height="57" rx="15" fill="#dcc181" /><path d="M-32-33v54m38-54v54M-49-20h23m8 25h24m-17-14h20" stroke="#bd9e59" strokeWidth="4" /></g></>}
     <g transform="translate(690 348)"><path d="M-59 0 69 0 54 40H-49Z" fill="#b2997c" /><path d="M-56 0 64 0 51 12H-46Z" fill="#806f59" />{feed > 0 && <path d="M-44 5q25-22 47-3 22-18 49 3Z" fill="#e3c381" />}<path d="M-43 37v15m88-15v15" stroke="#937c62" strokeWidth="7" /></g>
     <g transform="translate(323 510)">

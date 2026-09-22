@@ -6,7 +6,7 @@ export interface MusicCompanionState {
   pendingListeningMs: number;
 }
 
-export const musicHeartIntervalMs = 10 * 60 * 1000;
+export const musicHeartIntervalMs = 2 * 60 * 1000;
 export const defaultMusicCompanionState = (): MusicCompanionState => ({ schemaVersion: 1, pendingListeningMs: 0 });
 export const normalizeMusicCompanionState = (value: unknown): MusicCompanionState => {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};

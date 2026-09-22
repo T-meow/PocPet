@@ -2,6 +2,7 @@ import type { AdventureChoice } from './adventureData';
 import type { AdventureState, AdventureTrip } from './adventureTypes';
 import type { FacilityId } from './communityTypes';
 import type { Inventory, PetState } from './petTypes';
+import { isLandmarkId, legacyPurposeLandmark, parseLandmarkId } from './landmarkProgress';
 
 export const valleyQuestIds = ['valley_gather', 'valley_ridge', 'valley_crossing', 'valley_lookout', 'valley_story', 'valley_encounter', 'valley_camp'] as const;
 export type ValleyQuestId = typeof valleyQuestIds[number];
@@ -82,7 +83,7 @@ export const valleyQuests: Record<ValleyQuestId, ValleyQuest> = {
 
 export const isValleyQuest = (id: unknown): id is ValleyQuestId => typeof id === 'string' && (valleyQuestIds as readonly string[]).includes(id);
 export const valleyQuestForNode = (node: string) => valleyQuestIds.find(id => valleyQuests[id].node === node);
-export const getAdventureRouteNode = (purpose?: string): ValleyNode | 'entrance' => isValleyQuest(purpose) ? valleyQuests[purpose].node
+export const getAdventureRouteNode = (purpose?: string): ValleyNode | 'entrance' => isLandmarkId(purpose) ? parseLandmarkId(purpose).node : isValleyQuest(purpose) ? valleyQuests[purpose].node
   : purpose === 'irrigation' || purpose === 'seeds' ? 'gather' : purpose === 'coop' || purpose === 'barn' ? 'ridge'
     : purpose === 'upstream' ? 'lookout' : purpose === 'stall' ? 'story' : purpose ? 'crossing' : 'entrance';
 export const getValleyQuestReason = (state: AdventureState, id: ValleyQuestId) => {
@@ -101,11 +102,11 @@ export const completeValleyQuest = (pet: PetState, id: ValleyQuestId): PetState 
   if (pet.adventure.valleyCompleted.includes(id)) return pet;
   const facilities = { ...pet.community.facilities };
   for (const facility of valleyQuests[id].facilities ?? []) facilities[facility] = { ...facilities[facility], found: true };
-  return { ...pet, adventure: { ...pet.adventure, valleyCompleted: [...pet.adventure.valleyCompleted, id] },
+  return { ...pet, adventure: { ...pet.adventure, landmarks: [...new Set([...pet.adventure.landmarks, legacyPurposeLandmark(id)])], valleyCompleted: [...pet.adventure.valleyCompleted, id] },
     community: { ...pet.community, facilities, ...(id === 'valley_gather' ? { irrigationFound: true, herbDiscovered: true } : {}),
       ...(id === 'valley_camp' ? { expedition: { ...pet.community.expedition, regions: { ...pet.community.expedition.regions, valley: { ...pet.community.expedition.regions.valley, surveyed: true, storyAt: pet.lastUpdatedAt, actorId: pet.adventure.active?.actorId, actorName: pet.adventure.active?.actorName } } } } : {}) } };
 };
 // A parcel is handed over at an actual bridge stop, never from another story's final screen.
-export const isAtCommunityBridge = (trip: AdventureTrip) => trip.region === 'valley' && (isValleyQuest(trip.purpose)
+export const isAtCommunityBridge = (trip: AdventureTrip) => trip.region === 'valley' && (isLandmarkId(trip.purpose) ? parseLandmarkId(trip.purpose).node === 'crossing' && Boolean(trip.stageIds?.some(id => id.endsWith(':record'))) : isValleyQuest(trip.purpose)
   ? trip.purpose === 'valley_crossing' && trip.choices.length >= 1
   : trip.choices.length >= (trip.purpose ? 3 : 4));

@@ -10,8 +10,10 @@ import { specialtyGoods, type SpecialtyItem } from './communitySpecialtyOrders';
 import { getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
 import { normalizeFishingState } from './fishingState';
+import { regionIds } from './expeditionData';
+import { landmarkNodes } from './landmarkProgress';
 
-export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 10, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
+export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 11, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
   plots: [{ id: 1 }], upgrades: { garden: 1, coop: 1, barn: 1, fishing_hut: 1 },
   toolWear: {}, treasureResearch: {}, decorations: [], decorationLevels: {}, commissionsCompleted: 0, specialtyOrders: { acceptedDay: '', completed: 0 },
   discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false },
@@ -33,6 +35,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
     gardenBuilt: built, firstOrderDelivered: built && v.firstOrderDelivered === true, seedForageDay: day(v.seedForageDay), boardDay: day(v.boardDay),
     acceptedToday: Array.isArray(v.acceptedToday) ? [...new Set(v.acceptedToday.filter(taskId))].slice(0, 2) : [] };
   state.expedition = normalizeExpeditionState(v.expedition, backpackCapacity);
+  if (regionIds.includes(v.boardRegion!)) state.boardRegion = v.boardRegion;
   state.commissionsCompleted = n(v.commissionsCompleted);
   const specialty = object(v.specialtyOrders), order = object(specialty.active), item = order.item as SpecialtyItem;
   state.specialtyOrders = { acceptedDay: day(specialty.acceptedDay), completed: n(specialty.completed) };
@@ -69,7 +72,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   state.tasks = (Array.isArray(v.tasks) ? v.tasks : []).flatMap(task => {
     if (!task || !taskId(task.id) || task.template === 'search' || task.id.split(':')[0] !== task.template || !stamp(task.acceptedAt) || seen.has(task.id)) return [];
     seen.add(task.id);
-    return [{ id: task.id, template: task.template, acceptedAt: task.acceptedAt, found: task.found === true, ...(stamp(task.rewardCoins) ? { rewardCoins: n(task.rewardCoins, 102) } : {}) }];
+    return [{ id: task.id, template: task.template, acceptedAt: task.acceptedAt, found: task.found === true, ...(regionIds.includes(task.region!) ? { region: task.region } : {}), ...(landmarkNodes.includes(task.node!) ? { node: task.node } : {}), ...(stamp(task.rewardCoins) ? { rewardCoins: n(task.rewardCoins, 1000) } : {}) }];
   }).slice(0, state.commission ? 1 : 2);
   for (const id of facilityIds) {
     const facility = object(object(v.facilities)[id]), built = facility.built === true;

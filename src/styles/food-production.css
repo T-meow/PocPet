@@ -1,8 +1,7 @@
-.recipe-filters { display: flex; flex-wrap: wrap; gap: .8rem; margin-block: 1rem; }
-.recipe-filters label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .85rem; flex: 1 1 150px; }
+.recipe-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-block: 1rem; }
+.recipe-filters label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .85rem; }
 .recipe-filters select, .food-processing input { min-width: 0; max-width: 100%; padding: .6rem; border: 1px solid #b8bba5; border-radius: .7rem; color: inherit; background: var(--panel-bg, #fffaf0); }
-.recipe-filters select { width: 100%; min-height: 44px; }
-.recipe-filters .recipe-filter-check { flex: 0 1 auto; flex-direction: row; align-items: center; }
+.recipe-filters select { width: 100%; min-height: 44px; padding-inline: 6px; font-size: 13px; }
 .kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .kitchen-recipe-book .recipe-card { gap: 10px; padding: 14px 10px; justify-content: flex-start; }
 .kitchen-recipe-book .recipe-card img { width: min(100%, 160px); height: auto; aspect-ratio: 1; }
@@ -36,9 +35,6 @@
 @media (max-width: 560px) {
   .kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .kitchen-recipe-book .recipe-card { padding: 12px 8px; }
-  .recipe-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .recipe-filters .recipe-filter-sort { grid-column: 1 / -1; }
-  .recipe-filters .recipe-filter-check { min-height: 36px; }
   .kitchen-recipe-modal .recipe-ingredients { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 360px) {

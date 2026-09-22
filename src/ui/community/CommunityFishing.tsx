@@ -13,7 +13,7 @@ import { HelpButton } from '../help/HelpButton';
 import { fishingHelp } from '../help/fishingHelp';
 
 // The operation dialog lives in FishingDialog; this component contains the separate hut pages.
-export const CommunityFishing = ({ pet, update, onKitchen, onAdventure, registry, itemIconMap, view = 'all' }: CommunityPanelProps & { view?: 'all' | 'management' | 'journal' | 'recipes' }) => {
+export const CommunityFishing = ({ pet, update, onAdventure, registry, itemIconMap, view = 'all' }: CommunityPanelProps & { view?: 'all' | 'management' | 'journal' }) => {
   const c = pet.community, f = c.fishing, free = canSpendCompanionTime(pet) && !pet.timePause;
   const level = c.upgrades.fishing_hut, effects = getFishingLevelEffects(level);
   return <>
@@ -28,7 +28,6 @@ export const CommunityFishing = ({ pet, update, onKitchen, onAdventure, registry
       })}
       {onAdventure && <button className="secondary-button" disabled={!free} onClick={onAdventure}>去前哨探索新水域</button>}
     </section>}
-    {(view === 'all' || view === 'recipes') && <section className="community-card"><h3>水边的料理</h3><p>鱼获可以自用、交单，或做成料理。</p><div className="community-actions"><button className="secondary-button" disabled={!free || !c.facilities.fishing_hut.built || !c.herbDiscovered} onClick={() => onKitchen('creek_fish_soup')}>鲫鱼＋香草 → 鲜鱼汤</button><button className="secondary-button" disabled={!free || !c.facilities.fishing_hut.built} onClick={() => onKitchen('carp_rice')}>鲤鱼＋大米 → 焖饭</button><button className="secondary-button" disabled={!free || !c.facilities.upstream.built} onClick={() => onKitchen('river_grill')}>鳟鱼＋胡萝卜 → 烤鱼</button></div></section>}
     {(view === 'all' || view === 'journal') && <section className="community-card"><div className="community-section-heading"><h3>鱼类手账 · {Object.keys(f.journal).length}/{fishIds.length}</h3><span className="fish-journal-crown"><Crown size={18} />金冠 {Object.values(f.journal).filter(entry => entry?.goldCrown).length}/{fishIds.length}</span></div><div className="community-fish-book">{fishIds.map(id => {
       const record = f.journal[id];
       return <article key={id} data-known={Boolean(record)} data-crown={record?.goldCrown === true}><img src={communityItemIcons[id]} alt="" /><b>{record ? fish[id].name : '尚未遇见'}</b><small>{waters[fish[id].water].name} · {rarityNames[fish[id].rarity]} · {fish[id].rare ? '观赏收藏' : '料理食材'}</small><span>个人最大：{record ? record.largest + ' cm' : '—'}</span><small>金冠门槛：超过 {getFishCrownThreshold(id)} cm</small>{record?.goldCrown && <span className="fish-journal-crown"><Crown size={18} />已获金冠</span>}{record && <small>累计 {record.count} 条 · 初见 {new Date(record.firstAt).toLocaleDateString('zh-CN')}</small>}</article>;

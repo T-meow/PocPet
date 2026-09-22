@@ -19,16 +19,19 @@ const stage = (level: number) => level >= 10 ? 'complete' : level >= 5 ? 'grown'
 const itemName = (item: string) => getInventoryItem(item as ItemId)?.name ?? item;
 export const DecorationSources = ({ treasure, onNavigate }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void }) => {
   const region = treasure ? regionalTreasures[treasure].region : 'valley';
-  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'route', region, ...(treasure === 'creek_aquamarine' ? { target: 'aquamarine' } : {}) })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'idle', region })}>安排当地挂机</button><button className="secondary-button" onClick={() => onNavigate({ view: 'route', region: 'valley', target: 'materials' })}>去溪谷收集建材</button></div></section>;
+  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region, node: 'gather', target: treasure })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'idle', region })}>安排当地挂机</button><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region: 'valley', target: 'materials' })}>去溪谷收集建材</button></div></section>;
 };
 export const DecorationArt = ({ id, level }: { id: CommunityDecorationId; level: number }) => <span className="decoration-art" data-stage={stage(level)} data-owned={level > 0}><img src={decorationIcons[id]} alt="" />{level >= 5 && <span className="decoration-art-trim" aria-hidden="true">{level >= 10 ? '✦' : '◇'}</span>}</span>;
 
 export const TreasureDisplay = ({ pet, onSelect }: { pet: PetState; onSelect: (id: CommunityDecorationId) => void }) => {
   const effects = getDecorationEffects(pet);
   return <section className="community-card community-decorations" aria-label="装饰与永久加成">
-    <header><div><small>让旅途的发现，留在日常里</small><h3>我的装饰</h3></div><span>{pet.community.decorations.length}/{communityDecorationIds.length} 件</span></header>
-    <div className="decoration-summary"><p><b>经营</b><span>订单 +{effects.amber_lantern}% · 上架 +{effects.golden_sign}%</span></p><p><b>种植与生产</b><span>生长 −{effects.creek_fountain}% · 生产 −{effects.sun_weather_vane}%</span></p><p><b>探索与垂钓</b><span>额外采集 {effects.emerald_pendant}% · 珍宝 +{effects.star_dome} 个百分点 · 咬钩等待 −{effects.pearl_lamp}%</span></p></div>
-    <HelpButton {...decorationsHelp} />
+    <header><h3>我的装饰 <small>{pet.community.decorations.length}/{communityDecorationIds.length} 件</small></h3><HelpButton {...decorationsHelp} /></header>
+    <dl className="decoration-summary">
+      <div><dt>经营</dt><dd><span>订单 +{effects.amber_lantern}%</span><span>上架 +{effects.golden_sign}%</span></dd></div>
+      <div><dt>种植与生产</dt><dd><span>生长 −{effects.creek_fountain}%</span><span>生产 −{effects.sun_weather_vane}%</span></dd></div>
+      <div><dt>探索与垂钓</dt><dd><span>额外采集 {effects.emerald_pendant}%</span><span>珍宝 +{effects.star_dome} 个百分点</span><span>咬钩等待 −{effects.pearl_lamp}%</span></dd></div>
+    </dl>
     <div className="decoration-list">{communityDecorationIds.map(id => {
       const level = getDecorationLevel(pet, id), quote = level ? getDecorationUpgradeQuote(pet, id) : undefined;
       const craftReady = !pet.timePause && canSpendCompanionTime(pet) && Object.entries(communityDecorations[id].items).every(([item, n]) => (pet.inventory[item] ?? 0) >= n);

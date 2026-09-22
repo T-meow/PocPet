@@ -10,9 +10,10 @@ import { timeLeft } from './types';
 import { getCropUnlockReason } from '../../core/foodCatalog';
 import { HelpButton } from '../help/HelpButton';
 import { fieldHelp } from '../help/productionHelp';
+import { itemIcons } from '../../assets';
 
 export const CommunityField = (props: CommunityPanelProps) => {
-  const { pet, update, onExplore, onKitchen, onShop, onAdventure } = props;
+  const { pet, update, onExplore, onKitchen, onShop, onAdventure, itemIconMap } = props;
   const [panel, setPanel] = useState<'care' | 'construction' | null>(null);
   const [selectedId, setSelectedId] = useState(1);
   const c = pet.community, plot = c.plots.find(p => p.id === selectedId) ?? c.plots[0], crop = plot.crop, plotId = plot.id;
@@ -20,9 +21,10 @@ export const CommunityField = (props: CommunityPanelProps) => {
   const ready = Boolean(crop && now >= crop.readyAt);
   const growth = crop ? Math.min(1, Math.max(0, (now - crop.plantedAt) / Math.max(1, crop.readyAt - crop.plantedAt))) : 0;
   const status = !c.gardenBuilt ? '踩点结算后免费开放' : ready ? '可以收获了' : crop ? '正在慢慢生长' : '等待播种';
+  const cropIcon = (id: keyof typeof communityCrops) => itemIconMap?.[communityCrops[id].product] ?? itemIcons[communityCrops[id].product];
   const selector = <div className="community-plot-selector" role="group" aria-label="选择菜地">
     {c.plots.map(p => <button type="button" key={p.id} aria-pressed={p.id === plotId} className="community-plot-card" onClick={() => setSelectedId(p.id)}>
-      <strong>第 {p.id} 块菜地</strong><span>{p.crop ? `${communityCrops[p.crop.id].glyph} ${communityCrops[p.crop.id].name}` : '待播种'}</span><small>{p.crop ? now >= p.crop.readyAt ? '已成熟 · 可收获' : timeLeft(p.crop.readyAt, now) : '独立播种与照料'}</small>
+      <strong>第 {p.id} 块菜地</strong><span className="community-plot-crop">{p.crop ? <><img src={cropIcon(p.crop.id)} alt="" />{communityCrops[p.crop.id].name}</> : '待播种'}</span><small>{p.crop ? now >= p.crop.readyAt ? '已成熟 · 可收获' : timeLeft(p.crop.readyAt, now) : '独立播种与照料'}</small>
     </button>)}
     {c.plots.length < 3 && <button type="button" className="community-plot-card community-plot-expand" aria-haspopup="dialog" onClick={() => setPanel('construction')}><strong>＋ 第 {c.plots.length + 1} 块</strong><span>查看扩建任务</span></button>}
   </div>;
@@ -43,7 +45,7 @@ export const CommunityField = (props: CommunityPanelProps) => {
         {onAdventure && <button className="primary-button" onClick={onAdventure}>去前哨基地</button>}
       </> : <>
         {selector}
-        {crop ? <section className="community-care-section"><h3>{communityCrops[crop.id].glyph} {communityCrops[crop.id].name} · {ready ? '已经成熟' : timeLeft(crop.readyAt, now)}</h3><progress aria-label="作物生长进度" max={1} value={growth} /><p>预计收获 {getCommunityCropYield(pet, plotId)} 份</p>
+        {crop ? <section className="community-care-section"><h3 className="community-crop-heading"><img src={cropIcon(crop.id)} alt="" /><span>{communityCrops[crop.id].name} · {ready ? '已经成熟' : timeLeft(crop.readyAt, now)}</span></h3><progress aria-label="作物生长进度" max={1} value={growth} /><p>预计收获 {getCommunityCropYield(pet, plotId)} 份</p>
           <p>细嘴浇水壶：{toolDurabilityLabel(pet, 'field_watering_can')} · 精收镰刀：{toolDurabilityLabel(pet, 'harvest_sickle')} · 堆肥 {pet.inventory.nutrient_compost ?? 0} 份</p><div className="community-actions">
             <button className="secondary-button" disabled={!free || ready || crop.watered || !(pet.inventory.field_watering_can ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'water'))}>{crop.watered ? '本轮已浇水' : '浇水 · 生长时间 −20% · 耐久 −1'}</button>
             <button className="secondary-button" disabled={!free || ready || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'fertilize'))}>{crop.fertilized ? '本轮已施肥 · 产量 +1' : '堆肥 ×1 · 本轮产量 +1'}</button>
@@ -53,7 +55,7 @@ export const CommunityField = (props: CommunityPanelProps) => {
           : <section className="community-care-section"><h3>今天想种些什么</h3><div className="community-seed-packets">{(Object.keys(communityCrops) as (keyof typeof communityCrops)[]).filter(id => id !== 'berry' || Boolean(pet.inventory.forest_berry_seed || c.expedition.regions.forest.surveyed)).map(id => {
             const d = communityCrops[id];
             return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id)); setPanel(null); }}>
-              <span aria-hidden="true">{d.glyph}</span><strong>{d.name}</strong><small>{d.hours} 小时 · 收获 {d.yield} 份</small><small>种子库存 {pet.inventory[d.seed] ?? 0}{d.seedPrice ? ` · 原价 ${d.seedPrice}` : ''}</small><b>{getCropUnlockReason(pet, id) || '种下种子 ×1'}</b>
+              <img src={cropIcon(id)} alt="" /><strong>{d.name}</strong><small>{d.hours} 小时 · 收获 {d.yield} 份</small><small>种子库存 {pet.inventory[d.seed] ?? 0}{d.seedPrice ? ` · 原价 ${d.seedPrice}` : ''}</small><b>{getCropUnlockReason(pet, id) || '种下种子 ×1'}</b>
             </button>;
           })}</div></section>}
         <section className="community-care-section"><h3>补充种子</h3><div className="community-actions">

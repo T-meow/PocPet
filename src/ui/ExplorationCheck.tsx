@@ -30,7 +30,7 @@ export const ExplorationCheckSummary = ({ result: r }: { result?: ExplorationChe
   <span>饱食 −{number(r.hunger)} · 体力 −{number(r.energy)} · {r.healthLoss ? `健康 −${number(r.healthLoss)}` : '健康无损'}{r.moodChange ? ` · 心情 ${signed(r.moodChange)}` : ''}</span>
   {Object.keys(r.finds).length > 0 && <span>取得 {Object.entries(r.finds).map(([id, n]) => `${name(id)} ×${n}`).join(' · ')}</span>}
   {r.researchId && <span>{name(r.researchId)}调查进度 +{r.researchPoints}</span>}
-  {Boolean(r.coins || r.hearts) && <span>巡路酬谢：金币 +{r.coins ?? 0} · 心心 +{r.hearts ?? 0}</span>}
+  {Boolean(r.coins || r.hearts) && <span>探索酬谢：金币 +{r.coins ?? 0} · 心心 +{r.hearts ?? 0}</span>}
   {r.tool && <span>{name(r.tool)}耐久 −1{r.toolBroken ? ' · 已用尽' : ''}</span>}
   {r.skill && <span>{explorationSkillNames[r.skill]}经验 +{r.xp}{r.skillLevel === 10 ? '（已满级）' : ''}</span>}
   {r.mealItem && <span>食用 {name(r.mealItem)} ×1{r.recovery && Object.entries(r.recovery).filter(([, n]) => n > 0).map(([id, n]) => ` · ${{ hunger: '饱食', energy: '体力', health: '健康', mood: '心情', cleanliness: '清洁' }[id]} +${number(n)}`).join('')}</span>}

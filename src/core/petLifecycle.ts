@@ -480,8 +480,6 @@ const advanceUnprotectedSlice = (
     lastUpdatedAt: to,
   };
   let recovered = recoverEnergyUntil(advanced, to, from);
-  if (trip && trip.mode === 'manual') recovered = { ...recovered, community: { ...recovered.community, expedition: { ...recovered.community.expedition,
-    active: { ...trip, energySpent: Math.max(0, (trip.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (trip.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } } };
   const adventure = recovered.adventure.active;
   if (adventure) recovered = { ...recovered, adventure: { ...recovered.adventure, active: { ...adventure, energySpent: Math.max(0, (adventure.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (adventure.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } };
   return advanceCommunityFishing(settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recovered), to), to), to);

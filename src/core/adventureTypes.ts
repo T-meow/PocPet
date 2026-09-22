@@ -5,7 +5,7 @@ export type AdventureRegionId = 'valley' | 'windmill' | 'forest' | 'coast' | 'ob
 export type AdventureDestinationId = AdventureRegionId | 'tutorial';
 export type AdventureTreasureId = 'coin_hoard' | 'valley_amber' | 'ancient_gold_bar';
 export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | 'map_handbook' | AdventureTreasureId;
-export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 export interface AdventureTrip {
   id: string;
@@ -33,6 +33,10 @@ export interface AdventureTrip {
   checkState?: import('./explorationChecks').ExplorationCheckState;
   rewardsVersion?: 1;
   gatherBonus?: number;
+  target?: string;
+  nodeId?: import('./landmarkProgress').LandmarkNode;
+  stageIds?: string[];
+  firstCompletion?: boolean;
 }
 
 export interface AdventureResult {
@@ -48,16 +52,19 @@ export interface AdventureResult {
   coins: number;
   items: Inventory;
   rewardsClaimed: boolean;
+  coinsRemaining?: number;
   completedDay?: string;
   purpose?: CommunityRoute;
   returnReason?: 'health';
   salvage?: Inventory;
   salvageTool?: boolean;
   lastCheck?: import('./explorationChecks').ExplorationCheckResult;
+  rulesVersion?: AdventureRulesVersion;
 }
 
 export interface AdventureState {
-  schemaVersion: 7;
+  schemaVersion: 8;
+  landmarks: import('./landmarkProgress').LandmarkId[];
   backpackLevel: number;
   valleyCompleted: import('./valleyQuests').ValleyQuestId[];
   starterClaimed: boolean;

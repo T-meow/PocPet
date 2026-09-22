@@ -33,6 +33,8 @@
 .community-page .community-scene-card { min-width: 0; overflow: hidden; border: 1px solid var(--community-line); border-radius: 18px; background: #fff; }
 .community-page .community-place-scene { position: relative; width: 100%; aspect-ratio: 960 / 630; isolation: isolate; }
 .community-page .community-scene-art { display: block; width: 100%; height: auto; }
+.community-page .community-facility-art { pointer-events: none; }
+.community-page .community-facility-art[data-built=false] { filter: grayscale(.85); opacity: .65; }
 .community-page .community-scene-companion { position: absolute; left: 34%; bottom: 4%; width: 10%; height: 18%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 4px 3px #71856422); }
 .community-page [data-scene=fishing] .community-scene-companion { left: 34%; bottom: 22%; }
 .community-page .community-place, .community-page .community-status-link { --place-ink: #426e50; --place-soft: #eaf6ec; --place-line: #cde5d2; }
@@ -41,7 +43,7 @@
 .community-page [data-place=barn], .community-page [data-place=market] { --place-ink: #935d3d; --place-soft: #fff0e5; --place-line: #efd3c0; }
 .community-page [data-place=hut], .community-page [data-place=pond], .community-page [data-place=upstream], .community-page [data-tone=sky] { --place-ink: #3d638b; --place-soft: #eaf3ff; --place-line: #c5d9f0; }
 .community-page [data-place=board], .community-page [data-place=fishbook], .community-page [data-tone=lilac] { --place-ink: #735593; --place-soft: #f0e8fa; --place-line: #dbcee8; }
-.community-page .community-place { position: absolute; left: var(--place-x); top: var(--place-y); transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 98px; max-width: 132px; min-height: 55px; padding: 6px 10px; border: 1px solid var(--place-line); border-radius: 10px; background: var(--place-soft); color: var(--place-ink); box-shadow: 0 3px 8px #263b501c; line-height: 1.35; z-index: 1; }
+.community-page .community-place { position: absolute; left: var(--place-x); top: clamp(28px, var(--place-y), calc(100% - 28px)); transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 98px; max-width: 132px; min-height: 55px; padding: 6px 10px; border: 1px solid var(--place-line); border-radius: 10px; background: var(--place-soft); color: var(--place-ink); box-shadow: 0 3px 8px #263b501c; line-height: 1.35; z-index: 1; }
 .community-page .community-place:hover { border-color: var(--place-ink); box-shadow: 0 4px 12px #263b502b; z-index: 2; }
 .community-page .community-place strong { font-size: 13px; font-weight: 600; }
 .community-page .community-place small { font-size: 10px; color: var(--community-muted); margin-top: 2px; }
@@ -86,7 +88,7 @@
 .community-page .community-steps small { display: block; margin-top: 3px; font-size: 11px; }
 .community-page .community-steps b { font-size: 13px; font-weight: 600; }
 .community-page .community-facilities { display: grid; gap: 14px; }
-.community-page .community-building-glyph { font-size: 28px; }
+.community-page .community-building-icon { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; }
 .community-page .community-seeds { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin-top: 18px; }
 .community-page .community-seeds article { padding: 15px; border: 1px solid #efd3c0; border-radius: 12px; background: #fff0e5; }
 .community-page .community-crop-glyph { font-size: 27px; }

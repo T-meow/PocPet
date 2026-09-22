@@ -40,7 +40,7 @@ export const clampStat = (value: number, max = baseStatCap) => Math.max(0, Math.
 
 export const clampHealth = (value: number, max = baseStatCap) => Math.max(1, clampStat(value, max));
 
-export const clampCoins = (value: number) => Math.max(0, Math.round(value));
+export const clampCoins = (value: number) => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.round(value)));
 
 export const clampCount = (value: number) => Math.max(0, Math.floor(value));
 

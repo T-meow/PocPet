@@ -7,11 +7,11 @@ export type FishId = 'pond_crucian' | 'pond_carp' | 'golden_koi' | 'stream_trout
 export type CommunityItemId = 'field_dressing' | 'comfort_charm' | 'carrot_seed' | 'creek_herb_seed' | 'creek_herb' | 'community_wood' | 'community_stone'
   | 'animal_feed' | 'farm_milk' | 'fishing_bait' | 'river_bait' | 'fishing_rod' | 'reinforced_rod' | FishId | ExpeditionItemId | ProductionItemId | FieldEquipmentId;
 export type FacilityId = 'coop' | 'barn' | 'fishing_hut' | 'upstream' | 'stall';
-export type CommunityRoute = 'irrigation' | 'seeds' | 'commission' | FacilityId | import('./valleyQuests').ValleyQuestId;
+export type CommunityRoute = 'irrigation' | 'seeds' | 'commission' | FacilityId | import('./valleyQuests').ValleyQuestId | import('./landmarkProgress').LandmarkId;
 export type AnimalId = 'coop' | 'barn';
 export type WaterId = 'pond' | 'upstream' | 'forest_pool' | 'coast_pier';
-export type CommissionTemplate = 'search' | 'forage' | 'vegetables' | 'eggs' | 'milk' | 'fish_pond' | 'fish_upstream' | 'soup' | 'fresh_porridge' | 'delivery' | 'forest_delicacy' | 'tea_order' | 'valley_basket' | 'valley_rice';
-export interface CommunityTask { id: string; template: CommissionTemplate; acceptedAt: number; found: boolean; rewardCoins?: number }
+export type CommissionTemplate = 'search' | 'forage' | 'vegetables' | 'eggs' | 'milk' | 'fish_pond' | 'fish_upstream' | 'fish_forest_pool' | 'fish_coast_pier' | 'soup' | 'fresh_porridge' | 'delivery' | 'forest_delicacy' | 'tea_order' | 'valley_basket' | 'valley_rice' | `${import('./expeditionTypes').RegionId}_${'survey' | 'supplies' | 'search' | 'delivery'}`;
+export interface CommunityTask { id: string; template: CommissionTemplate; acceptedAt: number; found: boolean; rewardCoins?: number; region?: import('./expeditionTypes').RegionId; node?: import('./landmarkProgress').LandmarkNode }
 export interface AnimalProduction { feed: number; stock: number; nextAt?: number; cycleMs: number; cared: boolean; revision: number }
 export interface CommunityCrop { id: CropId; plantedAt: number; readyAt: number; watered?: boolean; fertilized?: boolean }
 export interface CommunityPlot { id: number; crop?: CommunityCrop }
@@ -48,7 +48,8 @@ export interface CommunityMarket {
   log: MarketReceipt[];
 }
 export interface CommunityState {
-  schemaVersion: 10;
+  schemaVersion: 11;
+  boardRegion?: import('./expeditionTypes').RegionId;
   expedition: ExpeditionState;
   irrigationFound: boolean;
   herbDiscovered: boolean;

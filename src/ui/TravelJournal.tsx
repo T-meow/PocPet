@@ -6,8 +6,9 @@ import { communityProjects } from '../core/expeditionProjects';
 import { getInventoryItem } from '../core/items';
 import { rationReturnLines } from '../core/expeditionRationReturn';
 import type { RationReturn } from '../core/explorationRations';
-import { valleyQuestIds, valleyQuests } from '../core/valleyQuests';
-import { valleyPatrolNodes } from '../core/valleyExplorationData';
+import { mapRegions, landmarkNodes, landmarkNames, regionNames, completedLandmark, landmarkId } from '../core/landmarkProgress';
+import { landmarkSummary } from '../core/landmarkData';
+import { valleyObservationNames } from '../core/valleyExplorationData';
 import type { Inventory, ItemId, PetState } from '../core/petTypes';
 import { DialogShell } from './DialogShell';
 import '../styles/outpost.css';
@@ -21,11 +22,12 @@ interface TravelRecord {
   lastCheck?: ExplorationCheckResult;
 }
 const returnLabel = (reason: string) => reason === 'health' ? '安全返程' : reason === 'complete' ? '完成行程' : '提前返回';
-const recordLines = (entry: { journal: string[]; rationReturn?: RationReturn }) => {
-  if (!entry.rationReturn) return entry.journal;
+const recordLines = (entry: { journal: string[]; rationReturn?: RationReturn; treasureFinds?: import('../core/expeditionTypes').RegionalTreasureFind[]; treasureChance?: number }) => {
+  const treasureLines = [...(entry.treasureChance !== undefined ? [`每两小时随机概率 ${entry.treasureChance}%`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
+  if (!entry.rationReturn) return [...entry.journal, ...treasureLines];
   // Structured food counts also rebuild entries whose display text was shortened or omitted by saving.
   const journal = entry.journal.filter(line => !line.startsWith('提前吃掉了：') && !line.startsWith('吃饱后，把剩余料理分给了路过的邻居 '));
-  return [...journal, ...rationReturnLines(entry.rationReturn)];
+  return [...journal, ...rationReturnLines(entry.rationReturn), ...treasureLines];
 };
 const dateLabel = (at: number) => new Date(at).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -37,7 +39,7 @@ export const getTravelRecords = (pet: PetState): TravelRecord[] => {
     const pending = pet.adventure.pending?.id === entry.id;
     records.set(entry.id, { id: entry.id, at: entry.endedAt, title: `${entry.actorName} · ${adventureJourneyName(entry.region, entry.purpose)}`,
       status: entry.returnReason === 'health' ? '安全返程' : entry.complete ? '完成探查' : '提前返回',
-      detail: `${entry.steps}/${getAdventureStepCount(entry.region, entry.purpose)} 段${entry.first ? ' · 首次完成' : ''}`,
+      detail: `${entry.steps}/${getAdventureStepCount(entry.region, entry.purpose)} 阶段${entry.first ? ' · 首次完成' : ''}`,
       coins: entry.coins, hearts: entry.hearts, items: entry.items, lastCheck: entry.lastCheck, ...(pending ? { pending: 'adventure' as const } : {}),
     });
   }
@@ -47,7 +49,7 @@ export const getTravelRecords = (pet: PetState): TravelRecord[] => {
   }
   if (expedition.pending) {
     const entry = expedition.pending;
-    records.set(entry.id, { id: entry.id, at: entry.at, title: `${entry.route.map(id => regions[id].name).join(' → ')} · ${entry.mode === 'idle' ? '挂机探索' : '巡路'}`,
+    records.set(entry.id, { id: entry.id, at: entry.at, title: `${entry.route.map(id => regions[id].name).join(' → ')} · ${entry.mode === 'idle' ? '挂机探索' : '旧探索返程'}`,
       status: returnLabel(entry.reason), coins: entry.coins, hearts: entry.hearts, items: entry.items, lines: recordLines(entry), lastCheck: entry.lastCheck, pending: 'expedition' });
   }
   return [...records.values()].sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
@@ -76,16 +78,13 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
           {entry.pending && <button className="exp-secondary" onClick={() => onReceipt(entry.pending!)}>处理回程物资</button>}
         </article></li>)}</ol>}
       </div> : <div className="outpost-form-content">
-        <section className="outpost-section"><div className="outpost-section-heading"><Compass size={20} /><h3>溪谷 · 第一盏灯</h3><small>{pet.adventure.valleyCompleted.length}/{valleyQuestIds.length}</small></div>
-          {!pet.adventure.valleyCompleted.length && <p>沿地图完成故事，把第一次发现留在这里。</p>}
-          <div className="travel-discoveries">{valleyQuestIds.filter(id => pet.adventure.valleyCompleted.includes(id)).map(id => <details key={id}><summary><Check size={16} />{valleyQuests[id].name}</summary><p>{valleyQuests[id].outcome}</p></details>)}</div><button className="exp-link-button" onClick={onMap}>打开溪谷地图</button>
-        </section>
+        {mapRegions.map(region => <section className="outpost-section" key={region}><h3>{regionNames[region]} · 地标 {landmarkNodes.filter(node => completedLandmark(pet.adventure, region, node)).length}/8</h3><div className="travel-discoveries">{landmarkNodes.filter(node => completedLandmark(pet.adventure, region, node)).map(node => <details key={node}><summary><Check size={16} />{landmarkNames[region][node]}</summary><p>{landmarkSummary(landmarkId(region, node)).outcome}</p></details>)}</div><button className="exp-link-button" onClick={onMap}>打开地图</button></section>)}
         {(['tutorial', 'valley'] as const).map(region => {
           const found = adventureDiscoveryNames(region).filter((_, i) => pet.adventure.discoveries.includes(`${region}:${i}`));
           return found.length > 0 && <section className="outpost-section" key={region}><h3>{region === 'tutorial' ? adventureTaskName(region) : '溪谷地标'}</h3><div className="travel-item-list">{found.map(name => <span key={name}><Check size={14} />{name}</span>)}</div></section>;
         })}
         {stories.length > 0 && <section className="outpost-section"><h3>地区故事</h3><div className="travel-discoveries">{stories.map(id => <details key={id}><summary>{regions[id].glyph} {regions[id].name} · {regions[id].story}</summary><p>{regions[id].storyText}</p><small>{expedition.regions[id].actorName ? `和${expedition.regions[id].actorName}` : ''}{expedition.regions[id].storyAt !== undefined ? ` · ${dateLabel(expedition.regions[id].storyAt!)}` : ''}</small></details>)}</div></section>}
-        {observations.length > 0 && <section className="outpost-section"><h3>溪谷见闻 <small>{observations.length}/12</small></h3><div className="travel-item-list">{valleyPatrolNodes.flatMap((node, index) => ['a', 'b'].flatMap((branch, i) => observations.includes(`${index}:${branch}`) ? <span key={`${index}:${branch}`}>{node[i + 1]}</span> : []))}</div></section>}
+        {observations.length > 0 && <section className="outpost-section"><h3>溪谷见闻 <small>{observations.length}/12</small></h3><div className="travel-item-list">{valleyObservationNames.flatMap((node, index) => ['a', 'b'].flatMap((branch, i) => observations.includes(`${index}:${branch}`) ? <span key={`${index}:${branch}`}>{node[i + 1]}</span> : []))}</div></section>}
         {products.length > 0 && <section className="outpost-section"><h3>发现的物产</h3><div className="travel-products">{products.map(([id, product]) => <article key={id}><span aria-hidden="true">{product.glyph}</span><div><b>{product.name}</b><small>累计发现 {expedition.collection[id as keyof typeof expeditionProducts]} · 仓库 {pet.inventory[id] ?? 0}</small></div></article>)}</div></section>}
         {memories.length > 0 && <section className="outpost-section"><h3>过去的社区回忆</h3><div className="travel-discoveries">{memories.map(id => <details key={id}><summary>{communityProjects[id].memory}</summary><p>{communityProjects[id].name} · 已举办 {expedition.projects[id].completed} 次</p>{expedition.projects[id].actorName && <small>和{expedition.projects[id].actorName}一起</small>}</details>)}</div></section>}
       </div>}

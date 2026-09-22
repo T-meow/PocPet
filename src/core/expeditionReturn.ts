@@ -53,7 +53,7 @@ export const finishExpedition = (pet: PetState, reason: ExpeditionReceipt['reaso
   }
   const foodLines = rationReturn ? rationReturnLines(rationReturn) : [];
   return { ...withExpedition(pet, { active: undefined, pending: { id: t.id, rulesVersion: t.rulesVersion, mode: t.mode, route: t.route, items: t.bag, overflow: t.ground,
-    selected: expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: [...t.journal, ...foodLines].slice(-12), ...(rationReturn ? { rationReturn } : {}), ...(t.checkState?.last ? { lastCheck: t.checkState.last } : {}) } }),
+    selected: expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: [...t.journal, ...foodLines].slice(-12), ...(rationReturn ? { rationReturn } : {}), ...(t.treasureFinds ? { treasureFinds: t.treasureFinds } : {}), ...(t.rationPlan ? { treasureChance: t.rationPlan.chance } : {}), ...(t.checkState?.last ? { lastCheck: t.checkState.last } : {}) } }),
     recentEvent: (reason === 'health' ? '健康不足，伙伴已安全返回。发现与已经完成的故事保留，先整理行囊再入库。' : '远行结束了。收好物资，把今天的见闻带回社区。') + foodLines.join('') };
 };
 // Only timed travel produces supplies from elapsed time. Manual trips never move offline.
@@ -89,9 +89,12 @@ export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
           if (t.rulesVersion >= 3 && hour % 2 === 0) {
             const trip = pet.community.expedition.active!, index = hour / 2 - 1, segment = trip.rationSegments?.[index], plan = trip.rationPlan, discovery = plan?.discoveries[index];
             if (plan && discovery && !discovery.settled) {
-              const won = discovery.roll < plan.chance;
-              pet = withExpedition(pet, { active: { ...trip, rationPlan: { ...plan, discoveries: plan.discoveries.map((d, i) => i === index ? { ...d, settled: true, won } : d) } } });
+              const pityEnabled = trip.rulesVersion >= 5 && plan.version >= 3;
+              const misses = pet.community.expedition.treasurePity[region], guaranteed = pityEnabled && misses >= 9, won = guaranteed || discovery.roll < plan.chance;
               const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === region)!;
+              pet = withExpedition(pet, { ...(pityEnabled ? { treasurePity: { ...pet.community.expedition.treasurePity, [region]: won ? 0 : misses + 1 } } : {}),
+                active: { ...trip, rationPlan: { ...plan, discoveries: plan.discoveries.map((d, i) => i === index ? { ...d, settled: true, won, ...(pityEnabled ? { guaranteed } : {}) } : d) },
+                  ...(won ? { treasureFinds: [...trip.treasureFinds ?? [], { region, item: treasure, at, guaranteed }] } : {}) } });
               if (won) pet = putExpeditionFinds(pet, { [treasure]: 1 });
             } else if (!plan && segment && !segment.settled) {
               const won = segment.roll < segment.chance;

@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { migrateLandmarks } from './landmarkProgress';
 import { readTimePause } from './timePauseState';
 import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
 import { defaultKitchenState, normalizeKitchenState } from './kitchen';
@@ -324,12 +325,13 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const latestYearReview = normalizeYearReview(raw.latestYearReview) ?? pendingYearReview;
   const yearlyStats = normalizeYearlyStats(raw.yearlyStats, now, currentDailyDateKey);
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
-  const adventure = normalizeAdventureState(raw.adventure);
+  let adventure = normalizeAdventureState(raw.adventure);
   const community = openTutorialGarden(normalizeCommunityState(raw.community, getExplorationBagCapacity({ adventure })), adventure);
   // Older saves recorded the seven stories separately from regional travel.
   if (adventure.valleyCompleted.includes('valley_camp') && !community.expedition.regions.valley.surveyed) {
     community.expedition.regions.valley = { ...community.expedition.regions.valley, surveyed: true, storyAt: now };
   }
+  adventure = migrateLandmarks(adventure, { community }, (raw.adventure as { schemaVersion?: number } | undefined)?.schemaVersion !== 8);
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
   const hunger = Math.max(0, isNumber(raw.hunger) ? raw.hunger : fallback.hunger);

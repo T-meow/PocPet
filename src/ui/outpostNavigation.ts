@@ -1,23 +1,18 @@
 import type { AdventureRegionId } from '../core/adventureTypes';
 import type { RegionId } from '../core/expeditionTypes';
 import type { PetState } from '../core/petTypes';
-import type { ValleyGatherTarget } from '../core/valleyExplorationData';
+import type { LandmarkNode } from '../core/landmarkProgress';
 
 export type OutpostRequest =
-  | { view: 'idle' | 'route' | 'camp'; region: RegionId; target?: ValleyGatherTarget }
+  | { view: 'idle' | 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode }
   | { view: 'journal' };
 
-export const expeditionRegionForMap: Record<AdventureRegionId, RegionId> = {
-  valley: 'valley', windmill: 'hills', forest: 'forest', coast: 'coast', observatory: 'station',
-};
-export const mapRegionForExpedition: Record<RegionId, AdventureRegionId> = {
-  valley: 'valley', hills: 'windmill', forest: 'forest', coast: 'coast', station: 'observatory',
-};
+export { expeditionRegionForMap, mapRegionForExpedition } from '../core/landmarkProgress';
 
 export const currentExpeditionRequest = (pet: PetState): OutpostRequest | undefined => {
   const { active, pending } = pet.community.expedition;
-  if (pending) return { view: pending.mode === 'idle' ? 'idle' : 'route', region: pending.route[0] };
-  if (active) return { view: active.mode === 'idle' ? 'idle' : 'route', region: active.route[active.leg], target: active.target };
+  if (pending) return { view: 'idle', region: pending.route[0] };
+  if (active) return { view: 'idle', region: active.route[0], target: active.target };
 };
 
 export const initialOutpostRequest = (pet: PetState, requested?: OutpostRequest) =>

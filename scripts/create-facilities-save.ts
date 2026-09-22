@@ -1,3 +1,4 @@
+import { mapRegions, landmarkNodes, landmarkId } from '../src/core/landmarkProgress';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +19,7 @@ pet.name = '全设施测试';
 pet.coins = 100_000;
 pet.hearts = 1_000;
 pet.adventure = { ...pet.adventure, completed: { tutorial: 1, valley: 1 },
-  valleyCompleted: [...valleyQuestIds], starterClaimed: true, starterMealsClaimed: true, backpackLevel: 3 };
+  landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))), valleyCompleted: [...valleyQuestIds], starterClaimed: true, starterMealsClaimed: true, backpackLevel: 3 };
 pet.community = { ...pet.community, gardenBuilt: true, irrigationFound: true,
   herbDiscovered: true, repairStep: 2, firstOrderDelivered: true,
   upgrades: { garden: 3, coop: 3, barn: 3, fishing_hut: 5 },

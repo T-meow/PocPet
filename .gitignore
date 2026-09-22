@@ -4,6 +4,8 @@ dist-toy/
 release/
 # Generated previews, screenshots, videos, and release staging
 /output/
+# Local archive of generated originals
+/art-originals/
 /artifacts/
 /dist-release/
 *.local

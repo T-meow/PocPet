@@ -1,3 +1,5 @@
+import { getExplorationSource } from '../core/explorationSources';
+import type { OutpostRequest } from './outpostNavigation';
 import { useState } from 'react';
 import { ChefHat, Heart, ShoppingBag, X } from 'lucide-react';
 import { DialogShell } from './DialogShell';
@@ -28,9 +30,9 @@ interface Props {
   pet: PetState; actorId: string; portrait: string; workingPortrait: string; icons: Record<string, string>; registry: ItemRegistry;
   recipeId: RecipeId; onRecipe: (id: RecipeId) => void; banana: boolean; onBanana: (value: boolean) => void; quantity: number; onQuantity: (quantity: number) => void;
   update: (action: (pet: PetState) => PetState) => void; onClose: () => void; onShop: () => void; onFeed: (id: ItemId) => void;
-  favoriteFoodIds?: readonly ItemId[];
+  favoriteFoodIds?: readonly ItemId[]; onOpenOutpost?: (request: OutpostRequest) => void;
 }
-export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds }: Props) => {
+export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds, onOpenOutpost }: Props) => {
   const [tab, setTab] = useState<'book' | 'processing' | 'equipment' | 'memories'>('book');
   const [milk, setMilk] = useState<MilkChoice>('farm_milk');
   const [isRecipeOpen, setRecipeOpen] = useState(false);
@@ -71,8 +73,8 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
     <div className="activity-body">
       <div className="kitchen-scene"><div className="kitchen-scene-copy"><small>{L('不着急，慢慢来', 'TAKE YOUR TIME')}</small><h3>{L('今天想一起做点什么？', 'What shall we make today?')}</h3><p>{L(`发现 ${recipeCount} / ${recipes.length} 道食谱 · 累计制作 ${kitchenMadeCount(pet)} 份`, `${recipeCount} / ${recipes.length} recipes · ${kitchenMadeCount(pet)} dishes made`)}</p></div><img className="companion-portrait" src={portrait} alt={pet.name} /><div className="kitchen-counter" aria-hidden="true"><img src={kitchenSceneImages.servingBowl} alt="" draggable={false} /><img src={kitchenSceneImages.servingGlass} alt="" draggable={false} /><img src={kitchenSceneImages.cookingSpoon} alt="" draggable={false} /><img src={kitchenSceneImages.kitchenPlant} alt="" draggable={false} /></div></div>
       {!canCook && <p className="activity-info">{L('伙伴正在休息或忙碌，可以先看食谱，等空闲再一起做。', 'Your companion is resting or busy. Browse recipes and cook together later.')}</p>}
-      {!pet.community.herbDiscovered && <p className="activity-info">香草暖粥需要在溪谷定向搜寻中发现香草，随后可在社区菜地培育原料。</p>}
-      {tab === 'book' && <RecipeBook pet={pet} icons={icons} selected={recipeId} onSelect={id => { playSfx('open'); setRecipeParents([]); onRecipe(id); onBanana(false); onQuantity(1); setMilk((pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk'); setRecipeOpen(true); }} />}
+      {!pet.community.herbDiscovered && <p className="activity-info">香草暖粥需要在溪谷溪边采集地完成全部阶段取得香草线索，随后可在社区菜地培育原料。</p>}
+      {tab === 'book' && <RecipeBook icons={icons} selected={recipeId} onSelect={id => { playSfx('open'); setRecipeParents([]); onRecipe(id); onBanana(false); onQuantity(1); setMilk((pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk'); setRecipeOpen(true); }} />}
       {tab === 'processing' && <FoodProcessingPanel pet={pet} update={update} registry={registry} icons={icons} />}
       {tab === 'equipment' && <section><div className="equipment-grid">{cookingMethods.map((entry) => <article className="equipment-card" key={entry.id}><img src={kitchenEquipmentImages[entry.id].image} alt="" draggable={false} /><h3>{L(entry.name, entry.en)}</h3><p>{pet.kitchen.equipment.includes(entry.id) ? L('已经摆在厨房里了', 'Ready in your kitchen') : L(`做过 ${entry.requiredRecipes} 种料理后 · ${entry.price} 金币`, `Make ${entry.requiredRecipes} recipes · ${entry.price} coins`)}</p><button className="activity-primary" disabled={pet.kitchen.equipment.includes(entry.id) || recipeCount < entry.requiredRecipes || pet.coins < entry.price} onClick={() => update((current) => buyKitchenEquipment(current, entry.id))}>{pet.kitchen.equipment.includes(entry.id) ? L('已拥有', 'Owned') : L('添置厨具', 'Get this tool')}</button></article>)}</div></section>}
       {tab === 'memories' && <CompanionMemories pet={pet} actorId={actorId} />}
@@ -88,8 +90,8 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
           {hasRecipeMilkChoice(recipe) && <fieldset className="recipe-milk-choice"><legend>选择奶类</legend><div className="activity-choice">{(['farm_milk', 'ad_milk'] as const).map(id => <button key={id} aria-pressed={milk === id} onClick={() => setMilk(id)}>{registry.get(id)?.name ?? id} · 库存 {pet.inventory[id] ?? 0}</button>)}</div></fieldset>}
           {parent && <button className="activity-link" onClick={returnToParent}>{L(`返回${recipeName(getRecipe(parent.recipeId)!)}`, `Back to ${recipeName(getRecipe(parent.recipeId)!)}`)}</button>}
           <div className="recipe-ingredients">{ingredients.map(({ id, quantity: perServing }) => {
-            const missing = perServing * quantity - (pet.inventory[id] ?? 0);
-            return <div key={id} className={missing > 0 ? 'ingredient missing' : 'ingredient'}><img src={icons[id]} alt="" /><span>{registry.get(id)?.name ?? id}<small>{L(`需要 ${perServing * quantity} · 持有 ${pet.inventory[id] ?? 0}`, `Need ${perServing * quantity} · Own ${pet.inventory[id] ?? 0}`)}</small>{missing > 0 && <small>来源：{getItemSourceLabel(id)}</small>}{missing > 0 && getDish(id) && <button className="activity-link" onClick={() => prepareIngredient(id, missing)}>{L(`先做${dishName(id)}`, `Prepare ${dishName(id)}`)}</button>}</span></div>;
+            const missing = perServing * quantity - (pet.inventory[id] ?? 0), source = getExplorationSource(pet, id);
+            return <div key={id} className={missing > 0 ? 'ingredient missing' : 'ingredient'}><img src={icons[id]} alt="" /><span>{registry.get(id)?.name ?? id}<small>{L(`需要 ${perServing * quantity} · 持有 ${pet.inventory[id] ?? 0}`, `Need ${perServing * quantity} · Own ${pet.inventory[id] ?? 0}`)}</small>{missing > 0 && <small>来源：{getItemSourceLabel(id)}</small>}{missing > 0 && source && onOpenOutpost && <button className="activity-link" onClick={() => { onClose(); onOpenOutpost({ view: 'manual', ...source }); }}>前往地图采集</button>}{missing > 0 && getDish(id) && <button className="activity-link" onClick={() => prepareIngredient(id, missing)}>{L(`先做${dishName(id)}`, `Prepare ${dishName(id)}`)}</button>}</span></div>;
           })}</div>
           {dishItem && <div className="item-recovery-preview"><p>每份成品效果：{getItemEffectBadges(getItemStatEffect(pet, dishItem)).map(effect => effect.label).join(' · ')}</p></div>}
           <RecipeNotes pet={pet} recipe={recipe} banana={banana} milk={milk} />

@@ -6,7 +6,9 @@ import { getPetStatRatio, getPetStatScale } from './petStats';
 import type { AdventureResult } from './adventureTypes';
 import type { Inventory, PetState } from './petTypes';
 import { isValleyQuest, valleyQuests } from './valleyQuests';
-import { earnExplorationPay, recordLegacyPatrolPay } from './explorationBudget';
+import { earnExplorationPay, recordLegacyEntrancePay } from './explorationBudget';
+import { isLandmarkId, parseLandmarkId, expeditionRegionForMap } from './landmarkProgress';
+import { landmarkFirstReward } from './landmarkData';
 
 export const adventureHealthRules = { departure: 0.4, warning: 0.35, retreat: 0.2, lowMood: 0.3 } as const;
 export const needsAdventureHealthReturn = (pet: PetState) => Boolean(pet.adventure.active) && getPetStatRatio(pet, 'health') < adventureHealthRules.retreat;
@@ -16,6 +18,11 @@ export const getAdventureRewardPreview = (pet: PetState, now = pet.lastUpdatedAt
   const complete = Boolean(trip && steps === getAdventureStepCount(trip.region, trip.purpose));
   const first = Boolean(complete && trip && !trip.purpose && !(pet.adventure.completed[trip.region] ?? 0));
   const legacy = trip?.rulesVersion === 1;
+  if (trip && isLandmarkId(trip.purpose)) {
+    const firstReward = complete && trip.firstCompletion ? landmarkFirstReward(trip.purpose) : { coins: 0, hearts: 0 };
+    const earned = complete ? earnExplorationPay(pet, 'manual', now, expeditionRegionForMap[parseLandmarkId(trip.purpose).region]) : { coins: 0, hearts: 0 };
+    return { steps, complete, first: complete && trip.firstCompletion === true, coins: firstReward.coins + earned.coins, hearts: firstReward.hearts + earned.hearts };
+  }
   if (isValleyQuest(trip?.purpose)) {
     const quest = valleyQuests[trip.purpose];
     return { steps, complete, first: complete, hearts: complete ? quest.hearts : 0, coins: complete ? quest.coins : 0 };
@@ -33,13 +40,14 @@ export const finishAdventure = (pet: PetState, now: number, forced = false): Pet
   const trip = pet.adventure.active;
   if (!trip || pet.adventure.pending) return pet;
   const reward = getAdventureRewardPreview(pet, now);
+  if (isLandmarkId(trip.purpose) && reward.complete) pet = earnExplorationPay(pet, 'manual', now, expeditionRegionForMap[parseLandmarkId(trip.purpose).region]).pet;
   if (trip.rulesVersion >= 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = earnExplorationPay(pet, 'manual', now, 'valley', trip.rewardsVersion === 1).pet;
-  if (trip.rulesVersion < 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = recordLegacyPatrolPay(pet, trip.completedDay ?? getDailyResetDateKey(now), now);
+  if (trip.rulesVersion < 7 && trip.region === 'valley' && !trip.purpose && reward.complete) pet = recordLegacyEntrancePay(pet, trip.completedDay ?? getDailyResetDateKey(now), now);
   const items = { ...trip.bag };
   if (trip.tool) items.trail_rope = (items.trail_rope ?? 0) + 1;
   const salvage = forced && getAdventureBagCount(trip.loot) ? { ...trip.bag } : undefined;
   if (salvage) for (const [id, n] of Object.entries(trip.loot)) salvage[id] = (salvage[id] ?? 0) + n;
-  const pending: AdventureResult = { ...reward, id: trip.id, region: trip.region, purpose: trip.purpose, actorId: trip.actorId, actorName: trip.actorName, endedAt: now,
+  const pending: AdventureResult = { ...reward, rulesVersion: trip.rulesVersion, id: trip.id, region: trip.region, purpose: trip.purpose, actorId: trip.actorId, actorName: trip.actorName, endedAt: now,
     items: salvage ? {} : items, rewardsClaimed: false,
     ...(trip.checkState?.last ? { lastCheck: trip.checkState.last } : {}),
     ...(forced ? { returnReason: 'health' as const } : {}), ...(salvage ? { salvage, salvageTool: trip.tool } : {}),

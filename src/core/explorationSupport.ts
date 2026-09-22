@@ -3,11 +3,11 @@ import { getPetEnergyCap, getPetStatCap, updatePetSatiety } from './petStats';
 import type { PetState } from './petTypes';
 import { spendToolUse } from './toolDurability';
 
-export type ExplorationSystem = 'adventure' | 'expedition';
-const activeTrip = (pet: PetState, system: ExplorationSystem) => system === 'adventure' ? pet.adventure.active : pet.community.expedition.active;
+export type ExplorationSystem = 'adventure';
+const activeTrip = (pet: PetState, system: ExplorationSystem) => pet.adventure.active;
 const supportReason = (pet: PetState, system: ExplorationSystem) => {
-  const trip = activeTrip(pet, system), expedition = system === 'expedition' ? pet.community.expedition.active : undefined;
-  return pet.timePause ? '时间冻结中' : !trip || expedition?.mode === 'idle' ? '仅限手动探索途中' : expedition?.paused ? '行程已在基地暂停' : pet.health < getPetStatCap(pet) * .2 ? '健康过低，正在安全返程' : '';
+  const trip = activeTrip(pet, system);
+  return pet.timePause ? '时间冻结中' : !trip ? '仅限手动探索途中' : pet.health < getPetStatCap(pet) * .2 ? '健康过低，正在安全返程' : '';
 };
 export const getExplorationRescueQuote = (pet: PetState, system: ExplorationSystem) => {
   const cap = getPetStatCap(pet), energyCap = getPetEnergyCap(pet);
@@ -16,12 +16,8 @@ export const getExplorationRescueQuote = (pet: PetState, system: ExplorationSyst
   return { cost: 100, hunger, energy, mood, reason };
 };
 const recordRecovery = (pet: PetState, system: ExplorationSystem, energy: number, health: number, rest: boolean): PetState => {
-  if (system === 'adventure') {
-    const t = pet.adventure.active!;
-    return { ...pet, adventure: { ...pet.adventure, active: { ...t, revision: t.revision + 1, energySpent: Math.max(0, (t.energySpent ?? 0) - energy), healthLost: Math.max(0, (t.healthLost ?? 0) - health), rested: t.rested || rest } } };
-  }
-  const s = pet.community.expedition, t = s.active!;
-  return { ...pet, community: { ...pet.community, expedition: { ...s, active: { ...t, revision: t.revision + 1, energySpent: Math.max(0, (t.energySpent ?? 0) - energy), healthLost: Math.max(0, (t.healthLost ?? 0) - health), rested: rest ? [...t.rested, t.route[t.leg]] : t.rested } } } };
+  const t = pet.adventure.active!;
+  return { ...pet, adventure: { ...pet.adventure, active: { ...t, revision: t.revision + 1, energySpent: Math.max(0, (t.energySpent ?? 0) - energy), healthLost: Math.max(0, (t.healthLost ?? 0) - health), rested: t.rested || rest } } };
 };
 export const rescueExploration = (pet: PetState, system: ExplorationSystem, id: string, revision: number, now = Date.now()): PetState => {
   if (pet.timePause) return pet;
@@ -32,13 +28,13 @@ export const rescueExploration = (pet: PetState, system: ExplorationSystem, id: 
     recentEvent: `邻居送来了应急物资包：饱食 +${q.hunger}、体力 +${q.energy}、心情 +${q.mood}。花费 100 心心，可以继续当前行程。` });
 };
 export const getExplorationCampQuote = (pet: PetState, system: ExplorationSystem) => {
-  const t = activeTrip(pet, system), cap = getPetStatCap(pet), energyCap = getPetEnergyCap(pet), e = system === 'expedition' ? pet.community.expedition.active : undefined;
+  const t = activeTrip(pet, system), cap = getPetStatCap(pet), energyCap = getPetEnergyCap(pet);
   const energy = Math.max(0, Math.min(energyCap - pet.energy, Math.floor(energyCap * .25), t?.energySpent ?? 0));
   const health = Math.max(0, Math.min(cap - pet.health, 3, t?.healthLost ?? 0));
   const mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
-  const rested = e ? e.rested.includes(e.route[e.leg]) : pet.adventure.active?.rested;
-  const paid = t?.paidActions ?? (e ? e.style !== 'walk' && e.step > 0 : (pet.adventure.active?.choices.length ?? 0) > 0);
-  const reason = supportReason(pet, system) || (rested ? '本地区已休整过' : !paid || e?.style === 'walk' ? '完成一次有消耗的行动后可以扎营' : !(pet.inventory.camp_kit ?? 0) ? '需要便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
+  const rested = pet.adventure.active?.rested;
+  const paid = t?.paidActions ?? ((pet.adventure.active?.choices.length ?? 0) > 0);
+  const reason = supportReason(pet, system) || (rested ? '本地区已休整过' : !paid ? '完成一次有消耗的行动后可以扎营' : !(pet.inventory.camp_kit ?? 0) ? '需要便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
   return { energy, health, mood, reason };
 };
 export const restExplorationWithKit = (pet: PetState, system: ExplorationSystem, id: string, revision: number, now = Date.now()): PetState => {

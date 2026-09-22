@@ -8,12 +8,11 @@ export interface RegionProgress {
   storyAt?: number; actorId?: string; actorName?: string;
 }
 export interface ExpeditionTrip {
-  rulesVersion: 1 | 2 | 3 | 4; id: string; revision: number; mode: 'manual' | 'idle';
+  rulesVersion: 1 | 2 | 3 | 4 | 5; id: string; revision: number; mode: 'manual' | 'idle';
   actorId: string; actorName: string; route: RegionId[]; leg: number; step: number;
   bag: Inventory; ground: Inventory; tool: boolean; rested: RegionId[]; paused: boolean;
   startedAt: number; endsAt: number; settledParts: number; parts: number;
   coins: number; hearts: number; journal: string[];
-  style?: import('./valleyExplorationData').ValleyTravelStyle;
   target?: import('./valleyExplorationData').ValleyGatherTarget;
   harvestSpent?: number; energySpent?: number; healthLost?: number;
   reservedHarvests?: number; rationsRemaining?: number;
@@ -24,25 +23,31 @@ export interface ExpeditionTrip {
   checkState?: import('./explorationChecks').ExplorationCheckState;
   rewardsVersion?: 1;
   gatherBonus?: number;
+  treasureFinds?: RegionalTreasureFind[];
+  treasureChance?: number;
 }
 export interface ExpeditionReceipt {
   id: string; mode: 'manual' | 'idle'; route: RegionId[]; items: Inventory; overflow: Inventory; tool: boolean;
   selected: boolean; coins: number; hearts: number; at: number; reason: 'complete' | 'return' | 'health'; journal: string[];
-  rulesVersion?: 1 | 2 | 3 | 4;
+  rulesVersion?: 1 | 2 | 3 | 4 | 5;
   refundCoins?: number;
   rationReturn?: import('./explorationRations').RationReturn;
   lastCheck?: import('./explorationChecks').ExplorationCheckResult;
+  treasureFinds?: RegionalTreasureFind[];
+  treasureChance?: number;
 }
+export interface RegionalTreasureFind { region: RegionId; item: import('./regionalTreasures').RegionalTreasureId; at: number; guaranteed: boolean }
 export interface CommunityProject {
   completed: number; stage: number; theme?: 'garden' | 'journey';
   lastDay: string; firstAt?: number; actorId?: string; actorName?: string;
 }
 export interface ExpeditionState {
-  schemaVersion: 4; nextId: number;
+  schemaVersion: 5; nextId: number;
+  treasurePity: Record<RegionId, number>;
   regions: Record<RegionId, RegionProgress>;
   projects: Record<ProjectId, CommunityProject>;
   collection: Partial<Record<ExpeditionItemId | import('./adventureTypes').AdventureTreasureId, number>>;
   loop?: import('./explorationBudget').ExplorationBudget;
   active?: ExpeditionTrip; pending?: ExpeditionReceipt;
-  lastReceipt?: Pick<ExpeditionReceipt, 'id' | 'reason' | 'at' | 'route' | 'journal' | 'lastCheck' | 'rationReturn'>;
+  lastReceipt?: Pick<ExpeditionReceipt, 'id' | 'reason' | 'at' | 'route' | 'journal' | 'lastCheck' | 'rationReturn' | 'treasureFinds' | 'treasureChance'>;
 }

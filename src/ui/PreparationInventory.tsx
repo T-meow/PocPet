@@ -16,7 +16,7 @@ import { QuantityPresets } from './QuantityPresets';
 import { ItemRecoveryPreview } from './ItemRecoveryPreview';
 import { HelpButton } from './help/HelpButton';
 import { backpackHelp } from './help/explorationHelp';
-import { getItemBrowseCategories, filterBrowseItems, type ItemBrowseCategory } from './itemBrowse';
+import { getItemBrowseCategories, filterBrowseItems, isKitchenMaterial, type ItemBrowseCategory } from './itemBrowse';
 
 const dishIds = new Set<string>(allDishes.map(dish => dish.id));
 export interface PreparationResources {
@@ -39,6 +39,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   for (const [id, n] of Object.entries(carried)) catalogueStock[id] = Math.max(catalogueStock[id] ?? 0, n);
   const items = getInventoryDefinitions(registry, catalogueStock).filter(item => (carried[item.id] ?? 0) > 0 || (foodOnly ? isTravelFood(item.id) : isAdventureSupply(item.id) || item.id === 'trail_rope' || item.usable && item.kind !== 'garden'));
   const visible = category === 'dishes' || category === 'rations' ? items.filter(item => dishIds.has(item.id) === (category === 'dishes')) : filterBrowseItems(items, category);
+  const warehouseItems = visible.filter(item => !isKitchenMaterial(item));
   const packedItems = Object.entries(bag).filter(([id, n]) => n > 0 && visible.some(item => item.id === id));
   const automaticItems = Object.entries(automaticFood).filter(([id, n]) => n > 0 && (category === 'all' || category === 'dishes' && dishIds.has(id) || category === 'rations' && !dishIds.has(id)));
   const manualCount = getAdventureBagCount(bag), packed = manualCount + getAdventureBagCount(automaticFood);
@@ -47,7 +48,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   const selectedTool = Boolean(tool && selected?.id === 'trail_rope');
   const max = selectedTool ? Math.min(1, amount) : selection?.source === 'bag' ? amount : Math.min(capacity, amount);
   const count = Math.max(1, Math.min(quantity, max));
-  const canPack = selected && (foodOnly ? isTravelFood(selected.id) : isAdventureSupply(selected.id) || selectedTool);
+  const canPack = selected && !isKitchenMaterial(selected) && (foodOnly ? isTravelFood(selected.id) : isAdventureSupply(selected.id) || selectedTool);
   const requestedUseCount = selected?.id === 'golden_apple' || selected?.id === 'birthday_cake' ? 1 : getEffectiveBatchQuantity(pet, count);
   const usePlan = selected ? getItemUsePlan(pet, selected, requestedUseCount) : undefined;
   const useCount = usePlan?.quantity ?? 0;
@@ -81,7 +82,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
           {bagExtra}
         </div>
       </section>
-      <section className="adventure-pack-pane adventure-pack-pane--warehouse" aria-label={L('仓库未装入物资', 'Unpacked home supplies')}><h3><PackageOpen size={18} />{L('仓库', 'Home inventory')}<small>{L('尚未装入', 'Unpacked')}</small></h3><div className="storage-grid-scroll" tabIndex={0} aria-label="浏览仓库物品"><div className="storage-item-grid">{visible.map(item => tile(item.id, 'warehouse', warehouse[item.id] ?? 0))}</div>{!visible.length && <p className="adventure-pack-empty">{L('仓库里还没有这类补给。', 'No supplies in this category yet.')}</p>}</div></section>
+      <section className="adventure-pack-pane adventure-pack-pane--warehouse" aria-label={L('仓库未装入物资', 'Unpacked home supplies')}><h3><PackageOpen size={18} />{L('仓库', 'Home inventory')}<small>{L('尚未装入', 'Unpacked')}</small></h3><div className="storage-grid-scroll" tabIndex={0} aria-label="浏览仓库物品"><div className="storage-item-grid">{warehouseItems.map(item => tile(item.id, 'warehouse', warehouse[item.id] ?? 0))}</div>{!warehouseItems.length && <p className="adventure-pack-empty">{L('仓库里还没有这类补给。', 'No supplies in this category yet.')}</p>}</div></section>
     </div>
     <footer className="adventure-pack-footer">
       <div className="adventure-transfer-status" role="status">{transfer && <span key={transfer.key} data-direction={transfer.intoBag ? 'in' : 'out'}><img src={icons[transfer.id] ?? unknownItemIcon} alt="" />{registry.get(transfer.id)?.name} ×{transfer.quantity} {transfer.intoBag ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}{transfer.intoBag ? L('背包', 'Bag') : L('仓库', 'Home')}</span>}</div>

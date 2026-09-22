@@ -2,6 +2,8 @@
 .community-plot-card { min-width: 0; min-height: 92px; padding: 12px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #d7ddd0; border-radius: 14px; color: #425c4b; background: #f8faf3; text-align: left; overflow-wrap: anywhere; }
 .community-plot-card[aria-pressed=true] { border: 2px solid #54806b; background: #e7f2e9; padding: 11px; }
 .community-plot-card small { font-size: 12px; line-height: 1.5; }
+.community-plot-crop { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.community-plot-crop img { flex-shrink: 0; width: 24px; height: 24px; object-fit: contain; }
 .community-plot-expand { border-style: dashed; justify-content: center; }
 .community-upgrade-task { min-width: 0; margin: 18px 0; padding: 16px; border: 1px solid #d7ded2; border-radius: 16px; background: #f7faf3; overflow-wrap: anywhere; }
 .community-upgrade-task .community-section-heading { flex-wrap: wrap; gap: 8px; }
@@ -89,6 +91,8 @@
 .community-page .community-care-section { margin: 22px 0; padding: 20px 0 0; border-top: 1px dashed #dfd5c5; }
 .community-page .community-care-section:first-child { padding-top: 0; border-top: 0; }
 .community-page .community-care-section h3 { margin: 0 0 8px; font-size: 16px; }
+.community-page .community-crop-heading { display: flex; align-items: center; gap: 8px; }
+.community-page .community-crop-heading img { flex-shrink: 0; width: 36px; height: 36px; object-fit: contain; }
 .community-page .community-care-section p { margin: 6px 0 14px; }
 .community-page .community-care-section progress { display: block; width: 100%; height: 8px; margin-top: 16px; accent-color: #68998a; }
 .community-page .community-care-footnote { font-size: 12px; }
@@ -96,7 +100,7 @@
 .community-page .community-seed-packet { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 10px 12px; border: 1px solid #c8dacc; border-top: 8px solid #a1bc9f; border-radius: 6px 6px 12px 12px; background: #f0f6eb; color: #456b53; text-align: center; }
 .community-page .community-seed-packet[data-crop=carrot] { border-color: #e1c5a3; background: #fff2e0; color: #896742; }
 .community-page .community-seed-packet[data-crop=berry] { border-color: #dfbcd0; background: #fff0f7; color: #9c587d; }
-.community-page .community-seed-packet > span { font-size: 36px; }
+.community-page .community-seed-packet > img { width: 52px; height: 52px; object-fit: contain; }
 .community-page .community-seed-packet > strong { font-size: 16px; }
 .community-page .community-seed-packet > small { font-size: 11px; }
 .community-page .community-seed-packet > b { width: 100%; margin-top: 6px; padding: 8px 4px 0; border-top: 1px dashed currentColor; font-size: 12px; font-weight: 500; }
@@ -135,7 +139,6 @@
 .community-page .community-noticeboard-footer summary { padding: 12px 0; cursor: pointer; }
 .community-page .community-noticeboard-footer details p { margin: 4px 0 8px; text-align: left; }
 .community-page .community-letter { padding: 20px 24px; margin-bottom: 20px; background: #f8f0df; border-radius: 3px 3px 16px 3px; }
-.community-page .community-letter-art { font-size: 38px; }
 .community-page .community-letter-item { width: 56px; height: 56px; object-fit: contain; }
 .community-page .community-letter p { margin-bottom: 0; }
 .community-page .community-letter-reward { display: flex; align-items: center; gap: 6px; font-size: 12px; }

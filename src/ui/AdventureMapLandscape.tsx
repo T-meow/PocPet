@@ -1,7 +1,7 @@
 import type { AdventureRegionId } from '../core/adventureTypes';
 import { adventureMapThemes } from '../core/adventureMap';
 
-// The prototype's vector map remains a fallback until each region receives overview art.
+// Terrain stays vector-based; interactive landmark images are rendered by AdventureMap.
 export const AdventureMapLandscape = ({ region }: { region: AdventureRegionId }) => {
   const theme = adventureMapThemes[region];
   const forest = region === 'forest';
@@ -19,13 +19,5 @@ export const AdventureMapLandscape = ({ region }: { region: AdventureRegionId })
       {forest ? <path d="M0-100-45-18h20l-35 40H60L25-18h20Z" fill="#688e77" /> : <><ellipse cy="-24" rx="43" ry="46" fill="#86aa70" /><ellipse cx="-18" cy="-37" rx="24" ry="30" fill="#a2bd84" /><ellipse cx="22" cy="-20" rx="24" ry="34" fill="#739861" /></>}
     </g>)}
     {Array.from({ length: 25 }, (_, i) => <g key={i} transform={`translate(${50 + (i * 173) % 900} ${245 + (i * 97) % 320})`}><path d="M0 0v12m0-5 5-4" stroke="#7b9c68" strokeWidth="2" /><circle r="4" fill={['#fff6cf', '#eec8ac', '#f7e9df'][i % 3]} /></g>)}
-    <g transform="translate(724 222) scale(.77)">
-      <ellipse cy="95" rx="110" ry="22" fill="#45664c" opacity=".13" />
-      {region === 'valley' && <><path d="M-91 4 0-68 91 4v90H-91Z" fill="#d7e8d7" stroke="#829c80" strokeWidth="6" /><path d="M-91 4H91M0-68V93M-47-32V93M47-32V93M-90 50H91" fill="none" stroke="#94ab86" strokeWidth="4" /><path d="M-15 48h30v46h-30Z" fill="#a0b994" /></>}
-      {region === 'windmill' && <><path d="m-52 90 22-140h60L52 90Z" fill="#fff0cc" stroke="#c7a16a" strokeWidth="4" /><path d="m-50-40 50-38 50 38Z" fill="#b57959" /><path d="M0-16V-104m0 88 80 44M0-16l-80 44" stroke="#a17b51" strokeWidth="10" /><path d="M10-30 35-90M10-5l57 50M-18-12-79-5" stroke="#fff4d9" strokeWidth="23" /><circle cy="-16" r="13" fill="#d6ae71" /></>}
-      {region === 'forest' && <><rect x="-75" y="2" width="150" height="86" rx="4" fill="#c3a481" /><path d="m-98 5 98-83 98 83Z" fill="#63877a" stroke="#4b6f62" strokeWidth="5" /><path d="M-62 25h30v30h-30Zm95 0h30v30H33Z" fill="#f8dc9b" /><rect x="-14" y="32" width="31" height="56" fill="#8c775f" /></>}
-      {region === 'coast' && <><path d="M-85 4H85V90H-85Z" fill="#e7dfbd" /><path d="m-106 7 26-56H64L106 7Z" fill="#7197a5" /><path d="M-67 30h37v32h-37ZM30 30h37v32H30Z" fill="#d1e8e7" /><rect x="-16" y="27" width="32" height="64" fill="#a8aa91" /><path d="M-104 98h215m-193-5v44m166-44v44" stroke="#b6a486" strokeWidth="11" /></>}
-      {region === 'observatory' && <><path d="M-85 14a85 85 0 0 1 170 0" fill="#c6c8e4" stroke="#797c9a" strokeWidth="5" /><path d="M-72 10v78H72V10Z" fill="#e8e3ec" stroke="#9696ac" strokeWidth="4" /><path d="M-10-70v80M-45-54-20 9" stroke="#9297b6" strokeWidth="5" /><rect x="-16" y="41" width="32" height="47" rx="3" fill="#8d91af" /><path d="M-99 12H99M52-41 96-71" stroke="#7b83a8" strokeWidth="8" /></>}
-    </g>
   </svg>;
 };

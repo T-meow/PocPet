@@ -5,8 +5,6 @@ import type { AdventureRegionId } from '../core/adventureTypes';
 import { valleySceneAssets } from '../valleySceneAssets';
 
 interface AdventureRegionArt {
-  // Overview art uses the map's 1000 × 650 coordinate space. Pins stay separate.
-  overview?: string;
   nodes: Partial<Record<AdventureNodeId, string>>;
 }
 export const adventureHallScene = hallBackground;

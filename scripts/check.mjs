@@ -139,27 +139,175 @@ async function verifySavesAndErrors() {
       for (const key of ['coins', 'health', 'mood']) assert.ok(Number.isFinite(invalidStats[key]) && invalidStats[key] >= 0, key);
     });
 
+    await check('全地图旧档迁移、旧在途安全返程与物产往返', async () => {
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { expeditionProducts } = await import('../src/core/expeditionData.ts');
+      const { getAdventureSteps } = await import('../src/core/adventureData.ts');
+      const { startAdventure } = await import('../src/core/adventure.ts');
+      const { claimExpedition } = await import('../src/core/expedition.ts');
+      const { getExplorationBagCapacity } = await import('../src/core/explorationBackpack.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const legacy = structuredClone(pet);
+      legacy.adventure.schemaVersion = 7; delete legacy.adventure.landmarks;
+      legacy.adventure.completed = { tutorial: 1, valley: 1 };
+      legacy.adventure.valleyCompleted = ['valley_gather'];
+      let loaded = normalizePet(legacy, now);
+      assert.deepEqual(loaded.adventure.landmarks, ['landmark:valley:entrance', 'landmark:valley:gather']);
+      legacy.community.expedition.regions.windmill = { surveyed: true, base: 2, harvestUsed: 0, harvestDay: '' };
+      delete legacy.community.expedition.regions.hills;
+      legacy.community.expedition.active = { id: 'expedition:19', rulesVersion: 4, mode: 'manual', actorId: 'official.furo', actorName: 'Furo', route: ['windmill', 'forest'], leg: 1, step: 3, startedAt: now, endsAt: now, parts: 2, settledParts: 0, tool: true, bag: { hill_honey: 2, forest_berry: 1 }, ground: { sea_glass: 3 }, coins: 47, hearts: 4, rested: [], paused: true, journal: [] };
+      loaded = normalizePet(legacy, now);
+      assert.equal(loaded.adventure.landmarks.filter(id => id.startsWith('landmark:windmill:')).length, 8);
+      assert.equal(loaded.community.expedition.regions.hills.base, 2);
+      assert.equal(loaded.community.expedition.active, undefined);
+      const receipt = loaded.community.expedition.pending;
+      assert.deepEqual(receipt.items, { hill_honey: 2, forest_berry: 1 });
+      assert.deepEqual(receipt.overflow, { sea_glass: 3 });
+      assert.equal(receipt.tool, true); assert.equal(receipt.coins, 47);
+      assert.equal(loaded.coins, legacy.coins, 'migration must not grant chapter rewards');
+      assert.deepEqual(normalizePet(loaded, now).community.expedition.pending, receipt);
+      const restored = parseSaveFileText(createSaveFileText(loaded, null, now), now).pet;
+      assert.deepEqual(restored.community.expedition.pending.items, receipt.items);
+      assert.deepEqual(restored.adventure.landmarks, loaded.adventure.landmarks);
+      const fullBag = getExplorationBagCapacity(restored);
+      const blockedReturn = { ...restored, inventory: { ...restored.inventory, hill_honey: inventoryItemLimit, trail_rope: inventoryItemLimit }, community: { ...restored.community, expedition: { ...restored.community.expedition, pending: { ...receipt, selected: true, items: { hill_honey: fullBag }, overflow: {} } } } };
+      const deferred = claimExpedition(blockedReturn, receipt.id);
+      const deferredRestored = parseSaveFileText(createSaveFileText(deferred, null, now), now).pet;
+      assert.deepEqual(deferredRestored.community.expedition.pending.items, { hill_honey: fullBag });
+      assert.equal(deferredRestored.community.expedition.pending.tool, true, 'a blocked equipped tool must keep its separate return slot');
+      const repeated = claimExpedition(deferredRestored, receipt.id);
+      assert.deepEqual(repeated.community.expedition.pending, deferredRestored.community.expedition.pending);
+      assert.equal(repeated.hearts, deferredRestored.hearts, 'deferred returns must not repeat heart rewards');
+      repeated.inventory.hill_honey -= fullBag; repeated.inventory.trail_rope--;
+      const collected = claimExpedition(repeated, receipt.id);
+      assert.equal(collected.community.expedition.pending, undefined);
+      assert.equal(collected.inventory.hill_honey, inventoryItemLimit); assert.equal(collected.inventory.trail_rope, inventoryItemLimit);
+      assert.deepEqual(claimExpedition(collected, receipt.id), collected);
+      const oldStory = structuredClone(loaded);
+      oldStory.community.expedition.pending = undefined;
+      oldStory.adventure.active = { id: 'old-story', actorId: 'official.furo', actorName: 'Furo', region: 'valley', purpose: 'valley_crossing', startedAt: now, rulesVersion: 8, revision: 1, choices: [getAdventureSteps(8, 'valley', 'valley_crossing')[0].choices[0].id], bag: { bento: 1 }, loot: {}, tool: true, shopStock: {}, purchases: 0, transportedCount: 0 };
+      const oldRestored = parseSaveFileText(createSaveFileText(oldStory, null, now), now).pet;
+      assert.equal(oldRestored.adventure.active.rulesVersion, 8);
+      assert.equal(getAdventureSteps(8, 'valley', oldRestored.adventure.active.purpose).length, 3);
+      assert.deepEqual(oldRestored.adventure.active.choices, oldStory.adventure.active.choices);
+      const all = normalizePet({ ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 }, backpackLevel: 3, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) } }, now);
+      const started = startAdventure(all, 'observatory', 'official.furo', 'Furo', {}, false, now, 'landmark:observatory:gather');
+      assert.ok(started.adventure.active, started.recentEvent);
+      started.adventure.active.bag = Object.fromEntries(Object.keys(expeditionProducts).map(id => [id, 1]));
+      const saved = parseSaveFileText(createSaveFileText(started, null, now), now).pet;
+      assert.deepEqual(saved.adventure.active.bag, started.adventure.active.bag, 'every region product and treasure survives the bag codec');
+      assert.deepEqual(saved.adventure.landmarks, all.adventure.landmarks);
+    });
+
+    await check('挂机地区保底跨存档、提前返回与结算重复恢复', async () => {
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { regionIds } = await import('../src/core/expeditionData.ts');
+      const { regionalTreasureIds, regionalTreasures } = await import('../src/core/regionalTreasures.ts');
+      const { startExpedition, claimExpedition, getExpeditionStartReason } = await import('../src/core/expedition.ts');
+      const { settleExpeditionTime, finishExpedition } = await import('../src/core/expeditionReturn.ts');
+      const full = normalizePet({ ...pet, coins: 100000, adventure: { ...pet.adventure, completed: { tutorial: 1 }, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) }, community: { ...pet.community, expedition: { ...pet.community.expedition, regions: Object.fromEntries(regionIds.map(id => [id, { surveyed: true, base: 1, harvestUsed: 0, harvestDay: '' }])) } } }, now);
+      for (const region of regionIds) {
+        const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === region);
+        let state = structuredClone(full);
+        state.community.expedition.treasurePity[region] = 8;
+        const snapshot = JSON.stringify(state);
+        getExpeditionStartReason(state, [region], 'idle', 2, now);
+        assert.equal(JSON.stringify(state), snapshot, 'preview must not advance pity');
+        state = startExpedition(state, [region], {}, false, 'official.furo', 'Furo', 'idle', 2, now);
+        assert.ok(state.community.expedition.active, state.recentEvent);
+        const t = state.community.expedition.active;
+        t.rationPlan.discoveries[0].roll = 99;
+        const early = finishExpedition(settleExpeditionTime(state, now + 7199999), 'return', now + 7199999);
+        assert.equal(early.community.expedition.treasurePity[region], 8);
+        const missed = settleExpeditionTime(state, t.endsAt);
+        assert.equal(missed.community.expedition.treasurePity[region], 9);
+        assert.equal(missed.community.expedition.pending.items[treasure] ?? 0, 0);
+        assert.deepEqual(settleExpeditionTime(missed, t.endsAt), missed);
+        let restored = parseSaveFileText(createSaveFileText(missed, null, now), now).pet;
+        assert.equal(restored.community.expedition.treasurePity[region], 9);
+        restored = claimExpedition(restored, restored.community.expedition.pending.id);
+        restored = startExpedition(restored, [region], {}, false, 'official.furo', 'Furo', 'idle', 2, now);
+        assert.ok(restored.community.expedition.active, restored.recentEvent);
+        restored.community.expedition.active.rationPlan.discoveries[0].roll = 99;
+        const guaranteed = settleExpeditionTime(restored, restored.community.expedition.active.endsAt);
+        assert.equal(guaranteed.community.expedition.treasurePity[region], 0);
+        assert.equal(guaranteed.community.expedition.pending.items[treasure], 1);
+        assert.equal(guaranteed.community.expedition.pending.treasureFinds[0].guaranteed, true);
+        const pending = parseSaveFileText(createSaveFileText(guaranteed, null, now), now).pet;
+        const id = pending.community.expedition.pending.id, claimed = claimExpedition(pending, id);
+        assert.equal(claimExpedition(claimed, id), claimed);
+        assert.equal(claimed.inventory[treasure], 1);
+        const old = structuredClone(restored);
+        old.community.expedition.active.rulesVersion = 4;
+        old.community.expedition.active.rationPlan.version = 2;
+        assert.equal(settleExpeditionTime(old, old.community.expedition.active.endsAt).community.expedition.treasurePity[region], 9, 'old trips retain their old rules');
+        const lucky = structuredClone(state); lucky.community.expedition.active.rationPlan.discoveries[0].roll = 0;
+        assert.equal(settleExpeditionTime(lucky, lucky.community.expedition.active.endsAt).community.expedition.treasurePity[region], 0);
+      }
+    });
+
+    await check('手动阶段恢复、首通防重与满仓满币待领', async () => {
+      const { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, redeemAdventureTreasure } = await import('../src/core/adventure.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getPetStatCap, getPetEnergyCap, clampCoins } = await import('../src/core/petStats.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      let state = startAdventure(fuel({ ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 } } }), 'valley', 'official.furo', 'Furo', {}, false, now, 'landmark:valley:entrance');
+      for (const step of getLandmarkSteps('landmark:valley:entrance')) {
+        state = fuel(state);
+        const trip = state.adventure.active;
+        state = advanceAdventure(state, trip.id, trip.choices.length, step.choices[0].id, now, trip.revision);
+        assert.equal(state.adventure.active.stageIds.length, trip.choices.length + 1);
+        const repeated = advanceAdventure(state, trip.id, trip.choices.length, step.choices[0].id, now, trip.revision);
+        assert.deepEqual(repeated.adventure, state.adventure, 'stale stage action cannot repeat its reward');
+        state = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      }
+      assert.equal(state.adventure.landmarks.filter(id => id === 'landmark:valley:entrance').length, 1);
+      state = returnFromAdventure(state, state.adventure.active.id, now);
+      const id = state.adventure.pending.id, amount = state.adventure.pending.coins;
+      state.coins = clampCoins(Number.MAX_SAFE_INTEGER);
+      state.inventory.coin_hoard = inventoryItemLimit;
+      state = claimAdventureResult(state, id);
+      assert.equal(state.adventure.pending.coinsRemaining, amount);
+      assert.equal(state.adventure.pending.items.coin_hoard, 1);
+      const claimedHearts = state.hearts;
+      state = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      assert.deepEqual(claimAdventureResult(state, id).inventory, state.inventory);
+      state.coins -= amount; state.inventory.coin_hoard--;
+      state = claimAdventureResult(state, id);
+      assert.equal(state.hearts, claimedHearts);
+      assert.equal(state.adventure.pending, undefined);
+      assert.equal(claimAdventureResult(state, id), state);
+      const repeatedTrip = startAdventure(fuel(state), 'valley', 'official.furo', 'Furo', {}, false, now, 'landmark:valley:entrance');
+      assert.ok(repeatedTrip.adventure.active, repeatedTrip.recentEvent);
+      repeatedTrip.adventure.active.bag.coin_hoard = 1;
+      assert.equal(redeemAdventureTreasure(repeatedTrip, repeatedTrip.adventure.active.id, repeatedTrip.adventure.active.revision).adventure.active.bag.coin_hoard, 1);
+    });
+
     await check('音乐陪伴存档兼容、累计进度与结算幂等', async () => {
       const { addMusicListeningTime, claimMusicHearts } = await import('../src/core/musicCompanion.ts');
       const oldEnvelope = JSON.parse(text);
       delete oldEnvelope.pet.musicCompanion;
       assert.deepEqual(parseSaveFileText(JSON.stringify(oldEnvelope), now).pet.musicCompanion, { schemaVersion: 1, pendingListeningMs: 0 });
+      const almostReady = parseSaveFileText(createSaveFileText(addMusicListeningTime(pet, 120_000 - 1), null, now), now).pet;
+      assert.equal(claimMusicHearts(almostReady), almostReady);
+      assert.equal(claimMusicHearts(addMusicListeningTime(almostReady, 1)).hearts, pet.hearts + 1, 'two minutes across a save boundary earns one heart');
       const listening = addMusicListeningTime(pet, 25 * 60_000 + 123);
       const reopened = parseSaveFileText(createSaveFileText(listening, null, now), now + 10 * 86400_000).pet;
       assert.equal(reopened.musicCompanion.pendingListeningMs, listening.musicCompanion.pendingListeningMs, 'offline time must not add listening time');
       const claimed = claimMusicHearts(reopened);
-      assert.equal(claimed.hearts - reopened.hearts, 2);
-      assert.equal(claimed.musicCompanion.pendingListeningMs, 5 * 60_000 + 123);
+      assert.equal(claimed.hearts - reopened.hearts, 12);
+      assert.equal(claimed.musicCompanion.pendingListeningMs, 60_000 + 123);
       assert.equal(claimMusicHearts(claimed), claimed, 'repeated settlement must not repeat a reward');
       const carried = parseSaveFileText(createSaveFileText(claimed, null, now), now).pet;
-      assert.equal(claimMusicHearts(addMusicListeningTime(carried, 5 * 60_000)).hearts, claimed.hearts + 1);
-      assert.equal(claimMusicHearts(addMusicListeningTime(pet, 100 * 600_000)).hearts, pet.hearts + 100, 'no daily/session reward cap');
+      assert.equal(claimMusicHearts(addMusicListeningTime(carried, 60_000)).hearts, claimed.hearts + 1);
+      assert.equal(claimMusicHearts(addMusicListeningTime(pet, 100 * 120_000)).hearts, pet.hearts + 100, 'no daily/session reward cap');
       for (const invalid of [-1, NaN, Infinity]) {
         assert.equal(addMusicListeningTime(pet, invalid), pet);
         assert.equal(normalizePet({ ...pet, musicCompanion: { pendingListeningMs: invalid } }, now).musicCompanion.pendingListeningMs, 0);
       }
       const frozen = { ...listening, timePause: { schemaVersion: 1, pausedAt: now } };
-      assert.equal(addMusicListeningTime(frozen, 600_000), frozen);
+      assert.equal(addMusicListeningTime(frozen, 120_000), frozen);
       assert.equal(claimMusicHearts(frozen), frozen);
       const future = JSON.parse(text);
       future.pet.musicCompanion.schemaVersion = 99;
@@ -243,11 +391,10 @@ async function verifySavesAndErrors() {
     });
 
     await check('行程随机种子、规则版本及冻结时间保存', async () => {
-      const [{ startAdventure }, { startExpedition }] = await Promise.all([import('../src/core/adventure.ts'), import('../src/core/expedition.ts')]);
+      const { startAdventure } = await import('../src/core/adventure.ts');
       const ready = { ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 } } };
       const adventure = startAdventure(ready, 'valley', 'official.furo', 'Furo', {}, false, now);
-      const expedition = startExpedition(ready, ['valley'], {}, false, 'official.furo', 'Furo', 'manual', 1, now);
-      for (const [started, tripOf] of [[adventure, p => p.adventure.active], [expedition, p => p.community.expedition.active]]) {
+      for (const [started, tripOf] of [[adventure, p => p.adventure.active]]) {
         const trip = tripOf(started);
         assert.ok(trip?.checkState, 'real trip must start with saved check state');
         const restored = tripOf(parseSaveFileText(createSaveFileText(started, null, now), now).pet);

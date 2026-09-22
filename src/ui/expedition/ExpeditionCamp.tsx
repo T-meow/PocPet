@@ -1,4 +1,5 @@
-import { Check, Tent } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { expeditionLandmarkIcons } from '../../adventureLandmarkAssets';
 import { getBaseUpgrade, upgradeExpeditionBase } from '../../core/expedition';
 import { getRegionUnlocked, regions } from '../../core/expeditionData';
 import { canSpendCompanionTime } from '../../core/kitchen';
@@ -12,14 +13,14 @@ export const ExpeditionCamp = ({ pet, update, region, onMap, onGather, onIdle }:
   const upgrade = getBaseUpgrade(progress.base, region);
   const ready = getRegionUnlocked(pet, region) && progress.surveyed;
   const enough = pet.coins >= upgrade.coins && (pet.inventory.community_wood ?? 0) >= upgrade.wood && (pet.inventory.community_stone ?? 0) >= upgrade.stone;
-  const reason = !ready ? '先完成当地故事，再来建设营地。'
+  const reason = !ready ? '先完成当地全部 8 个地标，再来建设营地。'
     : pet.timePause ? '时间已冻结，恢复时间后再建设。'
       : !canSpendCompanionTime(pet) ? '伙伴正在休息或忙碌，空闲后再建设。'
         : !enough ? '建材或金币不足，可以先去采集。' : '';
   return <section className="outpost-camp">
-    <div className="outpost-section-heading"><span className="outpost-symbol" data-tone="peach"><Tent size={24} /></span><div><small>{place.name} · 营地 {progress.base}/2 级</small><h3>{place.base}</h3></div></div>
+    <div className="outpost-section-heading"><img className="outpost-location-icon" src={expeditionLandmarkIcons[region].camp} alt="" /><div><small>{place.name} · 营地 {progress.base}/2 级</small><h3>{place.base}</h3></div></div>
     <p>{progress.base >= 2 ? '营地与往返步道已建成，可以安排挂机探索。' : upgrade.benefit}</p>
-    <ol className="outpost-camp-steps">{['完成地区故事', '修好休息基地', '修通往返步道'].map((name, i) => <li key={name} data-done={i === 0 ? progress.surveyed : progress.base >= i}><Check size={16} />{name}</li>)}</ol>
+    <ol className="outpost-camp-steps">{['完成全部地标', '修好休息基地', '修通往返步道'].map((name, i) => <li key={name} data-done={i === 0 ? progress.surveyed : progress.base >= i}><Check size={16} />{name}</li>)}</ol>
     {progress.base < 2 && <>
       <div className="outpost-costs"><span>金币 <b>{pet.coins}/{upgrade.coins}</b></span><span>木料 <b>{pet.inventory.community_wood ?? 0}/{upgrade.wood}</b></span><span>石料 <b>{pet.inventory.community_stone ?? 0}/{upgrade.stone}</b></span></div>
       {reason && <p className="exp-warning" role="status">{reason}</p>}

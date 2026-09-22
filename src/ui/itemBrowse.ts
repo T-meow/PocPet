@@ -10,8 +10,9 @@ export interface ItemBrowseState { category: ItemBrowseCategory; query: string; 
 export const createItemBrowseState = (): ItemBrowseState => ({ category: 'all', query: '', quantity: 1 });
 export const getStorageReturnTarget = (dialog: string | null, previous: 'kitchen' | 'play' | null) => dialog === 'kitchen' || dialog === 'play' ? dialog : dialog === 'shop' || dialog === 'inventory' ? previous : null;
 const recipeIngredientIds = new Set<string>(allDishes.flatMap(({ recipe, banana }) => getRecipeIngredients(recipe, banana)));
-export const isKitchenIngredient = (item: InventoryItemDefinition) => recipeIngredientIds.has(item.id) || item.tags.includes('kitchen_material') || Boolean(item.purchaseContents?.some((content) => recipeIngredientIds.has(content.itemId)));
-export const isDedicatedKitchenMaterial = (item: InventoryItemDefinition) => item.tags.includes('kitchen_material') && !item.usable;
+export const isKitchenMaterial = (item: { tags?: readonly string[] } | undefined) => Boolean(item?.tags?.includes('kitchen_material'));
+export const isKitchenIngredient = (item: InventoryItemDefinition) => recipeIngredientIds.has(item.id) || isKitchenMaterial(item) || Boolean(item.purchaseContents?.some((content) => recipeIngredientIds.has(content.itemId)));
+export const isDedicatedKitchenMaterial = (item: InventoryItemDefinition) => isKitchenMaterial(item) && !item.usable;
 export const getItemBrowseCategories = () => [
   { id: 'all' as const, label: L('全部', 'All') },
   { id: 'food' as const, label: t('pet.shop.categories.food') },

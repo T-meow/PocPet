@@ -1,3 +1,4 @@
+import { completedChapter, completedLandmark, mapRegionForExpedition, regionNames } from './landmarkProgress';
 import { getLanguage } from '../i18n';
 import type { BuiltinItemId, ItemEffect, PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenMaterialId, RecipeId, MilkChoice } from './companionActivityTypes';
@@ -82,16 +83,16 @@ export const getRecipeUnlockReason = (pet: PetState, id: RecipeId) => {
       const f = fish[item as keyof typeof fish];
       if (f && !isWaterOpen(pet, f.water)) return '在小屋开放对应水域后解锁';
       const wild = wildIngredients[item as keyof typeof wildIngredients];
-      if (wild && !pet.community.expedition.regions[wild.region].surveyed && !(wild.region === 'valley' && pet.adventure.valleyCompleted.includes('valley_story'))) return '完成食材产地的故事后解锁';
+      if (wild && !completedChapter(pet.adventure, mapRegionForExpedition[wild.region]) && !(wild.region === 'valley' && completedLandmark(pet.adventure, 'valley', 'story'))) return `完成${regionNames[mapRegionForExpedition[wild.region]]}全部地标后解锁（溪谷配方在旧温室开放）`;
       if (['cream', 'cheese'].includes(item) && !pet.community.facilities.barn.built) return '开放牛棚与奶制品加工后解锁';
     }
     if (id === 'valley_travel_bento' && (!pet.kitchen.made.chestnut_rice || !pet.kitchen.made.bamboo_mushroom_soup)) return '先做过山栗焖饭与笋菇鲜汤';
   }
   const region = ({ mushroom_rice: 'valley', honey_drink: 'hills', berry_milk: 'forest', kelp_rice: 'coast' } as const)[id as 'mushroom_rice'];
-  if (region && !pet.community.expedition.regions[region].surveyed && !(region === 'valley' && pet.adventure.valleyCompleted.includes('valley_story'))) return region === 'valley' ? '读完「温室里未完的约定」后记下配方' : '完成对应地区故事后记下配方';
+  if (region && !completedChapter(pet.adventure, mapRegionForExpedition[region]) && !(region === 'valley' && completedLandmark(pet.adventure, 'valley', 'story'))) return region === 'valley' ? '完成溪谷／旧温室的全部阶段后记下配方' : `完成${regionNames[mapRegionForExpedition[region]]}全部 8 个地标后记下配方`;
   if (id === 'honey_drink' && !pet.community.herbDiscovered) return '先去溪谷发现香草';
   if (id === 'berry_milk' && !pet.community.facilities.barn.built) return '先开放牛棚，取得鲜奶';
-  if (id === 'herb_porridge' && !pet.community.herbDiscovered) return '去溪谷发现香草后解锁';
+  if (id === 'herb_porridge' && !pet.community.herbDiscovered) return '完成溪谷／溪边采集地，取得香草线索后解锁';
   if (id === 'creek_fish_soup' && (!pet.community.herbDiscovered || !pet.community.facilities.fishing_hut.built)) return '发现香草并开放钓鱼小屋后解锁';
   if (id === 'carp_rice' && !pet.community.facilities.fishing_hut.built) return '开放钓鱼小屋后解锁';
   if (id === 'river_grill' && !pet.community.facilities.upstream.built) return '修好上游步道后解锁';

@@ -1,6 +1,7 @@
 import type { AnimalId, CommissionTemplate, FacilityId, FishId, WaterId } from './communityTypes';
 import type { PetState } from './petTypes';
 import { communityCrops, getCropUnlockReason, type FoodRarity, type CropId } from './foodCatalog';
+import { completedLandmark, legacyPurposeLandmark, parseLandmarkId, landmarkNames } from './landmarkProgress';
 import type { ValleyQuestId } from './valleyQuests';
 
 export const facilityIds: FacilityId[] = ['coop', 'barn', 'fishing_hut', 'upstream', 'stall'];
@@ -13,7 +14,7 @@ export const facilities: Record<FacilityId, { name: string; clue: string; jobs: 
 };
 export const facilityAvailable = (pet: PetState, id: FacilityId) => {
   if (pet.community.facilities[id].built) return true;
-  if (!pet.adventure.valleyCompleted.includes(facilityStories[id].id)) return false;
+  if (!completedLandmark(pet.adventure, 'valley', parseLandmarkId(legacyPurposeLandmark(facilityStories[id].id)).node)) return false;
   const required = facilities[id].requires;
   if (id === 'stall') return pet.community.gardenBuilt || pet.community.facilities.fishing_hut.built;
   return !required || (required === 'garden' ? pet.community.gardenBuilt : pet.community.facilities[required].built);
@@ -50,7 +51,7 @@ export const facilityStories: Record<FacilityId, { id: ValleyQuestId; name: stri
 export const getFacilityBuildReason = (pet: PetState, id: FacilityId) => {
   if (pet.community.facilities[id].built) return '';
   const story = facilityStories[id];
-  if (!pet.adventure.valleyCompleted.includes(story.id)) return `先完成溪谷故事「${story.name}」。`;
+  if (!completedLandmark(pet.adventure, 'valley', parseLandmarkId(legacyPurposeLandmark(story.id)).node)) return `先完成溪谷／${landmarkNames.valley[parseLandmarkId(legacyPurposeLandmark(story.id)).node]}的全部阶段，取得「${story.name}」的设施线索。`;
   if (!facilityAvailable(pet, id)) return id === 'stall' ? '先开放菜地或钓鱼小屋。' : id === 'barn' ? '先开放鸡舍。' : id === 'upstream' ? '先开放钓鱼小屋。' : '先完成新手踩点并结算，免费开放菜地。';
   return '';
 };
@@ -58,13 +59,13 @@ export const fishIds = Object.keys(fish) as FishId[];
 export const waters = {
   pond: { name: '小屋池塘', discovery: '修好钓鱼小屋', region: 'valley', coins: 0, wood: 0, stone: 0 },
   upstream: { name: '溪流上游', discovery: '完成溪谷「风声里的上游」，开放钓鱼小屋后交付建材', region: 'hills', coins: 300, wood: 3, stone: 5 },
-  forest_pool: { name: '雾松深潭', discovery: '亲自完成林地故事，发现古树后的深潭', region: 'forest', coins: 360, wood: 6, stone: 4 },
-  coast_pier: { name: '海岸栈桥', discovery: '亲自完成海岸故事，发现通海旧栈桥', region: 'coast', coins: 420, wood: 8, stone: 5 },
+  forest_pool: { name: '雾松深潭', discovery: '完成雾松林地全部 8 个地标，记录深潭线索，再建设栈道', region: 'forest', coins: 360, wood: 6, stone: 4 },
+  coast_pier: { name: '海岸栈桥', discovery: '完成潮汐海岸全部 8 个地标，记录栈桥线索，再建设水域', region: 'coast', coins: 420, wood: 8, stone: 5 },
 } as const;
 export const waterIds = Object.keys(waters) as WaterId[];
 export const isWaterOpen = (pet: PetState, water: WaterId) => pet.community.facilities.fishing_hut.built &&
   (water === 'pond' || (water === 'upstream' ? pet.community.facilities.upstream.built : pet.community.waterAccess[water]?.built));
-export const commissionTemplates: CommissionTemplate[] = ['search', 'forage', 'vegetables', 'eggs', 'milk', 'fish_pond', 'fish_upstream', 'soup', 'fresh_porridge', 'delivery', 'forest_delicacy', 'tea_order', 'valley_basket', 'valley_rice'];
+export const commissionTemplates: CommissionTemplate[] = ['search', 'forage', 'vegetables', 'eggs', 'milk', 'fish_pond', 'fish_upstream', 'fish_forest_pool', 'fish_coast_pier', 'soup', 'fresh_porridge', 'delivery', 'forest_delicacy', 'tea_order', 'valley_basket', 'valley_rice', ...(['valley', 'hills', 'forest', 'coast', 'station'] as const).flatMap(region => (['survey', 'supplies', 'search', 'delivery'] as const).map(kind => `${region}_${kind}` as CommissionTemplate))];
 import { getEquipmentPurchaseReason } from './fieldEquipmentData';
 export const getCommunityPurchaseReason = (pet: PetState, id: string) => {
   const equipmentReason = getEquipmentPurchaseReason(pet, id);

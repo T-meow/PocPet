@@ -11,10 +11,10 @@ import { getDailyResetDateKey } from './dailyReset';
 
 export const explorationRefillMs = 3 * 3600000;
 export const explorationCapacity = 24;
-export interface PatrolVoucher { day: string; slot: number; face: number; paid: number; region?: RegionId; quote?: number; rewardsVersion?: 1; lootUsed?: number; lootRegion?: RegionId; lootQuote?: number }
+export interface ExplorationVoucher { day: string; slot: number; face: number; paid: number; region?: RegionId; quote?: number; rewardsVersion?: 1; lootUsed?: number; lootRegion?: RegionId; lootQuote?: number }
 export interface ExplorationBudget {
   refillAt: number; available: number; used: number; day: string;
-  vouchers: PatrolVoucher[]; heartDays: { day: string; hours: number; claimed: boolean }[];
+  vouchers: ExplorationVoucher[]; heartDays: { day: string; hours: number; claimed: boolean }[];
   observations: string[]; milestones: number[]; idleCompleted: number; firstTreasure: boolean;
   lootSettledThrough?: number;
 }
@@ -24,7 +24,7 @@ export const getExplorationTier = (pet: PetState) => {
   if (state.regions.valley.base >= 2 && (state.loop?.used ?? 0) >= 80 && pet.community.decorations.includes('creek_fountain')) return 3;
   return state.regions.valley.surveyed && state.regions.valley.base >= 1 ? 2 : 1;
 };
-export const getPatrolFace = (pet: PetState) => [150, 300, 600][getExplorationTier(pet) - 1];
+export const getExplorationFace = (pet: PetState) => [150, 300, 600][getExplorationTier(pet) - 1];
 export const shiftExplorationDay = (day: string, offset: number) => new Date(Date.parse(day + 'T12:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
 export const advanceExplorationBudget = (pet: PetState, now: number): PetState => {
   if (pet.timePause || !(pet.adventure.completed.tutorial ?? 0)) return pet;
@@ -46,7 +46,7 @@ export const advanceExplorationBudget = (pet: PetState, now: number): PetState =
       const pending = pet.adventure.pending;
       const legacyPending = pending?.region === 'valley' && pending.complete && !pending.purpose && (pending.completedDay ?? getDailyResetDateKey(pending.endedAt)) === issueDay;
       const legacyPaid = !old && (pet.adventure.lastCompletedDay?.valley === issueDay || legacyPending);
-      for (let slot = 0; slot < 4; slot++) loop.vouchers.push({ day: issueDay, slot, face: getPatrolFace(pet), paid: legacyPaid ? 100 : 0, rewardsVersion: 1, lootUsed: legacyPaid ? 100 : 0 });
+      for (let slot = 0; slot < 4; slot++) loop.vouchers.push({ day: issueDay, slot, face: getExplorationFace(pet), paid: legacyPaid ? 100 : 0, rewardsVersion: 1, lootUsed: legacyPaid ? 100 : 0 });
       loop.heartDays.push({ day: issueDay, hours: 0, claimed: legacyPaid });
     }
     loop.day = day;
@@ -139,7 +139,7 @@ export const recordValleyObservation = (pet: PetState, key: string, now: number)
   if (observations.length >= 12 && pet.adventure.valleyCompleted.includes('valley_camp') && !milestones.includes(12)) { milestones.push(12); finds.ancient_gold_bar = 1; }
   return { pet: setBudget(pet, { ...old, observations, milestones }), finds };
 };
-export const recordLegacyPatrolPay = (pet: PetState, day: string, now: number): PetState => {
+export const recordLegacyEntrancePay = (pet: PetState, day: string, now: number): PetState => {
   pet = advanceExplorationBudget(pet, now);
   const loop = pet.community.expedition.loop;
   return loop ? setBudget(pet, { ...loop, firstTreasure: true, vouchers: loop.vouchers.map(v => v.day === day ? { ...v, paid: 100, lootUsed: 100 } : v), heartDays: loop.heartDays.map(v => v.day === day ? { ...v, claimed: true } : v) }) : pet;

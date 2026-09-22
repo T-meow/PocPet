@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, Crown, Fish, Settings2, Utensils, X, Zap } fro
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
 import { getFishingHelp } from '../help/fishingHelp';
+import { isKitchenMaterial } from '../itemBrowse';
 import { FishingSceneArt, type FishingScenePhase } from './FishingSceneArt';
 import type { CommunityPanelProps } from './types';
 import type { ItemId } from '../../core/petTypes';
@@ -41,7 +42,7 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
   const selectedRod = (active?.strongRod ?? strong) ? 'reinforced_rod' : 'fishing_rod';
   const phase: FishingScenePhase = pending ? 'caught' : idle ? 'idle' : manual ? biting ? manual.clicks ? 'reeling' : 'biting' : 'waiting' : 'ready';
   const icon = (id: string) => itemIconMap?.[id] ?? communityItemIcons[id as keyof typeof communityItemIcons];
-  const foodIds = Object.keys(pet.inventory).filter(id => pet.inventory[id] > 0 && isTravelFood(id)).sort((a, b) => (getInventoryItem(a as ItemId)?.name ?? a).localeCompare(getInventoryItem(b as ItemId)?.name ?? b, 'zh-CN'));
+  const foodIds = Object.keys(pet.inventory).filter(id => pet.inventory[id] > 0 && isTravelFood(id) && !isKitchenMaterial(getInventoryItem(id as ItemId))).sort((a, b) => (getInventoryItem(a as ItemId)?.name ?? a).localeCompare(getInventoryItem(b as ItemId)?.name ?? b, 'zh-CN'));
   const changeFood = (id: string, delta: number) => setRations(current => {
     const food = { ...current.food }, count = (food[id] ?? 0) + delta;
     if (count < 0 || count > (pet.inventory[id] ?? 0) || delta > 0 && Object.values(food).reduce((n, value) => n + value, 0) >= quote.food.maximum) return current;
