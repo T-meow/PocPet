@@ -138,6 +138,8 @@ import { PlayModal } from './PlayModal';
 import { DialogShell } from './DialogShell';
 import { FloatingRewardBubble } from './FloatingRewardBubble';
 import { useCompanionActivities } from './app/useCompanionActivities';
+import { useMusicCompanion } from './app/useMusicCompanion';
+import { MusicCompanionBar, MusicCompanionPage } from './MusicCompanionPage';
 import { getPageBgmMode } from './app/worldAudio';
 import { useWorldAudioFeedback } from './app/useWorldAudioFeedback';
 import { claimKitchenStarter } from '../core/kitchen';
@@ -383,6 +385,21 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   }), [itemRegistry, neighbors]);
   const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError, retryPersistence, adoptCommittedPet, saveAction, timePauseBusy, freezeTime, resumeTime } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
   const actorId = activeMod?.manifest.id ?? 'official.furo';
+  const musicBlocked = Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy);
+  const music = useMusicCompanion({ pet, petRef, actorId, blocked: musicBlocked, save: saveAction, commit: commitPet });
+  const startMusic = () => {
+    if (musicBlocked) return;
+    setAudioEnabled(true);
+    setAudioEnabledState(true);
+    music.start();
+    void unlockAudio();
+  };
+  const finishMusic = () => {
+    const hearts = music.finish();
+    if (hearts === 0) notices.notify(pet.timePause ? '陪伴已结束，已有的聆听进度会保留。' : '陪伴已结束，未满十分钟的聆听进度会留到下次。', 'info');
+  };
+  const musicControls = { playback: music.playback, pendingListeningMs: music.pendingListeningMs, blocked: musicBlocked,
+    onStart: startMusic, onPause: music.pause, onFinish: finishMusic };
   const backupController = useAutomaticBackup(petRef, getStoredSaveIdentity() ?? activeMod?.manifest, Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy || pet.timePause));
   const updateController = useClientUpdates();
   const [editionNoticeVisible, setEditionNoticeVisible] = useState(() => shouldShowEditionNotice(readEditionNotice()));
@@ -1035,6 +1052,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleConfirmReset = () => {
     playAfterUnlock('tap');
+    music.detach();
     try { clearPet(); }
     catch { setModMessage(t('ui.backup.recoveryStorage')); setResetConfirmOpen(false); return; }
     onResetToPicker(activeMod, installedMods);
@@ -1059,6 +1077,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         const oldDefaultName = activeMod.manifest.defaultPetName;
         const loaded = await loadPetMod(parsed.manifest.id);
         if (!loaded) throw new Error(t('ui.settings.mod.loadFailed'));
+        music.detach();
         setActiveMod(loaded);
         setPet((current) => ({
           ...withPetIdentityBirthday(current, parsed.manifest.birthday),
@@ -1085,6 +1104,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       if (!loaded) throw new Error(t('ui.settings.mod.loadFailed'));
       const oldDefaultName = activeMod?.manifest.defaultPetName ?? defaultPetName;
       assertStorageUnchanged();
+      music.detach();
       setActivePetMod(modId);
       setStoredSaveIdentity(loaded.manifest);
       setActiveMod(loaded);
@@ -1109,6 +1129,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleClearMod = async () => {
     try {
       assertStorageUnchanged();
+      music.detach();
       const oldDefaultName = activeMod?.manifest.defaultPetName;
       await clearActivePetMod();
       setStoredSaveIdentity();
@@ -1137,6 +1158,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       const wasActive = activeMod?.manifest.id === modId;
       const oldDefaultName = wasActive ? activeMod?.manifest.defaultPetName : undefined;
       assertStorageUnchanged();
+      if (wasActive) music.detach();
       await deletePetMod(modId);
       setInstalledMods(await listInstalledPetMods());
       if (wasActive) {
@@ -1359,6 +1381,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     if (importInProgressRef.current) return;
     try {
       const imported = parseSaveFileText(text);
+      music.detach();
       setPendingImportedSave(imported);
       setPendingImportSourceText(text);
       setModMessage(t('ui.settings.save.previewReady'));
@@ -1632,7 +1655,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         </div>
       </header>
 
-      {activePage === 'achievements' ? (
+      {music.playback.active && activePage !== 'music' && <MusicCompanionBar {...musicControls} onOpen={() => setActivePage('music')} />}
+
+      {activePage === 'music' ? (
+        <MusicCompanionPage {...musicControls} pet={pet} petStatusImages={petStatusImageMap} petActivityImages={petActivityImageMap} onBack={() => setActivePage('home')} />
+      ) : activePage === 'achievements' ? (
         <AchievementsPage
           pet={pet}
           activeCategory={activeAchievementCategory}
@@ -1703,6 +1730,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenKitchen={openKitchen}
           onOpenPlay={openPlay}
           onOpenMemories={() => setActivePage('memories')}
+          onOpenMusic={() => setActivePage('music')}
+          musicActive={music.playback.active}
           onOpenFestival={openFestival}
           onOpenNotices={() => notices.setHistoryOpen(true)}
           onOpenAppearance={() => openSettings('appearance')}

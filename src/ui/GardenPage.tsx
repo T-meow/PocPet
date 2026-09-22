@@ -1,4 +1,6 @@
 import { Fragment, useState } from 'react';
+import { HelpButton } from './help/HelpButton';
+import { orchardHelp } from './help/productionHelp';
 import { ArrowLeft, Cloud, CloudRain, Droplets, Flower2, Leaf, LockKeyhole, Pickaxe, Plus, Recycle, ShoppingBag, Sparkles, Sprout, Sun, Wind, Wrench, X, type LucideIcon } from 'lucide-react';
 import { currencyIcon, giftBoxIcon, treeStageImages } from '../assets';
 import {
@@ -11,7 +13,6 @@ import {
   gardenTreeSaplingItemIds,
   formatGardenCareDuration,
   getGardenCarePreview,
-  getGardenAdvancedFertilizerDailyLimitMs,
   getGardenClearCost,
   getGardenEnvironmentEffects,
   getGardenFertilizerReductionPercent,
@@ -36,7 +37,6 @@ import { DialogShell } from './DialogShell';
 import { QuantityStepper } from './QuantityStepper';
 import { formatCompactNumber } from './numberFormat';
 import { activityText as L } from '../core/kitchenRecipes';
-import { formatPracticeSkillXp, partnerScheduleMaxSkillLevel } from '../core/partnerSchedule';
 
 interface GardenPageProps {
   pet: PetState;
@@ -132,7 +132,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
             {t('ui.garden.compensationGiftLabel', { coins: compensationCoins })}
           </button>
         )}
-        {pet.partnerSchedule.skills.garden.level < partnerScheduleMaxSkillLevel && <p className="garden-practice-hint">{L('每次成功浇水、施肥或收获：', 'Each successful watering, fertilizing or harvest: ')}{formatPracticeSkillXp('garden')}</p>}
+        <HelpButton {...orchardHelp} />
         <div className="garden-plot-grid">
           {view.garden.slots.map((plot) => {
             const plotView = view.slotViews[plot.slotIndex];
@@ -188,18 +188,18 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
                   <button type="button" className="icon-button" onClick={() => setActionDialog(null)} aria-label={t('ui.garden.closeDialog')}><X size={20} aria-hidden="true" /></button>
                 </header>
                 <div className="garden-plot-care-actions">
+                      <HelpButton {...orchardHelp} />
                       <p className="garden-manage-status">{state === 'growing' ? t('ui.garden.remaining', { time: formatGardenCountdown(plotView?.remainingMs ?? 0) }) : L('果实已经成熟啦', 'Ready to harvest')}</p>
                       {state === 'growing' && <>
                         {ordinaryTree ? <>
                           <button type="button" className="garden-choice" disabled={fertilizedRound || normalFertilizerCount <= 0 || normalFertilizerPreview.actualReductionMs <= 0} onClick={() => onFertilize(plot.slotIndex, 'normal')}><Flower2 size={18} /><span><strong>{t('ui.garden.actions.normalFertilizer')}</strong><small>{fertilizedRound ? L('本轮已施肥', 'Fertilized this round') : getGardenCarePreviewText(normalFertilizerPreview, normalFertilizerCount)}</small></span></button>
                           <button type="button" className="garden-choice" disabled={fertilizedRound || heartFertilizerCount <= 0 || heartFertilizerPreview.actualReductionMs <= 0} onClick={() => onFertilize(plot.slotIndex, 'heart')}><Sparkles size={18} /><span><strong>{t('ui.garden.actions.heartFertilizer')}</strong><small>{fertilizedRound ? L('本轮已施肥', 'Fertilized this round') : getGardenCarePreviewText(heartFertilizerPreview, heartFertilizerCount)}</small><small>{L('下次保底多 1 件普通产物', 'One guaranteed extra common item')}</small></span></button>
                         </> : <>
-                          <small>{L('每份普通肥减时 1%，爱心肥 2%；每日合计最多 10%，且不超过 6 小时。', 'Each normal fertilizer saves 1%, heart 2%; daily total up to 10%, capped at 6 hours.')}</small>
-                          <small>{L(`今日施肥减时 ${plot.dailyAdvancedFertilizerReductionMs > 0 ? formatGardenCareDuration(plot.dailyAdvancedFertilizerReductionMs) : '0'} / ${formatGardenCareDuration(getGardenAdvancedFertilizerDailyLimitMs(plot))}`, `Fertilizer time saved today: ${plot.dailyAdvancedFertilizerReductionMs > 0 ? formatGardenCareDuration(plot.dailyAdvancedFertilizerReductionMs) : '0'} / ${formatGardenCareDuration(getGardenAdvancedFertilizerDailyLimitMs(plot))}`)}</small>
+                          {normalFertilizerPreview.blockedReason === 'daily_limit' && heartFertilizerPreview.blockedReason === 'daily_limit' && <small>今日施肥加速已达上限</small>}
                           <div className="garden-fertilizer-quantity" role="group" aria-label={L('施肥份数', 'Fertilizer quantity')}><span>{L('施肥份数', 'Fertilizer quantity')}</span><QuantityStepper value={fertilizerQuantity} max={Math.max(1, normalFertilizerCount, heartFertilizerCount)} disabled={Math.max(normalFertilizerCount, heartFertilizerCount) <= 0 || Math.max(normalFertilizerPreview.actualReductionMs, heartFertilizerPreview.actualReductionMs) <= 0} onChange={(quantity) => setFertilizerQuantities((current) => ({ ...current, [plot.slotIndex]: quantity }))} /></div>
                           <button type="button" className="garden-choice" disabled={normalFertilizerCount <= 0 || normalFertilizerPreview.actualReductionMs <= 0} onClick={() => onFertilize(plot.slotIndex, 'normal', fertilizerQuantity)}><Flower2 size={18} /><span><strong>{t('ui.garden.actions.normalFertilizer')}</strong><small>{getGardenCarePreviewText(normalFertilizerPreview, normalFertilizerCount)}</small></span></button>
                           <button type="button" className="garden-choice" disabled={heartFertilizerCount <= 0 || heartFertilizerPreview.actualReductionMs <= 0} onClick={() => onFertilize(plot.slotIndex, 'heart', fertilizerQuantity)}><Sparkles size={18} /><span><strong>{t('ui.garden.actions.heartFertilizer')}</strong><small>{getGardenCarePreviewText(heartFertilizerPreview, heartFertilizerCount)}</small></span></button>
-                          <button type="button" className="garden-choice" disabled={boostedRound || nutrientCount <= 0} onClick={() => onNutrient(plot.slotIndex)}><Sparkles size={18} /><span><strong>{t('ui.garden.actions.nutrient')}</strong><small>{boostedRound ? L('本轮已使用', 'Used this round') : t('ui.garden.itemOwned', { count: nutrientCount })}</small><small>{plot.treeId === 'money_tree' ? L('本次基础金币 +25%', '+25% base coins this harvest') : L('额外 1 个苹果：50% 金苹果', 'One extra apple: 50% golden')}</small></span></button>
+                          <button type="button" className="garden-choice" disabled={boostedRound || nutrientCount <= 0} onClick={() => onNutrient(plot.slotIndex)}><Sparkles size={18} /><span><strong>{t('ui.garden.actions.nutrient')}</strong><small>{boostedRound ? L('本轮已使用', 'Used this round') : t('ui.garden.itemOwned', { count: nutrientCount })}</small><small>{plot.treeId === 'money_tree' ? L('本次金币 +25%', '+25% base coins this harvest') : '本次额外苹果 ×1'}</small></span></button>
                         </>}
                       </>}
                       {state === 'ready' && <button type="button" className="primary-button garden-harvest-button" onClick={() => { setActionDialog(null); onHarvest(plot.slotIndex); }}>{t('ui.garden.actions.harvest')}</button>}

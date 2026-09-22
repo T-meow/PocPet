@@ -10,7 +10,8 @@ import { formatPracticeSkillXp } from '../core/partnerSchedule';
 import { playSfx } from '../core/audio';
 import { KitchenCookingModal } from './kitchen/KitchenCookingModal';
 import type { KitchenCraftRequest } from './kitchen/cookingProcess';
-import { ItemRecoveryPreview } from './ItemRecoveryPreview';
+import { getItemStatEffect } from '../core/itemEffects';
+import { getItemEffectBadges } from './itemEffectBadges';
 import { kitchenEquipmentImages } from '../kitchenEquipmentAssets';
 import { kitchenPlateImages, kitchenSceneImages } from '../kitchenSceneAssets';
 import { DishArtwork } from './kitchen/DishArtwork';
@@ -21,7 +22,7 @@ import { RecipeBadges } from './kitchen/RecipeBadges';
 import { RecipeNotes } from './kitchen/RecipeNotes';
 import { FoodProcessingPanel } from './kitchen/FoodProcessingPanel';
 import '../styles/food-production.css';
-import { getFoodSource } from '../core/foodSources';
+import { getItemSourceLabel } from './itemSourceLabel';
 
 interface Props {
   pet: PetState; actorId: string; portrait: string; workingPortrait: string; icons: Record<string, string>; registry: ItemRegistry;
@@ -82,18 +83,18 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
     <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><h2 id="kitchen-recipe-title">{L('制作料理', 'Prepare a dish')}</h2></div><button type="button" className="icon-button" onClick={closeRecipe} aria-label={L('关闭并返回菜谱', 'Close and return to recipes')}><X /></button></header>
     <div className="activity-body recipe-detail"><DishArtwork id={getDishId(recipe, banana)} image={icons[getDishId(recipe, banana)]} plating={pet.kitchen.plating} /><h3>{dishName(getDishId(recipe, banana))}</h3><RecipeBadges recipe={recipe} banana={banana} /><p className="activity-muted">{L(cookingMethods.find((entry) => entry.id === recipe.method)!.name, cookingMethods.find((entry) => entry.id === recipe.method)!.en)} · {pet.kitchen.made[recipeId] ? L('熟悉的好味道', 'A familiar favorite') : L('新的味道，一起试试', 'A new flavor to try together')}</p>
           {dishPresentation[getDishId(recipe, banana)].container === 'fixed_plate' && <div className="kitchen-plating-options" role="group" aria-label={L('餐盘样式', 'Plate style')}>{([['plain', L('素色', 'Plain')], ['flower', L('花朵', 'Flowers')], ['stars', L('星星', 'Stars')]] as const).map(([plating, label]) => <button key={plating} type="button" aria-pressed={pet.kitchen.plating === plating} onClick={() => update((current) => ({ ...current, kitchen: { ...current.kitchen, plating } }))}><img src={kitchenPlateImages[plating]} alt="" draggable={false} /><span>{label}</span></button>)}</div>}
-          {skillXp > 0 && <p className="activity-skill-xp">{L('本次出炉：', 'On completion: ')}{formatPracticeSkillXp('cooking', skillXp)}<br />{L('每次制作 +1，首做额外 +5；批量计一次。', 'Each completed batch: +1 XP, plus 5 for a new recipe.')}</p>}
+          {skillXp > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp('cooking', skillXp)}</p>}
           {recipe.fruitVariant && <div className="activity-choice"><button aria-pressed={!banana} onClick={() => onBanana(false)}>🍎 {L('苹果', 'Apple')}</button><button aria-pressed={banana} onClick={() => onBanana(true)}>🍌 {L('香蕉', 'Banana')}</button></div>}
-          {hasRecipeMilkChoice(recipe) && <fieldset className="recipe-milk-choice"><legend>本批使用的奶 · 成品效果相同</legend><div className="activity-choice">{(['farm_milk', 'ad_milk'] as const).map(id => <button key={id} aria-pressed={milk === id} onClick={() => setMilk(id)}>{registry.get(id)?.name ?? id} · 库存 {pet.inventory[id] ?? 0}</button>)}</div><p>每批只消耗所选奶类，数量见下方材料清单。</p></fieldset>}
+          {hasRecipeMilkChoice(recipe) && <fieldset className="recipe-milk-choice"><legend>选择奶类</legend><div className="activity-choice">{(['farm_milk', 'ad_milk'] as const).map(id => <button key={id} aria-pressed={milk === id} onClick={() => setMilk(id)}>{registry.get(id)?.name ?? id} · 库存 {pet.inventory[id] ?? 0}</button>)}</div></fieldset>}
           {parent && <button className="activity-link" onClick={returnToParent}>{L(`返回${recipeName(getRecipe(parent.recipeId)!)}`, `Back to ${recipeName(getRecipe(parent.recipeId)!)}`)}</button>}
           <div className="recipe-ingredients">{ingredients.map(({ id, quantity: perServing }) => {
             const missing = perServing * quantity - (pet.inventory[id] ?? 0);
-            return <div key={id} className={missing > 0 ? 'ingredient missing' : 'ingredient'}><img src={icons[id]} alt="" /><span>{registry.get(id)?.name ?? id}<small>{L(`需要 ${perServing * quantity} · 持有 ${pet.inventory[id] ?? 0}`, `Need ${perServing * quantity} · Own ${pet.inventory[id] ?? 0}`)}</small>{getFoodSource(id) && <small>{getFoodSource(id)}</small>}{missing > 0 && getDish(id) && <button className="activity-link" onClick={() => prepareIngredient(id, missing)}>{L(`先做${dishName(id)}`, `Prepare ${dishName(id)}`)}</button>}</span></div>;
+            return <div key={id} className={missing > 0 ? 'ingredient missing' : 'ingredient'}><img src={icons[id]} alt="" /><span>{registry.get(id)?.name ?? id}<small>{L(`需要 ${perServing * quantity} · 持有 ${pet.inventory[id] ?? 0}`, `Need ${perServing * quantity} · Own ${pet.inventory[id] ?? 0}`)}</small>{missing > 0 && <small>来源：{getItemSourceLabel(id)}</small>}{missing > 0 && getDish(id) && <button className="activity-link" onClick={() => prepareIngredient(id, missing)}>{L(`先做${dishName(id)}`, `Prepare ${dishName(id)}`)}</button>}</span></div>;
           })}</div>
-          {dishItem && <ItemRecoveryPreview pet={pet} item={dishItem} favoriteFoodIds={favoriteFoodIds} />}
+          {dishItem && <div className="item-recovery-preview"><p>每份成品效果：{getItemEffectBadges(getItemStatEffect(pet, dishItem)).map(effect => effect.label).join(' · ')}</p></div>}
           <RecipeNotes pet={pet} recipe={recipe} banana={banana} milk={milk} />
           <label className="quantity-field">{L('制作份数', 'Quantity')}<input type="number" min={1} max={Math.max(1, limit)} value={quantity} onChange={(event) => onQuantity(Math.max(1, Math.min(99, Math.floor(Number(event.target.value)) || 1)))} /></label><div className="activity-choice">{[1, 5, 10].map((amount) => <button key={amount} disabled={amount > limit} onClick={() => onQuantity(amount)}>{amount}</button>)}<button disabled={!limit} onClick={() => onQuantity(limit)}>{L('最多', 'Max')}</button></div>
-          <p className="activity-heart"><Heart size={16} /> {L(`本次 ${reward.heartsPerServing * quantity} 心心`, `${reward.heartsPerServing * quantity} hearts`)}<small>{L(`本步每份基础 ${reward.baseHearts} · 料理 Lv.${reward.skillLevel} 加成 +${reward.skillHearts}`, `This step: base ${reward.baseHearts} each · Cooking Lv.${reward.skillLevel} +${reward.skillHearts}`)}</small><small>{L('制作心心仅受料理技能加成，已扣除前序料理的奖励。', 'Cooking skill applies; earlier dishes’ heart rewards are already deducted.')}</small></p>
+          <p className="activity-heart"><Heart size={16} /> {L(`本次 ${reward.heartsPerServing * quantity} 心心`, `${reward.heartsPerServing * quantity} hearts`)}</p>
           <button className="activity-primary" disabled={!canCook || !equipmentReady || quantity > limit} onClick={craft}>{getRecipeUnlockReason(pet, recipeId) || L('一起制作', 'Make it together')}</button>
           {!equipmentReady && <button className="activity-link" onClick={() => { closeRecipe(); setTab('equipment'); }}>{L('先添置需要的厨具', 'Get the required kitchen tool')}</button>}
           {ingredients.some(({ id, quantity: amount }) => !getDish(id) && (pet.inventory[id] ?? 0) < amount * quantity) && <button className="activity-link" onClick={onShop}>{L('去商店补充食材', 'Shop for ingredients')}</button>}

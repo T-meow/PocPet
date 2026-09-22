@@ -139,6 +139,33 @@ async function verifySavesAndErrors() {
       for (const key of ['coins', 'health', 'mood']) assert.ok(Number.isFinite(invalidStats[key]) && invalidStats[key] >= 0, key);
     });
 
+    await check('音乐陪伴存档兼容、累计进度与结算幂等', async () => {
+      const { addMusicListeningTime, claimMusicHearts } = await import('../src/core/musicCompanion.ts');
+      const oldEnvelope = JSON.parse(text);
+      delete oldEnvelope.pet.musicCompanion;
+      assert.deepEqual(parseSaveFileText(JSON.stringify(oldEnvelope), now).pet.musicCompanion, { schemaVersion: 1, pendingListeningMs: 0 });
+      const listening = addMusicListeningTime(pet, 25 * 60_000 + 123);
+      const reopened = parseSaveFileText(createSaveFileText(listening, null, now), now + 10 * 86400_000).pet;
+      assert.equal(reopened.musicCompanion.pendingListeningMs, listening.musicCompanion.pendingListeningMs, 'offline time must not add listening time');
+      const claimed = claimMusicHearts(reopened);
+      assert.equal(claimed.hearts - reopened.hearts, 2);
+      assert.equal(claimed.musicCompanion.pendingListeningMs, 5 * 60_000 + 123);
+      assert.equal(claimMusicHearts(claimed), claimed, 'repeated settlement must not repeat a reward');
+      const carried = parseSaveFileText(createSaveFileText(claimed, null, now), now).pet;
+      assert.equal(claimMusicHearts(addMusicListeningTime(carried, 5 * 60_000)).hearts, claimed.hearts + 1);
+      assert.equal(claimMusicHearts(addMusicListeningTime(pet, 100 * 600_000)).hearts, pet.hearts + 100, 'no daily/session reward cap');
+      for (const invalid of [-1, NaN, Infinity]) {
+        assert.equal(addMusicListeningTime(pet, invalid), pet);
+        assert.equal(normalizePet({ ...pet, musicCompanion: { pendingListeningMs: invalid } }, now).musicCompanion.pendingListeningMs, 0);
+      }
+      const frozen = { ...listening, timePause: { schemaVersion: 1, pausedAt: now } };
+      assert.equal(addMusicListeningTime(frozen, 600_000), frozen);
+      assert.equal(claimMusicHearts(frozen), frozen);
+      const future = JSON.parse(text);
+      future.pet.musicCompanion.schemaVersion = 99;
+      assert.throws(() => parseSaveFileText(JSON.stringify(future), now), UnsupportedSaveVersionError);
+    });
+
     await check('旧档、Mint 保护文本与迁移幂等', () => {
       const { saveMetadata: _metadata, ...legacy } = pet;
       const originals = [JSON.stringify(legacy), JSON.stringify({ schemaVersion: 1, app: 'PocPet', exportedAt: new Date(now).toISOString(), pet: legacy }),
@@ -295,7 +322,64 @@ async function verifySavesAndErrors() {
     await check('入口模块加载报错检查', async () => {
       const { createServer } = await import('vite');
       const server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
-      try { assert.equal(typeof (await server.ssrLoadModule('/src/ui/App.tsx')).App, 'function'); }
+      try {
+        assert.equal(typeof (await server.ssrLoadModule('/src/ui/App.tsx')).App, 'function');
+        await check('BGM 加载失败有界重试与暂停保护', async () => {
+          const bgm = await server.ssrLoadModule('/src/core/bgm.ts');
+          const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
+          const performanceDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'performance');
+          let mediaClock = 0;
+          let latestAudio;
+          let creations = 0;
+          let denyNextPlay = false;
+          class MediaStub {
+            currentTime = 0; paused = true; seeking = false; muted = false; volume = 0;
+            constructor() { latestAudio = this; creations++; }
+            play() {
+              if (denyNextPlay) { denyNextPlay = false; return Promise.reject(Object.assign(new Error('gesture required'), { name: 'NotAllowedError' })); }
+              this.paused = false; this.onplaying?.(); return Promise.resolve();
+            }
+            pause() { this.paused = true; this.onpause?.(); }
+            removeAttribute() {}
+            load() {}
+          }
+          Object.defineProperty(globalThis, 'Audio', { configurable: true, value: MediaStub });
+          Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now: () => mediaClock } });
+          const progress = ms => { mediaClock += ms; latestAudio.currentTime += ms / 1000; latestAudio.ontimeupdate?.(); };
+          try {
+            bgm.setBgmEnabled(true); bgm.setBgmHidden(false); bgm.setBgmUnlocked(true);
+            await Promise.resolve();
+            const roomAudio = latestAudio;
+            bgm.syncBgm('community'); bgm.syncBgm('garden'); bgm.syncBgm('room');
+            assert.equal(latestAudio, roomAudio, 'shared scene navigation must not replace the player');
+            bgm.beginMusicCompanion(); bgm.setMusicRewardEnabled(true); bgm.setBgmVolume(0.6);
+            const baseline = bgm.getMeasuredListeningMs();
+            progress(10_000);
+            assert.equal(bgm.getMeasuredListeningMs() - baseline, 10_000);
+            bgm.setBgmVolume(0); progress(10_000);
+            assert.equal(bgm.getMeasuredListeningMs() - baseline, 10_000, 'muted audio cannot earn time');
+            bgm.setBgmVolume(0.6); bgm.pauseMusicCompanion(); progress(10_000);
+            assert.equal(bgm.getMeasuredListeningMs() - baseline, 10_000, 'paused audio cannot earn time');
+            bgm.beginMusicCompanion(); await Promise.resolve();
+            const beforeFailures = creations;
+            for (let index = 0; index < 11; index++) latestAudio.onerror?.();
+            assert.ok(bgm.getBgmPlaybackState().error, 'all failed tracks must stop with an error');
+            assert.equal(creations - beforeFailures, 10, 'never recurse into unlimited retries');
+            assert.equal(latestAudio.paused, true);
+            bgm.beginMusicCompanion(); await Promise.resolve();
+            assert.equal(bgm.getBgmPlaybackState().error, '');
+            bgm.pauseMusicCompanion(); denyNextPlay = true;
+            bgm.beginMusicCompanion(); await new Promise(resolve => setImmediate(resolve));
+            assert.ok(bgm.getBgmPlaybackState().error);
+            bgm.setBgmUnlocked(true); await Promise.resolve();
+            assert.equal(bgm.getBgmPlaybackState().error, '', 'a new user gesture must recover autoplay rejection');
+          } finally {
+            bgm.setMusicRewardEnabled(false); bgm.setBgmEnabled(false); bgm.endMusicCompanion();
+            if (descriptor) Object.defineProperty(globalThis, 'Audio', descriptor); else delete globalThis.Audio;
+            if (performanceDescriptor) Object.defineProperty(globalThis, 'performance', performanceDescriptor);
+          }
+        });
+      }
       finally { await server.close(); }
     });
     console.log(`Passed ${passed} save/error checks (in-memory storage; no browser or player saves).`);

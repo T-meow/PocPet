@@ -49,7 +49,7 @@
 .adventure-tutorial-card { padding: 12px; margin: 10px 0; border: 1px solid #cad8b5; border-radius: 12px; background: #f0f5e6; color: #456044; }
 .adventure-tutorial-card > strong { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; }.adventure-tutorial-card small { font-size: 11px; line-height: 1.6; }.adventure-tutorial-card > strong small { margin-left: auto; font-weight: 400; }.adventure-tutorial-card p { margin: 7px 0; }
 .adventure-choices { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; gap: 8px; }
-.adventure-choices > button { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 13px; border: 1px solid #d9d6bd; border-radius: 12px; color: #566346; background: #f5f7e9; text-align: left; font: inherit; min-height: 44px; }
+.adventure-choices > button, .adventure-choices .exploration-choice-action { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 13px; border: 1px solid #d9d6bd; border-radius: 12px; color: #566346; background: #f5f7e9; text-align: left; font: inherit; min-height: 44px; }
 .adventure-choice-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .adventure-choices strong { min-width: 0; font-size: 13px; }.adventure-choices small { color: #7c7f6e; font-size: 11px; line-height: 1.45; }
 .adventure-cost { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }.adventure-cost svg:nth-of-type(2) { margin-left: 4px; }

@@ -11,6 +11,8 @@ import type { RegionId } from '../../core/expeditionTypes';
 import type { ExpeditionProps } from './types';
 import { ExplorationBackpackUpgrade } from './ExplorationBackpackUpgrade';
 import { useAdventureAction } from '../useAdventureAction';
+import { HelpButton } from '../help/HelpButton';
+import { explorationHelp } from '../help/explorationHelp';
 
 export const RegionPreparation = ({ selected, pet, update, actorId, actorName, onShop }: ExpeditionProps & { selected: RegionId }) => {
   const [routeId, setRouteId] = useState('single');
@@ -22,7 +24,7 @@ export const RegionPreparation = ({ selected, pet, update, actorId, actorName, o
   const total = route.reduce((sum, id) => ({ hunger: sum.hunger + explorationTravel[id].hunger, energy: sum.energy + explorationTravel[id].energy }), { hunger: 0, energy: 0 });
   return <><div className="outpost-form-content"><section className="outpost-section"><h3>{regions[selected].name} · 巡路整备</h3>
       <label className="exp-select-label">行程<select aria-label="选择远征行程" value={routeId} onChange={e => setRouteId(e.target.value)}><option value="single">只去{regions[selected].name} · {explorationTravel[selected].actions} 次行动</option>{expeditionRoutes.map(r => <option key={r.id} value={r.id}>{r.name} · 3 个地区</option>)}</select></label>
-      <p className="exp-route-plan">{route.map(id => regions[id].name).join(' → ')}<small>普通路线饱食 {total.hunger}、体力 {total.energy}；各次行动分摊，途中随时补餐。高级调查多消耗 20%；绳索或二级基地降低通路体力 20%。</small></p>
+      <p className="exp-route-plan">{route.map(id => regions[id].name).join(' → ')}<small>预计饱食 −{total.hunger} · 体力 −{total.energy}</small></p><HelpButton {...explorationHelp} />
       <details className="exp-bag" open><summary>补给 {count}/{capacity} 份 · 工具另计</summary><div className="exp-stock-list">{Object.entries(pet.inventory).filter(([id, n]) => n > 0 && isExpeditionSupply(id)).map(([id, n]) => <label key={id}><span>{getInventoryItem(id as ItemId)?.name ?? id}<small>仓库 {n}</small></span><input aria-label={`携带${getInventoryItem(id as ItemId)?.name ?? id}`} type="number" min={0} max={Math.min(capacity, n)} value={bag[id] ?? 0} onChange={e => { const amount = Math.max(0, Math.min(n, capacity, Math.floor(Number(e.target.value)) || 0)); setBag(old => { const next = { ...old }; if (amount) next[id] = amount; else delete next[id]; return next; }); }} /></label>)}</div></details>
       <label className="exp-rope"><input type="checkbox" checked={tool} disabled={!(pet.inventory.trail_rope ?? 0)} onChange={e => setTool(e.target.checked)} />携带探路绳 · {toolDurabilityLabel(pet, 'trail_rope')}</label>
       <p>工具独立携带：手镐 {toolDurabilityLabel(pet, 'prospector_pick')} · 放大镜 {toolDurabilityLabel(pet, 'survey_lens')} · 营具 {toolDurabilityLabel(pet, 'camp_kit')}。</p>

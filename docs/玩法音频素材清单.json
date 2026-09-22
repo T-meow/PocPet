@@ -1,6 +1,6 @@
 {
   "sourceRoot": "D:/游戏素材/sfx music/",
-  "encoding": "MP3, 44100 Hz; BGM stereo 128 kbps, approved F/A selections copied unchanged from the roughly -20 LUFS previews; initial community BGM -18 LUFS; SFX mono 96 kbps, peak target -6 dBFS",
+  "encoding": "MP3, 44100 Hz; active BGM stereo 128 kbps, measured -18 LUFS (tolerance 0.3 LU), true peak <= -1 dBTP after encoding; SFX mono 96 kbps, peak target -6 dBFS",
   "assets": [
     {
       "target": "src/assets/audio/bgm/bgm_community_loop.mp3",
@@ -195,11 +195,10 @@
       "source": "HB2/casual-music-bundle/Casual Music Bundle v1/Cozy_Wholesome/Afternoon Clouds Underscore LOOP.wav",
       "sourceBytes": 10440094,
       "sourceSha256": "ee85c39b8b210e4a8b530d2ffc92dd72f4e56f776a71b3ab2a52ff509efa8b96",
-      "gainDb": -5.25,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 946303,
-      "sha256": "fa863c968f411b5aee82bbc3ffd0b43a807fc28a6e334dd19db6f3dec85e9de7",
+      "sha256": "3bbc809f5fdf6b330f960a5800f253453d19cbbdf2a172739fb0ddc324bc65e4",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -211,6 +210,23 @@
       ],
       "format": {
         "duration": "59.064626"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -14.75,
+        "inputTruePeakDbtp": 0.01,
+        "integratedLufs": -18,
+        "truePeakDbtp": -3.09,
+        "loudnessRangeLu": 1.7,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.55,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -222,11 +238,10 @@
       "source": "HB2/casual-music-bundle/Casual Music Bundle v1/Cozy_Wholesome/Cool Easy Jazz Underscore LOOP.wav",
       "sourceBytes": 11312394,
       "sourceSha256": "ba1ba6a1dc01e2f08fb20c6755ca9e4b5ee77f127df6603c3cee70748be6eb60",
-      "gainDb": -4.84,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1024879,
-      "sha256": "134ddd0b02f29d063454b792e34f236bae8e53955783e647d24f352288d9fc20",
+      "sha256": "feb108fc22cd7deb7bd95e1d4596970337715ff3db72aa1e13d0939798bf6077",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -238,6 +253,23 @@
       ],
       "format": {
         "duration": "64.000000"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -15.16,
+        "inputTruePeakDbtp": 0.12,
+        "integratedLufs": -18.01,
+        "truePeakDbtp": -2.4,
+        "loudnessRangeLu": 1.8,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.56,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -249,11 +281,10 @@
       "source": "HB2/grand-music-bundle/Simple Acoustic Guitar Themes/Simple Acoustic Theme #2.wav",
       "sourceBytes": 14808962,
       "sourceSha256": "eb17be6cf5ce166af297d0c06d32656b3a8c9821aa5fcd0cd4a3d0036755a859",
-      "gainDb": 0.99,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1344200,
-      "sha256": "70dda7c889139932fa993132bbc396147ead6e4b95e2df81a10d3fe36bdc6135",
+      "sha256": "79d584d0dd0ca5d9bcc2abf789f2a8adc7a671b51bc43327e79892f0e7cf5c8c",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -265,6 +296,23 @@
       ],
       "format": {
         "duration": "83.950000"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -20.99,
+        "inputTruePeakDbtp": -3.51,
+        "integratedLufs": -18.01,
+        "truePeakDbtp": -1.78,
+        "loudnessRangeLu": 3.1,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.58,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -276,11 +324,10 @@
       "source": "HB2/grand-music-bundle/Simple Acoustic Guitar Themes/Simple Acoustic Theme #3.wav",
       "sourceBytes": 11915202,
       "sourceSha256": "f3dff84879b4b994b0b5a898e537a0982b628022ac9c24bba19dd8cc40860443",
-      "gainDb": -1.03,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1081722,
-      "sha256": "2ad67e1fabe39db63542ce8c84baed492440679156f7e08b94cb1c1124f2db55",
+      "sha256": "302ac98c6a4c0af697640c8e5014be5adff7464f96e79ba361886a6e04d7f46e",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -292,6 +339,23 @@
       ],
       "format": {
         "duration": "67.545465"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -19,
+        "inputTruePeakDbtp": -0.97,
+        "integratedLufs": -18.05,
+        "truePeakDbtp": -1.64,
+        "loudnessRangeLu": 1.7,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.57,
+          "ffmpegTargetTp": -2.42,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -303,11 +367,10 @@
       "source": "HB2/casual-music-bundle/Casual Music Bundle v1/Uplifting/Cheerful Quirky Indie Pop Underscore LOOP.wav",
       "sourceBytes": 14917290,
       "sourceSha256": "9eedf344cf8a5e01c5b8279f2be9e5dd9b406deeb6a863d115338370ce53ea9a",
-      "gainDb": -6.9,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1351306,
-      "sha256": "1c529352e729767adf25dfbcefb6de09c3c6058f487e65c5a4648b88e0ea05eb",
+      "sha256": "62429e51d685bfe91ff2a8cea6d8e2ae0f00b48f68e9a75d586cf7a6ed888cd2",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -319,6 +382,23 @@
       ],
       "format": {
         "duration": "84.396077"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -13.1,
+        "inputTruePeakDbtp": 0.07,
+        "integratedLufs": -17.99,
+        "truePeakDbtp": -4.39,
+        "loudnessRangeLu": 1.4,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.55,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -330,11 +410,10 @@
       "source": "Total Music Collection/Big Multi-Genre Music Collection/Positive and Calm Orchestral Music Pack/Positive Orchestral Theme #4.wav",
       "sourceBytes": 18869042,
       "sourceSha256": "5b45d7f979784960ac1524bde07ce0cbcdb7971c1fd6159fc18ea5e2fd3becc6",
-      "gainDb": 1.82,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1712422,
-      "sha256": "3e64c7e12592b349241fd60e9e3334874ef94e3c65c96863004a91ca3b011008",
+      "sha256": "f5369b89a5b70016d0437c09b5b8c40de55806d935e3e1e89e7de5bc9cf4eb0e",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -346,6 +425,23 @@
       ],
       "format": {
         "duration": "106.966349"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -21.82,
+        "inputTruePeakDbtp": -8.26,
+        "integratedLufs": -18,
+        "truePeakDbtp": -4.49,
+        "loudnessRangeLu": 5.6,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.55,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -357,11 +453,10 @@
       "source": "HB2/grand-music-bundle/Simple Acoustic Guitar Themes/Simple Acoustic Theme #8.wav",
       "sourceBytes": 18511158,
       "sourceSha256": "a1444d9fd6d82641f8c65f1c4a25d49708a626a4f0ad96cbd8d20aa5e4c35d4e",
-      "gainDb": 0.29,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1680239,
-      "sha256": "059d15fe309f6b5240f90724882d39e5327a645d6c5f852498c93fd7a3ad4d94",
+      "sha256": "ef6a185589e4a8477f2497b38ef98d111acf43749519ebee706a165e5eaf203d",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -373,6 +468,23 @@
       ],
       "format": {
         "duration": "104.937506"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -20.29,
+        "inputTruePeakDbtp": -3.62,
+        "integratedLufs": -18,
+        "truePeakDbtp": -1.75,
+        "loudnessRangeLu": 1.7,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.56,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     },
     {
@@ -384,11 +496,10 @@
       "source": "HB2/grand-music-bundle/Simple Acoustic Guitar Themes/Simple Acoustic Theme #1.wav",
       "sourceBytes": 13000230,
       "sourceSha256": "47b0f7ffd55d378403b6d03f24e266d6f1d7e6af2f3f5bcde1e06e67cd92c8cb",
-      "gainDb": -1.16,
-      "targetLufs": -20,
+      "targetLufs": -18,
       "bitrate": "128k",
       "bytes": 1180360,
-      "sha256": "a887fce2ca0a8eb0e3cd0e366f2032e81e872718b08e397c91109cdddb63f97b",
+      "sha256": "d801378b0c1b1bc05026713b6555d4b8f528ffdd1c483cd09242290b4984e67f",
       "programs": [],
       "stream_groups": [],
       "streams": [
@@ -400,6 +511,137 @@
       ],
       "format": {
         "duration": "73.696417"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-wav",
+        "inputIntegratedLufs": -18.84,
+        "inputTruePeakDbtp": -5.68,
+        "integratedLufs": -17.99,
+        "truePeakDbtp": -4.72,
+        "loudnessRangeLu": 4,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.55,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
+      }
+    },
+    {
+      "target": "src/assets/audio/bgm/bgm_room_loop.mp3",
+      "source": "git:77dd5ad:src/assets/audio/bgm/bgm_room_loop.mp3",
+      "sourceBytes": 1324303,
+      "sourceSha256": "507052b17302cde2470453dacfacd7c4613db9d9cd3e8d806e2c1a10097dadd4",
+      "status": "active",
+      "targetLufs": -18,
+      "bitrate": "128k",
+      "bytes": 1187884,
+      "sha256": "cc6a05ee5b923e4130a05bf291a4ad6d782c56358ebc0737f54ace9a07427a35",
+      "streams": [
+        {
+          "codec_name": "mp3",
+          "sample_rate": "44100",
+          "channels": 2
+        }
+      ],
+      "format": {
+        "duration": "74.186259"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-mp3",
+        "inputIntegratedLufs": -14.35,
+        "inputTruePeakDbtp": 0.37,
+        "integratedLufs": -18.01,
+        "truePeakDbtp": -2.9,
+        "loudnessRangeLu": 5.5,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.55,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
+      }
+    },
+    {
+      "target": "src/assets/audio/bgm/bgm_shop_loop.mp3",
+      "source": "git:77dd5ad:src/assets/audio/bgm/bgm_shop_loop.mp3",
+      "sourceBytes": 358504,
+      "sourceSha256": "e04d4c470f5df39910ee9e713ec47b25a23ae12daf8fa236827badef01982915",
+      "status": "active",
+      "targetLufs": -18,
+      "bitrate": "128k",
+      "bytes": 331485,
+      "sha256": "b92a18ff04b9e9bb3f852ff2086b0a11695f92f3c324e643746eb698895efb7b",
+      "streams": [
+        {
+          "codec_name": "mp3",
+          "sample_rate": "44100",
+          "channels": 2
+        }
+      ],
+      "format": {
+        "duration": "20.648481"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-mp3",
+        "inputIntegratedLufs": -14.73,
+        "inputTruePeakDbtp": 0.01,
+        "integratedLufs": -17.99,
+        "truePeakDbtp": -3.27,
+        "loudnessRangeLu": 1.8,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.57,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
+      }
+    },
+    {
+      "target": "src/assets/audio/bgm/bgm_sleep_loop.mp3",
+      "source": "git:77dd5ad:src/assets/audio/bgm/bgm_sleep_loop.mp3",
+      "sourceBytes": 747850,
+      "sourceSha256": "3cbd36adfe57b4e9e7a8c20790116b9bc94812a183023304e040e986ab0e0dff",
+      "status": "active",
+      "targetLufs": -18,
+      "bitrate": "128k",
+      "bytes": 769088,
+      "sha256": "200e96505f858b9d11ad9bafb4f071fa06bc7ef26fda0eacf4b25ed23cc08c7e",
+      "streams": [
+        {
+          "codec_name": "mp3",
+          "sample_rate": "44100",
+          "channels": 2
+        }
+      ],
+      "format": {
+        "duration": "48.000000"
+      },
+      "normalization": {
+        "method": "FFmpeg loudnorm, measured two-pass; final MP3 verified",
+        "sourceKind": "original-mp3",
+        "inputIntegratedLufs": -21.22,
+        "inputTruePeakDbtp": -8.77,
+        "integratedLufs": -18,
+        "truePeakDbtp": -5.45,
+        "loudnessRangeLu": 1.3,
+        "processing": {
+          "targetLufs": -18,
+          "peakCeilingDbtp": -1,
+          "ffmpegTargetI": -17.56,
+          "ffmpegTargetTp": -1.5,
+          "lra": 11,
+          "bitrate": "128k"
+        }
       }
     }
   ]

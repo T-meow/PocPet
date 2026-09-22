@@ -212,7 +212,7 @@ export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSumma
   createSaveFilePlainText(pet, activeMod, now);
 
 const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, festivalStories: 3, adventure: 7, community: 10 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 1, festivalStories: 3, adventure: 7, community: 10 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));

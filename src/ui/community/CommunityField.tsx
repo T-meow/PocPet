@@ -8,6 +8,8 @@ import { CommunityProductionScene } from './CommunityProductionScene';
 import type { CommunityPanelProps } from './types';
 import { timeLeft } from './types';
 import { getCropUnlockReason } from '../../core/foodCatalog';
+import { HelpButton } from '../help/HelpButton';
+import { fieldHelp } from '../help/productionHelp';
 
 export const CommunityField = (props: CommunityPanelProps) => {
   const { pet, update, onExplore, onKitchen, onShop, onAdventure } = props;
@@ -35,31 +37,31 @@ export const CommunityField = (props: CommunityPanelProps) => {
       onConstruction={c.gardenBuilt ? () => setPanel('construction') : undefined} />
     {panel === 'construction' && <CommunityUpgradeDialog {...props} id="garden" onClose={() => setPanel(null)} />}
     {panel === 'care' && <CommunityDetailDialog title={c.gardenBuilt ? `照料第 ${plotId} 块菜地` : '开放第一块菜地'} eyebrow="顺着季节，照顾每一颗种子" onClose={() => setPanel(null)}>
+      <HelpButton {...fieldHelp} />
       {!c.gardenBuilt ? <>
         <p>到前哨基地完成四节点新手踩点并领取结算，第一块菜地自动免费开放，体力上限永久 +4。</p>
         {onAdventure && <button className="primary-button" onClick={onAdventure}>去前哨基地</button>}
       </> : <>
         {selector}
-        {crop ? <section className="community-care-section"><h3>{communityCrops[crop.id].glyph} {communityCrops[crop.id].name} · {ready ? '已经成熟' : timeLeft(crop.readyAt, now)}</h3><progress aria-label="作物生长进度" max={1} value={growth} /><p>普通收获 {getCommunityCropYield(pet, plotId)} 份。可以额外照料，每轮浇水、施肥各一次；成熟后会一直等你。</p>
+        {crop ? <section className="community-care-section"><h3>{communityCrops[crop.id].glyph} {communityCrops[crop.id].name} · {ready ? '已经成熟' : timeLeft(crop.readyAt, now)}</h3><progress aria-label="作物生长进度" max={1} value={growth} /><p>预计收获 {getCommunityCropYield(pet, plotId)} 份</p>
           <p>细嘴浇水壶：{toolDurabilityLabel(pet, 'field_watering_can')} · 精收镰刀：{toolDurabilityLabel(pet, 'harvest_sickle')} · 堆肥 {pet.inventory.nutrient_compost ?? 0} 份</p><div className="community-actions">
             <button className="secondary-button" disabled={!free || ready || crop.watered || !(pet.inventory.field_watering_can ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'water'))}>{crop.watered ? '本轮已浇水' : '浇水 · 生长时间 −20% · 耐久 −1'}</button>
             <button className="secondary-button" disabled={!free || ready || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'fertilize'))}>{crop.fertilized ? '本轮已施肥 · 产量 +1' : '堆肥 ×1 · 本轮产量 +1'}</button>
             <button className="primary-button" disabled={!free || !ready || !(pet.inventory.harvest_sickle ?? 0)} onClick={() => update(p => harvestCommunityCrop(p, plotId, crop.plantedAt, Date.now(), true))}>精细收割 {getCommunityCropYield(pet, plotId, true)} 份 · 镰刀耐久 −1</button>
             <button className="secondary-button" onClick={onShop}>补充种植用具</button>
-          </div><small>精细收割可与堆肥叠加；仓库放不下时不扣镰刀耐久。</small></section>
+          </div></section>
           : <section className="community-care-section"><h3>今天想种些什么</h3><div className="community-seed-packets">{(Object.keys(communityCrops) as (keyof typeof communityCrops)[]).filter(id => id !== 'berry' || Boolean(pet.inventory.forest_berry_seed || c.expedition.regions.forest.surveyed)).map(id => {
             const d = communityCrops[id];
             return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id)); setPanel(null); }}>
               <span aria-hidden="true">{d.glyph}</span><strong>{d.name}</strong><small>{d.hours} 小时 · 收获 {d.yield} 份</small><small>种子库存 {pet.inventory[d.seed] ?? 0}{d.seedPrice ? ` · 原价 ${d.seedPrice}` : ''}</small><b>{getCropUnlockReason(pet, id) || '种下种子 ×1'}</b>
             </button>;
           })}</div></section>}
-        <section className="community-care-section"><h3>补充种子</h3><p>香草种子来自溪谷每日首次搜寻 ×2、水渠故事首次奖励 ×2；林莓种子在林地定向寻找，每次 ×2，消耗探索机会。这两种种子商店不出售。</p><div className="community-actions">
+        <section className="community-care-section"><h3>补充种子</h3><div className="community-actions">
           <button className="secondary-button" disabled={!free || Boolean(pet.adventure.pending)} onClick={() => onExplore('seeds')}>去溪谷补种子</button>
           <button className="secondary-button" onClick={onShop}>购买作物种子</button>
         </div></section>
-        <p className="community-care-footnote">香草 ×1 ＋ 大米 ×1，可以煮一碗暖粥。邻居的暖粥委托贴在公告板上。</p>
         <button className="text-button" disabled={!free || !c.herbDiscovered} onClick={() => onKitchen('herb_porridge')}>去厨房做暖粥</button>
-        <p>小麦种子 24 金币，8 小时收获 4 份，可在厨房加工台免费磨出面粉 8 份。种子成本每份面粉 3 金币。</p><button className="text-button" onClick={() => onKitchen()}>打开厨房与加工台</button>
+        <button className="text-button" onClick={() => onKitchen()}>打开厨房与加工台</button>
       </>}
     </CommunityDetailDialog>}
   </>;

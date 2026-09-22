@@ -3,6 +3,7 @@ import { readTimePause } from './timePauseState';
 import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
 import { defaultKitchenState, normalizeKitchenState } from './kitchen';
 import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
+import { defaultMusicCompanionState, normalizeMusicCompanionState } from './musicCompanion';
 import { defaultCompanionMemories, normalizeCompanionMemories } from './companionMemories';
 import { defaultFestivalStories, normalizeFestivalStories } from './festivalStories';
 import { defaultAdventureState, normalizeAdventureState } from './adventureState';
@@ -126,6 +127,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   recentActivityUntil: 0,
   coins: 30,
   hearts: 0,
+  musicCompanion: defaultMusicCompanionState(),
   inventory: { emergency_biscuit: 1, golden_apple: 1 },
   kitchen: defaultKitchenState(),
   miniGames: defaultMiniGameState(),
@@ -473,6 +475,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     recentActivityUntil: isNumber(raw.recentActivityUntil) ? raw.recentActivityUntil : 0,
     coins: normalizedCoins,
     hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts),
+    musicCompanion: normalizeMusicCompanionState(raw.musicCompanion),
     inventory: normalizedInventory,
     kitchen,
     miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: Boolean(timePause) || options.preserveMiniGameSession, level }),

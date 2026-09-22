@@ -8,7 +8,7 @@ export const compactSaveEncoding = 'compact-v1' as const;
 
 export const persistentPetKeys = [
   'saveMetadata', 'name', 'level', 'hunger', 'isOverfed', 'mood', 'cleanliness', 'energy', 'health', 'createdAt', 'metDate', 'ageSeconds',
-  'lastUpdatedAt', 'isSleeping', 'coins', 'hearts', 'inventory', 'lastDailyRewardAt', 'lastDailyEncounterAt',
+  'lastUpdatedAt', 'isSleeping', 'coins', 'hearts', 'inventory', 'musicCompanion', 'lastDailyRewardAt', 'lastDailyEncounterAt',
   'dailyEncounterDateKey', 'neighborGiftDateKey', 'neighborGiftCount', 'dailyBiscuitClaimDate', 'dailyBiscuitClaims',
   'dailyDiscountDate', 'dailyDiscountItemIds', 'dailyDiscountUsedItemIds', 'dailyDiscountUsed',
   'dailyHeartExchangeDate', 'dailyHeartExchangeCount', 'weatherDate', 'weather', 'lastEnergyRecoveryAt',

@@ -16,14 +16,14 @@ export type DurableToolId = keyof typeof toolDefinitions;
 export const durableToolIds = Object.keys(toolDefinitions) as DurableToolId[];
 export type FieldEquipmentId = Exclude<DurableToolId, 'fishing_rod' | 'reinforced_rod' | 'trail_rope'> | 'nutrient_compost';
 export const fieldEquipmentItems: readonly ShopItem[] = [
-  { id: 'field_watering_can', name: '细嘴浇水壶', kind: 'garden', price: 96, effect: {}, usable: false, tags: ['field_tool'], summary: '耐久 16 次。在菜地照料中浇水，每轮限一次，缩短作物基础生长时间的 20%；成熟后不扣耐久。' },
-  { id: 'harvest_sickle', name: '精收镰刀', kind: 'garden', price: 120, effect: {}, usable: false, tags: ['field_tool'], summary: '耐久 20 次。菜地成熟后选择精细收割，本轮收获 +1 份；成功入库才扣耐久。' },
-  { id: 'nutrient_compost', name: '营养堆肥', kind: 'garden', price: 8, effect: {}, usable: false, tags: ['field_supply'], summary: '一次性用品。生长期间在菜地照料中施肥，每轮限一次，收获 +1 份；可与精收镰刀叠加。' },
-  { id: 'fishing_float', name: '醒目浮漂', kind: 'item', price: 60, effect: {}, usable: false, tags: ['fishing_tool'], summary: '耐久 20 竿。手动钓鱼的基础等待缩短 2 秒，再叠加装饰加成；抛竿扣一次，取消不返还。挂机不使用。' },
-  { id: 'landing_net', name: '轻便抄网', kind: 'item', price: 100, effect: {}, usable: false, tags: ['fishing_tool'], summary: '耐久 20 竿。手动收线减少一次点击，最低两次；抛竿扣一次。挂机不使用。' },
-  { id: 'prospector_pick', name: '勘探手镐', kind: 'item', price: 120, effect: {}, usable: false, tags: ['expedition_tool'], summary: '耐久 12 次。手镐勘探推进 2 点珍宝调查；溪谷消耗 2 次采集机会、另得野菇 ×2。各路线的饱食与体力消耗会在操作前显示。' },
-  { id: 'survey_lens', name: '调查放大镜', kind: 'item', price: 90, effect: {}, usable: false, tags: ['expedition_tool'], summary: '耐久 15 次。调查松茸或高山茶叶时可选择使用，调查进度 +2，行动的饱食与体力消耗增加 20%，并消耗一次采集机会。' },
-  { id: 'camp_kit', name: '便携营具', kind: 'item', price: 72, effect: {}, usable: false, tags: ['expedition_tool'], summary: '耐久 12 次。完成一次有消耗的行动后可随时扎营：恢复体力上限 25%、心情上限 20%，另恢复至多 3 健康；体力和健康限本地区尚未恢复的实际损耗，与基地共用每趟每地区一次休整。' },
+  { id: 'field_watering_can', name: '细嘴浇水壶', kind: 'garden', price: 96, effect: {}, usable: false, tags: ['field_tool'], summary: '给菜地浇水，让作物更早成熟。' },
+  { id: 'harvest_sickle', name: '精收镰刀', kind: 'garden', price: 120, effect: {}, usable: false, tags: ['field_tool'], summary: '细心收割，每轮多收获一份作物。' },
+  { id: 'nutrient_compost', name: '营养堆肥', kind: 'garden', price: 8, effect: {}, usable: false, tags: ['field_supply'], summary: '为菜地添些养分，本轮产量 +1。' },
+  { id: 'fishing_float', name: '醒目浮漂', kind: 'item', price: 60, effect: {}, usable: false, tags: ['fishing_tool'], summary: '手动钓鱼时，让鱼儿早一点上钩。' },
+  { id: 'landing_net', name: '轻便抄网', kind: 'item', price: 100, effect: {}, usable: false, tags: ['fishing_tool'], summary: '手动收线少点一次，轻松收下鱼获。' },
+  { id: 'prospector_pick', name: '勘探手镐', kind: 'item', price: 120, effect: {}, usable: false, tags: ['expedition_tool'], summary: '敲开岩缝，帮助寻找当地珍宝。' },
+  { id: 'survey_lens', name: '调查放大镜', kind: 'item', price: 90, effect: {}, usable: false, tags: ['expedition_tool'], summary: '看清沿途细节，帮助调查与发现。' },
+  { id: 'camp_kit', name: '便携营具', kind: 'item', price: 72, effect: {}, usable: false, tags: ['expedition_tool'], summary: '途中扎营歇歇脚，恢复体力、心情和健康。' },
 ];
 export const getEquipmentPurchaseReason = (pet: PetState, id: string): string => {
   if (['field_watering_can', 'harvest_sickle', 'nutrient_compost'].includes(id) && !pet.community.gardenBuilt) return '先开放社区菜地';

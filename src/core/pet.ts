@@ -1,3 +1,5 @@
+export { addMusicListeningTime, claimMusicHearts, getMusicHeartReward, musicHeartIntervalMs } from './musicCompanion';
+export type { MusicCompanionState } from './musicCompanion';
 export type {
   AchievementCounters,
   AchievementId,

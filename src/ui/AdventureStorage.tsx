@@ -64,8 +64,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, tool, desti
     footer={<>
       {trip && <span>{L('行囊', 'Bag')} {getAdventureBagCount(trip.bag)}/{capacity} · {L('工具', 'Tool')} {trip.tool ? 1 : 0}/1</span>}
       {panel === 'delivery' && <span>{L('每份 2 小心心；本趟还可送 ', '2 hearts per item; remaining allowance: ')}{Math.max(0, (trip?.rulesVersion === 1 ? 1 : adventureTransportLimit) - (trip?.transportedCount ?? 0))}</span>}
-      {panel === 'shop' && <span>{note}</span>}
-      {panel === 'loot' && <span>{L('背包满时可先吃掉补给、兑换战利品，或在旅行背包里整理空间。', 'If full, use supplies, exchange treasure, or make room in your travel bag.')}</span>}
+      {panel === 'loot' && getAdventureBagCount(trip?.bag ?? {}) >= capacity && <span>背包已满，请先整理空间。</span>}
     </>}
     renderActions={(item, quantity) => {
       const id = item.id;

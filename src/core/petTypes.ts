@@ -1,5 +1,6 @@
 import type { DishId, KitchenMaterialId, KitchenState, MiniGameState, CompanionMemoryState } from './companionActivityTypes';
 import type { SaveMetadata } from './saveMetadata';
+import type { MusicCompanionState } from './musicCompanion';
 import type { FestivalStoryState } from './festivalStories';
 import type { AdventureItemId, AdventureState } from './adventureTypes';
 import type { CommunityItemId, CommunityState } from './communityTypes';
@@ -487,6 +488,7 @@ export interface PetState {
   coins: number;
   hearts: number;
   inventory: Inventory;
+  musicCompanion: MusicCompanionState;
   lastDailyRewardAt: number;
   lastDailyEncounterAt: number;
   dailyEncounterDateKey: string;

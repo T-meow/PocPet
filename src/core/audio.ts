@@ -2,17 +2,7 @@ import actionBath from '../assets/audio/action/action_bath.mp3';
 import actionBlanket from '../assets/audio/action/action_blanket.mp3';
 import actionEat from '../assets/audio/action/action_eat.mp3';
 import actionWorkPlayMedicine from '../assets/audio/action/action_work_play_medicine.mp3';
-import bgmRoomLoop from '../assets/audio/bgm/bgm_room_loop.mp3';
-import bgmShopLoop from '../assets/audio/bgm/bgm_shop_loop.mp3';
-import bgmSleepLoop from '../assets/audio/bgm/bgm_sleep_loop.mp3';
-import bgmGardenF1 from '../assets/audio/bgm/bgm_garden_f1.mp3';
-import bgmGardenF2 from '../assets/audio/bgm/bgm_garden_f2.mp3';
-import bgmFishingF3 from '../assets/audio/bgm/bgm_fishing_f3.mp3';
-import bgmFishingF4 from '../assets/audio/bgm/bgm_fishing_f4.mp3';
-import bgmAdventureA2 from '../assets/audio/bgm/bgm_adventure_a2.mp3';
-import bgmAdventureA5 from '../assets/audio/bgm/bgm_adventure_a5.mp3';
-import bgmNightA3 from '../assets/audio/bgm/bgm_night_a3.mp3';
-import bgmNightA4 from '../assets/audio/bgm/bgm_night_a4.mp3';
+import { setBgmEnabled, setBgmHidden, setBgmUnlocked } from './bgm';
 import petHeart from '../assets/audio/pet/pet_heart.mp3';
 import petLowState from '../assets/audio/pet/pet_hunger_sad_sick.mp3';
 import petRead from '../assets/audio/pet/pet_read.mp3';
@@ -33,7 +23,8 @@ import fishingReel from '../assets/audio/world/fishing_reel.mp3';
 import worldHarvest from '../assets/audio/world/harvest.mp3';
 import worldStep from '../assets/audio/world/step.mp3';
 
-export type BgmMode = 'room' | 'sleep' | 'shop' | 'community' | 'garden' | 'fishing' | 'adventure' | 'night';
+export type { BgmMode } from './bgm';
+export { syncBgm } from './bgm';
 
 export type SfxId =
   | 'tap'
@@ -75,19 +66,7 @@ export type SfxId =
   | 'world_step';
 
 const audioEnabledStorageKey = 'pocpet.audio.enabled';
-const bgmVolume = 0.18;
 const sfxVolume = 0.48;
-
-const bgmSources: Record<BgmMode, readonly [string, ...string[]]> = {
-  room: [bgmRoomLoop],
-  sleep: [bgmSleepLoop],
-  shop: [bgmShopLoop],
-  community: [bgmGardenF1, bgmGardenF2],
-  garden: [bgmGardenF1, bgmGardenF2],
-  fishing: [bgmFishingF3, bgmFishingF4],
-  adventure: [bgmAdventureA2, bgmAdventureA5],
-  night: [bgmNightA3, bgmNightA4],
-};
 
 const sfxSources: Record<SfxId, string> = {
   tap: uiTap,
@@ -132,136 +111,37 @@ const sfxSources: Record<SfxId, string> = {
 const canUseAudio = () => typeof window !== 'undefined' && typeof Audio !== 'undefined';
 
 const readInitialAudioEnabled = () => {
-  if (typeof window === 'undefined') return true;
-  return window.localStorage.getItem(audioEnabledStorageKey) !== 'false';
+  try { return typeof window === 'undefined' || window.localStorage.getItem(audioEnabledStorageKey) !== 'false'; }
+  catch { return true; }
 };
 
 let audioEnabled = readInitialAudioEnabled();
 let audioUnlocked = false;
-let desiredBgmMode: BgmMode = 'room';
-let currentBgmMode: BgmMode | undefined;
-const bgmTrackIndexes: Partial<Record<BgmMode, number>> = {};
-let bgmAudio: HTMLAudioElement | undefined;
-let fadeTimer: number | undefined;
+setBgmEnabled(audioEnabled);
 
 const writeAudioEnabled = (value: boolean) => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(audioEnabledStorageKey, String(value));
-};
-
-const stopFade = () => {
-  if (fadeTimer !== undefined && typeof window !== 'undefined') {
-    window.clearInterval(fadeTimer);
-    fadeTimer = undefined;
-  }
+  try { window.localStorage.setItem(audioEnabledStorageKey, String(value)); } catch { /* Keep the in-memory audio preference. */ }
 };
 
 let audioTemporarilyMuted = typeof document !== 'undefined' ? document.visibilityState !== 'visible' : false;
-
-const pauseBgm = () => {
-  stopFade();
-  if (!bgmAudio) return;
-  bgmAudio.pause();
-};
-
-const stopBgm = () => {
-  pauseBgm();
-  if (!bgmAudio) return;
-  bgmAudio.onended = null;
-  bgmAudio.currentTime = 0;
-  bgmAudio = undefined;
-  currentBgmMode = undefined;
-};
-
-const fadeInBgm = (audio: HTMLAudioElement) => {
-  stopFade();
-  fadeTimer = window.setInterval(() => {
-    if (!bgmAudio || bgmAudio !== audio || audioTemporarilyMuted || !audioEnabled) {
-      stopFade();
-      return;
-    }
-    bgmAudio.volume = Math.min(bgmVolume, bgmAudio.volume + 0.03);
-    if (bgmAudio.volume >= bgmVolume) stopFade();
-  }, 60);
-};
-
-const startBgmAudio = (audio: HTMLAudioElement) => {
-  audio.volume = Math.min(audio.volume, bgmVolume);
-  if (!audio.paused) {
-    if (audio.volume < bgmVolume) fadeInBgm(audio);
-    return;
-  }
-
-  const playPromise = audio.play();
-  if (playPromise) {
-    void playPromise
-      .then(() => {
-        if (!bgmAudio || bgmAudio !== audio || !audioEnabled || audioTemporarilyMuted) return;
-        fadeInBgm(audio);
-      })
-      .catch(() => {
-        audioUnlocked = false;
-      });
-  }
-};
-
-const playDesiredBgm = () => {
-  if (!audioEnabled || !audioUnlocked || !canUseAudio() || audioTemporarilyMuted) return;
-  if (currentBgmMode === desiredBgmMode && bgmAudio) {
-    startBgmAudio(bgmAudio);
-    return;
-  }
-
-  stopBgm();
-  const mode = desiredBgmMode;
-  const playlist = bgmSources[mode];
-  const trackIndex = bgmTrackIndexes[mode] ?? 0;
-  const nextAudio = new Audio(playlist[trackIndex]);
-  nextAudio.loop = playlist.length === 1;
-  if (!nextAudio.loop) {
-    nextAudio.onended = () => {
-      if (bgmAudio !== nextAudio) return;
-      bgmTrackIndexes[mode] = (trackIndex + 1) % playlist.length;
-      stopBgm();
-      playDesiredBgm();
-    };
-  }
-  nextAudio.preload = 'auto';
-  nextAudio.volume = 0;
-  bgmAudio = nextAudio;
-  currentBgmMode = mode;
-
-  startBgmAudio(nextAudio);
-};
 
 export const getAudioEnabled = () => audioEnabled;
 
 export const setAudioEnabled = (value: boolean) => {
   audioEnabled = value;
   writeAudioEnabled(value);
-  if (!value) {
-    pauseBgm();
-    return;
-  }
-  playDesiredBgm();
+  setBgmEnabled(value);
 };
 
 export const setAudioTemporarilyMuted = (value: boolean) => {
-  if (audioTemporarilyMuted === value) return;
   audioTemporarilyMuted = value;
-  if (value) {
-    pauseBgm();
-    return;
-  }
-  playDesiredBgm();
+  setBgmHidden(value);
 };
 
 export const unlockAudio = async () => {
   if (!audioEnabled || !canUseAudio()) return false;
-  if (audioUnlocked) {
-    playDesiredBgm();
-    return true;
-  }
+  if (audioUnlocked) { setBgmUnlocked(true); return true; }
 
   const probe = new Audio(sfxSources.tap);
   probe.volume = 0;
@@ -270,20 +150,11 @@ export const unlockAudio = async () => {
     probe.pause();
     probe.currentTime = 0;
     audioUnlocked = true;
-    playDesiredBgm();
+    setBgmUnlocked(true);
     return true;
   } catch {
     return false;
   }
-};
-
-export const syncBgm = (mode: BgmMode) => {
-  desiredBgmMode = mode;
-  if (!audioEnabled) {
-    pauseBgm();
-    return;
-  }
-  playDesiredBgm();
 };
 
 export const playSfx = (id: SfxId) => {

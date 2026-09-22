@@ -10,6 +10,8 @@ import { kitchenEquipmentImages } from '../../kitchenEquipmentAssets';
 import { kitchenSceneImages } from '../../kitchenSceneAssets';
 import { DishArtwork } from './DishArtwork';
 import { DialogShell } from '../DialogShell';
+import { HelpButton } from '../help/HelpButton';
+import { getCookingResultHelp } from '../help/productionHelp';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActionText, getCookingActions, isCookingComplete, type KitchenCraftRequest } from './cookingProcess';
 
 interface Props {
@@ -58,15 +60,13 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   };
   const completedSteps = progress.step - (progress.readyAt ? 1 : 0);
   const ingredients = getRecipeIngredients(recipe, request.banana, request.milk);
-  const baseTotal = result?.baseHearts;
-  const skillTotal = result?.skillHearts;
   return <DialogShell className="activity-modal cooking-modal" backdropClassName="activity-backdrop" labelId="cooking-title" onClose={back}>
     <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><div><small>MADE WITH LOVE</small><h2 id="cooking-title">{result ? L('一起做好啦', 'Freshly made together') : L('亲手做一道小料理', 'A little hands-on cooking')}</h2></div></div><button className="icon-button" onClick={back} aria-label={L('返回食谱', 'Back to recipes')}><X /></button></header>
     <div className="cooking-body">{result ? <section className="cooking-reward" aria-live="polite">
       <DishArtwork id={result.dishId} image={icons[result.dishId] ?? unknownItemIcon} plating={pet.kitchen.plating} className="cooking-finished-dish" />
       <small>{L('已收入背包', 'SAVED IN YOUR BAG')}</small><h3>{dishName(result.dishId)} × {result.quantity}</h3>
       <p className="cooking-reward-hearts"><Heart /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></p>
-      {baseTotal !== undefined && skillTotal !== undefined && <p className="cooking-reward-breakdown">{L(`基础 ${baseTotal} · 料理 Lv.${result.skillLevel} +${skillTotal}`, `Base ${baseTotal} · Cooking Lv.${result.skillLevel} +${skillTotal}`)}{result.hearts > baseTotal + skillTotal && L(` · 其他加成 +${result.hearts - baseTotal - skillTotal}`, ` · Other bonuses +${result.hearts - baseTotal - skillTotal}`)}</p>}
+      <HelpButton {...getCookingResultHelp(result)} />
       {(result.skillXp ?? 0) > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp('cooking', result.skillXp)}</p>}
       <p className="activity-muted">{L('香喷喷的，留着慢慢分享。', 'Something tasty to share whenever you like.')}</p>
       <div className="cooking-result-actions"><button className="activity-secondary" onClick={back}><ArrowLeft size={17} />{backLabel ?? L('回到食谱', 'Back to recipes')}</button><button className="activity-primary" disabled={!canSpendCompanionTime(pet) || !(pet.inventory[result.dishId] > 0)} onClick={() => onFeed(result.dishId)}>{L('喂给伙伴一份', 'Share one serving')}</button></div>

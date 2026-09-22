@@ -34,6 +34,8 @@ import type {
 } from './petTypes';
 import { hashString, isNumber } from './utils';
 
+export { getPartnerScheduleMasteryNextThreshold } from './partnerScheduleEffects';
+
 export const partnerScheduleSchemaVersion = 7;
 // Kept as a compatibility export; community work is available from the start.
 export const partnerScheduleUnlockLevel = 1;

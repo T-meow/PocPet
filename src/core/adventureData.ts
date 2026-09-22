@@ -43,9 +43,9 @@ export const adventureJourneyDetail = (purpose: CommunityRoute) => isValleyQuest
   : facilityIds.includes(purpose as FacilityId) ? `${facilities[purpose as FacilityId].clue}会永久记入建设记录。${facilities[purpose as FacilityId].benefit}。`
     : '沿旧桥完成已接寻物／实地采集／送餐委托，寻找溪谷香草。每日首次搜寻可带回香草种子 ×2，不领取完整探查战利品。';
 export const adventureJourneyCost = (purpose: CommunityRoute) => {
-  if (!isValleyQuest(purpose)) return '3 个节点 · 饱食基准 42、体力基准 24 · 心情与路线另计';
+  if (!isValleyQuest(purpose)) return '3 个节点 · 预计饱食 −42 · 体力 −24';
   const cost = getValleyQuestCosts(purpose, 1.5);
-  return `${valleyQuests[purpose].steps.length} 个节点 · 饱食基准 ${cost.hunger.join('～')}、体力基准 ${cost.energy.join('～')} · 心情与判定另计 · 一次性故事`;
+  return `${valleyQuests[purpose].steps.length} 个节点 · 预计饱食 −${cost.hunger.join('～')} · 体力 −${cost.energy.join('～')}`;
 };
 export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`) + '结算后免费开放第 1 块菜地（体力上限 +4）。';
 export const adventureTreasureRewardText = (version: AdventureRulesVersion = 7) => version >= 7 ? '巡路酬谢与挂机共用；每日 22 基础小心心。采集机会每 3 小时恢复，首次入口宝藏与手账里程碑仅领一次。' : version >= 4

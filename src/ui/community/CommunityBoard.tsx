@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Check, Coins, Pin } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import { deliverCommunityOrder } from '../../core/community';
 import { acceptCommunityTask, cancelCommunityTask, canClaimCommunityTask, claimCommunityTask, commissionDefinitions, getCommunityCandidates, getCommunityDay, getCommunityTasks } from '../../core/communityCommissions';
 import { canSpendCompanionTime } from '../../core/kitchen';
@@ -9,23 +9,30 @@ import { getInventoryItem } from '../../core/items';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
 import type { CommunityPanelProps } from './types';
 import { CommunitySpecialtyOrders } from './CommunitySpecialtyOrders';
+import { specialtyDay } from '../../core/communitySpecialtyOrders';
+import { newItemIcons } from '../../newItemIconAssets';
+import { CommunityBoardNote } from './CommunityBoardNote';
+import { HelpButton } from '../help/HelpButton';
+import { communityOrdersHelp } from '../help/workHelp';
 
-const noteArt: Record<CommissionTemplate, { glyph: string; tone: string }> = {
-  valley_basket: { glyph: '🍄', tone: 'mint' }, valley_rice: { glyph: '🍚', tone: 'cream' },
-  forest_delicacy: { glyph: '🍄', tone: 'cream' }, tea_order: { glyph: '🍵', tone: 'mint' },
-  search: { glyph: '🧭', tone: 'blue' }, forage: { glyph: '🌿', tone: 'mint' },
-  vegetables: { glyph: '🥕', tone: 'peach' }, eggs: { glyph: '🥚', tone: 'cream' }, milk: { glyph: '🥛', tone: 'blue' },
-  fish_pond: { glyph: '🐟', tone: 'blue' }, fish_upstream: { glyph: '🎣', tone: 'mint' },
-  soup: { glyph: '🍲', tone: 'peach' }, fresh_porridge: { glyph: '🥣', tone: 'cream' }, delivery: { glyph: '🧺', tone: 'pink' },
+const noteArt: Record<CommissionTemplate, { glyph: string; tone: string; summary: string }> = {
+  valley_basket: { glyph: '🍄', tone: 'mint', summary: '送野菇 ×3' }, valley_rice: { glyph: '🍚', tone: 'cream', summary: '送野菇焖饭 ×1' },
+  forest_delicacy: { glyph: '🍄', tone: 'cream', summary: '送松茸 ×1' }, tea_order: { glyph: '🍵', tone: 'mint', summary: '送高山茶叶 ×1' },
+  search: { glyph: '🧭', tone: 'blue', summary: '寻找旧桥工具包' }, forage: { glyph: '🌿', tone: 'mint', summary: '新采一束野香草' },
+  vegetables: { glyph: '🥕', tone: 'peach', summary: '送胡萝卜 ×2' }, eggs: { glyph: '🥚', tone: 'cream', summary: '送鸡蛋 ×2' }, milk: { glyph: '🥛', tone: 'blue', summary: '送牧场鲜奶 ×2' },
+  fish_pond: { glyph: '🐟', tone: 'blue', summary: '钓一条池塘普通鱼' }, fish_upstream: { glyph: '🎣', tone: 'mint', summary: '钓一条上游普通鱼' },
+  soup: { glyph: '🍲', tone: 'peach', summary: '送香草鲜鱼汤 ×1' }, fresh_porridge: { glyph: '🥣', tone: 'cream', summary: '新煮一份香草暖粥' }, delivery: { glyph: '🧺', tone: 'pink', summary: '给旧桥守望者送餐' },
 };
 
 export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?: WaterId) => void; onFarm?: (place: 'field' | 'coop' | 'barn') => void }) => {
-  const { pet, update, onExplore, onKitchen, onFishing, onFarm, registry, onOpenOutpost } = props;
+  const { pet, update, onExplore, onKitchen, onFishing, onFarm, registry, onOpenOutpost, itemIconMap } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const tasks = getCommunityTasks(pet), candidates = getCommunityCandidates(pet), day = getCommunityDay(pet), accepted = pet.community.boardDay === day ? pet.community.acceptedToday : [];
   const notes = [...tasks, ...candidates.filter(task => !tasks.some(active => active.id === task.id))];
   const selectedTask = notes.find(task => task.id === selected);
   const free = canSpendCompanionTime(pet), warmDone = pet.community.firstOrderDelivered;
+  const specialtyUsed = pet.community.specialtyOrders.acceptedDay >= specialtyDay(pet);
+  const icon = (id: string) => itemIconMap?.[id] ?? newItemIcons[id as keyof typeof newItemIcons];
   const close = () => setSelected(null);
   const details = (task: CommunityTask) => {
     const active = tasks.some(value => value.id === task.id);
@@ -49,23 +56,24 @@ export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?
     </CommunityDetailDialog>;
   };
   return <>
-    <CommunitySpecialtyOrders {...props} />
     <section className="community-noticeboard" aria-label="邻里公告板">
-      <header className="community-noticeboard-heading"><div><small>溪畔来信 · 留一点时间给邻居</small><h3>今天，帮一点小忙</h3></div><span><span>今日已接 {accepted.length}/2</span><span>进行中 {tasks.length}/2</span></span></header>
+      <header className="community-noticeboard-heading"><div><small>溪畔来信 · 留一点时间给邻居</small><h3>今天，帮一点小忙</h3></div><span><span>今日已接 · 委托 {accepted.length}/2 · 收购 {Number(specialtyUsed)}/1</span><span>进行中 · 委托 {tasks.length}/2 · 收购 {Number(Boolean(pet.community.specialtyOrders.active))}/1</span></span></header>
       <div className="community-pinned-notes">
-        <button type="button" className="community-pinned-note community-story-note" data-tone="pink" aria-haspopup="dialog" onClick={() => setSelected('warm-order')}>
-          <Pin className="community-note-pin" size={18} aria-hidden="true" /><span className="community-note-label">{warmDone ? '一封感谢信' : '常驻故事'}</span><span className="community-note-art" aria-hidden="true">🥣</span><strong>给修渠邻居<br />的一碗暖粥</strong><span className="community-note-excerpt">{warmDone ? '谢谢你的暖粥。洗好的碗，下次再还给你。' : '水渠通了，想和你一起尝尝第一份收获。'}</span><span className="community-note-bottom">{warmDone ? <><Check size={16} />心意已送达</> : <>80 金币 · 5 小心心</>}<ArrowUpRight size={16} /></span>
-        </button>
+        <CommunitySpecialtyOrders {...props} selected={selected} onSelect={setSelected} onClose={close} />
+        <CommunityBoardNote summary={warmDone ? '修渠邻居的感谢信' : '给修渠邻居送暖粥'} label={warmDone ? '故事 · 已送达' : '常驻故事'}
+          art={<img src={icon('dish_herb_porridge')} alt="" />} tone="pink" onClick={() => setSelected('warm-order')} />
         {notes.map(task => {
           const def = commissionDefinitions[task.template], active = tasks.some(value => value.id === task.id), used = accepted.includes(task.id);
           const ready = active && canClaimCommunityTask(pet, task);
-          return <button type="button" className="community-pinned-note" key={task.id} data-tone={noteArt[task.template].tone} data-active={active} data-ready={ready} aria-haspopup="dialog" onClick={() => setSelected(task.id)}>
-            <Pin className="community-note-pin" size={18} aria-hidden="true" /><span className="community-note-label">{ready ? '可以交付' : active ? '进行中 · 不过期' : used ? '今日已接过' : '今日候选'}</span><span className="community-note-art" aria-hidden="true">{noteArt[task.template].glyph}</span><strong>{def.name}</strong><span className="community-note-excerpt">{def.detail}</span><span className="community-note-bottom"><span><Coins size={15} />{task.rewardCoins ?? def.coins} 金币{def.reward ? ' ＋ 建材' : ''}</span>{active ? <Check size={16} /> : <ArrowUpRight size={16} />}</span>
-          </button>;
+          const item = Object.keys(def.take ?? {})[0], itemArt = item && icon(item);
+          return <CommunityBoardNote key={task.id} summary={noteArt[task.template].summary}
+            label={`委托 · ${ready ? '可交付' : active ? '进行中' : used ? '今日已接' : '待接取'}`}
+            art={itemArt ? <img src={itemArt} alt="" /> : noteArt[task.template].glyph} tone={noteArt[task.template].tone}
+            active={active} ready={ready} onClick={() => setSelected(task.id)} />;
         })}
         {!candidates.length && <div className="community-board-memo"><span aria-hidden="true">✎</span><p>完成踩点教学后，邻居们就会把委托贴在这里。</p></div>}
       </div>
-      <footer className="community-noticeboard-footer"><span>轻点纸条，读读邻居的留言</span><small>每日 5 点换新 3 份候选 · 每天最多接 2 单 · 同时保留 2 单 · 已接委托不过期</small></footer>
+      <footer className="community-noticeboard-footer"><span>轻点纸条，读读邻居的留言</span><HelpButton {...communityOrdersHelp} /></footer>
     </section>
     {selectedTask && details(selectedTask)}
     {selected === 'warm-order' && <CommunityDetailDialog title="给修渠邻居的一碗暖粥" eyebrow={warmDone ? '心意已送达' : '常驻故事 · 慢慢来，不会过期'} onClose={close}>

@@ -120,9 +120,9 @@
 .exp-path li[aria-current=step] { color: #4d7b6b; font-weight: 600; }
 .exp-path li[aria-current=step] > span, .exp-path li[data-done=true] > span { background: #e5f1e9; }
 .exp-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.exp-choices > button { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 16px; border: 1px solid #dae5de; border-radius: 12px; background: #f7fbf8; color: #4b6659; text-align: left; }
+.exp-choices > button, .exp-choices .exploration-choice-action { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 16px; border: 1px solid #dae5de; border-radius: 12px; background: #f7fbf8; color: #4b6659; text-align: left; }
 .exp-choices b { display: flex; justify-content: space-between; gap: 8px; }
-.exp-choices > button > span, .exp-choices em { font-size: 12px; font-style: normal; }
+.exp-choices > button > span, .exp-choices .exploration-choice-action > span, .exp-choices em { font-size: 12px; font-style: normal; }
 .exp-camp { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border-radius: 14px; background: #f5f1fa; }
 .exp-journey-footer { display: flex; flex-wrap: wrap; gap: 8px 18px; border-top: 1px solid #e5eaf0; padding-top: 12px; }
 .exp-journey-footer button { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 7px 0; border: 0; color: #6a7685; background: transparent; }

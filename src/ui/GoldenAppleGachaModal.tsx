@@ -121,7 +121,7 @@ const GachaPrizePreview = ({ machine, itemIconMap, onOpenProbabilities, disabled
   const rewards = machine === 'heart' ? goldenAppleHeartGachaRewards : goldenAppleGachaRewards.filter((reward) => reward.kind === 'bundle');
   return (
     <section className="gacha-prize-preview" aria-labelledby="gacha-preview-title">
-      <header><h3 id="gacha-preview-title">{t('ui.gacha.previewTitle')}</h3><button type="button" className="text-button" disabled={disabled} onClick={onOpenProbabilities}>{t('ui.gacha.probabilities')}</button></header>
+      <header><h3 id="gacha-preview-title">{t('ui.gacha.previewTitle')}</h3><button type="button" className="game-help-button" disabled={disabled} onClick={onOpenProbabilities}>{t('ui.gacha.probabilities')}</button></header>
       {machine === 'apple' ? <ul className="gacha-pool-groups">{supplyPoolGroups.map(({ key, weight }) => <li key={key}>{t(`ui.gacha.groups.${key}`)}<strong>{formatProbability(weight)}</strong></li>)}</ul> : null}
       <p className="gacha-preview-note">{t(machine === 'apple' ? 'ui.gacha.bundleDelivery' : 'ui.gacha.heartPreviewNote')}</p>
       <ul className="gacha-prize-list">
@@ -597,7 +597,7 @@ export const GoldenAppleGachaModal = ({
 
         <div className="gacha-detail-actions" aria-label={t('ui.gacha.detailsAria')}>
           {phase === 'results' ? <button type="button" className="secondary-button" onClick={returnToPool}><Package size={17} aria-hidden="true" />{t('ui.gacha.backToPool')}</button> : null}
-          <button type="button" className="secondary-button" onClick={() => openDetail('probabilities')} disabled={isAnimating}>
+          <button type="button" className="game-help-button" onClick={() => openDetail('probabilities')} disabled={isAnimating}>
             <ListIcon size={17} aria-hidden="true" />{t('ui.gacha.probabilities')}
           </button>
           <button type="button" className="secondary-button" onClick={() => openDetail('history')} disabled={isAnimating}>

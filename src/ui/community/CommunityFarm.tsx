@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { HelpButton } from '../help/HelpButton';
+import { animalHelp } from '../help/productionHelp';
 import { animals, facilities } from '../../core/communityData';
 import { careCommunityAnimal, collectCommunityAnimal, feedCommunityAnimal, getRanchDay, claimRanchMilk } from '../../core/communityFarm';
 import { canSpendCompanionTime } from '../../core/kitchen';
@@ -26,8 +28,9 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
       onConstruction={built ? () => setPanel('construction') : undefined} />
     {panel === 'construction' && <CommunityUpgradeDialog pet={pet} update={update} id={id} registry={registry} itemIconMap={itemIconMap} onClose={() => setPanel(null)} />}
     {panel === 'care' && <CommunityDetailDialog title={`照料${name}`} eyebrow="添一点饲料，陪它待一会儿" onClose={() => setPanel(null)}>
+      <HelpButton {...animalHelp} />
       {!built ? <p>完成{name}的修复后，就能在这里喂养和收获。</p> : <>
-        <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong>{status}</strong><p>每轮产出 2 份，基础 {def.hours} 小时。缺料或存满时暂停，离线不会失去动物。{pet.partnerSchedule.skills.garden.level >= 10 ? '园艺满级，周期缩短 8%。' : ''}</p></div></div>
+        <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong>{status}</strong><p>每轮产出 2 份{state.nextAt !== undefined ? ` · 剩余 ${timeLeft(state.nextAt)}` : ''}</p></div></div>
         <section className="community-care-section"><h3>把食槽添满一点</h3><p>食槽 {state.feed}/{capacity.feed} · 饲料库存 {pet.inventory.animal_feed ?? 0}</p><div className="community-actions">
           <button className="primary-button" disabled={!free || state.feed >= capacity.feed || !(pet.inventory.animal_feed ?? 0)} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision))}>添饲料 ×1</button>
           <button className="secondary-button" onClick={onShop}>补充饲料 · 5 金币／份</button>
@@ -37,7 +40,7 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
         </section>
         <p className="community-care-footnote">待收{def.name} {state.stock}/{capacity.stock} · 仓库 {pet.inventory[def.item] ?? 0} 份</p>
         <button className="text-button" disabled={!free} onClick={() => onKitchen(id === 'coop' ? 'carrot_omelet' : 'milk_custard')}>用收获做{id === 'coop' ? '胡萝卜蛋饼' : '鲜奶蛋羹'}</button>
-        {id === 'barn' && <section className="community-care-section"><h3>牧场今日心意</h3><p>当天在鸡舍或牛棚完成照料一次、收获一次，可任选一瓶奶，每日一次。</p><p>照料 {daily.cared ? '✓' : '○'} · 收获 {daily.collected ? '✓' : '○'} · {daily.claimed ? '今天已领取' : '完成后任选'}</p><div className="community-actions">{(['strawberry_milk', 'ad_milk'] as const).map(choice => <button key={choice} className="secondary-button" disabled={!free || !daily.cared || !daily.collected || daily.claimed || (pet.inventory[choice] ?? 0) >= 9999} onClick={() => update(p => claimRanchMilk(p, choice))}>{choice === 'ad_milk' ? 'AD 高钙奶' : '草莓牛奶'} ×1</button>)}</div><button className="text-button" onClick={() => onKitchen()}>打开厨房加工台 · 调制牛奶、奶油与奶酪</button></section>}
+        {id === 'barn' && <section className="community-care-section"><h3>牧场今日心意 · 任选一瓶</h3><p>照料 {daily.cared ? '✓' : '○'} · 收获 {daily.collected ? '✓' : '○'} · {daily.claimed ? '今天已领取' : '完成后任选'}</p><div className="community-actions">{(['strawberry_milk', 'ad_milk'] as const).map(choice => <button key={choice} className="secondary-button" disabled={!free || !daily.cared || !daily.collected || daily.claimed || (pet.inventory[choice] ?? 0) >= 9999} onClick={() => update(p => claimRanchMilk(p, choice))}>{choice === 'ad_milk' ? 'AD 高钙奶' : '草莓牛奶'} ×1</button>)}</div><button className="text-button" onClick={() => onKitchen()}>去厨房加工奶制品</button></section>}
       </>}
     </CommunityDetailDialog>}
   </>;

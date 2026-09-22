@@ -1,4 +1,4 @@
-import { ArrowUpRight, Bath, CalendarDays, ChefHat, Gamepad2, Gift, LockKeyhole, Moon, PackageOpen, ShoppingBag, Smile, Sparkles, Sprout, Ticket, Timer, Trophy } from 'lucide-react';
+import { ArrowUpRight, Bath, CalendarDays, ChefHat, Gamepad2, Gift, Headphones, LockKeyhole, Moon, PackageOpen, ShoppingBag, Smile, Sparkles, Sprout, Ticket, Timer, Trophy } from 'lucide-react';
 import { canClaimBoostCardDailyReward, dreamProjectCategories, gardenCompensationRewardId, getAchievementSummary, getClassicLegacyAppleCost, getClassicLegacyLevelCoinCost, getDailyWishView, getDreamProjectSupplySupplement, getDreamStageEligibility, getReturnWelcomeView, goldenAppleGachaStarterGiftRewardId, isClassicEndgameComplete, isClassicEndgameUnlocked } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
 import { getCompanionWish } from '../core/companionMemories';
@@ -22,6 +22,8 @@ interface Props extends HomePageProps {
   onOpenKitchen: () => void;
   onOpenPlay: () => void;
   onOpenMemories: () => void;
+  onOpenMusic: () => void;
+  musicActive: boolean;
   onOpenFestival?: (festival: FestivalId) => void;
   onOpenShop: () => void;
   onOpenCommunity?: () => void;
@@ -92,7 +94,7 @@ export const HomePageV2 = (props: Props) => {
           <button data-tone="rose" onClick={props.onOpenBoostCards}><Ticket size={20} /><span>{L('朋友卡', 'Friend cards')}</span><ClaimNotice show={friendGiftReady} /></button>
           <button data-tone="lilac" onClick={props.onOpenGacha}><Gift size={20} /><span>{L('扭蛋', 'Gacha')}</span><ClaimNotice show={!pet.claimedRewardIds.includes(goldenAppleGachaStarterGiftRewardId)} /></button>
         </nav>
-        <div className="home-quick-grid home-services-grid">
+        <div className="home-quick-grid home-services-grid home-services-grid--music">
           <button className="home-quick play" disabled={playLocked || Boolean(pet.adventure.active)} onClick={onOpenPlay}>
             {playLocked ? <LockKeyhole /> : <Gamepad2 />}<strong>{!playLocked && activeGame ? L('继续游戏', 'Continue game') : L('一起游戏', 'Games together')}</strong>
             <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : L('翻牌、接球，或吹一会儿泡泡', 'Cards, catch, or a few bubbles')}</small>
@@ -102,6 +104,7 @@ export const HomePageV2 = (props: Props) => {
             <ClaimNotice show={Boolean(pet.partnerSchedule.pendingResult)} />
           </button>
           <button className="home-quick focus" onClick={onOpenPomodoro}><Timer /><strong>{L('专注时光', 'Focus')}</strong><small>{pet.pomodoro.isRunning ? L('正在专注中', 'Focus in progress') : L('陪你完成一件小事', 'One small thing together')}</small></button>
+          <button className="home-quick music" onClick={props.onOpenMusic}><Headphones /><strong>音乐陪伴</strong><small>{props.musicActive ? '旋律还在，回来坐一会儿' : '听听音乐，和伙伴慢慢待着'}</small></button>
         </div>
         {props.onOpenFestival && <FestivalEntry pet={pet} onOpen={props.onOpenFestival} />}
         <AdventureEntry entry={props.adventure} hasReward={adventureGiftReady} />

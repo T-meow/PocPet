@@ -14,6 +14,8 @@ import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes
 import { QuantityStepper } from './QuantityStepper';
 import { QuantityPresets } from './QuantityPresets';
 import { ItemRecoveryPreview } from './ItemRecoveryPreview';
+import { HelpButton } from './help/HelpButton';
+import { backpackHelp } from './help/explorationHelp';
 import { getItemBrowseCategories, filterBrowseItems, type ItemBrowseCategory } from './itemBrowse';
 
 const dishIds = new Set<string>(allDishes.map(dish => dish.id));
@@ -70,12 +72,12 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   return <div className="preparation-inventory">
     <div className="storage-tabs adventure-pack-tabs" role="group" aria-label="物品分类">{categories.map(value => <button key={value.id} aria-pressed={category === value.id} onClick={() => perform(() => setCategory(value.id))}>{value.label}</button>)}</div>
     <div className="adventure-pack-columns">
-      <section className="adventure-pack-pane adventure-pack-pane--bag" aria-label={L('本次携带的背包', 'Packed travel bag')}><h3><Backpack size={18} />{L('背包', 'Travel bag')}<small>{packed}/{capacity}{foodOnly ? ' 份' : ''}</small></h3>
+      <section className="adventure-pack-pane adventure-pack-pane--bag" aria-label={L('本次携带的背包', 'Packed travel bag')}><div className="help-heading"><h3><Backpack size={18} />{L('背包', 'Travel bag')}<small>{packed}/{capacity}{foodOnly ? ' 份' : ''}</small></h3><HelpButton {...backpackHelp} /></div>
         <progress className="adventure-pack-slots" value={packed} max={capacity} aria-label={L('已占用容量', 'Occupied slots')} />
         <div className="storage-grid-scroll" tabIndex={0} aria-label="浏览背包物品">
           <div className="storage-item-grid">{packedItems.map(([id, n]) => tile(id as ItemId, 'bag', n))}{automaticItems.map(([id, n]) => <div className="storage-item-tile preparation-automatic" key={`automatic:${id}`} aria-label={`自动补给：${registry.get(id)?.name ?? id} ×${n}，出发时购买`}><span className="storage-tile-count">×{n}</span><span className="storage-tile-picture"><img src={icons[id] ?? unknownItemIcon} alt="" /></span><strong className="storage-tile-name">自动补给</strong></div>)}</div>
           {!packedItems.length && !automaticItems.length && <p className="adventure-pack-empty">{packed ? L('背包中没有这类物品。', 'No packed supplies in this category.') : L('从仓库选择物品装入。', 'Choose supplies from home inventory to pack.')}</p>}
-          {tool && <div className="adventure-pack-tool"><strong>{L('独立工具位', 'Tool slot')} · {tool.equipped ? 1 : 0}/1</strong>{tool.equipped ? tile('trail_rope', 'bag', 1) : <span>{L('未装备探路绳', 'No trail rope equipped')}</span>}<small>{toolDurabilityLabel(pet, 'trail_rope')} · 过绳索通路才扣耐久</small></div>}
+          {tool && <div className="adventure-pack-tool"><strong>{L('独立工具位', 'Tool slot')} · {tool.equipped ? 1 : 0}/1</strong>{tool.equipped ? tile('trail_rope', 'bag', 1) : <span>{L('未装备探路绳', 'No trail rope equipped')}</span>}<small>{toolDurabilityLabel(pet, 'trail_rope')}</small></div>}
           {bagExtra}
         </div>
       </section>
@@ -88,7 +90,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
         {(canPack || selection.source === 'bag') && <button className="storage-primary" disabled={!max || selection.source === 'warehouse' && !selectedTool && manualCount + count > capacity} onClick={transferItem}>{selection.source === 'warehouse' ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}{selection.source === 'warehouse' ? L('装入', 'Pack') : L('移回仓库', 'Unpack')} ×{count}</button>}
         {selection.source === 'warehouse' && selected.usable && <button className="storage-secondary" disabled={!canUse} title={usePlan?.blocked ? overfedMessage : undefined} onClick={() => perform(() => { if (canUse) onUseHomeItem(selected.id, useCount); })}>{usePlan?.blocked ? '吃撑了，先消化一下' : isAdventureTreasure(selected.id) ? L(`兑换 ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} 金币`, `Exchange ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} coins`) : L(`现在${selected.kind === 'food' ? '食用' : '使用'} ×${useCount}`, `Use now ×${useCount}`)}</button>}
         {max > 1 && <QuantityPresets value={count} max={max} onChange={value => perform(() => setQuantity(value))} />}
-      </div> : <p>{foodOnly ? '点选料理装入背包；出发时才扣库存和补给费。' : L('点选物品可装包、使用或兑换；每件占一份，出发时才扣库存。', 'Select items to pack. Use home supplies here or exchange treasure for coins. Each item uses one slot. Supplies leave home when you set out.')}</p>}
+      </div> : <p>选择物品，整理行囊。</p>}
       {selected && <ItemRecoveryPreview pet={pet} item={selected} quantity={requestedUseCount} favoriteFoodIds={[]} />}
     </footer>
   </div>;
