@@ -2,64 +2,38 @@
 
 [中文](README.md)
 
-PocPet is an offline-first virtual pet app for desktop, mobile and the web, built with Tauri, React, TypeScript and Rust.
+**Bring the journey home.**
+
+PocPet is an offline-first virtual pet game for desktop, Android and the web. Care for your companion, pack a homemade meal for a journey, and bring your discoveries back to the farm, the dinner table and your memory album.
 
 May a little virtual companionship ease a lonely soul.
 
-## Features
+## Life with your companion
 
-- Care for your pet's hunger, cleanliness, mood, energy and health.
-- Use a Pomodoro timer, complete daily wishes and companion activities, and collect achievements and seasonal stories.
-- Develop learning, gardening, sports and cooking skills.
-- Grow crops, raise animals, fish, cook, trade and improve farm facilities and decorations.
-- Explore five regions from the outpost to gather supplies, clues and treasures.
-- Collect golden apples and trophies, and customize pets with Mods.
+- **Everyday company**: Feed, clean, rest and play together, fulfill daily wishes, and develop learning, gardening, sports and cooking skills. Share a Pomodoro session or listen to music together.
+- **Five regions to explore**: Visit Creek Valley, Windmill Hills, Misty Pine Woods, Tidal Coast and the Old Observatory. Discover stories, supplies and treasures across 40 landmarks, build camps and arrange idle expeditions.
+- **A creekside farm**: Grow 16 crops and tend an orchard, coop and barn. Visit four fishing waters to collect 18 fish species and gold-crown records.
+- **A kitchen and a little stall**: Process your own ingredients, unlock 63 recipes, prepare meals and travel supplies, or sell your harvest at the stall.
+- **Neighborhood life**: Complete commissions and specialty orders, prepare dinners, exhibitions and nights under the stars, and craft upgradeable decorations that connect your travels with life at home.
+- **Memories to keep**: Collect achievements, trophies, festival stories and commemorative artwork, and customize your companion's appearance and text with Mods. When life gets busy, back up your save and freeze time until you return.
 
-## Development and manual playtesting
+## Start playing
 
-The frontend requires Node.js and npm. Native development also needs Rust and the Tauri system dependencies; Android builds require a JDK, Android SDK and NDK.
+| Entry point | Description |
+|---|---|
+| [Download the app](https://github.com/T-meow/PocPet/releases) | Read release notes and find a package for your device |
+| [Play on the web](https://t-meow.github.io/PocPet/) | Play directly in your browser |
+| [Bilibili Toy edition](https://www.bilibili.com/toy/pocpet/index.html) | Use platform login, cloud saves and sharing |
+| [Local development and playtesting](docs/本地测试与复用存档.md) | Run from source with the fixed test address and reusable saves |
 
-```bash
-npm ci
-npm run serve:local
-```
+Begin your first journey with the scouting tutorial at the outpost. Finish it and collect your travel bag to start unlocking the map and farm facilities. Gameplay help buttons explain requirements, costs and rewards.
 
-Use **http://127.0.0.1:5173** for local testing. `npm run dev` uses the same entry point. An occupied port causes an error; reuse an existing project server instead of opening another port or creating separate saves under localhost.
+Back up or transfer progress through Settings > Saves & recovery. Local saves are separate across devices, browser origins and native clients. Keep your original Mod files too: save exports do not include their images. See the [Toy reference](docs/Toy平台使用参考.md) for edition differences.
 
-There is one routine code check:
+Find gameplay values, code structure, packaging instructions and art guidelines in the [reference documentation](docs/README.md). [package.json](package.json) defines the current source version; the download page lists published versions.
 
-```bash
-npm test
-```
+## License and participation
 
-It checks TypeScript, save compatibility and recovery, error handling and application module loading. Gameplay and visual effects are checked manually. Documentation, wording and styling changes do not require routine builds.
+Code is licensed under [GPL-3.0-or-later](LICENSE.md). AI-generated or AI-assisted pet artwork is excluded from the GPL license and may not be used commercially. Respect each asset's licensing terms when using it.
 
-Create a reusable save with all facilities unlocked:
-
-```bash
-npm run save:test:facilities
-```
-
-Import `output/test-saves/full-facilities.pocpet.json` through the save and recovery section in Settings. See the [local testing reference](docs/本地测试与复用存档.md) for details. Use `npm run tauri:dev` for native development.
-
-## Packaging and releases
-
-```bash
-npm run package
-```
-
-The interactive command defaults to a Windows x64 EXE and an Android arm64 test-signed APK in `release/`. Add `--type windows,android --dry-run` to preview the commands. Other architectures and platforms require explicit selection. The tool synchronizes versions, backs up existing artifacts and verifies the output; see the [packaging reference](docs/打包流程与统一脚本.md).
-
-[GitHub Actions](.github/workflows/release.yml) runs the unified checks and builds both frontend editions for regular pushes and PRs. Official `v<version>` tags trigger all platform builds, a GitHub Release, update manifests and web deployment. Manual builds default to two platforms unless `full_build` is selected. For an independent web deployment, use [pages.yml](.github/workflows/pages.yml) with `source=main`, the version and the pushed commit.
-
-## Saves and Mods
-
-Settings supports JSON v2 save export and import, including supported older formats. Imports reset time baselines to avoid immediate offline settlement; unsupported newer saves cannot overwrite progress. Exports contain the current Mod identity but not its images, so keep the Mod file separately.
-
-Mod v1/v2 can replace artwork and text and add safe namespaced items. See [CodeWiki](docs/CODEWIKI.md), the [Mod parser](src/core/mod.ts) and the [reference index](docs/README.md).
-
-## License and contributions
-
-Code is licensed under [GPL-3.0-or-later](LICENSE.md). AI-generated or AI-assisted pet artwork is excluded from the GPL license and may not be used commercially. Other asset sources are listed in their respective manifests.
-
-Most code was created with AI assistance and reviewed, integrated, debugged and released by the maintainer. Issues with reproduction steps and independent forks are welcome. Contributions must respect the license, existing save and Mod compatibility, and third-party asset rights.
+Most code was created with AI assistance and reviewed, integrated, debugged and released by the maintainer. Report problems with reproduction steps through [Issues](https://github.com/T-meow/PocPet/issues). Contributions that preserve existing save and Mod compatibility and respect the project license are welcome.
