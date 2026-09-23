@@ -15,6 +15,7 @@ import { CommunityBoardNote } from './CommunityBoardNote';
 import { HelpButton } from '../help/HelpButton';
 import { landmarkNames, mapRegionForExpedition, regionNames } from '../../core/landmarkProgress';
 import { communityOrdersHelp } from '../help/workHelp';
+import { CommunityActivities } from './CommunityActivities';
 
 const noteArt: Partial<Record<CommissionTemplate, { item: BuiltinItemId; tone: string; summary: string }>> = {
   valley_basket: { item: 'valley_mushroom', tone: 'mint', summary: '送野菇 ×3' }, valley_rice: { item: 'dish_mushroom_rice', tone: 'cream', summary: '送野菇焖饭 ×1' },
@@ -25,7 +26,7 @@ const noteArt: Partial<Record<CommissionTemplate, { item: BuiltinItemId; tone: s
   soup: { item: 'dish_creek_fish_soup', tone: 'peach', summary: '送香草鲜鱼汤 ×1' }, fresh_porridge: { item: 'dish_herb_porridge', tone: 'cream', summary: '新煮一份香草暖粥' }, delivery: { item: 'bento', tone: 'pink', summary: '给旧桥守望者送餐' },
 };
 
-export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?: WaterId) => void; onFarm?: (place: 'field' | 'coop' | 'barn') => void }) => {
+export const CommunityBoard = (props: CommunityPanelProps & { actorId: string; actorName: string; onFishing: (water?: WaterId) => void; onFarm?: (place: 'field' | 'coop' | 'barn') => void }) => {
   const { pet, update, onExplore, onKitchen, onFishing, onFarm, registry, onOpenOutpost, itemIconMap } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const tasks = getCommunityTasks(pet), candidates = getCommunityCandidates(pet), day = getCommunityDay(pet), accepted = pet.community.boardDay === day ? pet.community.acceptedToday : [];
@@ -58,6 +59,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { onFishing: (water?
     </CommunityDetailDialog>;
   };
   return <>
+    <CommunityActivities {...props} />
     <section className="community-noticeboard" aria-label="邻里公告板">
       <header className="community-noticeboard-heading"><div><small>溪畔来信 · 留一点时间给邻居</small><h3>今天，帮一点小忙</h3></div><span><span>今日已接 · 委托 {accepted.length}/2 · 收购 {Number(specialtyUsed)}/1</span><span>进行中 · 委托 {tasks.length}/2 · 收购 {Number(Boolean(pet.community.specialtyOrders.active))}/1</span></span></header>
       <div className="community-pinned-notes">

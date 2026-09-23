@@ -16,7 +16,7 @@ import { t } from '../i18n';
 import { ConfirmDialog } from './ConfirmDialog';
 import { getPartnerScheduleDisplaySummary, getPartnerScheduleDisplayTitle } from './partnerScheduleText';
 import { HelpButton } from './help/HelpButton';
-import { getWorkHelp, getWorkOfferHelp, getSkillHelp } from './help/workHelp';
+import { getWorkHelp, getWorkOfferHelp } from './help/workHelp';
 
 const categories: readonly PartnerScheduleCategory[] = ['study', 'cooking', 'garden', 'exercise'];
 const categoryIcons: Record<PartnerScheduleCategory, LucideIcon> = { study: BookOpen, cooking: ChefHat, garden: Sprout, exercise: Dumbbell };
@@ -67,6 +67,12 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
   const processedCount = schedule.completedOfferIds.length + schedule.earlyEndedOfferIds.length;
   const exhausted = processedCount === schedule.offers.length;
   const visibleOffers = schedule.offers.filter((offer) => category === 'all' || getPartnerScheduleDefinition(offer.templateId)?.category === category);
+  const offerHelp = schedule.offers.flatMap(offer => {
+    const definition = getPartnerScheduleDefinition(offer.templateId);
+    if (!definition) return [];
+    const neighbor = schedule.neighborOfferId === offer.id ? selectNeighborReference(offer.id, neighbors) : undefined;
+    return [getWorkOfferHelp(getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors), getPartnerScheduleOfferPreview(pet, definition, now))];
+  });
   const ticketClaimed = pet.goldenAppleGacha.dailyGrantedSources.includes('partner_schedule');
   const contributionMinutes = amount(schedule.dailyContributionMs / 60000);
   const endMessage = endPreview ? endPreview.result.outcome === 'completed' ? L('工作已经全程完成，回家后可领取完整报酬与谢礼。', 'The job is complete. Head home to collect your full reward and gift.') : L(
@@ -78,7 +84,7 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
     <header className="community-header">
       <button type="button" className="icon-button" onClick={onBack} aria-label={L('返回小窝', 'Back home')}><ArrowLeft size={22} /></button>
       <div><span className="community-eyebrow">OUR NEIGHBORHOOD</span><h2>{L('社区工作', 'Community work')}</h2><p>{L('帮一点小忙，收获邻里的谢意。', 'Lend a hand. Bring a little kindness home.')}</p></div>
-      <HelpButton {...getWorkHelp(pet)} />
+      <HelpButton {...getWorkHelp(pet, offerHelp)} label="工作说明" />
       <span className="community-wallet" aria-label={L(`${pet.hearts} 颗小心心`, `${pet.hearts} hearts`)}><Heart size={19} fill="currentColor" />{pet.hearts}</span>
     </header>
 
@@ -125,7 +131,7 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
             <div className="community-offer-top"><span><Icon size={17} />{placeName(definition.category)}</span><span className="community-duration"><Clock3 size={14} />{duration(preview.durationMs)}</span></div>
             <h4>{getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors)}</h4><p className="community-offer-description">{getPartnerScheduleDisplaySummary(definition.id, neighbor, neighbors)}</p>
             <div className="community-offer-cost"><span><Zap size={14} />{L('体力', 'Energy')} {preview.energyCost}</span><span>{L('饱腹', 'Fullness')} {amount(preview.hungerCost)}</span><span>{L('心情', 'Mood')} {amount(preview.moodCost)}</span></div>
-            <div className="community-pay"><div className="help-heading"><small>全程报酬</small><HelpButton {...getWorkOfferHelp(getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors), preview)} /></div><strong><img src={currencyIcon} alt="" />{preview.baseCoins + preview.completionCoins}<span>{preview.grantsMasterCompletion ? '大师次数 +1' : `经验 +${preview.baseSkillXp + preview.completionSkillXp}`}</span></strong></div>
+            <div className="community-pay"><small>全程报酬</small><strong><img src={currencyIcon} alt="" />{preview.baseCoins + preview.completionCoins}<span>{preview.grantsMasterCompletion ? '大师次数 +1' : `经验 +${preview.baseSkillXp + preview.completionSkillXp}`}</span></strong></div>
             {preview.categoryReward && <div className="community-category-alternative"><small>或改选以下报酬</small><RewardList reward={preview.categoryReward} icons={itemIconMap} /></div>}
             <footer><span className="community-category-label">{t(`ui.partnerSchedule.categories.${definition.category}`)}</span>{resolved ? <span className="community-stamp">{completed ? <CheckCircle2 size={16} /> : <Home size={16} />}{completed ? L('已完成', 'Completed') : L('提前回家', 'Ended early')}</span> : <button type="button" className="primary-button" disabled={!check.canStart} onClick={() => onStart(offer.id)}>{running ? L('正在帮忙', 'In progress') : pending ? L('报酬待领取', 'Collect rewards') : check.canStart ? L('出发帮忙', 'Start helping') : t(`ui.partnerSchedule.blocked.${check.reason}`)}</button>}</footer>
           </article>;
@@ -140,7 +146,7 @@ export const PartnerSchedulePage = ({ pet, itemIconMap, neighbors, onBack, onSta
         const master = skill.level >= partnerScheduleMaxSkillLevel;
         const needed = getPartnerScheduleSkillXpNeeded(skill.level);
         const next = getPartnerScheduleMasteryNextThreshold(skill.masterCompletions);
-        return <section key={id} className="community-skill" data-category={id}><div className="community-skill-summary"><Icon size={18} /><span><strong>{t(`ui.partnerSchedule.categories.${id}`)} · Lv.{skill.level}</strong><small>{master ? t('ui.partnerSchedule.mastery.count', { count: skill.masterCompletions }) : `${skill.xp} / ${needed} XP`}</small></span><HelpButton {...getSkillHelp(pet, id)} /></div><progress max={master ? next ?? Math.max(1, skill.masterCompletions) : needed} value={master ? skill.masterCompletions : skill.xp} aria-label={t(`ui.partnerSchedule.categories.${id}`)} /></section>;
+        return <section key={id} className="community-skill" data-category={id}><div className="community-skill-summary"><Icon size={18} /><span><strong>{t(`ui.partnerSchedule.categories.${id}`)} · Lv.{skill.level}</strong><small>{master ? t('ui.partnerSchedule.mastery.count', { count: skill.masterCompletions }) : `${skill.xp} / ${needed} XP`}</small></span></div><progress max={master ? next ?? Math.max(1, skill.masterCompletions) : needed} value={master ? skill.masterCompletions : skill.xp} aria-label={t(`ui.partnerSchedule.categories.${id}`)} /></section>;
       })}<div className="community-milestones"><strong>{L(`全局金币加成 +${getPartnerScheduleGlobalCoinBonusPercent(schedule.skills)}%`, `Global coin bonus +${getPartnerScheduleGlobalCoinBonusPercent(schedule.skills)}%`)}</strong>{getPartnerScheduleUnlockedOfferCount(schedule.skills) > schedule.boardOfferCount && <p>{L('新增名额将在下次换批时生效。', 'New slots become available with the next batch.')}</p>}</div></section>
     </aside></div>
     {refreshConfirm && <ConfirmDialog title={L('换一批社区事务？', 'Refresh community requests?')} message={L(`消耗 ${refreshConfirm.cost} 颗小心心，换取 ${refreshConfirm.offerCount} 项事务。本批未开始的事务也会被替换，今日贡献会保留。`, `Spend ${refreshConfirm.cost} hearts for ${refreshConfirm.offerCount} requests. Unstarted requests will also be replaced. Your daily contribution is kept.`)} cancelLabel={L('再看看', 'Keep browsing')} confirmLabel={L(`换一批 · ♥ ${refreshConfirm.cost}`, `Refresh · ♥ ${refreshConfirm.cost}`)} confirmTone="primary" onCancel={() => setRefreshConfirm(null)} onConfirm={() => { const key = refreshConfirm.boardKey; setRefreshConfirm(null); onRefresh(key); }} />}

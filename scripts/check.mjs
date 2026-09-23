@@ -139,6 +139,99 @@ async function verifySavesAndErrors() {
       for (const key of ['coins', 'health', 'mood']) assert.ok(Number.isFinite(invalidStats[key]) && invalidStats[key] >= 0, key);
     });
 
+    await check('社区旧筹备兼容、回礼往返与满仓原子领取', async () => {
+      const actions = await import('../src/core/communityProjectActions.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const { getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const legacy = structuredClone(pet);
+      legacy.community.schemaVersion = 11; delete legacy.community.activityBoard;
+      legacy.community.expedition.projects.riverside = { completed: 2, stage: 1, theme: 'journey', lastDay: '2026-09-01', firstAt: now - 86400000, actorId: 'old.partner', actorName: '旧伙伴' };
+      legacy.inventory.dish_mushroom_rice = 2;
+      let state = parseSaveFileText(createSaveFileText(legacy, null, now), now).pet;
+      assert.equal(state.community.schemaVersion, 12);
+      assert.equal(state.community.expedition.projects.riverside.stage, 1);
+      const cap = getPetEnergyCap(state), runId = actions.getProjectRunId(state, 'riverside');
+      const frozen = { ...state, timePause: { schemaVersion: 1, pausedAt: now } };
+      assert.equal(actions.contributeCommunityProject(frozen, 'riverside', runId, 1, now), frozen);
+      const prepared = actions.contributeCommunityProject(state, 'riverside', runId, 1, now);
+      assert.equal(prepared.community.expedition.projects.riverside.stage, 2, 'legacy accepted menus bypass new unlock conditions');
+      assert.equal(prepared.inventory.dish_mushroom_rice ?? 0, 0);
+      assert.deepEqual(actions.contributeCommunityProject(prepared, 'riverside', runId, 1, now).inventory, prepared.inventory);
+      state = actions.finishCommunityProject(prepared, 'riverside', runId, 'new.partner', '新伙伴', now);
+      const reward = state.community.expedition.projects.riverside.reward;
+      assert.ok(reward); assert.equal(reward.hearts, 200); assert.equal(reward.first, false);
+      assert.equal(state.community.expedition.projects.riverside.actorName, '旧伙伴');
+      assert.equal(getPetEnergyCap(state), cap);
+      assert.equal(state.community.expedition.projects.riverside.completed, 3);
+      assert.deepEqual(actions.finishCommunityProject(prepared, 'riverside', runId, 'new.partner', '新伙伴', now).community.expedition.projects.riverside.reward, reward, 'same saved invitation must not reroll');
+      assert.equal(actions.finishCommunityProject(state, 'riverside', runId, 'new.partner', '新伙伴', now).community.expedition.projects.riverside.completed, 3);
+      state = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      assert.deepEqual(state.community.expedition.projects.riverside.reward, reward);
+      const olderQuote = structuredClone(state);
+      olderQuote.community.expedition.projects.riverside.reward.hearts = 175;
+      olderQuote.community.expedition.projects.riverside.reward.items = { golden_apple: 2 };
+      assert.deepEqual(parseSaveFileText(createSaveFileText(olderQuote, null, now), now).pet.community.expedition.projects.riverside.reward,
+        olderQuote.community.expedition.projects.riverside.reward, 'pending rewards retain their stored quote instead of using current balance data');
+      const [item, amount] = Object.entries(reward.items)[0];
+      state.inventory[item] = inventoryItemLimit;
+      const beforeHearts = state.hearts, beforeItems = { ...state.inventory };
+      const blocked = actions.claimCommunityProjectReward(state, 'riverside', reward.id);
+      assert.equal(blocked.hearts, beforeHearts); assert.deepEqual(blocked.inventory, beforeItems);
+      state = parseSaveFileText(createSaveFileText(blocked, null, now), now).pet;
+      assert.deepEqual(state.community.expedition.projects.riverside.reward, reward);
+      state.inventory[item] -= amount;
+      const fullHearts = { ...state, hearts: Number.MAX_SAFE_INTEGER };
+      assert.ok(actions.claimCommunityProjectReward(fullHearts, 'riverside', reward.id).community.expedition.projects.riverside.reward);
+      const claimed = actions.claimCommunityProjectReward(state, 'riverside', reward.id);
+      assert.equal(claimed.hearts, beforeHearts + reward.hearts);
+      assert.equal(claimed.inventory[item], inventoryItemLimit);
+      assert.equal(claimed.community.expedition.projects.riverside.reward, undefined);
+      assert.equal(actions.claimCommunityProjectReward(claimed, 'riverside', reward.id), claimed);
+      assert.equal(parseSaveFileText(createSaveFileText(claimed, null, now), now).pet.community.expedition.projects.riverside.reward, undefined);
+    });
+
+    await check('社区周邀请保存稳定、过期请求与时钟恢复防重', async () => {
+      const { getCommunityActivityBoard, advanceCommunityActivities } = await import('../src/core/communityActivities.ts');
+      const { startCommunityProject, contributeCommunityProject, finishCommunityProject } = await import('../src/core/communityProjectActions.ts');
+      const { reconcilePetClock } = await import('../src/core/gameClock.ts');
+      const time = new Date(2026, 8, 21, 12).getTime();
+      const initial = createDefaultPet(time);
+      let state = normalizePet({ ...initial, adventure: { ...initial.adventure, completed: { tutorial: 1 } }, community: { ...initial.community, gardenBuilt: true, herbDiscovered: true, firstOrderDelivered: true }, inventory: { carrot: 3, egg: 2, dish_herb_porridge: 2 } }, time);
+      state = advanceCommunityActivities(state, time);
+      const board = state.community.activityBoard;
+      assert.equal(board.week, '2026-09-21'); assert.equal(board.project, 'riverside');
+      state = startCommunityProject(state, 'riverside', 'garden', board.invitationId, time);
+      assert.equal(state.community.activityBoard.accepted, true);
+      state = contributeCommunityProject(state, 'riverside', board.invitationId, 0, time);
+      const saved = parseSaveFileText(createSaveFileText(state, null, time), time).pet;
+      assert.deepEqual(saved.community.activityBoard, state.community.activityBoard);
+      assert.deepEqual(startCommunityProject(saved, 'riverside', 'journey', board.invitationId, time).community.expedition.projects, saved.community.expedition.projects, 'repeated accept cannot reset supplies or change theme');
+      state = contributeCommunityProject(saved, 'riverside', board.invitationId, 1, time);
+      const first = finishCommunityProject(state, 'riverside', board.invitationId, 'official.furo', 'Furo', time);
+      assert.equal(first.community.expedition.projects.riverside.reward.hearts, 400);
+      assert.equal(first.community.expedition.projects.riverside.completed, 1);
+      assert.equal(first.community.acceptedToday.length, 0, 'activity must not consume daily commissions');
+      const unlocked = structuredClone(saved);
+      unlocked.community.facilities.fishing_hut.built = true;
+      unlocked.community.fishing.journal = { pond_crucian: { count: 1, firstAt: time, largest: 1 }, pond_carp: { count: 1, firstAt: time, largest: 1 } };
+      assert.equal(getCommunityActivityBoard(unlocked, time).project, 'riverside', 'new unlock does not replace this week');
+      const boundary = new Date(2026, 8, 28, 5).getTime();
+      assert.equal(getCommunityActivityBoard(unlocked, boundary - 1).invitationId, board.invitationId);
+      const next = advanceCommunityActivities(unlocked, boundary);
+      assert.equal(next.community.activityBoard.project, 'exhibition');
+      assert.equal(next.community.expedition.projects.riverside.stage, 1, 'unfinished preparations survive rollover');
+      assert.equal(startCommunityProject(next, 'riverside', 'garden', board.invitationId, boundary).community.expedition.projects.riverside.stage, 1);
+      const restored = parseSaveFileText(createSaveFileText(next, null, boundary), boundary).pet;
+      assert.deepEqual(restored.community.activityBoard, next.community.activityBoard);
+      const accepted = startCommunityProject(restored, 'exhibition', 'garden', restored.community.activityBoard.invitationId, boundary);
+      const rollback = reconcilePetClock(accepted, time).pet;
+      assert.equal(rollback.community.activityBoard.accepted, true);
+      assert.equal(rollback.community.activityBoard.invitationId, accepted.community.activityBoard.invitationId);
+      assert.equal(getCommunityActivityBoard(rollback, time).invitationId, accepted.community.activityBoard.invitationId);
+      const frozen = { ...accepted, timePause: { schemaVersion: 1, pausedAt: boundary } };
+      assert.equal(advanceCommunityActivities(frozen, boundary + 7 * 86400000), frozen);
+    });
+
     await check('全地图旧档迁移、旧在途安全返程与物产往返', async () => {
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const { expeditionProducts } = await import('../src/core/expeditionData.ts');
@@ -243,6 +336,281 @@ async function verifySavesAndErrors() {
         assert.equal(settleExpeditionTime(old, old.community.expedition.active.endsAt).community.expedition.treasurePity[region], 9, 'old trips retain their old rules');
         const lucky = structuredClone(state); lucky.community.expedition.active.rationPlan.discoveries[0].roll = 0;
         assert.equal(settleExpeditionTime(lucky, lucky.community.expedition.active.endsAt).community.expedition.treasurePity[region], 0);
+      }
+    });
+
+    await check('跨日挂机读档与在线结算一致、回拨防重', async () => {
+      const { advancePet } = await import('../src/core/petLifecycle.ts');
+      const { startExpedition } = await import('../src/core/expedition.ts');
+      const { advanceExplorationBudget } = await import('../src/core/explorationBudget.ts');
+      const { landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { getDailyResetDateKey } = await import('../src/core/dailyReset.ts');
+      const start = new Date(2026, 8, 22, 3).getTime(), hour = 3600000, end = start + 4 * hour;
+      const initial = createDefaultPet(start);
+      let state = normalizePet({ ...initial, coins: 10000, hunger: 100, energy: 100, health: 100, mood: 100, cleanliness: 100,
+        adventure: { ...initial.adventure, completed: { tutorial: 1 }, landmarks: landmarkNodes.map(node => landmarkId('valley', node)) },
+        community: { ...initial.community, expedition: { ...initial.community.expedition, regions: { ...initial.community.expedition.regions,
+          valley: { surveyed: true, base: 1, harvestDay: '', harvestUsed: 0 } } } } }, start);
+      state = advanceExplorationBudget(state, start);
+      state.community.expedition.loop.vouchers.forEach(voucher => { voucher.paid = 100; voucher.lootUsed = 100; });
+      state.community.expedition.loop.heartDays.forEach(day => { day.claimed = true; });
+      state = startExpedition(state, ['valley'], {}, false, 'official.furo', 'Furo', 'idle', 4, start);
+      assert.ok(state.community.expedition.active, state.recentEvent);
+      const saved = createSaveFileText(state, null, start);
+      const reload = (text, at) => {
+        const loaded = loadStoredPetJson(text, at, quiet);
+        assert.equal(loaded.status, 'ok');
+        return loaded.pet;
+      };
+      const receipt = pet => {
+        const { journal: _journal, ...result } = pet.community.expedition.pending;
+        return result;
+      };
+      let online = state;
+      for (let at = start + hour; at <= end; at += hour) online = advancePet(online, at, quiet);
+      const offline = reload(saved, end);
+      assert.equal(offline.community.expedition.pending.coins, 270);
+      assert.equal(offline.community.expedition.pending.hearts, 0, 'only three harvest hours belong to the new day');
+      assert.deepEqual(receipt(offline), receipt(online));
+      assert.deepEqual(offline.community.expedition.loop, online.community.expedition.loop);
+      assert.equal(offline.timeGuard.maxDailyDateKey, getDailyResetDateKey(end));
+      const restored = reload(createSaveFileText(offline, null, end), end);
+      assert.deepEqual(receipt(restored), receipt(offline), 'reloading the settled receipt must not pay again');
+      assert.deepEqual(restored.community.expedition.loop, offline.community.expedition.loop);
+      const later = reload(saved, end + 4 * 86400000);
+      assert.deepEqual(receipt(later), receipt(online), 'later login must not change a finished trip reward');
+      assert.ok(later.community.expedition.loop.vouchers.every(voucher => voucher.paid === 0 && voucher.lootUsed === 0), 'old harvests must not consume current-day vouchers');
+      const rolledBack = advancePet(offline, start, quiet);
+      assert.deepEqual(rolledBack.community.expedition.loop.vouchers, offline.community.expedition.loop.vouchers);
+      assert.deepEqual(rolledBack.community.expedition.loop.heartDays, offline.community.expedition.loop.heartDays);
+      const caughtUp = advancePet(rolledBack, end, quiet);
+      assert.deepEqual(caughtUp.community.expedition.loop.vouchers, offline.community.expedition.loop.vouchers, 'catching up after rollback must not reissue vouchers');
+      assert.deepEqual(caughtUp.community.expedition.loop.heartDays, offline.community.expedition.loop.heartDays);
+    });
+
+    await check('手动随机珍宝额度、存档恢复与采集防重', async () => {
+      const { advanceExplorationBudget, spendExplorationHarvest, settleExplorationLoot } = await import('../src/core/explorationBudget.ts');
+      const { regionalTreasures } = await import('../src/core/regionalTreasures.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      // Fixed identity: the first two harvests find gems; the first also finds a gold bar.
+      const initial = advanceExplorationBudget(normalizePet({ ...pet, saveMetadata: { ...pet.saveMetadata, id: 'save:regional-fixture-121498' },
+        adventure: { ...pet.adventure, completed: { tutorial: 1 } } }, now), now);
+      const harvest = (state, region = 'valley', count = 1, kind = 'manual') => settleExplorationLoot(spendExplorationHarvest(state, count, now), count, kind, region, now);
+      const original = JSON.stringify(initial);
+      for (const [item, { region }] of Object.entries(regionalTreasures)) {
+        const result = harvest(initial, region);
+        assert.deepEqual(result.finds, { ancient_gold_bar: 1, [item]: 1 }, 'regional and existing common rolls are independent');
+        const restored = harvest(reload(initial), region);
+        assert.deepEqual(restored.finds, result.finds, 'saving before consumption cannot reroll');
+        assert.deepEqual(restored.pet.community.expedition.loop, result.pet.community.expedition.loop);
+        const repeated = settleExplorationLoot(reload(result.pet), 1, 'manual', region, now);
+        assert.deepEqual(repeated.finds, {}, 'saving after consumption cannot replay the harvest');
+        assert.deepEqual(repeated.pet.community.expedition.loop, result.pet.community.expedition.loop);
+        assert.deepEqual(result.pet.community.treasureResearch, initial.community.treasureResearch);
+        assert.deepEqual(result.pet.community.expedition.treasurePity, initial.community.expedition.treasurePity);
+      }
+      assert.equal(JSON.stringify(initial), original, 'settlement must not mutate the input snapshot');
+      const twice = harvest(initial, 'valley', 2);
+      assert.deepEqual(twice.finds, { ancient_gold_bar: 1, creek_aquamarine: 2 });
+      assert.equal(twice.pet.community.expedition.loop.vouchers[0].lootUsed, 100, 'two valley harvests consume one voucher, with no gem surcharge');
+      const first = harvest(initial), second = harvest(reload(first.pet));
+      assert.equal(first.finds.creek_aquamarine + second.finds.creek_aquamarine, 2);
+      assert.deepEqual(second.pet.community.expedition.loop, twice.pet.community.expedition.loop, 'batched and separately saved harvests agree');
+      const partial = structuredClone(initial);
+      partial.community.expedition.loop.vouchers = [{ ...partial.community.expedition.loop.vouchers[0], lootUsed: 99 }];
+      const last = harvest(reload(partial), 'valley', 2);
+      assert.deepEqual(last.finds, { creek_aquamarine: 1 }, 'partial quota keeps 5%; the next harvest has no quota');
+      assert.deepEqual(harvest(reload(last.pet)).finds, {}, 'exhausted quota blocks both kinds of treasure');
+      assert.deepEqual(harvest(initial, 'valley', 1, 'hour').finds, { ancient_gold_bar: 1 }, 'hourly gathering keeps its existing common loot only');
+      assert.deepEqual(harvest({ ...initial, timePause: { schemaVersion: 1, pausedAt: now } }).finds, {});
+      assert.deepEqual(settleExplorationLoot(initial, 0, 'manual', 'valley', now).finds, {});
+      const nearMiss = structuredClone(initial);
+      nearMiss.saveMetadata.id = 'save:regional-fixture-12'; // First regional roll is just above 5%.
+      nearMiss.community.decorations = ['star_dome', 'emerald_pendant'];
+      nearMiss.community.decorationLevels = { star_dome: 10, emerald_pendant: 10 };
+      nearMiss.community.expedition.treasurePity.valley = 9;
+      const missed = harvest(reload(nearMiss));
+      assert.equal(missed.finds.creek_aquamarine ?? 0, 0, 'manual drops receive neither decoration bonuses nor idle pity');
+      assert.equal(missed.pet.community.expedition.treasurePity.valley, 9);
+    });
+
+    await check('手动珍宝行囊溢出、旧在途兼容与领取恢复', async () => {
+      const { startAdventure, advanceAdventure, getAdventureChoicePreview, pickupAdventureLoot, discardAdventureItem, returnFromAdventure, claimAdventureResult } = await import('../src/core/adventure.ts');
+      const { getAdventureSteps } = await import('../src/core/adventureData.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const { getExplorationBagCapacity } = await import('../src/core/explorationBackpack.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      const initial = startAdventure(fuel({ ...pet, saveMetadata: { ...pet.saveMetadata, id: 'save:regional-fixture-121498' },
+        inventory: { ...pet.inventory, prospector_pick: 1 }, adventure: { ...pet.adventure, completed: { tutorial: 1 } } }), 'valley', 'official.furo', 'Furo', {}, false, now);
+      const act = (state, choice) => advanceAdventure(state, state.adventure.active.id, state.adventure.active.choices.length, choice, now, state.adventure.active.revision);
+      const steps = getLandmarkSteps('landmark:valley:entrance');
+      let ready = initial;
+      for (const step of steps.slice(0, 2)) ready = act(fuel(ready), step.choices[0].id);
+      assert.equal(ready.community.expedition.loop.used, 0, 'observation does not consume or roll');
+      ready.adventure.active.bag = { trail_mix: getExplorationBagCapacity(ready) };
+      const choice = steps[2].choices.find(option => option.id === 'tool:creek_aquamarine');
+      const snapshot = JSON.stringify(ready);
+      getAdventureChoicePreview(ready, choice, now);
+      assert.equal(JSON.stringify(ready), snapshot, 'preview does not settle rewards');
+      const blocked = structuredClone(ready);
+      blocked.community.expedition.loop.available = 0;
+      assert.deepEqual(act(blocked, choice.id).adventure, blocked.adventure, 'failed consumption cannot produce loot');
+      let state = act(reload(ready), choice.id);
+      assert.deepEqual(state.adventure.active, act(ready, choice.id).adventure.active);
+      assert.equal(state.adventure.active.loot.creek_aquamarine, 2);
+      assert.equal(state.adventure.active.loot.ancient_gold_bar, 1);
+      assert.equal(state.community.treasureResearch.creek_aquamarine, 2, 'only the tool advances research');
+      assert.equal(state.community.expedition.collection.creek_aquamarine, 2);
+      const trip = ready.adventure.active;
+      assert.deepEqual(advanceAdventure(state, trip.id, trip.choices.length, choice.id, now, trip.revision), state);
+      state = reload(state);
+      assert.equal(state.adventure.active.loot.creek_aquamarine, 2, 'full bag overflow survives reload');
+      const loot = { ...state.adventure.active.loot }, space = Object.values(loot).reduce((sum, amount) => sum + amount, 0);
+      state = discardAdventureItem(state, trip.id, state.adventure.active.revision, 'trail_mix', space);
+      for (const [item, amount] of Object.entries(loot)) state = pickupAdventureLoot(state, trip.id, state.adventure.active.revision, item, amount);
+      state = returnFromAdventure(state, trip.id, now);
+      assert.equal(state.adventure.pending.items.creek_aquamarine, 2, 'return keeps harvested gems without another roll');
+      assert.equal(state.community.expedition.loop.used, 2);
+      state.inventory.creek_aquamarine = inventoryItemLimit;
+      state = claimAdventureResult(reload(state), trip.id);
+      assert.deepEqual(state.adventure.pending.items, { creek_aquamarine: 2 });
+      state = reload(state);
+      assert.deepEqual(claimAdventureResult(state, trip.id).inventory, state.inventory);
+      state.inventory.creek_aquamarine -= 2;
+      state = claimAdventureResult(state, trip.id);
+      assert.equal(state.inventory.creek_aquamarine, inventoryItemLimit);
+      assert.equal(state.adventure.pending, undefined);
+      assert.equal(claimAdventureResult(state, trip.id), state);
+      const old = structuredClone(initial);
+      old.adventure.active.rulesVersion = 8; old.adventure.active.purpose = undefined;
+      let legacy = reload(old);
+      for (const step of getAdventureSteps(8, 'valley').slice(0, 2)) legacy = act(fuel(legacy), step.choices[0].id);
+      assert.equal(legacy.adventure.active.bag.creek_aquamarine, 1, 'unconsumed harvests on old trips use the new drop rule');
+      assert.equal(legacy.community.expedition.collection.creek_aquamarine, 1);
+      assert.equal(reload(legacy).adventure.active.bag.creek_aquamarine, 1);
+    });
+
+    await check('随机采集存档固定、原行动记录与重复请求防重', async () => {
+      const { startAdventure, advanceAdventure, getAdventureChoicePreview } = await import('../src/core/adventure.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getAdventureStageChoices } = await import('../src/core/adventureGathering.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      const act = (state, id) => advanceAdventure(state, state.adventure.active.id, state.adventure.active.choices.length, id, now, state.adventure.active.revision);
+      const steps = getLandmarkSteps('landmark:valley:entrance');
+      let ready = startAdventure(fuel({ ...pet, inventory: { ...pet.inventory, harvest_sickle: 1, prospector_pick: 1, survey_lens: 1 },
+        adventure: { ...pet.adventure, completed: { tutorial: 1 } } }), 'valley', 'official.furo', 'Furo', {}, false, now);
+      for (const step of steps.slice(0, 2)) ready = act(ready, step.choices[0].id);
+      const snapshot = JSON.stringify(ready), commands = getAdventureStageChoices(ready, steps[2].choices);
+      for (const choice of commands) getAdventureChoicePreview(ready, choice, now);
+      assert.equal(JSON.stringify(ready), snapshot, 'method and cost previews must not settle or consume');
+      const restored = reload(ready);
+      assert.deepEqual(getAdventureStageChoices(restored, steps[2].choices), commands, 'reload cannot redraw the reward entry');
+      const trip = restored.adventure.active;
+      for (const id of ['gather:random', 'gather:sickle', 'gather:pick']) {
+        const command = commands.find(choice => choice.id === id);
+        assert.ok(command?.sourceChoiceId);
+        const result = act(restored, id), reference = act(ready, command.sourceChoiceId);
+        assert.equal(result.adventure.active.choices.at(-1), command.sourceChoiceId, 'save the authored action ID for old record validation');
+        assert.deepEqual(result.adventure.active.checkState.last, reference.adventure.active.checkState.last, 'method resolution keeps original rewards and checks');
+        const saved = reload(result);
+        assert.equal(saved.adventure.active.choices.length, 3, 'normalization must not truncate the gathered stage');
+        assert.deepEqual(saved.adventure.active.bag, result.adventure.active.bag);
+        assert.deepEqual(saved.adventure.active.loot, result.adventure.active.loot);
+        assert.deepEqual(saved.community.forageResearch, result.community.forageResearch);
+        assert.deepEqual(saved.community.treasureResearch, result.community.treasureResearch);
+        assert.deepEqual(saved.community.toolWear, result.community.toolWear);
+        assert.equal(saved.inventory.survey_lens, 1, 'gathering does not use a lens');
+        assert.equal(advanceAdventure(saved, trip.id, 2, id, now, trip.revision), saved, 'replayed command after restore must not settle twice');
+      }
+      const exhausted = structuredClone(restored);
+      exhausted.community.expedition.loop.available = 0;
+      const rejected = act(exhausted, 'gather:pick');
+      assert.deepEqual(rejected.adventure.active, exhausted.adventure.active);
+      assert.deepEqual(rejected.community.toolWear, exhausted.community.toolWear);
+      const missingTool = structuredClone(restored); delete missingTool.inventory.harvest_sickle;
+      assert.deepEqual(act(missingTool, 'gather:sickle').adventure.active, missingTool.adventure.active, 'commit must recheck warehouse stock');
+      const left = act(exhausted, 'gather:leave');
+      assert.equal(left.adventure.active.choices.length, 3);
+      assert.equal(left.adventure.active.choices.at(-1), 'safe:gather');
+      assert.equal(left.community.expedition.loop.used, exhausted.community.expedition.loop.used);
+      assert.deepEqual(left.community.toolWear, exhausted.community.toolWear);
+      assert.equal(left.hunger, exhausted.hunger - steps[2].choices[0].hunger);
+      assert.equal(reload(left).adventure.active.choices.length, 3);
+    });
+
+    await check('仓库绳索与旧携带绳索的耐久、返还和读档防重', async () => {
+      const { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult } = await import('../src/core/adventure.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      const act = (state, id) => advanceAdventure(state, state.adventure.active.id, state.adventure.active.choices.length, id, now, state.adventure.active.revision);
+      let ready = startAdventure(fuel({ ...pet, inventory: { ...pet.inventory, trail_rope: 2 }, adventure: { ...pet.adventure, completed: { tutorial: 1 } } }), 'valley', 'official.furo', 'Furo', {}, true, now);
+      assert.equal(ready.inventory.trail_rope, 2, 'new trips never reserve a warehouse rope');
+      assert.equal(ready.adventure.active.tool, false);
+      for (const step of getLandmarkSteps('landmark:valley:entrance').slice(0, 3)) ready = act(fuel(ready), step.choices[0].id);
+      const breaking = structuredClone(ready); breaking.community.toolWear.trail_rope = 15;
+      const used = act(reload(breaking), 'rope:obstacle');
+      assert.equal(used.inventory.trail_rope, 1);
+      assert.equal(used.adventure.active.tool, false);
+      assert.equal(used.community.toolWear.trail_rope ?? 0, 0);
+      const returned = returnFromAdventure(reload(used), used.adventure.active.id, now);
+      assert.equal(returned.adventure.pending.items.trail_rope ?? 0, 0, 'warehouse ropes must not be issued again on return');
+      for (const wear of [4, 15]) {
+        const legacy = structuredClone(ready);
+        legacy.inventory.trail_rope = 1; legacy.adventure.active.tool = true; legacy.community.toolWear.trail_rope = wear;
+        const oldUsed = act(reload(legacy), 'rope:obstacle');
+        assert.equal(oldUsed.inventory.trail_rope, 1, 'consume legacy packed rope before a warehouse spare');
+        assert.equal(oldUsed.adventure.active.tool, wear < 15);
+        assert.equal(oldUsed.community.toolWear.trail_rope ?? 0, wear < 15 ? wear + 1 : 0);
+        const receipt = returnFromAdventure(reload(oldUsed), oldUsed.adventure.active.id, now), id = receipt.adventure.pending.id;
+        assert.equal(receipt.adventure.pending.items.trail_rope ?? 0, wear < 15 ? 1 : 0);
+        const collected = claimAdventureResult(reload(receipt), id);
+        assert.equal(collected.inventory.trail_rope, wear < 15 ? 2 : 1);
+        assert.equal(claimAdventureResult(reload(collected), id).inventory.trail_rope, collected.inventory.trail_rope);
+      }
+    });
+
+    await check('中点营具休整状态恢复与错过节点保护', async () => {
+      const { startAdventure, advanceAdventure } = await import('../src/core/adventure.ts');
+      const { getAdventureSteps } = await import('../src/core/adventureData.ts');
+      const { getExplorationCampQuote, restExplorationWithKit, rescueExploration } = await import('../src/core/explorationSupport.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      const full = normalizePet({ ...pet, hearts: 1000, inventory: { ...pet.inventory, camp_kit: 1 }, adventure: { ...pet.adventure, completed: { tutorial: 1 }, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) } }, now);
+      for (const region of ['tutorial', ...mapRegions]) {
+        const source = region === 'tutorial' ? { ...full, adventure: { ...full.adventure, completed: {} } } : full;
+        const purpose = region === 'tutorial' ? undefined : landmarkId(region, 'entrance');
+        let state = startAdventure(fuel(source), region, 'official.furo', 'Furo', {}, false, now, purpose);
+        assert.ok(state.adventure.active, state.recentEvent);
+        const steps = getAdventureSteps(state.adventure.active.rulesVersion, region, purpose), middle = steps.length / 2;
+        for (const step of steps.slice(0, middle)) {
+          const t = state.adventure.active;
+          assert.ok(getExplorationCampQuote(state, 'adventure').reason);
+          assert.deepEqual(restExplorationWithKit(state, 'adventure', t.id, t.revision, now).community.toolWear, state.community.toolWear);
+          state = advanceAdventure(fuel(state), t.id, t.choices.length, step.choices[0].id, now, t.revision);
+        }
+        const restored = reload(state), t = restored.adventure.active, quote = getExplorationCampQuote(restored, 'adventure');
+        assert.equal(quote.checkpoint, middle); assert.equal(quote.reason, '');
+        const rested = reload(restExplorationWithKit(restored, 'adventure', t.id, t.revision, now));
+        assert.equal(rested.adventure.active.rested, true);
+        assert.equal(rested.community.toolWear.camp_kit, 1);
+        const again = restExplorationWithKit(rested, 'adventure', t.id, rested.adventure.active.revision, now);
+        assert.equal(again.energy, rested.energy); assert.equal(again.community.toolWear.camp_kit, 1);
+        const skipped = advanceAdventure(fuel(restored), t.id, t.choices.length, steps[middle].choices[0].id, now, t.revision);
+        const missed = reload(skipped), live = missed.adventure.active;
+        assert.equal(getExplorationCampQuote(missed, 'adventure').atCheckpoint, false);
+        assert.deepEqual(restExplorationWithKit(missed, 'adventure', live.id, live.revision, now).community.toolWear, missed.community.toolWear);
+        const rescued = rescueExploration(missed, 'adventure', live.id, live.revision, now);
+        assert.equal(rescued.hearts, missed.hearts - 100, 'neighbor rescue is independent of the missed camp');
+        assert.equal(rescued.adventure.active.rested, false);
       }
     });
 

@@ -40,6 +40,8 @@ export interface RegionalTreasureFind { region: RegionId; item: import('./region
 export interface CommunityProject {
   completed: number; stage: number; theme?: 'garden' | 'journey';
   lastDay: string; firstAt?: number; actorId?: string; actorName?: string;
+  invitationId?: string;
+  reward?: import('./communityProjectData').CommunityProjectReward;
 }
 export interface ExpeditionState {
   schemaVersion: 5; nextId: number;

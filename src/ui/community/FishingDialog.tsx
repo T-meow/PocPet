@@ -7,7 +7,7 @@ import { isKitchenMaterial } from '../itemBrowse';
 import { FishingSceneArt, type FishingScenePhase } from './FishingSceneArt';
 import type { CommunityPanelProps } from './types';
 import type { ItemId } from '../../core/petTypes';
-import type { FishId, WaterId } from '../../core/communityTypes';
+import type { FishId, FishingCatch, WaterId } from '../../core/communityTypes';
 import { fish, fishIds, isWaterOpen, waterIds, waters } from '../../core/communityData';
 import { actCommunityFishing, cancelCommunityFishing, claimCommunityFish, getFishingWaitMs, getManualFishingReason, quoteIdleFishing, startCommunityFishing, startIdleFishing } from '../../core/communityFishing';
 import { getFishingLevelEffects } from '../../core/communityUpgradeData';
@@ -21,16 +21,30 @@ import { rationReturnLines } from '../../core/expeditionRationReturn';
 import { inventoryItemLimit } from '../../core/saveMetadata';
 import '../../styles/fishing.css';
 
+const countFish = (catches: readonly FishingCatch[], previous: Partial<Record<FishId, number>> = {}) => {
+  const counts = { ...previous };
+  for (const caught of catches) counts[caught.fish] = (counts[caught.fish] ?? 0) + 1;
+  return counts;
+};
+
 export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClose, onShop, onManage, initialWater = 'pond', itemIconMap }: CommunityPanelProps & {
   portrait: string; actorId: string; actorName: string; onClose: () => void; onManage: () => void; initialWater?: WaterId;
 }) => {
   const [water, setWater] = useState(initialWater), [bait, setBait] = useState<'fishing_bait' | 'river_bait'>('fishing_bait');
   const [strong, setStrong] = useState(pet.community.fishing.active?.strongRod ?? !(pet.inventory.fishing_rod ?? 0));
   const [float, setFloat] = useState(false), [net, setNet] = useState(false);
-  const [mode, setMode] = useState<'manual' | 'idle'>('manual'), [hours, setHours] = useState(2);
+  const [mode, setMode] = useState<'manual' | 'idle'>(pet.community.fishing.active?.mode ?? pet.community.fishing.pending?.mode ?? 'manual'), [hours, setHours] = useState(2);
   const [view, setView] = useState<'scene' | 'gear' | 'food'>('scene');
   const [rations, setRations] = useState<RationSelection>({ food: {}, autoFill: true });
   const [, tick] = useState(0), { active, pending } = pet.community.fishing;
+  const [manualHaul, setManualHaul] = useState(() => ({
+    lastId: pending?.mode === 'manual' ? pending.id : '',
+    counts: countFish(pending?.mode === 'manual' ? pending.catches : []),
+  }));
+  useEffect(() => {
+    if (pending?.mode !== 'manual') return;
+    setManualHaul(previous => previous.lastId === pending.id ? previous : { lastId: pending.id, counts: countFish(pending.catches, previous.counts) });
+  }, [pending]);
   useEffect(() => { if (!active || pet.timePause) return; const timer = setInterval(() => tick(n => n + 1), 250); return () => clearInterval(timer); }, [active?.id, pet.timePause]);
   const now = pet.timePause ? pet.lastUpdatedAt : Date.now(), manual = active?.mode === 'manual' ? active : undefined, idle = active?.mode === 'idle' ? active : undefined;
   const selectedWater = active?.water ?? pending?.water ?? water, biting = Boolean(manual && now >= manual.biteAt);
@@ -53,6 +67,9 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
     const all = pending.catches.filter(c => c.fish === id);
     return { fish: id, count: pending.items[id] ?? 0, size: Math.max(...all.map(c => c.size)), crown: all.some(c => c.newCrown), record: all.some(c => c.newRecord) };
   }) : [];
+  const haulCounts = (active?.mode ?? pending?.mode ?? mode) === 'manual' ? manualHaul.counts : countFish(idle?.catches ?? pending?.catches ?? []);
+  const haul = fishIds.filter(id => (haulCounts[id] ?? 0) > 0);
+  const haulTotal = haul.reduce((total, id) => total + (haulCounts[id] ?? 0), 0);
   const start = () => update(p => mode === 'manual' ? startCommunityFishing(p, water, bait, strong, Date.now(), gear) : startIdleFishing(p, water, bait, strong, hours, actorId, actorName, rations));
   const action = pending ? () => update(p => claimCommunityFish(p, pending.id)) : idle ? () => update(p => cancelCommunityFishing(p, idle.id)) : manual ? () => update(p => actCommunityFishing(p, manual.id, manual.revision, 'reel')) : start;
   const button = pending ? '收下鱼获' : idle ? '提前返回' : manual ? biting ? `收线 · 还需 ${manual.requiredClicks - manual.clicks} 次` : '等鱼上钩' : mode === 'idle' ? '去钓鱼' : '抛竿';
@@ -81,6 +98,10 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
       <div className="fishing-picture"><FishingSceneArt water={selectedWater} portrait={portrait} name={actorName} phase={phase} rodIcon={icon(selectedRod)} reelTick={manual?.clicks} />{pending?.mode === 'manual' && catches[0] && <div className="fishing-catch-hero"><img src={icon(catches[0].fish)} alt={fish[catches[0].fish].name} />{catches[0].crown && <span><Crown size={16} />首次金冠</span>}</div>}</div>
       {pending && <div className="fishing-catch-list">{catches.map(c => <div key={c.fish}>{pending.mode === 'idle' && <img src={icon(c.fish)} alt="" />}<span><strong>{fish[c.fish].name}{pending.mode === 'idle' && ` ×${c.count}`}</strong><small>{c.size} 厘米{!c.count ? ' · 已收好' : ''}</small></span>{c.crown ? <b className="fishing-gold"><Crown size={16} />新金冠</b> : c.record ? <b className="fishing-record">新纪录</b> : c.size > getFishCrownThreshold(c.fish as FishId) ? <Crown className="fishing-gold" size={19} aria-label="金冠尺寸" /> : null}</div>)}{(['fishing_bait', 'river_bait'] as const).map(id => pending.items[id] ? <p key={id} className="fishing-note">退回{getInventoryItem(id)?.name} ×{pending.items[id]}</p> : null)}{pending.rationReturn && <details className="fishing-note"><summary>剩余食物的去向</summary>{rationReturnLines(pending.rationReturn).map(line => <p key={line}>{line}</p>)}</details>}</div>}
       {preparing && mode === 'idle' && <div className="fishing-idle-setup"><div className="fishing-durations" role="group" aria-label="挂机时长">{[2, 4, 8].map(n => <button aria-pressed={hours === n} key={n} onClick={() => setHours(n)}>{n} 小时</button>)}</div><button className="fishing-food-summary" onClick={() => setView('food')}><Utensils size={18} /><span><strong>准备食物 · {quote.food.count} 份</strong><small>自动补给 {quote.food.coins} 金币</small></span><ChevronRight size={16} /></button><label className="fishing-autofill"><input type="checkbox" checked={rations.autoFill} onChange={e => setRations({ ...rations, autoFill: e.target.checked })} /><span>自动补足食物 · {standardRationPrice} 金币／份</span></label></div>}
+      <section className="fishing-haul" aria-label="本次鱼获">
+        <div className="fishing-haul-heading"><strong>本次鱼获</strong><small>{haulTotal} 条</small></div>
+        {haul.length ? <ul className="fishing-haul-icons">{haul.map(id => <li key={id} title={`${fish[id].name} ×${haulCounts[id]}`}><img src={icon(id)} alt={fish[id].name} /><span>×{haulCounts[id]}</span></li>)}</ul> : <p className="fishing-note">还没有鱼获，钓到后会显示在这里。</p>}
+      </section>
     </div>}
     <footer className="fishing-action">
       {settingsOpen ? <button className="fishing-primary" onClick={() => setView('scene')}>准备好了</button> : <>

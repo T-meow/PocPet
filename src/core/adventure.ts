@@ -31,6 +31,8 @@ import { advancePet } from './petLifecycle';
 import { isLandmarkId, landmarkId, legacyPurposeLandmark, parseLandmarkId, getLandmarkReason, expeditionRegionForMap } from './landmarkProgress';
 import { getLandmarkSteps } from './landmarkData';
 import { advanceLandmarkAdventure, landmarkCheckAction } from './landmarkAdventure';
+import { regionalTreasureIds } from './regionalTreasures';
+import { getAdventureStageChoices } from './adventureGathering';
 
 const fail = (pet: PetState, message: string): PetState => ({ ...pet, recentEvent: message });
 export const getAdventureStartReason = (pet: PetState, region?: AdventureDestinationId, now = Date.now(), purpose?: CommunityRoute) => {
@@ -68,7 +70,7 @@ export const claimAdventureStarter = (pet: PetState): PetState => {
     adventure: { ...pet.adventure, starterClaimed: true, starterMealsClaimed: true }, recentEvent: L('入门补给已放入仓库，包含四份胡萝卜蛋饭。整理行囊后就可以出发。', 'Starter supplies, including four carrot egg rice dishes, are in your inventory. Pack your bag to set out.') };
 };
 
-export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, tool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string): PetState => {
+export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, _legacyTool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string): PetState => {
   if (region && region !== 'tutorial') purpose = purpose ? legacyPurposeLandmark(purpose) : landmarkId(region, 'entrance');
   if (purpose && !isLandmarkId(purpose)) return pet;
   const reason = getAdventureStartReason(pet, region, now, purpose);
@@ -76,15 +78,15 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   if (!region || !actorId || actorId.length > 128) return pet;
   const entries = Object.entries(bag).filter(([, amount]) => amount !== 0);
   if (entries.some(([id, amount]) => !isAdventureSupply(id) || !Number.isInteger(amount) || amount < 1 || (pet.inventory[id] ?? 0) < amount)
-    || getAdventureBagCount(Object.fromEntries(entries)) > getExplorationBagCapacity(pet) || (tool && (pet.inventory.trail_rope ?? 0) < 1)) return fail(pet, L('行囊或仓库物资已变化，请重新整理。', 'Your supplies have changed. Check your travel bag again.'));
+    || getAdventureBagCount(Object.fromEntries(entries)) > getExplorationBagCapacity(pet)) return fail(pet, L('行囊或仓库物资已变化，请重新整理。', 'Your supplies have changed. Check your travel bag again.'));
   pet = advanceExplorationBudget(pet, now);
   const id = `scout:${pet.createdAt}:${pet.adventure.tripsStarted + 1}:${now}`;
   const neighbors = adventureActorIds.filter(value => value !== actorId);
   const roll = hashString(id);
   // The first valley completion teaches the service; tutorial trips have no shop.
   const neighborId = region === 'valley' && (!(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
-  let inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
-  if (tool) inventory = removeInventoryItem(inventory, 'trail_rope');
+  const inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
+  const tool = false; // New trips use warehouse tools; true is reserved for legacy packed ropes.
   return { ...pet, inventory, lastInteractionAt: now,
     adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: isLandmarkId(purpose) ? 10 : 8, ...(isLandmarkId(purpose) ? { checkState: createExplorationCheckState(id), ...(target ? { target } : {}), nodeId: parseLandmarkId(purpose).node, stageIds: [], firstCompletion: false } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: neighborId ? createAdventureShopStock() : {}, purchases: 0, transportedCount: 0 } },
     recentEvent: region === 'tutorial' ? '从前哨门口开始 4 阶段新手踩点。' : '已开始手动地标探索。每次选择都会保存，途中可以补给或安全返程。' };
@@ -108,8 +110,8 @@ const getAdventureChoicePrerequisiteReason = (pet: PetState, choice: AdventureCh
   if (!trip || pet.isSleeping || pet.partnerSchedule.active) return L('当前无法继续探查。', 'Exploration cannot continue right now.');
   if (getAdventureBagCount(trip.loot)) return L('先收好、吃掉或放弃待拾取的物资。', 'Collect, eat or leave the supplies on the ground first.');
   if (choice.item && (trip.bag[choice.item] ?? 0) < 1) return L('行囊中缺少所需物资。', 'The required supply is missing from your travel bag.');
-  if (choice.tool && !trip.tool) return L('本趟未携带探路绳。', 'You did not pack a trail rope.');
-  if (trip.rulesVersion === 10 && choice.harvest && (getExplorationBudget(pet, now)?.available ?? 0) < choice.harvest) return '采集机会不足，仍可选择观察并推进故事。';
+  if (choice.tool && !trip.tool && !(pet.inventory.trail_rope ?? 0)) return '仓库中需要探路绳。';
+  if (trip.rulesVersion === 10 && choice.harvest && (getExplorationBudget(pet, now)?.available ?? 0) < choice.harvest) return '采集机会不足，可以离开采集点继续前进。';
   return '';
 };
 export const getAdventureChoiceReason = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt) => {
@@ -128,14 +130,16 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
   pet = (pet.adventure.active?.rulesVersion ?? 0) >= 9 ? advancePet(pet, now) : enforceAdventureHealth(pet, now);
   const trip = pet.adventure.active;
   if (!trip || trip.id !== tripId || trip.choices.length !== expectedStep) return pet;
-  const choice = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[expectedStep]?.choices.find(value => value.id === choiceId);
+  const choices = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[expectedStep]?.choices ?? [];
+  const command = getAdventureStageChoices(pet, choices).find(value => value.id === choiceId);
+  const choice = choices.find(value => value.id === (command?.sourceChoiceId ?? choiceId));
   if (!choice) return pet;
   const reason = getAdventureChoiceReason(pet, choice, now);
   if (reason) return fail(pet, reason);
   if (trip.rulesVersion === 10) return enforceAdventureHealth(advanceLandmarkAdventure(pet, trip, choice, expectedStep, now), now);
   const checked = trip.rulesVersion >= 9 && choice.check ? applyExplorationCheck(pet, trip, getAdventureCheckAction(pet, choice, now), String(expectedStep)) : undefined;
   if (trip.rulesVersion >= 9 && !checked) return pet;
-  const ropeUse = !checked && choice.tool ? spendToolUse(pet, 'trail_rope', true) : undefined;
+  const ropeUse = !checked && choice.tool ? spendToolUse(pet, 'trail_rope', trip.tool) : undefined;
   if (choice.tool && !checked && !ropeUse) return pet;
   pet = checked?.pet ?? ropeUse?.pet ?? pet;
   let bag = choice.item ? removeInventoryItem(trip.bag, choice.item) : trip.bag;
@@ -178,7 +182,7 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
     : choiceId === 'bank' ? { apple: 2 } : choiceId === 'slope' ? { orange: 1 } : choiceId === 'overlook' && trip.rulesVersion >= 3 ? { [trip.rulesVersion >= 4 ? trip.treasure ?? getAdventureTripTreasure(trip.id) : 'coin_hoard']: 1 } : {}) };
   if (modern) {
     const collection = { ...pet.community.expedition.collection };
-    for (const item of ['coin_hoard', 'valley_amber', 'ancient_gold_bar'] as const) if (found[item]) collection[item] = (collection[item] ?? 0) + found[item];
+    for (const item of ['coin_hoard', 'valley_amber', 'ancient_gold_bar', ...regionalTreasureIds] as const) if (found[item]) collection[item] = (collection[item] ?? 0) + found[item];
     pet = { ...pet, community: { ...pet.community, expedition: { ...pet.community.expedition, collection } } };
   }
   for (const [id, amount] of Object.entries(found)) {

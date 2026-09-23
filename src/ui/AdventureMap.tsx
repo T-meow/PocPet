@@ -11,8 +11,8 @@ import type { PetState } from '../core/petTypes';
 import { getRegionUnlocked } from '../core/expeditionData';
 import { currentExpeditionRequest, expeditionRegionForMap, type OutpostRequest } from './outpostNavigation';
 import { completedLandmark, getLandmarkReason, getRegionUnlockReason, landmarkId, landmarkNodes } from '../core/landmarkProgress';
-import { HelpButton } from './help/HelpButton';
-import { getLandmarkHelp, landmarkDescriptions, landmarkFirstRewardText } from './help/landmarkHelp';
+import { ExplorationHelp } from './help/ExplorationGuide';
+import { landmarkDescriptions, landmarkFirstRewardText } from './help/landmarkHelp';
 
 export interface AdventureMapSelection { region: AdventureRegionId; node?: AdventureNodeId }
 interface Props {
@@ -74,14 +74,14 @@ export const AdventureMap = ({ adventure, today, selection, portrait, landscape,
         </section>
         <section className="adventure-map-detail" aria-label={L('节点任务详情', 'Landmark task details')} aria-live="polite" data-selected-node={node}>
           {node && status ? <><div className="adventure-map-detail-heading"><span className="adventure-map-status" data-status={status}>{status === 'planned' || status === 'locked' ? <LockKeyhole size={14} /> : status === 'complete' ? <Check size={14} /> : <Leaf size={14} />}{adventureNodeStatusLabel(status)}</span><small>{region.name}</small></div>
-          <div className="help-heading"><h4>{names[node]}</h4>{purpose && <HelpButton key={purpose} {...getLandmarkHelp(purpose)} />}</div>
+          <div className="help-heading"><h4>{names[node]}</h4>{pet && <ExplorationHelp key={purpose} pet={pet} purpose={purpose} destination={region.id} mode={mode} />}</div>
           <img className="adventure-map-landmark-preview" src={adventureLandmarkIcons[region.id][node]} alt={names[node]} />
           <p>{landmarkDescriptions[region.id][node]}</p>
           {mode === 'manual' && <div className="adventure-map-task-summary"><span>{purpose && adventureJourneyCost(purpose)}</span>{firstReward && <span>首通：{firstReward}</span>}</div>}
-          </> : <><MapPin size={28} /><h4>选择一个地标</h4><p>在这里选择模式、补给和工具，然后出发。</p></>}
+          </> : <><MapPin size={28} /><div className="help-heading"><h4>选择一个地标</h4>{pet && <ExplorationHelp pet={pet} mode={mode} />}</div><p>选择模式并整理补给，然后出发。</p></>}
           {reason && <p className="adventure-blocked">{reason}</p>}
-          <div className="outpost-duration" role="group" aria-label="探索模式"><button aria-pressed={mode === 'manual'} onClick={() => onMode('manual')}>手动探索</button><button aria-pressed={mode === 'idle'} onClick={() => onMode('idle')}>挂机探索</button></div>
-          {pet && onOutpost && <button className="secondary-button" disabled={chapterCount < 8} onClick={() => onOutpost({ view: 'camp', region: expeditionRegion })}><Tent size={17} />{camp?.base ? `营地建设 · ${camp.base}/2 级` : '完成全部地标后建设营地'}</button>}
+          <div className="adventure-mode-switch" role="group" aria-label="探索模式"><button aria-pressed={mode === 'manual'} onClick={() => onMode('manual')}>手动探索</button><button aria-pressed={mode === 'idle'} onClick={() => onMode('idle')}>挂机探索</button></div>
+          {pet && onOutpost && <div className="adventure-map-camp-actions"><button className="secondary-button" disabled={chapterCount < 8} onClick={() => onOutpost({ view: 'camp', region: expeditionRegion })}><Tent size={17} />{camp?.base ? `营地建设 · ${camp.base}/2 级` : '完成全部地标后建设营地'}</button></div>}
           {!adventure.active && !adventure.pending && !currentExpedition && (mode === 'idle' || node && !reason) && preparation}
           <div className="adventure-map-detail-actions">
             {adventure.active ? <button className="primary-button" onClick={onResume}><ArrowRight size={17} />{L('继续当前探查', 'Resume current scouting')}</button>

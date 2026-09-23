@@ -7,6 +7,7 @@ import { createMemoryPoster } from '../platform/albumPoster';
 import { createAlbumData, createCurrentReview, createReviewAlbumData } from './albumData';
 import { CompanionMemories } from './CompanionMemories';
 import { FestivalMemories } from './FestivalStories';
+import { CommunityMemories } from './community/CommunityMemories';
 
 interface MemoryAlbumProps {
   pet: PetState;
@@ -69,6 +70,7 @@ export const MemoryAlbum = ({ pet, actorId, portrait, art, onBack, onOpenArt, on
           <button className="secondary-button" disabled={!features.shareCards || poster?.key !== key} onClick={() => { if (poster?.key === key) onSave(poster.image); }}><Download size={17} />{L('保存这张回顾', 'Save this review')}</button>
         </section>
         <aside className="album-stories">
+          <CommunityMemories pet={pet} />
           {onReplayFestival && <FestivalMemories pet={pet} onReplay={onReplayFestival} onContinue={onContinueFestival} />}
           <section className="v2-card"><CompanionMemories pet={pet} actorId={actorId} /></section>
           <section className="v2-card album-art">

@@ -102,7 +102,7 @@ export const getLandmarkSteps = (id: LandmarkId): LandmarkStep[] => {
     const alternative: AdventureChoice = { ...base, id: `observe:${moment.key}`, label: moment.event === 'finish' ? '和伙伴复述经历后完成记录' : moment.event === 'obstacle' ? '看准落脚点，尝试近处通路' : '换个角度仔细调查', detail: '按显示的技能与消耗判定；结果不会阻断故事推进。', check: moment.event === 'finish' ? { mode: 'story' } : { mode: 'check', skill: moment.skill, difficulty: explorationDifficulty[r][moment.event === 'obstacle' ? 1 : 0], risky: moment.event === 'obstacle', ...(moment.event === 'arrival' ? { prepare: 'focus' as const } : {}) }, observation: 'b' };
     const choices = [safe, alternative];
     if (moment.event === 'gather' || r === 'valley' && moment.key === 'record') choices.push(...gatheringChoices(region, base));
-    if (moment.event === 'obstacle') choices.push({ ...alternative, id: 'rope:obstacle', label: '固定探路绳，借助绳索通过', detail: '探路绳耐久 −1，未用尽的工具返程归还。', tool: true, check: { ...alternative.check!, tool: 'trail_rope' }, observation: 'b' });
+    if (moment.event === 'obstacle') choices.push({ ...alternative, id: 'rope:obstacle', label: '固定探路绳，借助绳索通过', detail: '直接使用仓库中的探路绳，耐久 −1。', tool: true, check: { ...alternative.check!, tool: 'trail_rope' }, observation: 'b' });
     return { id: `${id}:${moment.key}`, title: moment.title, story: moment.story, choices, event: moment.event };
   });
 };

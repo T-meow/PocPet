@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { BookOpen, Check, Compass, X } from 'lucide-react';
 import { adventureDiscoveryNames, adventureJourneyName, adventureTaskName, getAdventureStepCount } from '../core/adventureData';
 import { expeditionProducts, projectIds, regionIds, regions } from '../core/expeditionData';
-import { communityProjects } from '../core/expeditionProjects';
 import { getInventoryItem } from '../core/items';
 import { rationReturnLines } from '../core/expeditionRationReturn';
 import type { RationReturn } from '../core/explorationRations';
@@ -15,6 +14,7 @@ import '../styles/outpost.css';
 import type { ExplorationCheckResult } from '../core/explorationChecks';
 import { ExplorationCheckSummary } from './ExplorationCheck';
 import { adventureTreasureIds } from '../core/adventureItems';
+import { CommunityMemories } from './community/CommunityMemories';
 
 interface TravelRecord {
   id: string; at: number; title: string; status: string; detail?: string;
@@ -86,7 +86,7 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
         {stories.length > 0 && <section className="outpost-section"><h3>地区故事</h3><div className="travel-discoveries">{stories.map(id => <details key={id}><summary>{regions[id].glyph} {regions[id].name} · {regions[id].story}</summary><p>{regions[id].storyText}</p><small>{expedition.regions[id].actorName ? `和${expedition.regions[id].actorName}` : ''}{expedition.regions[id].storyAt !== undefined ? ` · ${dateLabel(expedition.regions[id].storyAt!)}` : ''}</small></details>)}</div></section>}
         {observations.length > 0 && <section className="outpost-section"><h3>溪谷见闻 <small>{observations.length}/12</small></h3><div className="travel-item-list">{valleyObservationNames.flatMap((node, index) => ['a', 'b'].flatMap((branch, i) => observations.includes(`${index}:${branch}`) ? <span key={`${index}:${branch}`}>{node[i + 1]}</span> : []))}</div></section>}
         {products.length > 0 && <section className="outpost-section"><h3>发现的物产</h3><div className="travel-products">{products.map(([id, product]) => <article key={id}><span aria-hidden="true">{product.glyph}</span><div><b>{product.name}</b><small>累计发现 {expedition.collection[id as keyof typeof expeditionProducts]} · 仓库 {pet.inventory[id] ?? 0}</small></div></article>)}</div></section>}
-        {memories.length > 0 && <section className="outpost-section"><h3>过去的社区回忆</h3><div className="travel-discoveries">{memories.map(id => <details key={id}><summary>{communityProjects[id].memory}</summary><p>{communityProjects[id].name} · 已举办 {expedition.projects[id].completed} 次</p>{expedition.projects[id].actorName && <small>和{expedition.projects[id].actorName}一起</small>}</details>)}</div></section>}
+        {memories.length > 0 && <CommunityMemories pet={pet} />}
       </div>}
     </div>
   </DialogShell>;

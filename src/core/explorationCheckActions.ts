@@ -13,7 +13,7 @@ interface CheckTrip { id: string; tool: boolean; bag: Inventory; checkState?: Ex
 export const getExplorationActionContext = (pet: PetState, trip: CheckTrip, action: ExplorationCheckAction, node: string, region: RegionId = 'valley'): ExplorationCheckContext => {
   const tool = action.check.tool, item = action.mealItem ? getInventoryItem(action.mealItem as ItemId) : undefined;
   const blockedReason = action.check.prepare !== 'meal' ? '' : !item || !getDish(item.id) || !(trip.bag[item.id] > 0) ? '行囊中需要一份料理，可先补充料理或选择其他路线。' : getItemUsePlan(pet, item, 1).blocked ? overfedMessage : '';
-  const toolAvailable = tool ? (tool !== 'trail_rope' || trip.tool) && getToolUsesLeft(pet, tool, tool === 'trail_rope') > 0 : false;
+  const toolAvailable = tool ? getToolUsesLeft(pet, tool, tool === 'trail_rope' && trip.tool) > 0 : false;
   return { region, node, state: trip.checkState ?? createExplorationCheckState(trip.id), toolAvailable, blockedReason };
 };
 export const previewExplorationAction = (pet: PetState, trip: CheckTrip, action: ExplorationCheckAction, node: string, region: RegionId = 'valley') =>
@@ -24,7 +24,7 @@ export const applyExplorationCheck = (pet: PetState, trip: CheckTrip, action: Ex
   const context = getExplorationActionContext(pet, trip, action, node, region);
   const result = resolveExplorationCheck(pet, action, context);
   if (!result) return undefined;
-  const use = action.check.tool ? spendToolUse(pet, action.check.tool, action.check.tool === 'trail_rope') : undefined;
+  const use = action.check.tool ? spendToolUse(pet, action.check.tool, action.check.tool === 'trail_rope' && trip.tool) : undefined;
   if (action.check.tool && !use) return undefined;
   if (use) result.toolBroken = use.broken;
   let next = use?.pet ?? pet;

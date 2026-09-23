@@ -140,6 +140,9 @@
 @media (max-width: 599px) {
   .community-service-page.partner-schedule-page { gap: 16px; }
   .community-header { gap: 10px; align-items: flex-start; }
+  .community-service-page > .community-header { display: grid; grid-template-columns: 44px minmax(0,1fr) auto; }
+  .community-service-page > .community-header .community-wallet { grid-column: 3; grid-row: 1; }
+  .community-service-page > .community-header .game-help-button { grid-column: 2 / -1; grid-row: 2; justify-self: end; }
   .community-header .community-eyebrow { font-size: 8px; letter-spacing: .6px; }
   .community-header h2 { font-size: 23px; }
   .community-header p { font-size: 11px; }

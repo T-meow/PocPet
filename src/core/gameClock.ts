@@ -1,4 +1,4 @@
-import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
+import { getDailyResetDateKey, getWeekStartDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import type { PetState, TimeGuardState } from './petTypes';
 
 export const timeGuardSchemaVersion = 1 as const;
@@ -61,6 +61,7 @@ const findLatestStoredDailyDateKey = (value: unknown, fallback: string, now: num
   const expedition = object(community.expedition);
   record(object(expedition.loop).day);
   record(object(community.specialtyOrders).acceptedDay);
+  record(object(community.activityBoard).week);
   Object.values(object(expedition.regions)).forEach(value => record(object(value).harvestDay));
   Object.values(object(expedition.projects)).forEach(value => record(object(value).lastDay));
 
@@ -363,6 +364,7 @@ export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): P
     pomodoro,
     yearlyStats,
     community: pet.community ? { ...pet.community, boardDay: rebaseFutureDateKey(pet.community.boardDay, currentDateKey), seedForageDay: rebaseFutureDateKey(pet.community.seedForageDay, currentDateKey),
+      activityBoard: pet.community.activityBoard?.week > currentDateKey ? { ...pet.community.activityBoard, week: getWeekStartDateKey(currentDateKey) } : pet.community.activityBoard,
       specialtyOrders: pet.community.specialtyOrders ? { ...pet.community.specialtyOrders, acceptedDay: rebaseFutureDateKey(pet.community.specialtyOrders.acceptedDay, currentDateKey) } : pet.community.specialtyOrders,
       ranchDay: pet.community.ranchDay ? { ...pet.community.ranchDay, day: rebaseFutureDateKey(pet.community.ranchDay.day, currentDateKey) } : pet.community.ranchDay,
       expedition: pet.community.expedition ? { ...pet.community.expedition,

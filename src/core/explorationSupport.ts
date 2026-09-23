@@ -2,6 +2,7 @@ import { advancePet } from './petLifecycle';
 import { getPetEnergyCap, getPetStatCap, updatePetSatiety } from './petStats';
 import type { PetState } from './petTypes';
 import { spendToolUse } from './toolDurability';
+import { getAdventureStepCount } from './adventureData';
 
 export type ExplorationSystem = 'adventure';
 const activeTrip = (pet: PetState, system: ExplorationSystem) => pet.adventure.active;
@@ -33,9 +34,10 @@ export const getExplorationCampQuote = (pet: PetState, system: ExplorationSystem
   const health = Math.max(0, Math.min(cap - pet.health, 3, t?.healthLost ?? 0));
   const mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
   const rested = pet.adventure.active?.rested;
-  const paid = t?.paidActions ?? ((pet.adventure.active?.choices.length ?? 0) > 0);
-  const reason = supportReason(pet, system) || (rested ? '本地区已休整过' : !paid ? '完成一次有消耗的行动后可以扎营' : !(pet.inventory.camp_kit ?? 0) ? '需要便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
-  return { energy, health, mood, reason };
+  const checkpoint = t ? Math.floor(getAdventureStepCount(t.region, t.purpose) / 2) : 0;
+  const atCheckpoint = Boolean(t && t.choices.length === checkpoint);
+  const reason = supportReason(pet, system) || (rested ? '本趟已休整过' : !atCheckpoint ? `仅在完成第 ${checkpoint} 阶段后、继续前进前可以休整` : !(pet.inventory.camp_kit ?? 0) ? '仓库中需要便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
+  return { energy, health, mood, reason, checkpoint, atCheckpoint };
 };
 export const restExplorationWithKit = (pet: PetState, system: ExplorationSystem, id: string, revision: number, now = Date.now()): PetState => {
   if (pet.timePause) return pet;
@@ -45,5 +47,5 @@ export const restExplorationWithKit = (pet: PetState, system: ExplorationSystem,
   const use = spendToolUse(pet, 'camp_kit');
   if (!use) return pet;
   return { ...recordRecovery(use.pet, system, q.energy, q.health, true), energy: pet.energy + q.energy, health: pet.health + q.health, mood: pet.mood + q.mood, lastInteractionAt: now,
-    recentEvent: `支起便携营具：体力 +${q.energy}、心情 +${q.mood}、健康 +${q.health}。营具耐久 −1${use.broken ? '，已用尽' : ''}；本地区休整次数已使用。` };
+    recentEvent: `支起便携营具：体力 +${q.energy}、心情 +${q.mood}、健康 +${q.health}。营具耐久 −1${use.broken ? '，已用尽' : ''}；本趟休整次数已使用。` };
 };

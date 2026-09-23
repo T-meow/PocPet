@@ -27,6 +27,10 @@ body .dialog-shell.game-help-dialog { box-sizing: border-box; display: flex; fle
 .game-help-body dl { margin: 0; }
 .game-help-body dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
 .game-help-body dd { margin: 0; }
+.exploration-help-section + .exploration-help-section,.work-help-section + .work-help-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid #dbe5e6; }
+:is(.exploration-help-section,.work-help-section) details { margin-top: 8px; }
+:is(.exploration-help-section,.work-help-section) summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; color: #245a83; }
+.work-help-section summary:focus-visible { outline: 2px solid #347caa; outline-offset: 2px; }
 .exploration-choice-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; min-width: 0; }
 .exploration-choice-card > .game-help-button { align-self: start; }
 .exploration-choice-card > .exploration-choice-action { width: 100%; min-width: 0; }

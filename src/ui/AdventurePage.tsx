@@ -3,9 +3,10 @@ import { ArrowLeft, ArrowRight, Backpack, BookOpen, Clock, Compass, Ellipsis, Ey
 import { resolvePetStatusImages, unknownItemIcon } from '../assets';
 import { adventureHallScene, getAdventureNodeScene } from './adventureScenes';
 import { getBuiltinPetMod } from '../core/builtinPetMods';
-import { advanceAdventure, canUseAdventureService, claimAdventureResult, claimAdventureStarter, getAdventureChoiceReason, getAdventureChoicePreview, getAdventureRewardPreview, returnFromAdventure, startAdventure } from '../core/adventure';
-import { ExplorationChoiceDetails, ExplorationChoiceHelp, ExplorationCheckSummary, ExplorationCheckBuffs } from './ExplorationCheck';
-import { adventureActorIds, adventureTaskName, adventureJourneyName, adventureJourneyDetail, adventureTreasureRewardText, adventureTutorialRewardText, getAdventureStepCount, getAdventureSteps } from '../core/adventureData';
+import { advanceAdventure, canUseAdventureService, claimAdventureResult, claimAdventureStarter, getAdventureChoiceReason, getAdventureChoicePreview, returnFromAdventure, startAdventure } from '../core/adventure';
+import { ExplorationChoiceDetails, ExplorationCheckSummary, ExplorationCheckBuffs } from './ExplorationCheck';
+import { adventureActorIds, adventureTaskName, adventureJourneyName, adventureTutorialRewardText, getAdventureStepCount, getAdventureSteps } from '../core/adventureData';
+import { getAdventureStageChoices } from '../core/adventureGathering';
 import { getExplorationBagCapacity } from '../core/explorationBackpack';
 import { ExplorationSupport } from './expedition/ExplorationSupport';
 import { getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
@@ -32,12 +33,10 @@ import type { RegionId } from '../core/expeditionTypes';
 import { AdventurePreparation } from './AdventurePreparation';
 import { IdleExpeditionPreparation } from './expedition/IdleExpeditionPreparation';
 import { landmarkId, legacyPurposeLandmark, parseLandmarkId, mainStoryProgress, expeditionRegionForMap } from '../core/landmarkProgress';
-import { landmarkTargets, landmarkTargetName } from '../core/landmarkData';
 import { commissionDefinitions, canDeliverCommunityParcel } from '../core/communityCommissions';
 import type { ValleyGatherTarget } from '../core/valleyExplorationData';
 import { AdventureStatMeter } from './AdventureStatMeter';
-import { HelpButton } from './help/HelpButton';
-import { getAdventureActionHelp } from './help/explorationHelp';
+import { ExplorationHelp } from './help/ExplorationGuide';
 
 interface Props {
   pet: PetState; actorId: string; actorName: string; portrait: string; happyPortrait?: string; registry: ItemRegistry; icons: Record<string, string>;
@@ -49,7 +48,7 @@ interface Props {
   onShop?: () => void;
   onBuy: (id: ItemId, quantity: number) => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
 }
-type Panel = AdventureStoragePanel | 'map' | 'journal' | 'result' | 'task' | 'expedition';
+type Panel = AdventureStoragePanel | 'map' | 'journal' | 'result' | 'expedition';
 const actorNameFor = (id: string) => id === 'official.furo' ? 'Furo' : id === 'official.doro' ? 'Doro' : id === 'official.mint' ? 'mint' : L('伙伴', 'Companion');
 const builtinPortrait = (id: string) => adventureActorIds.some(actor => actor === id) ? resolvePetStatusImages(getBuiltinPetMod(id)).content : undefined;
 
@@ -104,10 +103,9 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
   };
   const fromMore = (callback: () => void) => { closeMore(); callback(); };
   const [bag, setBag] = useState<Inventory>({});
-  const [tool, setTool] = useState(false);
   const [greeting, setGreeting] = useState('');
   const lootCount = getAdventureBagCount(trip?.loot ?? {});
-  useEffect(() => { action.cancel(); if (trip) { setSelection(undefined); setBag({}); setTool(false); setPurpose(undefined); setPanelNow(current => current === 'expedition' || current === 'journal' ? current : lootCount ? 'loot' : undefined); } }, [trip?.id]);
+  useEffect(() => { action.cancel(); if (trip) { setSelection(undefined); setBag({}); setPurpose(undefined); setPanelNow(current => current === 'expedition' || current === 'journal' ? current : lootCount ? 'loot' : undefined); } }, [trip?.id]);
   useEffect(() => { if (expedition.active) setPanelNow('expedition'); }, [expedition.active?.id]);
   // Open new finds once; switching panels never discards uncollected items.
   useEffect(() => { if (lootCount) setPanelNow('loot'); }, [trip?.id, trip?.choices.length]);
@@ -116,10 +114,10 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
   const steps = getAdventureSteps(trip?.rulesVersion, currentDestination, trip?.purpose ?? pending?.purpose ?? purpose, pet.community.expedition.regions.valley.base, trip?.bag);
   const stepCount = getAdventureStepCount(currentDestination, trip?.purpose ?? pending?.purpose ?? purpose);
   const step = trip ? steps[trip.choices.length] : undefined;
+  const stageChoices = getAdventureStageChoices(pet, step?.choices ?? []);
   const completed = trip?.choices.length ?? pending?.steps ?? 0;
   const carriedCount = trip ? getAdventureBagCount(trip.bag) : pending ? getAdventureBagCount(pending.items) - (pending.items.trail_rope ?? 0) : getAdventureBagCount(bag);
   const neighbors = adventureActorIds.filter(id => id !== (trip?.actorId ?? actorId));
-  const reward = getAdventureRewardPreview(pet);
   const services = canUseAdventureService(pet);
   const today = getEffectiveDailyDateKey(pet);
   const changeBag = (id: ItemId, delta: number) => setBag(current => {
@@ -129,7 +127,7 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
     if (!next) delete result[id];
     return result;
   });
-  const depart = () => move(current => startAdventure(current, destination, actorId, actorName, { ...bag }, tool, Date.now(), purpose, target === 'aquamarine' ? 'creek_aquamarine' : target));
+  const depart = () => move(current => startAdventure(current, destination, actorId, actorName, { ...bag }, false, Date.now(), purpose));
   const returnHome = () => { if (lootCount) setPanel('loot'); else if (trip) move(current => returnFromAdventure(current, trip.id)); };
   const close = () => { if (!trip) { setSelection(undefined); setPurpose(undefined); } setPanel(undefined); };
   const closeOutpost = () => {
@@ -141,8 +139,8 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
     <header><h3 id="adventure-dialog-title">{title}</h3><button className="icon-button" onClick={close} aria-label={L('关闭，返回场景', 'Close and return to the scene')}><X size={20} /></button></header>
     <div className="adventure-dialog-body">{contents}</div>
   </DialogShell>;
-  const storagePanel = panel && !['map', 'journal', 'result', 'task', 'expedition'].includes(panel) ? panel as AdventureStoragePanel : undefined;
-  const storageDialog = storagePanel && <AdventureStorage key={storagePanel} panel={storagePanel} pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} purpose={purpose} onPack={changeBag} onTool={setTool} onDepart={depart} onPanel={setPanel} onClose={close} onBuy={onBuy} onUseHomeItem={onUseHomeItem} update={update} perform={perform} />;
+  const storagePanel = panel && !['map', 'journal', 'result', 'expedition'].includes(panel) ? panel as AdventureStoragePanel : undefined;
+  const storageDialog = storagePanel && <AdventureStorage key={storagePanel} panel={storagePanel} pet={pet} registry={registry} icons={icons} bag={bag} destination={destination} purpose={purpose} onPack={changeBag} onDepart={depart} onPanel={setPanel} onClose={close} onBuy={onBuy} onUseHomeItem={onUseHomeItem} update={update} perform={perform} />;
   const travelingPortrait = !trip || trip.actorId === actorId ? portrait : builtinPortrait(trip.actorId);
   const sceneRegion = trip?.region === 'tutorial' ? 'valley' : trip?.region;
   const scene = sceneRegion ? getAdventureNodeScene(sceneRegion, getAdventureRouteNode(trip?.purpose)) : adventureHallScene;
@@ -198,7 +196,7 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
       </nav>
       <div className="adventure-content">
       <div className="adventure-scene-view"><div className="adventure-scene-canvas">
-      {scene ? <img className="adventure-backdrop" src={scene} alt={trip ? adventureJourneyName(trip.region, trip.purpose) + '场景' : L('有地图桌与补给架的木质大厅', 'A wooden hall with a map table and supply shelves')} /> : sceneRegion && <div className="adventure-backdrop" role="img" aria-label={adventureJourneyName(trip?.region, trip?.purpose) + '场景'}><AdventureMapLandscape region={sceneRegion} /></div>}
+      {sceneRegion ? <div className="adventure-backdrop adventure-landmark-scene" role="img" aria-label={adventureJourneyName(trip?.region, trip?.purpose) + '场景'}><AdventureMapLandscape region={sceneRegion} /><img className="adventure-scene-landmark" src={scene} alt="" /></div> : <img className="adventure-backdrop" src={adventureHallScene} alt={L('有地图桌与补给架的木质大厅', 'A wooden hall with a map table and supply shelves')} />}
       <div className="adventure-cast">
         <div className="adventure-actor adventure-actor--you">{shownPortrait && <img src={shownPortrait} alt={trip?.actorName ?? actorName} />}<span>{trip?.actorName ?? actorName}</span></div>
         {!trip && neighbors.map((id, index) => <button className={'adventure-actor adventure-neighbor adventure-neighbor--' + index} key={id} onClick={() => perform(() => setGreeting(actorNameFor(id) + L('：这趟要多带几份料理！途中遇见我，可以买补给，也可以请我从仓库送来物资。', ': Pack a few dishes! If we meet on the trail, I can sell supplies or deliver items from home.')))} aria-label={L('聊聊 · ', 'Talk with ') + actorNameFor(id)}><img src={builtinPortrait(id)} alt="" /><span>{actorNameFor(id)}</span></button>)}
@@ -206,22 +204,22 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
       </div>
       </div></div>
       <section className="adventure-dialogue" aria-label={L('当前事件与行动', 'Current event and actions')}>
-        {trip && <ExplorationSupport pet={pet} system="adventure" update={update} move={move} busy={phase !== 'idle'} />}
+        {trip && <ExplorationSupport key={trip.id} pet={pet} system="adventure" update={update} move={move} busy={phase !== 'idle'} />}
         <ExplorationCheckBuffs state={trip?.checkState} />
         <ExplorationCheckSummary result={trip?.checkState?.last ?? pending?.lastCheck} />
         {!trip && !pending && <nav className="adventure-outpost-actions" aria-label="前哨常用功能"><button onClick={() => openOutpost(currentExpeditionRequest(pet) ?? { view: 'idle', region: 'valley' })}><Clock size={21} /><span><strong>{expeditionLabel}</strong><small>{expeditionHint}</small></span></button><button onClick={() => setPanel('journal')}><BookOpen size={21} /><span><strong>旅行日志</strong><small>旅途记录 · 故事与发现</small></span></button></nav>}
         {!trip && !pending && mapUnlocked && <div className="adventure-service-actions"><span>主线地标 {story.completed}/40 · 章节 {story.chapters}/5</span>{onCommunity && <button className="secondary-button" onClick={onCommunity}>回农场 · 建设与委托</button>}</div>}
         {trip && getCommunityTasks(pet).filter(task => commissionDefinitions[task.template]?.deliveryItem && !task.found).map(task => <div className="community-note" key={task.id}><p>{commissionDefinitions[task.template].name}：到指定地标的记录阶段后送达，实际消耗行囊便当 ×1。</p><button className="secondary-button" disabled={!canDeliverCommunityParcel(pet, task)} onClick={() => update(p => deliverCommunityParcel(p, task.id, trip.id, trip.revision))}>交付行囊便当</button></div>)}
-        {trip ? <><div className="adventure-dialogue-heading"><h3>{services ? actorNameFor(trip.neighborId!) + ' · ' + L('路上遇见你', 'Good to see you') : step?.title ?? L('这一带的路已经记住了', 'You know these paths now')}</h3><button className="adventure-task-button" onClick={() => setPanel('task')}>{L('任务详情', 'Task details')}</button></div>
+        {trip ? <><div className="adventure-dialogue-heading"><h3>{services ? actorNameFor(trip.neighborId!) + ' · ' + L('路上遇见你', 'Good to see you') : step?.title ?? L('这一带的路已经记住了', 'You know these paths now')}</h3><ExplorationHelp pet={pet} purpose={trip.purpose} destination={trip.region} choices={stageChoices} /></div>
           <p>{services ? L('我带了些补给，也能从家里送来物资，每份 2 小心心。先歇歇脚，再往前走吧。', 'I have supplies and can deliver items from home for 2 hearts each. Rest before moving on.') : step?.story ?? L('带着发现和未用完的补给，一起回到大厅吧。', 'Bring your discoveries and unused supplies back to the hall.')}</p>
           {services && <div className="adventure-service-actions"><button className="secondary-button" onClick={() => setPanel('shop')}><ShoppingBag size={17} />{L('看看随身补给', 'Browse supplies')}</button><button className="secondary-button" onClick={() => setPanel('delivery')}><Truck size={17} />{L('请伙伴运输', 'Request delivery')}</button></div>}
-          {lootCount > 0 ? <button className="primary-button" onClick={() => setPanel('loot')}><PackageOpen size={18} />{L('先处理待拾取物资', 'Handle pending finds first')}</button> : <div className="adventure-choices">{step?.choices.slice().sort((a, b) => Number(b.id.endsWith(':' + trip.target)) - Number(a.id.endsWith(':' + trip.target))).map(choice => {
+          {lootCount > 0 ? <button className="primary-button" onClick={() => setPanel('loot')}><PackageOpen size={18} />{L('先处理待拾取物资', 'Handle pending finds first')}</button> : <div className="adventure-choices">{stageChoices.map(choice => {
             const reason = getAdventureChoiceReason(pet, choice);
             const preview = getAdventureChoicePreview(pet, choice);
-            if (preview && choice.check) return <div className="exploration-choice-card" key={choice.id}><button className="exploration-choice-action" data-target={Boolean(trip.target && choice.id.endsWith(':' + trip.target))} disabled={phase !== 'idle' || Boolean(reason)} title={reason || choice.detail} onClick={() => move(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id, Date.now(), trip.revision))}><strong>{choice.label}</strong><small>{choice.detail}</small><ExplorationChoiceDetails pet={pet} preview={preview} definition={choice.check} hunger={choice.hunger} reason={reason} harvest={Object.keys(preview.finds).length ? choice.harvest : undefined} item={choice.item} mealItem={choice.mealItem} />{Boolean(choice.harvest) && !Object.keys(preview.finds).length && <small>采集机会不足，本次不采集。</small>}</button><ExplorationChoiceHelp title={choice.label} preview={preview} definition={choice.check} /></div>;
-            return <div className="exploration-choice-card" key={choice.id}><button className="exploration-choice-action" disabled={phase !== 'idle' || Boolean(reason)} title={reason || choice.label} onClick={() => move(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id, Date.now(), trip.revision))}><span className="adventure-choice-heading"><strong>{choice.label}</strong><span className="adventure-cost"><Utensils size={14} />−{choice.hunger}<Zap size={14} />−{choice.energy}<ArrowRight size={14} /></span></span><small>{choice.tool ? '拉稳绳索，小心走过这段路。' : choice.detail}</small>{choice.tool && <small>探路绳 · 耐久 −1</small>}{Boolean(choice.health || choice.mood) && <small>{[choice.health ? `健康 ${choice.health > 0 ? '+' : ''}${choice.health}` : '', choice.mood ? `心情 ${choice.mood > 0 ? '+' : ''}${choice.mood}` : ''].filter(Boolean).join(' · ')}</small>}{pet.health + (choice.health ?? 0) < getPetStatCap(pet) * adventureHealthRules.retreat && <small className="adventure-blocked">完成此行动后将安全返回。</small>}{reason && <small className="adventure-blocked">{reason}</small>}</button><HelpButton {...getAdventureActionHelp(choice)} /></div>;
+            if (preview && choice.check) return <div className="exploration-choice-card" key={choice.id}><button className="exploration-choice-action" disabled={phase !== 'idle' || Boolean(reason)} title={reason || choice.detail} onClick={() => move(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id, Date.now(), trip.revision))}><strong>{choice.label}</strong><small>{choice.detail}</small><ExplorationChoiceDetails pet={pet} preview={preview} definition={choice.check} hunger={choice.hunger} reason={reason} harvest={choice.harvest} research={Boolean(choice.research)} hideFinds={choice.randomGather} item={choice.item} mealItem={choice.mealItem} /></button></div>;
+            return <div className="exploration-choice-card" key={choice.id}><button className="exploration-choice-action" disabled={phase !== 'idle' || Boolean(reason)} title={reason || choice.label} onClick={() => move(current => advanceAdventure(current, trip.id, trip.choices.length, choice.id, Date.now(), trip.revision))}><span className="adventure-choice-heading"><strong>{choice.label}</strong><span className="adventure-cost"><Utensils size={14} />−{choice.hunger}<Zap size={14} />−{choice.energy}<ArrowRight size={14} /></span></span><small>{choice.tool ? '拉稳绳索，小心走过这段路。' : choice.detail}</small>{choice.tool && <small>探路绳 · 耐久 −1</small>}{Boolean(choice.health || choice.mood) && <small>{[choice.health ? `健康 ${choice.health > 0 ? '+' : ''}${choice.health}` : '', choice.mood ? `心情 ${choice.mood > 0 ? '+' : ''}${choice.mood}` : ''].filter(Boolean).join(' · ')}</small>}{pet.health + (choice.health ?? 0) < getPetStatCap(pet) * adventureHealthRules.retreat && <small className="adventure-blocked">完成此行动后将安全返回。</small>}{reason && <small className="adventure-blocked">{reason}</small>}</button></div>;
           })}{!step && <button className="primary-button" onClick={returnHome}>{L('完成探查，返回大厅', 'Finish scouting and return')}</button>}</div>}
-          {step && step.choices.every(choice => Boolean(getAdventureChoiceReason(pet, choice))) && !lootCount && <button className="text-button" onClick={() => setPanel('bag')}>{L('打开背包补给；也可免费返程', 'Open your bag to refuel, or return for free')}</button>}
+          {step && stageChoices.every(choice => Boolean(getAdventureChoiceReason(pet, choice))) && !lootCount && <button className="text-button" onClick={() => setPanel('bag')}>{L('打开背包补给；也可免费返程', 'Open your bag to refuel, or return for free')}</button>}
         </> : <><h3>{pending ? L('平安归来', 'Welcome home') : expeditionBusy ? '旅途安排已记下' : L('这次想去哪里？', 'Where shall we go?')}</h3><p>{greeting || (expeditionBusy ? expedition.pending ? '这一趟的收获已运回前哨，可以领取物资，再安排下一次出发。' : '当前进度会一直保留。打开行程查看挂机情况或领取收获，也可以先翻翻旅行日志。' : pending ? L('收好行囊和这趟探查的奖励吧。战利品可以在背包或出发整备中兑换金币。', 'Collect your supplies and rewards. Exchange treasure in your bag or trip preparation.') : !mapUnlocked ? L('先从附近的「踩点探索」开始：四个阶段，熟悉路线和行囊操作。通关并收好发现后，再展开大地图。', 'Start close to home with the four-stop tutorial. Learn the route and travel bag, then collect your finds to open the world map.') : '打开地图，选择地标和手动／挂机模式，带好补给后出发。主线按地标推进；已完成的地标可重复采集、调查及完成委托。')}</p>
           {!pending && !mapUnlocked && <div className="adventure-tutorial-card"><strong><Compass size={18} />{adventureTaskName('tutorial')}<small>{L('新手关 · 4 个阶段', 'Tutorial · 4 stops')}</small></strong><p>{adventureTutorialRewardText()}</p><small>{L('全程饱食 32、体力 8，无需额外道具；未完成可返程重试。', '32 hunger and 8 energy in total; no extra items needed. Unfinished trips can be retried.')}</small></div>}
           <div className="adventure-service-actions">{pending ? <button className="primary-button" onClick={() => setPanel('result')}><PackageOpen size={18} />{L('收好行囊', 'Collect everything')}</button> : <>{mapUnlocked ? <button className="primary-button" onClick={() => setPanel('map')}><Map size={18} />{L('查看总地图 · 选择目的地', 'View world map · Choose a destination')}</button> : <button className="primary-button" onClick={selectTutorial}><Compass size={18} />{L('选择踩点探索 · 整备', 'Choose tutorial · Prepare')}</button>}
@@ -232,10 +230,8 @@ export const AdventurePage = ({ pet, actorId, actorName, portrait, happyPortrait
       {storagePanel !== 'pack' && storageDialog}
       {panel === 'result' && pending?.salvage && dialog('健康不足，已安全返程', <><ExplorationCheckSummary result={pending.lastCheck} /><AdventureReturnSelection key={pending.id} capacity={capacity} result={pending} registry={registry} update={update} /></>)}
       {panel === 'map' && mapUnlocked && <AdventureMap adventure={pet.adventure} pet={pet} onOutpost={openOutpost} today={today} selection={mapSelection} portrait={shownPortrait} landscape={landscape} onToggleLandscape={() => setLandscape(value => !value)} onSelect={value => { setPurpose(value.node ? landmarkId(value.region, value.node) : undefined); setSelection(value); setTarget(undefined); }} mode={mode} onMode={setMode} onResume={close} onCollect={() => setPanel('result')} onClose={close} preparation={mode === 'manual' ? <>
-        {mapSelection?.node && <label>采集目标<select value={target ?? ''} onChange={e => setTarget(e.target.value || undefined)}><option value="">到达采集阶段后选择</option>{landmarkTargets(selectedRegion).map(id => <option key={id} value={id}>{landmarkTargetName(id)}</option>)}</select>{target && <p>到达采集阶段时选择「{landmarkTargetName(target === 'aquamarine' ? 'creek_aquamarine' : target)}」；调查进度跨行程保留。</p>}</label>}
-        <AdventurePreparation embedded pet={pet} registry={registry} icons={icons} bag={bag} tool={tool} destination={destination} purpose={purpose} onPack={changeBag} onTool={setTool} onDepart={depart} onClose={close} onUseHomeItem={onUseHomeItem} perform={perform} update={update} />
+        <AdventurePreparation embedded pet={pet} registry={registry} icons={icons} bag={bag} destination={destination} purpose={purpose} onPack={changeBag} onDepart={depart} onClose={close} onUseHomeItem={onUseHomeItem} perform={perform} update={update} />
       </> : <IdleExpeditionPreparation key={coreRegion} embedded pet={pet} actorId={actorId} actorName={actorName} portrait={portrait} registry={registry} icons={icons} onUseHomeItem={onUseHomeItem} update={update} initialRegion={coreRegion} initialTarget={target as ValleyGatherTarget | undefined} onMap={openRegionMap} onCamp={region => openOutpost({ view: 'camp', region })} onRoute={(region, target) => openOutpost({ view: 'manual', region, target })} onCommunity={onCommunity ?? onBack} onKitchen={onKitchen} onShop={onShop ?? (() => setPanel('supplies'))} />} />}
-      {panel === 'task' && trip && dialog(L('任务详情', 'Task details'), <><h4>{adventureJourneyName(trip.region, trip.purpose)}</h4><p>{trip.purpose ? adventureJourneyDetail(trip.purpose) : trip.region === 'tutorial' ? adventureTutorialRewardText() : trip.rulesVersion >= 3 ? adventureTreasureRewardText(trip.rulesVersion) : <>{reward.hearts} {L('基础小心心', 'base hearts')} · {reward.coins} {L('金币', 'coins')}</>}</p></>)}
       {panel === 'result' && pending && !pending.salvage && dialog(L('本次探查结算', 'Trip rewards'), <><ExplorationCheckSummary result={pending.lastCheck} /><h4>{pending.complete ? pending.region === 'tutorial' ? L('踩点探索完成，大地图就在眼前', 'Tutorial complete: the world map awaits') : pending.purpose ? adventureJourneyName(pending.region, pending.purpose) + ' · 已完成' : L('入口附近，已经熟悉了', 'The entrance feels familiar now') : L('平安回来，也是一段旅程', 'A safe return is a journey too')}</h4><p>{pending.region === 'tutorial' && pending.complete ? L('收好这次发现，地图手册将带你去往更远的地方。一堆金币可以在背包中兑换为 360 金币。', 'Collect your finds and let the map handbook guide you farther. Exchange the coin hoard in your inventory for 360 coins.') : pending.first ? L('首次完成的收获已列在下方。', 'Your first-completion rewards are listed below.') : L('保留所有已完成路段的收获。', 'Keep the rewards from every completed step.')}</p><div className="adventure-rewards">{pending.hearts > 0 && <span><Heart size={18} />{pending.hearts}</span>}{pending.coins > 0 && <span>{pending.rewardsClaimed ? pending.coinsRemaining ?? 0 : pending.coins} {L('金币', 'coins')}</span>}{pending.rewardsClaimed && <small>{L('奖励已结算', 'Rewards received')}</small>}</div><h4>{L('收获与归还物资', 'Finds and returned supplies')}</h4><div className="adventure-item-list">{Object.entries(pending.items).filter(([, n]) => n > 0).map(([id, n]) => <span className="adventure-item-pill" key={id}><img src={icons[id] ?? unknownItemIcon} alt="" />{registry.get(id)?.name ?? id} ×{n}{isAdventureTreasure(id) && <small>{L('可兑换 ', 'Worth ')}{getAdventureTreasureValue(id) * n} {L('金币', 'coins')}</small>}</span>)}</div><div className="adventure-dialog-actions"><button className="primary-button" onClick={() => update(current => claimAdventureResult(current, pending.id))}><PackageOpen size={18} />{pending.rewardsClaimed ? L('领取剩余物资', 'Collect remaining supplies') : L('收好行囊', 'Collect everything')}</button><button className="secondary-button" onClick={close}>{L('返回大厅', 'Return to the hall')}</button></div></>)}
     </div>
     {storagePanel === 'pack' && storageDialog}

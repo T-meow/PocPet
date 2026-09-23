@@ -1,9 +1,11 @@
+import packageInfo from '../../package.json';
+
 export type AppEdition = 'standard' | 'bilibili';
 export interface AppBuild { version: string; edition: AppEdition; revision: string }
 declare const __APP_BUILD__: AppBuild;
 
 export const appBuild: AppBuild = typeof __APP_BUILD__ === 'undefined'
-  ? { version: '1.9.0', edition: 'standard', revision: 'local' }
+  ? { version: packageInfo.version, edition: 'standard', revision: 'local' }
   : __APP_BUILD__;
 
 export const getEditionFeatures = (edition: AppEdition) => ({

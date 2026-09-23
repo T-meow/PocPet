@@ -35,5 +35,5 @@ export const isExpeditionAway = (pet: Pick<PetState, 'community'>) => Boolean(pe
 export const expeditionBagCount = (bag: Record<string, number>) => Object.values(bag).reduce((sum, n) => sum + n, 0);
 export const getExpeditionMilestones = (pet: Partial<Pick<PetState, 'community'>>) => [
   ...regionIds.map(id => ({ id: `region_${id}`, name: `${regions[id].name}地区故事`, energy: 2, achieved: pet.community?.expedition?.regions[id]?.surveyed === true })),
-  ...projectIds.map(id => ({ id: `project_${id}`, name: ({ riverside: '河岸长桌聚餐', exhibition: '溪畔主题展览', observatory: '星空之夜准备' })[id], energy: 3, achieved: (pet.community?.expedition?.projects[id]?.completed ?? 0) > 0 })),
+  ...projectIds.map(id => ({ id: `project_${id}`, name: ({ riverside: '河岸长桌聚餐', exhibition: '溪畔主题展览', observatory: '星空之夜' })[id], energy: 3, achieved: (pet.community?.expedition?.projects[id]?.completed ?? 0) > 0 })),
 ];

@@ -1,11 +1,11 @@
 import type { AdventureRegionId } from '../core/adventureTypes';
 import { adventureMapThemes } from '../core/adventureMap';
 
-// Terrain stays vector-based; interactive landmark images are rendered by AdventureMap.
+// Terrain stays vector-based; maps and journey scenes layer the official landmark art above it.
 export const AdventureMapLandscape = ({ region }: { region: AdventureRegionId }) => {
   const theme = adventureMapThemes[region];
   const forest = region === 'forest';
-  return <svg className="adventure-map-landscape" viewBox="0 0 1000 650" aria-hidden="true">
+  return <svg className="adventure-map-landscape" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <rect width="1000" height="650" fill={theme.sky} />
     <circle cx="825" cy="85" r="34" fill="#fff7d5" />
     {region === 'observatory' && Array.from({ length: 20 }, (_, i) => <path key={i} d={`M${35 + i * 47} ${30 + (i * 31) % 140}v8m-4-4h8`} stroke="#fffdf2" strokeWidth="2" />)}

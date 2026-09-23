@@ -9,6 +9,7 @@ import { adventureTreasureIds } from './adventureItems';
 import type { ExpeditionItemId } from './expeditionTypes';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import type { RegionalTreasureFind } from './expeditionTypes';
+import { communityGiftPool } from './communityProjectData';
 
 const obj = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
 const n = (v: unknown, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
@@ -68,6 +69,18 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
     const p = obj(obj(v.projects)[id]), theme = p.theme === 'garden' || p.theme === 'journey' ? p.theme : undefined;
     state.projects[id] = { completed: n(p.completed), stage: theme ? n(p.stage, 2) : 0, theme, lastDay: day(p.lastDay),
       ...(n(p.completed) > 0 && stamp(p.firstAt) ? { firstAt: p.firstAt, actorId: label(p.actorId), actorName: label(p.actorName) } : {}) };
+    const invitation = typeof p.invitationId === 'string' && (new RegExp(`^activity:[1-9][0-9]*:${id}$`).test(p.invitationId) || new RegExp(`^legacy:${id}:[0-9]+$`).test(p.invitationId)) ? p.invitationId.slice(0, 128) : undefined;
+    if (invitation) state.projects[id].invitationId = invitation;
+    const reward = obj(p.reward), gift = communityGiftPool.find(entry => entry.kind === reward.gift)?.kind;
+    const rewardItems = Object.entries(obj(reward.items));
+    const validRewardItems = rewardItems.length > 0 && rewardItems.length <= 4 && rewardItems.every(([item, count]) =>
+      ['golden_apple', 'gift_tree_sapling', 'heart_fertilizer', 'harvest_nutrient'].includes(item) && Number.isSafeInteger(count) && count > 0 && count <= 9999);
+    if (!theme && n(p.completed) > 0 && invitation && reward.version === 1 && reward.id === invitation && gift && stamp(reward.at)
+      && Number.isSafeInteger(reward.hearts) && reward.hearts > 0 && validRewardItems) {
+      const first = n(p.completed) === 1 && reward.first === true;
+      // A completed event owns its quoted reward even if future activity tuning changes.
+      state.projects[id].reward = { version: 1, id: invitation, first, gift, hearts: reward.hearts, items: Object.fromEntries(rewardItems), at: reward.at, actorName: label(reward.actorName) };
+    }
   }
   for (const id of [...Object.keys(expeditionProducts), ...adventureTreasureIds] as ExpeditionItemId[]) {
     const count = n(obj(v.collection)[id]); if (count) state.collection[id] = count;

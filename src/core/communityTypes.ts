@@ -47,8 +47,15 @@ export interface CommunityMarket {
   listings: MarketListing[]; reserve: Record<string, number>; revenue: number; premium: number; sold: number;
   log: MarketReceipt[];
 }
+export interface CommunityActivityBoard {
+  week: string; sequence: number; accepted: boolean;
+  project?: import('./expeditionTypes').ProjectId;
+  previousProject?: import('./expeditionTypes').ProjectId;
+  invitationId?: string;
+}
 export interface CommunityState {
-  schemaVersion: 11;
+  schemaVersion: 12;
+  activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;
   expedition: ExpeditionState;
   irrigationFound: boolean;

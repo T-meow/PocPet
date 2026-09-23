@@ -48,6 +48,7 @@ import {
   isPetLowEnergy,
   markAchievementReviewSeen,
   markClassicEndgameUnlockSeen,
+  musicHeartIntervalMs,
   pausePomodoro,
   petInteractionHeartHealthThreshold,
   petInteractionHeartMoodThreshold,
@@ -396,7 +397,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
   const finishMusic = () => {
     const hearts = music.finish();
-    if (hearts === 0) notices.notify(pet.timePause ? '陪伴已结束，已有的聆听进度会保留。' : '陪伴已结束，未满十分钟的聆听进度会留到下次。', 'info');
+    if (hearts === 0) notices.notify(pet.timePause ? '陪伴已结束，已有的聆听进度会保留。' : `陪伴已结束，未满 ${musicHeartIntervalMs / 60_000} 分钟的聆听进度会留到下次。`, 'info');
   };
   const musicControls = { playback: music.playback, pendingListeningMs: music.pendingListeningMs, blocked: musicBlocked,
     onStart: startMusic, onPause: music.pause, onFinish: finishMusic };

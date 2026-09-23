@@ -1,9 +1,9 @@
 import { defineConfig, type Connect, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import packageInfo from './package.json';
 
-const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version as string;
+const version = packageInfo.version;
 const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 const redirectLocalAlias: Connect.NextHandleFunction = (request, response, next) => {

@@ -8,6 +8,7 @@ import { hashString } from './utils';
 import { wildIngredientIds } from './foodCatalog';
 import { getExplorationRoll } from './explorationChecks';
 import { getDailyResetDateKey } from './dailyReset';
+import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 
 export const explorationRefillMs = 3 * 3600000;
 export const explorationCapacity = 24;
@@ -29,7 +30,10 @@ export const shiftExplorationDay = (day: string, offset: number) => new Date(Dat
 export const advanceExplorationBudget = (pet: PetState, now: number): PetState => {
   if (pet.timePause || !(pet.adventure.completed.tutorial ?? 0)) return pet;
   const state = pet.community.expedition, old = state.loop;
-  const day = [old?.day ?? '', getEffectiveDailyDateKey(pet, now)].sort()[1];
+  // The saved budget is its own anti-replay watermark. During offline settlement
+  // the global clock already points at load time, but each hour needs its actual date.
+  const currentDay = old ? getDailyResetDateKey(now) : getEffectiveDailyDateKey(pet, now);
+  const day = old && old.day > currentDay ? old.day : currentDay;
   const legacyUsed = old ? 0 : Object.values(state.regions).reduce((sum, r) => sum + (r.harvestDay === day ? r.harvestUsed : 0), 0);
   let loop: ExplorationBudget = old ? { ...old } : { refillAt: now, available: Math.max(0, 8 - legacyUsed), used: legacyUsed, day: '', vouchers: [], heartDays: [], observations: [], milestones: [], idleCompleted: 0, firstTreasure: Boolean(pet.adventure.completed.valley || pet.adventure.pending?.region === 'valley' && pet.adventure.pending.complete && !pet.adventure.pending.purpose) };
   const reserved = state.active?.reservedHarvests ?? 0;
@@ -98,6 +102,7 @@ export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: 
 };
 const ordinaryGatherIds = new Set(['community_wood', 'community_stone', 'creek_herb', 'valley_mushroom', 'hill_honey', 'forest_berry', 'pine_resin', 'coast_kelp', 'sea_glass', 'observatory_part', ...wildIngredientIds]);
 export const commonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum + adventureTreasureValues[id], 0) / adventureTreasureIds.length;
+export const manualTreasureChance = 5;
 // Called once after actual consumption, never from a quote or reservation.
 export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId, now: number, ordinary: Inventory = {}, gatherBonus = 0): { pet: PetState; finds: Inventory } => {
   if (pet.timePause || !Number.isInteger(count) || count <= 0) return { pet, finds: {} };
@@ -106,6 +111,7 @@ export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manua
   if (!old || count > old.used) return { pet, finds };
   const loop = { ...old, vouchers: old.vouchers.map(v => ({ ...v })) };
   const candidates = Object.keys(ordinary).filter(id => ordinary[id] > 0 && ordinaryGatherIds.has(id)).sort();
+  const treasure = kind === 'manual' ? regionalTreasureIds.find(id => regionalTreasures[id].region === region) : undefined;
   for (let index = Math.max(0, (loop.lootSettledThrough ?? 0) - (loop.used - count)); index < count; index++) {
     const seed = `${pet.saveMetadata.id}:${pet.createdAt}:harvest:${loop.used - count + index + 1}`;
     const limit = kind === 'hour' ? 80 : 100, share = kind === 'hour' ? 40 : region === 'valley' ? 50 : 100;
@@ -119,6 +125,9 @@ export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manua
       if (getExplorationRoll(hashString(seed), 'common', 'hit') < expected / commonLootMeanValue) {
         const item = adventureTreasureIds[Math.floor(getExplorationRoll(hashString(seed), 'common', 'kind') * adventureTreasureIds.length)];
         finds[item] = (finds[item] ?? 0) + 1;
+      }
+      if (treasure && getExplorationRoll(hashString(seed), 'regional', 'hit') < manualTreasureChance / 100) {
+        finds[treasure] = (finds[treasure] ?? 0) + 1;
       }
     }
     if (kind === 'manual' && candidates.length && getExplorationRoll(hashString(seed), 'pendant', 'hit') < gatherBonus / 100) {

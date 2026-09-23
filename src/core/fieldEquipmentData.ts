@@ -23,7 +23,7 @@ export const fieldEquipmentItems: readonly ShopItem[] = [
   { id: 'landing_net', name: '轻便抄网', kind: 'item', price: 100, effect: {}, usable: false, tags: ['fishing_tool'], summary: '手动收线少点一次，轻松收下鱼获。' },
   { id: 'prospector_pick', name: '勘探手镐', kind: 'item', price: 120, effect: {}, usable: false, tags: ['expedition_tool'], summary: '敲开岩缝，帮助寻找当地珍宝。' },
   { id: 'survey_lens', name: '调查放大镜', kind: 'item', price: 90, effect: {}, usable: false, tags: ['expedition_tool'], summary: '看清沿途细节，帮助调查与发现。' },
-  { id: 'camp_kit', name: '便携营具', kind: 'item', price: 72, effect: {}, usable: false, tags: ['expedition_tool'], summary: '途中扎营歇歇脚，恢复体力、心情和健康。' },
+  { id: 'camp_kit', name: '便携营具', kind: 'item', price: 72, effect: {}, usable: false, tags: ['expedition_tool'], summary: '路线中点可使用仓库营具休整一次，恢复体力、心情和健康；继续前进便错过休整点。' },
 ];
 export const getEquipmentPurchaseReason = (pet: PetState, id: string): string => {
   if (['field_watering_can', 'harvest_sickle', 'nutrient_compost'].includes(id) && !pet.community.gardenBuilt) return '先开放社区菜地';

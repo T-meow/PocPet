@@ -1,9 +1,9 @@
 .exploration-support { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 10px 0; }
 .exploration-support > .exp-warning,.exploration-support > .exp-quote { flex-basis: 100%; }
-.exploration-support > details { flex: 1 1 240px; }
-.exploration-support button,.exploration-backpack-upgrade button { min-height: 40px; }
+.exploration-support > button { padding: 8px 12px; font-size: 13px; }
+.exploration-support button,.exploration-backpack-upgrade button { min-height: 44px; }
 .exploration-backpack-upgrade { padding: 8px; }
-.exploration-backpack-upgrade select { max-width: 100%; }
+.exploration-backpack-upgrade select { max-width: 100%; min-height: 44px; padding: 6px 8px; border: 1px solid #c8d6b4; border-radius: 8px; background: #fffdf7; color: #526d42; }
 .exp-rations .exp-stock-list { max-height: 260px; overflow-y: auto; }
 .exp-rations details { margin: 10px 0; }
 .exp-rations label { gap: 8px; }

@@ -2,28 +2,24 @@ import { explorationOutcomeNames, explorationSkillNames, type ExplorationCheckDe
 import { getInventoryItem } from '../core/items';
 import { getPetStatCap } from '../core/petStats';
 import type { ItemId, PetState } from '../core/petTypes';
-import { HelpButton } from './help/HelpButton';
-import { getExplorationChoiceHelp, getExplorationPreparationHelp } from './help/explorationHelp';
 
 const number = (n: number) => String(Math.round(n * 10) / 10);
 const range = ([a, b]: [number, number]) => a === b ? number(a) : `${number(a)}～${number(b)}`;
 const name = (id: string) => getInventoryItem(id as ItemId)?.name ?? id;
 const signed = (n: number) => `${n >= 0 ? '+' : ''}${number(n)}`;
 
-export const ExplorationChoiceDetails = ({ pet, preview: p, definition: d, hunger, research = false, reason, harvest, item, mealItem }: {
-  pet: PetState; preview: ExplorationCheckPreview; definition: ExplorationCheckDefinition; hunger: number; research?: boolean; reason?: string; harvest?: number; item?: ItemId; mealItem?: string;
+export const ExplorationChoiceDetails = ({ pet, preview: p, definition: d, hunger, research = false, hideFinds = false, reason, harvest, item, mealItem }: {
+  pet: PetState; preview: ExplorationCheckPreview; definition: ExplorationCheckDefinition; hunger: number; research?: boolean; hideFinds?: boolean; reason?: string; harvest?: number; item?: ItemId; mealItem?: string;
 }) => <span className="exploration-check-details">
   <span>预计饱食 −{hunger} · 体力 −{range(p.energy)}{p.healthLoss[1] > 0 && ` · 健康 −${range(p.healthLoss)}`}</span>
   {Boolean(harvest || item || mealItem) && <span>{[harvest ? '采集机会 −' + harvest : '', item ? '交出 ' + name(item) + ' ×1' : '', mealItem ? '食用 ' + name(mealItem) + ' ×1' : ''].filter(Boolean).join(' · ')}</span>}
-  {Object.keys(p.finds).length > 0 && <span>行动收获：{Object.entries(p.finds).map(([id, n]) => `${name(id)} ×${range(n)}`).join(' · ')}</span>}
+  {!hideFinds && Object.keys(p.finds).length > 0 && <span>行动收获：{Object.entries(p.finds).map(([id, n]) => `${name(id)} ×${range(n)}`).join(' · ')}</span>}
   {research && <span>调查进度 +{range(p.researchPoints)}</span>}
   {d.tool && <span>{name(d.tool)} · 耐久 −1</span>}
   {d.risky && p.healthLoss[1] > 0 && <small>可能擦伤</small>}
   {pet.health - p.healthLoss[1] < getPetStatCap(pet) * .2 && <strong className="exploration-check-warning">本次伤害可能使健康不足，行动后将安全返程。</strong>}
   {(reason || p.reason) && <strong className="exploration-check-warning">{reason || p.reason}</strong>}
 </span>;
-
-export const ExplorationChoiceHelp = ({ title, preview, definition }: { title: string; preview: ExplorationCheckPreview; definition: ExplorationCheckDefinition }) => <HelpButton {...getExplorationChoiceHelp(title, preview, definition)} />;
 
 export const ExplorationCheckSummary = ({ result: r }: { result?: ExplorationCheckResult }) => !r ? null : <div className="exploration-check-result" data-outcome={r.outcome} role="status">
   <strong>{r.title} · {explorationOutcomeNames[r.outcome]}</strong>
@@ -40,5 +36,3 @@ export const ExplorationCheckBuffs = ({ state }: { state?: ExplorationCheckState
   {state.focus > 0 && <span>观察准备 · 剩余 {state.focus} 次</span>}
   {state.meal && <span>旅途餐食 · 后 {state.meal.steps} 步体力 −{Math.round(state.meal.reduction * 100)}%</span>}
 </div>;
-
-export const ExplorationCheckPreparation = ({ pet }: { pet: PetState }) => <HelpButton {...getExplorationPreparationHelp(pet)} />;
