@@ -73,14 +73,13 @@ export const loadPet = (now = Date.now(), eventContext?: NeighborEventContext, f
         }
         if (window.localStorage.getItem(upgradeStorageKey) === null) writeRecoveryCopy(upgradeStorageKey, raw!, identity);
         if (window.localStorage.getItem(identityStorageKey) === null) setStoredSaveIdentity(identity);
-        preserveLegacyFormat(raw!, identity);
       } catch {
         // The primary is valid: allow viewing/export, but never overwrite its unpreserved bytes.
         upgradeBackupBlocked = true;
         return { ...result, raw: raw!, persistenceError: 'upgradeBackup' };
       }
       const restored = applyLocalPetPreferences(result.pet);
-      if (!deferWrite && (result.formatVersion !== 2 || restored.saveMetadata.compensation === 'pending')) {
+      if (!deferWrite && restored.saveMetadata.compensation === 'pending') {
         try { return { ...result, raw: raw!, pet: persistCurrentPet(restored, getStoredSaveIdentity(), now) }; }
         catch { upgradeBackupBlocked = true; return { ...result, raw: raw!, pet: restored, persistenceError: 'upgradeBackup' }; }
       }
@@ -144,17 +143,6 @@ const writeRecoveryCopy = (key: string, raw: string, identity?: PocPetSaveModSum
     throw error;
   }
 };
-const preserveLegacyFormat = (raw: string, identity?: PocPetSaveModSummary) => {
-  const decoded = decodeSaveSnapshot(raw);
-  if (decoded.formatVersion === 2) return;
-  const firstKey = formatBackupStoragePrefix + decoded.pet.saveMetadata.id;
-  const firstCopy = window.localStorage.getItem(firstKey);
-  const key = firstCopy === null || firstCopy === raw ? firstKey : `${firstKey}.${checksumText(raw)}`;
-  const existing = window.localStorage.getItem(key);
-  if (existing === null) writeRecoveryCopy(key, raw, identity ?? decoded.activeMod);
-  else if (existing !== raw) throw new Error('Conflicting original save backup.');
-};
-
 const readMigrationRecord = (raw: string | null, saveId: string): { ledger: Record<string, unknown>; delivered: SaveMetadata['pendingItems'] } | undefined => {
   try {
     const parsed: unknown = raw === null ? {} : JSON.parse(raw);
@@ -256,7 +244,7 @@ const mirrorCurrentPet = (immediate = true) => {
 export const savePet = (pet: PetState, immediateNative = true) => {
   assertStorageUnchanged();
   const previous = window.localStorage.getItem(storageKey);
-  if (previous) preserveLegacyFormat(previous, persistedIdentity);
+  if (previous) decodeSaveSnapshot(previous);
   try {
     if (Date.now() - lastRollingBackupAt >= 5 * 60_000 && backupCurrentPet()) lastRollingBackupAt = Date.now();
   } catch {
@@ -280,8 +268,7 @@ export const replacePetFromImport = (pet: PetState, importBackupText: string, id
   const previousImportBackup = window.localStorage.getItem(importBackupStorageKey);
   const previousIdentity = window.localStorage.getItem(identityStorageKey);
   const previousMod = expectedRaw === undefined ? getStoredSaveIdentity() : persistedIdentity;
-  if (previousPrimary && isValidStoredPetRaw(previousPrimary)) preserveLegacyFormat(previousPrimary, previousMod);
-  if (sourceText) preserveLegacyFormat(sourceText, identity ?? undefined);
+  if (sourceText) decodeSaveSnapshot(sourceText);
 
   try {
     window.localStorage.setItem(importBackupStorageKey, importBackupText);

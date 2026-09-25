@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, RotateCcw, Upload } from 'lucide-react';
 import { t, getLanguage } from '../i18n';
 import { ConfirmDialog } from './ConfirmDialog';
-import type { SaveFailureStage } from '../core/saveCodec';
+import { minimumSupportedSaveVersion, type SaveFailureStage } from '../core/saveCodec';
 import type { SaveRecoveryCandidate } from '../platform/saveRecovery';
 import { features } from '../platform/edition';
 
@@ -23,7 +23,7 @@ export const SaveRecovery = ({ candidates, stage, unavailable, raw, message, new
   const perform = async (action: () => Promise<void>) => { setBusy(true); setReadError(false); try { await action(); } catch { setReadError(true); } finally { setBusy(false); } };
   return <main className="app-shell app-shell--role-picker ui-v2-app"><section className="save-recovery">
     <h1>{t('ui.backup.recoveryTitle')}</h1>
-    <p>{t(stage === 'version' ? 'ui.settings.save.newerVersion' : unavailable ? 'ui.backup.recoveryStorage' : newerSave ? 'ui.backup.newerRecovery' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing')}</p>
+    <p>{t(stage === 'version' ? 'ui.settings.save.newerVersion' : stage === 'obsolete' ? 'ui.settings.save.obsoleteVersion' : unavailable ? 'ui.backup.recoveryStorage' : newerSave ? 'ui.backup.newerRecovery' : raw ? 'ui.backup.recoveryMessage' : 'ui.backup.recoveryMissing', { version: minimumSupportedSaveVersion })}</p>
     {stage && <p>{t('ui.backup.stage')}: {t(`ui.backup.${stage}`)}</p>}
     {message && <p role="status">{message}</p>}
     {readError && <p role="status">{t('ui.backup.failed')}</p>}

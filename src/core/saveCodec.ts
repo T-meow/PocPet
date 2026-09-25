@@ -10,7 +10,11 @@ export type { PersistedPetStateV2 } from './persistedPet';
 
 export const saveFileSchemaVersion = 2;
 export const minimumSaveReaderVersion = '1.9.0';
+export const minimumSupportedSaveVersion = '1.9.0';
 export class UnsupportedSaveVersionError extends Error {}
+export class ObsoleteSaveVersionError extends Error {
+  constructor() { super(t('ui.settings.save.obsoleteVersion', { version: minimumSupportedSaveVersion })); }
+}
 class InvalidSaveSyntaxError extends Error {}
 export const pocPetSaveAppId = 'PocPet' as const;
 export const mintSaveAppId = 'Pocpet-Mint' as const;
@@ -20,7 +24,6 @@ const appId = pocPetSaveAppId;
 const supportedSaveAppIds: readonly PocPetSaveAppId[] = [pocPetSaveAppId, mintSaveAppId];
 const protectedSavePrefix = 'POCPET-SAVE-v2:';
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 export interface PocPetSaveModSummary {
   id: string;
@@ -29,17 +32,9 @@ export interface PocPetSaveModSummary {
   defaultPetName?: string;
 }
 
-export interface PocPetSaveFileV1 {
-  schemaVersion: 1;
-  app: typeof appId;
-  exportedAt: string;
-  pet: PetState;
-  activeMod?: PocPetSaveModSummary;
-}
-
 export interface SaveMigrationResult {
-  formatVersion: 0 | 1 | 2;
-  requiresMigration: boolean;
+  formatVersion: 2;
+  requiresMigration: false;
 }
 
 export interface PocPetImportedSave extends SaveMigrationResult {
@@ -47,7 +42,7 @@ export interface PocPetImportedSave extends SaveMigrationResult {
   activeMod?: PocPetSaveModSummary;
   exportedAt?: string;
   sourceApp?: PocPetSaveAppId;
-  source: 'envelope' | 'legacy';
+  source: 'envelope';
 }
 
 export interface PocPetSaveFileV2 {
@@ -62,10 +57,10 @@ export interface PocPetSaveFileV2 {
 
 export type StoredPetJsonLoadResult =
   | { status: 'missing' }
-  | { status: 'ok'; pet: PetState; formatVersion: 0 | 1 | 2 }
+  | { status: 'ok'; pet: PetState; formatVersion: 2 }
   | { status: 'corrupt'; raw: string; stage: SaveFailureStage; detail?: string };
 
-export type SaveFailureStage = 'parse' | 'validation' | 'migration' | 'simulation' | 'storage' | 'version';
+export type SaveFailureStage = 'parse' | 'validation' | 'migration' | 'simulation' | 'storage' | 'version' | 'obsolete';
 export const repairPetName = (value: unknown, fallbackName = defaultPetName) =>
   typeof value === 'string' && value.trim() ? value :
     typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName : defaultPetName;
@@ -78,7 +73,7 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === 'nu
 const isSupportedSaveAppId = (value: unknown): value is PocPetSaveAppId =>
   supportedSaveAppIds.some((candidate) => candidate === value);
 
-const legacyNumericFields = [
+const numericPetFields = [
   'level',
   'hunger',
   'mood',
@@ -90,14 +85,13 @@ const legacyNumericFields = [
   'lastUpdatedAt',
 ] as const;
 
-// These fields have all existed since 1.0.1. Requiring the stable fingerprint
-// keeps old raw saves importable without treating arbitrary JSON as a pet.
-export const hasLegacyPetSaveFingerprint = (value: unknown): value is Record<string, unknown> => {
+// Validate hydrated saves and distinguish obsolete raw saves from unrelated JSON.
+const hasPetSaveFingerprint = (value: unknown): value is Record<string, unknown> => {
   if (!isObject(value)) return false;
   if (typeof value.recentEvent !== 'string') return false;
   if (typeof value.isSleeping !== 'boolean') return false;
   if (!isObject(value.inventory) || !isObject(value.actionStreak) || !isObject(value.pomodoro)) return false;
-  return legacyNumericFields.every((field) => isFiniteNumber(value[field]));
+  return numericPetFields.every((field) => isFiniteNumber(value[field]));
 };
 
 const readSummaryString = (value: unknown, maxLength: number) => {
@@ -123,16 +117,6 @@ const readEnvelopeExportedAt = (value: unknown) => {
   return { exportedAt: value, timestamp };
 };
 
-const base64UrlToBytes = (text: string) => {
-  const base64 = text.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-};
-
 export const checksumText = (text: string) => {
   const bytes = textEncoder.encode(text);
   let hash = 0x811c9dc5;
@@ -141,52 +125,6 @@ export const checksumText = (text: string) => {
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
   return hash.toString(16).padStart(8, '0');
-};
-
-const getProtectedSaveKey = (saveAppId: PocPetSaveAppId) => `${saveAppId}:save-file:v2`;
-
-const transformSaveBytes = (bytes: Uint8Array, saveAppId: PocPetSaveAppId) => {
-  const keyBytes = textEncoder.encode(getProtectedSaveKey(saveAppId));
-  const output = new Uint8Array(bytes.length);
-  let state = 0x6d2b79f5;
-
-  for (let index = 0; index < keyBytes.length; index += 1) {
-    state = (Math.imul(state ^ keyBytes[index], 1664525) + 1013904223) >>> 0;
-  }
-
-  for (let index = 0; index < bytes.length; index += 1) {
-    state = (Math.imul(state + index + keyBytes[index % keyBytes.length], 1664525) + 1013904223) >>> 0;
-    output[index] = bytes[index] ^ (state & 0xff) ^ keyBytes[index % keyBytes.length];
-  }
-
-  return output;
-};
-
-const unprotectSaveFileText = (text: string) => {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith(protectedSavePrefix)) return { plainText: trimmed };
-
-  const body = trimmed.slice(protectedSavePrefix.length);
-  const separatorIndex = body.indexOf(':');
-  if (separatorIndex <= 0) throw new Error('Save text is damaged.');
-
-  const expectedChecksum = body.slice(0, separatorIndex).toLowerCase();
-  const payload = body.slice(separatorIndex + 1);
-  if (!/^[0-9a-f]{8}$/.test(expectedChecksum) || !payload) throw new Error('Save text is damaged.');
-
-  let protectedBytes: Uint8Array;
-  try {
-    protectedBytes = base64UrlToBytes(payload);
-  } catch {
-    throw new Error('Save text could not be decoded.');
-  }
-
-  for (const protectedApp of supportedSaveAppIds) {
-    const plainText = textDecoder.decode(transformSaveBytes(protectedBytes, protectedApp));
-    if (checksumText(plainText) === expectedChecksum) return { plainText, protectedApp };
-  }
-
-  throw new Error('Save text checksum does not match.');
 };
 
 export const createSaveFilePlainText = (pet: PetState, activeMod?: PocPetSaveModSummary | null, now = Date.now()) => {
@@ -228,17 +166,19 @@ const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
   if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 10) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
 };
 
+const compareVersions = (left: string, right: string) => {
+  const a = left.split('.').map(Number), b = right.split('.').map(Number);
+  for (let index = 0; index < 3; index++) if (a[index] !== b[index]) return a[index] - b[index];
+  return 0;
+};
+
 const assertSupportedV2 = (parsed: Record<string, unknown>, rawPet: Record<string, unknown>) => {
   if (Object.keys(parsed).some((key) => !['schemaVersion', 'encoding', 'app', 'minimumReaderVersion', 'exportedAt', 'pet', 'activeMod'].includes(key))
     || parsed.encoding !== undefined && parsed.encoding !== compactSaveEncoding) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const minimum = parsed.minimumReaderVersion;
   if (typeof minimum !== 'string' || !/^\d+\.\d+\.\d+$/.test(minimum)) throw new Error('Save file has an invalid minimum reader version.');
-  const required = minimum.split('.').map(Number);
-  const current = appBuild.version.split('.').map(Number);
-  for (let index = 0; index < 3; index++) {
-    if (required[index] > current[index]) throw new UnsupportedSaveVersionError(t('ui.settings.save.requiresVersion', { version: minimum }));
-    if (required[index] < current[index]) break;
-  }
+  if (compareVersions(minimum, minimumSupportedSaveVersion) < 0) throw new ObsoleteSaveVersionError();
+  if (compareVersions(minimum, appBuild.version) > 0) throw new UnsupportedSaveVersionError(t('ui.settings.save.requiresVersion', { version: minimum }));
   if (Object.keys(rawPet).some((key) => !(persistentPetKeys as readonly string[]).includes(key))) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   if (!isSaveMetadata(rawPet.saveMetadata)) throw new Error('Save file has invalid save identity.');
 };
@@ -304,11 +244,10 @@ const resetImportedTimeBaseline = (pet: PetState, now: number, savedAt: number):
 
 export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetImportedSave => {
   let parsed: unknown;
-  let protectedApp: PocPetSaveAppId | undefined;
+  const trimmed = text.trim();
+  if (trimmed.startsWith(protectedSavePrefix)) throw new ObsoleteSaveVersionError();
   try {
-    const unprotected = unprotectSaveFileText(text);
-    parsed = JSON.parse(unprotected.plainText);
-    protectedApp = unprotected.protectedApp;
+    parsed = JSON.parse(trimmed);
   } catch {
     throw new InvalidSaveSyntaxError('Save text is not valid PocPet save data.');
   }
@@ -320,20 +259,18 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
   if (parsed.app !== undefined || parsed.schemaVersion !== undefined) {
     if (!isSupportedSaveAppId(parsed.app)) throw new Error('This is not a supported PocPet save file.');
     const sourceApp = parsed.app;
-    if (protectedApp && protectedApp !== sourceApp) {
-      throw new Error('Save protection does not match its app identifier.');
-    }
-    if (parsed.schemaVersion !== 1 && parsed.schemaVersion !== saveFileSchemaVersion) {
+    if (parsed.schemaVersion === 1) throw new ObsoleteSaveVersionError();
+    if (parsed.schemaVersion !== saveFileSchemaVersion) {
       if (typeof parsed.schemaVersion === 'number' && parsed.schemaVersion > saveFileSchemaVersion) {
         throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
       }
       throw new Error('Unsupported save file version.');
     }
     if (!isObject(parsed.pet)) throw new Error('Save file has invalid pet data.');
-    if (parsed.schemaVersion === 2) assertSupportedV2(parsed, parsed.pet);
+    assertSupportedV2(parsed, parsed.pet);
     assertSupportedModuleVersions(parsed.pet);
-    const rawPet = parsed.schemaVersion === 2 ? hydratePersistedPet(parsed.pet, parsed.encoding === compactSaveEncoding) : parsed.pet;
-    if (!hasLegacyPetSaveFingerprint(rawPet)) throw new Error('Save file has invalid pet data.');
+    const rawPet = hydratePersistedPet(parsed.pet, parsed.encoding === compactSaveEncoding);
+    if (!hasPetSaveFingerprint(rawPet)) throw new Error('Save file has invalid pet data.');
     const { exportedAt } = readEnvelopeExportedAt(parsed.exportedAt);
     const activeMod = parsed.activeMod === undefined ? undefined : readActiveModSummary(parsed.activeMod);
     if (parsed.activeMod !== undefined && !activeMod) throw new Error('Save file has invalid Mod information.');
@@ -343,21 +280,13 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
       exportedAt,
       sourceApp,
       source: 'envelope',
-      formatVersion: parsed.schemaVersion as 1 | 2,
-      requiresMigration: parsed.schemaVersion !== 2,
+      formatVersion: saveFileSchemaVersion,
+      requiresMigration: false,
     };
   }
 
-  if (!hasLegacyPetSaveFingerprint(parsed)) {
-    throw new Error('Save text is not recognizable as a PocPet save.');
-  }
-  assertSupportedModuleVersions(parsed);
-  return {
-    pet: { ...parsed, name: repairPetName(parsed.name, fallbackName), saveMetadata: normalizeSaveMetadata(parsed.saveMetadata, parsed) } as unknown as PetState,
-    source: 'legacy',
-    formatVersion: 0,
-    requiresMigration: true,
-  };
+  if (hasPetSaveFingerprint(parsed)) throw new ObsoleteSaveVersionError();
+  throw new Error('Save text is not recognizable as a PocPet save.');
 };
 
 const clearRestoredGachaHistory = (pet: PetState): PetState => ({
@@ -382,7 +311,7 @@ export const loadStoredPetJson = (
   try {
     decoded = decodeSaveSnapshot(raw, fallbackName);
   } catch (error) {
-    return { status: 'corrupt', raw, stage: error instanceof UnsupportedSaveVersionError ? 'version' : error instanceof InvalidSaveSyntaxError ? 'parse' : 'validation', detail: String(error) };
+    return { status: 'corrupt', raw, stage: error instanceof UnsupportedSaveVersionError ? 'version' : error instanceof ObsoleteSaveVersionError ? 'obsolete' : error instanceof InvalidSaveSyntaxError ? 'parse' : 'validation', detail: String(error) };
   }
   let pet: PetState;
   try {
