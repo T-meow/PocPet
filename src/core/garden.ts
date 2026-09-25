@@ -131,13 +131,12 @@ const normalizeGardenTools = (value: unknown): GardenTools => {
   return { wateringCanLevel: clampToolLevel(raw.wateringCanLevel), shovelLevel: clampToolLevel(raw.shovelLevel), fertilizerBoxLevel: clampToolLevel(raw.fertilizerBoxLevel) };
 };
 
-const normalizeGardenSlot = (value: unknown, slotIndex: number, previousUnlocked: boolean, now: number, resetDateKey: string, migrateGoldenAppleTree: boolean, migrateCareTiming: boolean, migrateBalance: boolean): GardenSlot => {
-  const fallback = defaultGardenSlot(slotIndex, now, resetDateKey);
+const normalizeGardenSlot = (value: unknown, slotIndex: number, unlocked: boolean, now: number, resetDateKey: string, migrateGoldenAppleTree: boolean, migrateCareTiming: boolean, migrateBalance: boolean): GardenSlot => {
+  const fallback = { ...defaultGardenSlot(slotIndex, now, resetDateKey), unlocked };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
   const raw = value as Record<string, unknown>;
   const treeId = isGardenTreeId(raw.treeId) ? raw.treeId : undefined;
   const state = isGardenSlotState(raw.state) ? raw.state : treeId ? 'growing' : 'empty';
-  const unlocked = previousUnlocked && (Boolean(raw.unlocked) || Boolean(treeId) || state !== 'empty');
   const pendingDrops = normalizeGardenDrops(raw.pendingDrops);
   const plantedAt = clampTimestamp(raw.plantedAt, now);
   const nextReadyAt = clampTimestamp(raw.nextReadyAt, now);
@@ -192,12 +191,14 @@ export const normalizeGardenState = (value: unknown, now = Date.now(), effective
   const migrateGoldenAppleTree = storedSchemaVersion < 2;
   const migrateCareTiming = storedSchemaVersion < 3;
   const rawSlots = Array.isArray(raw.slots) ? raw.slots : [];
-  let previousUnlocked = true;
-  const slots = Array.from({ length: gardenSlotCount }, (_, slotIndex) => {
-    const slot = normalizeGardenSlot(rawSlots[slotIndex], slotIndex, previousUnlocked, now, effectiveDateKey, migrateGoldenAppleTree, migrateCareTiming, storedSchemaVersion < 5);
-    previousUnlocked = slot.unlocked;
-    return slot;
-  });
+  // Slots are bought in order. Later ownership proves earlier slots were bought,
+  // even when an empty slot lost its marker; never erase surviving trees after it.
+  const lastUnlockedSlotIndex = rawSlots.slice(0, gardenSlotCount).reduce((last, slot, index) => {
+    if (!slot || typeof slot !== 'object' || Array.isArray(slot)) return last;
+    return slot.unlocked || isGardenTreeId(slot.treeId) || (isGardenSlotState(slot.state) && slot.state !== 'empty') ? index : last;
+  }, -1);
+  const slots = Array.from({ length: gardenSlotCount }, (_, slotIndex) =>
+    normalizeGardenSlot(rawSlots[slotIndex], slotIndex, slotIndex <= lastUnlockedSlotIndex, now, effectiveDateKey, migrateGoldenAppleTree, migrateCareTiming, storedSchemaVersion < 5));
   const resetDateKey = effectiveDateKey;
   const isDailyCareCurrent = normalizeLegacyDailyDateKey(raw.dailyCareDateKey, now) === resetDateKey;
   const isDailyHarvestCurrent = normalizeLegacyDailyDateKey(raw.dailyHarvestDateKey, now) === resetDateKey;

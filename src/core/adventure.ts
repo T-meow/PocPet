@@ -1,5 +1,5 @@
 import { applyHeartGain, incrementAchievementItemUse, recordEarnedCoins, recordEarnedHearts } from './achievements';
-import { adventureActorIds, adventureBusyMessage, getAdventureShopPrice, getAdventureStepCount, adventureTransportCost, adventureTransportLimit, createAdventureShopStock, getAdventureSteps, type AdventureChoice } from './adventureData';
+import { adventureBusyMessage, getAdventureShopPrice, getAdventureStepCount, adventureTransportCost, adventureTransportLimit, createAdventureShopStock, getAdventureSteps, type AdventureChoice } from './adventureData';
 import { getAdventureTreasureValue, getAdventureTripTreasure, isAdventureTreasure } from './adventureItems';
 import { getAdventureBagCount, getAdventureItemPurchaseCapacity, getAdventureLastCompletedDay, isAdventureEntranceCompleteForDay, isAdventureMapUnlocked, isAdventureSupply } from './adventureState';
 import type { AdventureDestinationId } from './adventureTypes';
@@ -70,7 +70,7 @@ export const claimAdventureStarter = (pet: PetState): PetState => {
     adventure: { ...pet.adventure, starterClaimed: true, starterMealsClaimed: true }, recentEvent: L('入门补给已放入仓库，包含四份胡萝卜蛋饭。整理行囊后就可以出发。', 'Starter supplies, including four carrot egg rice dishes, are in your inventory. Pack your bag to set out.') };
 };
 
-export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, _legacyTool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string): PetState => {
+export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, _legacyTool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string, neighborIds: readonly string[] = []): PetState => {
   if (region && region !== 'tutorial') purpose = purpose ? legacyPurposeLandmark(purpose) : landmarkId(region, 'entrance');
   if (purpose && !isLandmarkId(purpose)) return pet;
   const reason = getAdventureStartReason(pet, region, now, purpose);
@@ -81,10 +81,10 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
     || getAdventureBagCount(Object.fromEntries(entries)) > getExplorationBagCapacity(pet)) return fail(pet, L('行囊或仓库物资已变化，请重新整理。', 'Your supplies have changed. Check your travel bag again.'));
   pet = advanceExplorationBudget(pet, now);
   const id = `scout:${pet.createdAt}:${pet.adventure.tripsStarted + 1}:${now}`;
-  const neighbors = adventureActorIds.filter(value => value !== actorId);
+  const neighbors = [...new Set(neighborIds)].filter(value => value !== actorId && /^[a-z0-9][a-z0-9._-]{1,127}$/.test(value)).sort();
   const roll = hashString(id);
   // The first valley completion teaches the service; tutorial trips have no shop.
-  const neighborId = region === 'valley' && (!(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
+  const neighborId = neighbors.length > 0 && region === 'valley' && (!(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
   const inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   const tool = false; // New trips use warehouse tools; true is reserved for legacy packed ropes.
   return { ...pet, inventory, lastInteractionAt: now,

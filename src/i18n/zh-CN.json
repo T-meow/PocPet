@@ -184,10 +184,10 @@
         "active": "已启用 Mod：{name} v{version}",
         "import": "导入 Mod",
         "restoreDefault": "恢复默认",
-        "useBuiltin": "使用内置宠物",
+        "useBuiltin": "使用 Furo",
         "libraryAria": "已安装 Mod",
         "libraryEmpty": "尚未安装 Mod。",
-        "libraryLimit": "Mod 库最多安装 {count} 个 Mod，请先删除不用的 Mod。",
+        "libraryLimit": "Mod 库最多导入 {count} 个外部 Mod，请先删除不用的 Mod。",
         "builtinConflict": "{name} 已作为内置宠物提供，无需重复导入。",
         "currentShort": "当前",
         "activate": "设为当前",
@@ -197,7 +197,7 @@
         "deleteFailed": "删除 Mod 失败。",
         "deleteDialog": {
           "title": "删除这个 Mod？",
-          "message": "将从本机删除 {name} 的完整资源。已有存档和背包数量不会被删除，缺失内容会使用兼容占位。",
+          "message": "将从本机删除 {name} 的完整资源。已有存档和背包数量保留；删除当前角色时切换到 Mint，缺失物品使用兼容占位。",
           "cancel": "保留",
           "confirm": "删除 Mod"
         },
@@ -1165,7 +1165,7 @@
     "rolePicker": {
       "aria": "选择宠物角色",
       "title": "选择你的伙伴",
-      "description": "选择 Furo、Doro、Mint、已安装 Mod，或导入新 Mod。",
+      "description": "选择当前可用的伙伴，或导入新的角色 Mod。",
       "loading": "正在读取本地 Mod...",
       "builtinTitle": "内置 Furo",
       "installedTitle": "使用 {name}",

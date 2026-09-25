@@ -7,6 +7,11 @@
 .kitchen-recipe-book .recipe-card img { width: min(100%, 160px); height: auto; aspect-ratio: 1; }
 .kitchen-recipe-book .recipe-card strong { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .kitchen-recipe-book .recipe-card:focus-visible { outline: 3px solid #72977b; outline-offset: 3px; }
+.recipe-progress { display: flex; justify-content: center; gap: 6px; flex-shrink: 0; }
+.recipe-progress > span { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; border-radius: 8px; background: #f1eddf; font-size: 20px; line-height: 1; }
+.recipe-progress .unachieved { filter: grayscale(1); opacity: .35; }
+.recipe-progress-legend { margin: 6px 0 0; color: #697565; font-size: 12px; line-height: 1.6; }
+.recipe-detail > .recipe-progress { margin: 8px 0; }
 .recipe-badges { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; }
 .recipe-card .recipe-badges { margin-top: auto; }
 .recipe-badge-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; max-width: 100%; }

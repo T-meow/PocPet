@@ -11,6 +11,12 @@
   --shadow: 0 20px 50px rgba(36, 62, 96, 0.16);
   --safe-top: 0px;
   --safe-bottom: 0px;
+  --viewport-height: 100vh;
+}
+
+/* Guard newer units before they enter var(): invalid computed values discard the fallback. */
+@supports (height: 100dvh) {
+  :root { --viewport-height: 100dvh; }
 }
 
 @supports (padding-top: env(safe-area-inset-top)) {
@@ -652,7 +658,7 @@ h1 {
 .pomodoro-orb {
   position: relative;
   display: grid;
-  width: clamp(178px, min(55vw, 50dvh), 264px);
+  width: clamp(178px, min(55vw, calc(var(--viewport-height) * .5)), 264px);
   aspect-ratio: 1;
   place-items: center;
   overflow: hidden;
@@ -1901,7 +1907,7 @@ h1 {
   }
 
   .pomodoro-orb {
-    width: clamp(170px, 50dvh, 204px);
+    width: clamp(170px, calc(var(--viewport-height) * .5), 204px);
   }
 
   .pomodoro-orb__content {
@@ -2161,7 +2167,7 @@ h1 {
   z-index: 21;
   display: grid;
   width: min(calc(100% - 36px), 500px);
-  max-height: min(720px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px));
+  max-height: min(720px, calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px));
   gap: 16px;
   overflow: auto;
   padding: 18px;
@@ -2262,7 +2268,7 @@ h1 {
 
   .help-modal {
     width: calc(100% - 24px);
-    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
+    max-height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 24px);
     gap: 12px;
     padding: 14px;
   }
@@ -2278,7 +2284,7 @@ h1 {
 
 .settings-modal {
   grid-template-rows: auto minmax(0, 1fr) auto;
-  max-height: min(720px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px));
+  max-height: min(720px, calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px));
   overflow: hidden;
 }
 
@@ -2394,7 +2400,7 @@ h1 {
 }
 
 .inventory-list {
-  max-height: min(360px, 42dvh);
+  max-height: min(360px, calc(var(--viewport-height) * .42));
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
@@ -2463,7 +2469,7 @@ h1 {
   }
 
   .inventory-list {
-    max-height: 34dvh;
+    max-height: calc(var(--viewport-height) * .34);
   }
 }
 
@@ -2615,7 +2621,7 @@ h1 {
 
 .reward-modal {
   width: min(100%, 380px);
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px);
+  max-height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px);
   display: grid;
   justify-items: center;
   gap: 14px;
@@ -2697,7 +2703,7 @@ h1 {
 
 .achievement-cg-modal {
   width: min(100%, 520px);
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px);
+  max-height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px);
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -2710,7 +2716,7 @@ h1 {
 
 .achievement-cg-modal__image {
   width: 100%;
-  max-height: min(56dvh, 430px);
+  max-height: min(calc(var(--viewport-height) * .56), 430px);
   border-radius: 8px;
   object-fit: contain;
   background: #fff7d8;
@@ -2758,7 +2764,7 @@ h1 {
 
 .confirm-modal {
   width: min(100%, 400px);
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px);
+  max-height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px);
   display: grid;
   justify-items: center;
   gap: 14px;
@@ -2860,7 +2866,7 @@ h1 {
 
 .year-review-modal {
   width: min(520px, 100%);
-  max-height: min(680px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 36px));
+  max-height: min(680px, calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom) - 36px));
   overflow: auto;
   border-radius: 24px;
   background: rgba(255, 252, 246, 0.98);

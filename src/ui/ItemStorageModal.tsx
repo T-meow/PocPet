@@ -60,7 +60,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
   const availableItems = useMemo(() => items.filter((item) => mode === 'shop' ? hasContext || item.shop : (inventory[item.id] ?? 0) > 0), [items, mode, inventory, hasContext]);
   const visible = useMemo(() => {
     const filtered = filterBrowseItems(availableItems, browse.category);
-    return mode === 'bag' ? sortBagItems(filtered, items) : filtered;
+    return mode === 'bag' ? sortBagItems(filtered) : filtered;
   }, [availableItems, browse.category, items, mode]);
   const quantityLimit = (entry: InventoryItemDefinition) => context ? context.quantityLimit(entry) : getItemBrowseLimit(pet, entry, mode, now);
   const resolved = resolveItemBrowseState(browse.query ? { ...browse, query: '' } : browse, visible, quantityLimit);

@@ -109,7 +109,8 @@ import {
   type ActivePetMod,
   type InstalledPetModSummary,
 } from '../core/mod';
-import { builtinMintMod, getBuiltinPetMod } from '../core/builtinPetMods';
+import { builtinMintMod } from '../core/builtinPetMods';
+import { isBuiltinPetModId } from '../core/builtinPetModManifests';
 import {
   clearActivePetMod,
   deletePetMod,
@@ -118,6 +119,7 @@ import {
   listInstalledPetMods,
   loadActivePetMod,
   loadPetMod,
+  restoreBuiltinPetMod,
   setActivePetMod,
 } from '../core/modStorage';
 import { createSaveFileText, decodeSaveSnapshot, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
@@ -153,7 +155,6 @@ import { PartnerSchedulePage } from './PartnerSchedulePage';
 import { RolePicker } from './RolePicker';
 import { SettingsModal, type SettingsPage } from './SettingsModal';
 import { ShopModal } from './ShopModal';
-import { recycleCommunityGoods } from '../core/communityMarket';
 import { YearReviewModal } from './YearReviewModal';
 import { formatCompactNumber } from './numberFormat';
 import { getLanguage, setLanguage, t, type LanguageCode } from '../i18n';
@@ -1079,6 +1080,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         const loaded = await loadPetMod(parsed.manifest.id);
         if (!loaded) throw new Error(t('ui.settings.mod.loadFailed'));
         music.detach();
+        setStoredSaveIdentity(loaded.manifest);
         setActiveMod(loaded);
         setPet((current) => ({
           ...withPetIdentityBirthday(current, parsed.manifest.birthday),
@@ -1161,16 +1163,17 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       assertStorageUnchanged();
       if (wasActive) music.detach();
       await deletePetMod(modId);
-      setInstalledMods(await listInstalledPetMods());
       if (wasActive) {
-        setActiveMod(null);
+        setStoredSaveIdentity(builtinMintMod.manifest);
+        setActiveMod(builtinMintMod);
         setPet((current) => ({
-          ...withPetIdentityBirthday(current, defaultPetBirthday),
-          name: oldDefaultName && current.name === oldDefaultName ? defaultPetName : current.name,
+          ...withPetIdentityBirthday(current, builtinMintMod.manifest.birthday),
+          name: oldDefaultName && current.name === oldDefaultName ? builtinMintMod.manifest.defaultPetName : current.name,
         }));
-        setDraftName((current) => oldDefaultName && current === oldDefaultName ? defaultPetName : current);
-        setDraftBirthday(defaultPetBirthday);
+        setDraftName((current) => oldDefaultName && current === oldDefaultName ? builtinMintMod.manifest.defaultPetName : current);
+        setDraftBirthday(builtinMintMod.manifest.birthday);
       }
+      setInstalledMods(await listInstalledPetMods());
       setSaveText('');
       setModMessage(t('ui.settings.mod.deleted', { name: target?.manifest.name ?? modId }));
     } catch (error) {
@@ -1178,6 +1181,16 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       playSfx('error');
     } finally {
       setModDeleteConfirmId(null);
+    }
+  };
+
+  const handleRestoreBuiltinMod = async (modId: string) => {
+    try {
+      restoreBuiltinPetMod(modId);
+      setInstalledMods(await listInstalledPetMods());
+      setModMessage('已恢复内置角色，可设为当前伙伴。');
+    } catch (error) {
+      setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.loadFailed'));
     }
   };
 
@@ -1684,7 +1697,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onQuickWork={() => handleAction('work')}
         />
       ) : activePage === 'adventure' ? (
-        <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} icons={itemIconMap} registry={itemRegistry}
+        <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
           communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
           update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
@@ -1913,14 +1926,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <ShopModal
           pet={pet}
           items={displayShopItems}
-          recycleItems={ownedItems}
           browse={inventoryController.browse}
           itemIconMap={itemIconMap}
           onClose={handleCloseShop}
           onBrowseChange={inventoryController.setBrowse}
           onOpenInventory={handleOpenInventory}
           onBuyItem={handleBuyItem}
-          onRecycleItem={(id, quantity, expectedStock) => activities.update(p => recycleCommunityGoods(p, id, quantity, expectedStock))}
           onExchangeHeart={handleExchangeHeart}
           isHeartExchangeCoolingDown={isHeartExchangeCoolingDown}
         />
@@ -1997,6 +2008,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onClearMod={handleClearMod}
           onActivateMod={(modId) => void handleActivateMod(modId)}
           onDeleteMod={setModDeleteConfirmId}
+          onRestoreBuiltinMod={(modId) => void handleRestoreBuiltinMod(modId)}
           onExportSave={handleExportSave}
           onDownloadSave={handleDownloadSave}
           onImportPastedSave={() => prepareImportSaveFromText(importSaveText)}
@@ -2054,7 +2066,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       {modDeleteConfirmId && (
         <ConfirmDialog
           title={t('ui.settings.mod.deleteDialog.title')}
-          message={t('ui.settings.mod.deleteDialog.message', { name: modDeleteTarget?.manifest.name ?? modDeleteConfirmId })}
+          message={isBuiltinPetModId(modDeleteConfirmId)
+            ? `从本机角色列表移除 ${modDeleteTarget?.manifest.name ?? modDeleteConfirmId}，之后可以恢复。已有存档和背包保留；删除当前角色时会切换到 Mint。`
+            : t('ui.settings.mod.deleteDialog.message', { name: modDeleteTarget?.manifest.name ?? modDeleteConfirmId })}
           cancelLabel={t('ui.settings.mod.deleteDialog.cancel')}
           confirmLabel={t('ui.settings.mod.deleteDialog.confirm')}
           onCancel={() => setModDeleteConfirmId(null)}
@@ -2225,16 +2239,6 @@ export const App = () => {
     }
   };
 
-  const handleUseBuiltinMod = (modId: string) => {
-    const mod = getBuiltinPetMod(modId);
-    if (!mod) {
-      setModMessage(t('ui.settings.mod.loadFailed'));
-      playSfx('error');
-      return;
-    }
-    startWithMod(mod);
-  };
-
   const handleUseInstalledMod = async (modId: string) => {
     try {
       const loaded = await loadPetMod(modId);
@@ -2283,7 +2287,6 @@ export const App = () => {
         isAudioEnabled={isAudioEnabled}
         isLoading
         onUseBuiltin={handleUseBuiltin}
-        onUseBuiltinMod={() => undefined}
         onUseInstalledMod={() => undefined}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}
@@ -2298,7 +2301,6 @@ export const App = () => {
         modMessage={modMessage}
         isAudioEnabled={isAudioEnabled}
         onUseBuiltin={handleUseBuiltin}
-        onUseBuiltinMod={handleUseBuiltinMod}
         onUseInstalledMod={(modId) => void handleUseInstalledMod(modId)}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}

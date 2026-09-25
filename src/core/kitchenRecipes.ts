@@ -3,7 +3,7 @@ import { getLanguage } from '../i18n';
 import type { BuiltinItemId, ItemEffect, PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenMaterialId, RecipeId, MilkChoice } from './companionActivityTypes';
 import { expandedRecipes } from './kitchenExpansion';
-import { wildIngredients, type FoodRarity, type SaleDemand, communityCrops, productionIngredients } from './foodCatalog';
+import { wildIngredients, type FoodRarity, type SaleDemand } from './foodCatalog';
 import { fish, isWaterOpen } from './communityData';
 
 export const activityText = (zh: string, en: string) => getLanguage() === 'en-US' ? en : zh;
@@ -29,7 +29,7 @@ export const kitchenMaterials: readonly { id: KitchenMaterialId; name: string; e
   { id: 'red_bean_paste', name: '红豆沙', en: 'Red bean paste', price: 16, glyph: '🫘' },
   { id: 'mixed_nuts', name: '混合果仁', en: 'Mixed nuts', price: 20, glyph: '🥜', edibleEffect: { hunger: 22, mood: 4, energy: 4 } },
 ];
-// Rarity and final recovery values are explicit; hearts only budget crafting rewards.
+// Rarity and stat effects are explicit; hearts only budget crafting rewards.
 const legacyRecipes: readonly Omit<RecipeDefinition, 'category' | 'demand'>[] = [
   { id: 'mushroom_rice', name: '野菇焖饭', en: '野菇焖饭', glyph: '🍄', method: 'pan', technique: 'simmer', rarity: 'fine', ingredients: ['valley_mushroom', 'rice'], effect: { hunger: 28, energy: 24, health: 6 }, chainHearts: 2, main: true },
   { id: 'honey_drink', name: '蜂蜜暖饮', en: '蜂蜜暖饮', glyph: '🍯', method: 'mix', rarity: 'fine', ingredients: ['hill_honey', 'creek_herb'], effect: { hunger: 8, energy: 14, mood: 30 }, chainHearts: 2 },
@@ -109,21 +109,6 @@ export const getDish = (id: string) => allDishes.find((dish) => dish.id === id);
 export const getRecipeEffect = (recipe: RecipeDefinition, banana = false): ItemEffect => recipe.fruitVariant && banana
   ? { ...recipe.effect, hunger: (recipe.effect.hunger ?? 0) + 2, mood: (recipe.effect.mood ?? 0) - 2, energy: (recipe.effect.energy ?? 0) + 2 }
   : recipe.effect;
-export const getRecipeMaterialCost = (recipe: RecipeDefinition, banana: boolean, ingredientPrice: (id: BuiltinItemId) => number, milk?: MilkChoice): number =>
-  getRecipeIngredientEntries(recipe, banana, milk).reduce((sum, { id, quantity }) => {
-    const dish = getDish(id);
-    return sum + quantity * (dish ? getRecipeMaterialCost(dish.recipe, dish.banana, ingredientPrice, milk) : ingredientPrice(id));
-  }, 0);
-// A consistent reference cost for sorting: shop quote, seed cost per harvest,
-// wild replacement value, or the full input cost of processing.
-export const getIngredientReferenceCost = (id: BuiltinItemId): number => {
-  const material = kitchenMaterials.find(item => item.id === id);
-  if (material) return material.price;
-  const direct: Partial<Record<BuiltinItemId, number>> = { farm_milk: 18, ad_milk: 24, strawberry_milk: 22, apple: 18, orange: 16, banana: 20, watermelon: 26, emergency_biscuit: 7, pig_trotter: 48, cream: 36, cheese: 54, forest_berry_jam: 24, cooking_oil: 12 };
-  if (direct[id] !== undefined) return direct[id]!;
-  const crop = Object.values(communityCrops).find(c => c.product === id && c.seedPrice > 0);
-  return crop ? crop.seedPrice / crop.yield : wildIngredients[id as keyof typeof wildIngredients]?.base ?? fish[id as keyof typeof fish]?.base ?? productionIngredients[id as keyof typeof productionIngredients]?.base ?? ({ creek_herb: 6, valley_mushroom: 10, hill_honey: 14, forest_berry: 12, coast_kelp: 12 } as Record<string, number>)[id] ?? 0;
-};
 export const dishName = (id: string) => {
   const dish = getDish(id);
   return dish ? recipeName(dish.recipe) + (dish.recipe.fruitVariant ? activityText(dish.banana ? ' · 香蕉' : ' · 苹果', dish.banana ? ' · Banana' : ' · Apple') : '') : id;

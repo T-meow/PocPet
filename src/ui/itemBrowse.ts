@@ -1,8 +1,9 @@
-import { allDishes, getRecipeIngredients, getRecipeMaterialCost, activityText as L } from '../core/kitchenRecipes';
+import { allDishes, getRecipeIngredients, activityText as L } from '../core/kitchenRecipes';
+import { getRecipePricingCost } from '../core/communityEconomy';
 import { batchActionUnlockLevel, getDailyBiscuitClaimInfo, maxBatchQuantity } from '../core/pet';
 import type { InventoryItemDefinition, PetState, ShopCategory } from '../core/pet';
 import { t } from '../i18n';
-import { getInventoryItem, getPurchaseCapacity } from '../core/items';
+import { getPurchaseCapacity } from '../core/items';
 
 export type ItemBrowseCategory = ShopCategory | 'all' | 'ingredients';
 export type ItemStorageMode = 'shop' | 'bag';
@@ -36,14 +37,8 @@ export const filterBrowseItems = (items: readonly InventoryItemDefinition[], cat
     return matchesItemBrowseCategory(item, category) && (!search || `${item.displayName} ${item.displaySummary}`.toLocaleLowerCase().includes(search));
   });
 };
-export const sortBagItems = (items: readonly InventoryItemDefinition[], definitions: readonly InventoryItemDefinition[]) => {
-  const prices = new Map(definitions.map((item) => [item.id, item.price]));
-  // Homemade dishes have no shop price; rank their value by ingredient cost.
-  const dishValues = new Map<string, number>(allDishes.map(({ recipe, banana, id }) => [id,
-    getRecipeMaterialCost(recipe, banana, (ingredientId) => ingredientId === 'emergency_biscuit'
-      ? (prices.get('soda_biscuit_box') ?? getInventoryItem('soda_biscuit_box')!.price) / 40
-      : prices.get(ingredientId) ?? getInventoryItem(ingredientId)?.price ?? 0),
-  ]));
+export const sortBagItems = (items: readonly InventoryItemDefinition[]) => {
+  const dishValues = new Map<string, number>(allDishes.map(({ recipe, banana, id }) => [id, getRecipePricingCost(recipe, banana)]));
   return [...items].sort((a, b) => {
     const aValue = dishValues.get(a.id);
     const bValue = dishValues.get(b.id);

@@ -1,6 +1,6 @@
 import type { CommunityState, CommissionTemplate, MarketReceipt } from './communityTypes';
 import { commissionTemplates, facilityIds } from './communityData';
-import { getCommunitySale } from './communityEconomy';
+import { getCommunitySale, marketPricingVersion } from './communityEconomy';
 import { defaultExpeditionState, normalizeExpeditionState } from './expeditionState';
 import { marketMaxVisitMs, marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { cropIds, wildIngredientIds } from './foodCatalog';
@@ -14,14 +14,14 @@ import { regionIds, projectIds } from './expeditionData';
 import { getWeekStartDateKey } from './dailyReset';
 import { landmarkNodes } from './landmarkProgress';
 
-export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 12, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
+export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 13, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
   plots: [{ id: 1 }], upgrades: { garden: 1, coop: 1, barn: 1, fishing_hut: 1 },
   toolWear: {}, treasureResearch: {}, decorations: [], decorationLevels: {}, commissionsCompleted: 0, specialtyOrders: { acceptedDay: '', completed: 0 },
   discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false },
   facilities: { coop: { found: false, work: 0, built: false }, barn: { found: false, work: 0, built: false }, fishing_hut: { found: false, work: 0, built: false }, upstream: { found: false, work: 0, built: false }, stall: { found: false, work: 0, built: false } },
   animals: { coop: { feed: 0, stock: 0, cycleMs: 21600000, cared: false, revision: 0 }, barn: { feed: 0, stock: 0, cycleMs: 28800000, cared: false, revision: 0 } },
   fishing: { casts: 0, nextIdleId: 1, journal: {} },
-  market: { level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, listings: [], reserve: {}, revenue: 0, premium: 0, sold: 0, log: [] },
+  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, listings: [], reserve: {}, revenue: 0, premium: 0, sold: 0, log: [] },
 });
 const day = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
@@ -98,6 +98,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   }
   state.fishing = normalizeFishingState(v.fishing, state);
   const m = object(v.market), market = state.market;
+  market.pricingVersion = n(m.pricingVersion, marketPricingVersion);
   market.level = state.facilities.stall.built ? Math.max(1, n(m.level, 3)) : 0;
   market.open = market.level > 0 && m.open === true;
   market.lastVisitAt = n(m.lastVisitAt); market.visitors = n(m.visitors); market.revenue = n(m.revenue); market.premium = n(m.premium, market.revenue); market.sold = n(m.sold);
@@ -115,7 +116,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
     listingIds.add(id); slots.add(slotIndex);
     const bonus = Math.max(20, n(listing.bonus, 61));
     const basePrice = Math.max(1, n(listing.basePrice, 10000) || sale.base);
-    // A slot keeps its exact historical quote, including after replenishment.
+    // Preserve old quotes for catch-up; the pricing migration runs afterwards.
     const unitPrice = n(listing.unitPrice, 16100) || Math.floor(basePrice * (100 + bonus) / 100);
     return [{ id, slotIndex, itemId: listing.itemId, quantity, basePrice, bonus, unitPrice, collector: sale.collector }];
   }).sort((a, b) => a.slotIndex - b.slotIndex);

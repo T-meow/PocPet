@@ -2,6 +2,7 @@ import type { PetState, PartnerScheduleCategory } from '../../core/petTypes';
 import { getPartnerScheduleFullRewardPreview, getPartnerScheduleOfferPreview, partnerScheduleMaxSkillLevel } from '../../core/partnerSchedule';
 import { getPartnerScheduleMasteryNextThreshold, partnerScheduleCategories } from '../../core/partnerScheduleEffects';
 import { getKitchenHeartReward } from '../../core/kitchen';
+import { getMarketBuyoutBonus } from '../../core/communityMarket';
 import { t } from '../../i18n';
 import type { HelpContent } from './HelpButton';
 
@@ -38,6 +39,6 @@ const getSkillHelp = (pet: PetState, id: PartnerScheduleCategory): HelpContent =
   return {
     title: t('ui.partnerSchedule.categories.' + id) + '成长',
     overview: <><p>完成对应的工作与日常活动可以积累经验，逐步解锁技能效果。</p>{([2, 4, 5, 7, 8, 9, 10] as const).map(level => <p key={level}>{skill.level >= level ? '✓ ' : ''}{t('ui.partnerSchedule.passives.level' + level)}</p>)}{master && <p>{t('ui.partnerSchedule.masterPassives.' + id + '.' + (skill.masterCompletions >= 60 ? 'advanced' : 'base'))}</p>}</>,
-    details: <>{id === 'cooking' && <p>{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet, 'plain_rice').skillBonusPercent })}</p>}{master ? <p>{next ? t('ui.partnerSchedule.mastery.next' + next, { count: skill.masterCompletions, target: next }) : t('ui.partnerSchedule.mastery.complete', { count: skill.masterCompletions })}</p> : <p>满级后完整完成对应工作，可累计大师次数。</p>}</>,
+    details: <>{id === 'cooking' && <><p>{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet, 'plain_rice').skillBonusPercent })}</p><p>烹饪技能从 Lv.2 起每级提高小摊包场成交机会 5%，最高 +45%；当前提供 +{getMarketBuyoutBonus(pet).cooking}%，可与鎏金社区铭牌的加成相加。</p></>}{master ? <p>{next ? t('ui.partnerSchedule.mastery.next' + next, { count: skill.masterCompletions, target: next }) : t('ui.partnerSchedule.mastery.complete', { count: skill.masterCompletions })}</p> : <p>满级后完整完成对应工作，可累计大师次数。</p>}</>,
   };
 };

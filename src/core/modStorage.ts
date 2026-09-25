@@ -12,7 +12,7 @@ import {
   type PetModLibraryState,
   type PetModManifest,
 } from './mod';
-import { getBuiltinPetModManifest, isBuiltinPetModId } from './builtinPetModManifests';
+import { builtinMintManifest, getAvailableBuiltinPetModManifests, getBuiltinPetModManifest, isBuiltinPetModId, isProtectedPetModId } from './builtinPetModManifests';
 
 const legacyActiveManifestStorageKey = 'pocpet.mod.active.v1';
 const libraryStorageKey = 'pocpet.mod.library.v1';
@@ -143,11 +143,15 @@ export const normalizePetModLibraryState = (value: unknown): PetModLibraryState 
   const mods = Array.from(modsById.values())
     .filter((mod) => !isBuiltinPetModId(mod.manifest.id))
     .slice(-petModLibraryLimit);
+  const deletedBuiltinModIds = Array.isArray(raw.deletedBuiltinModIds)
+    ? [...new Set(raw.deletedBuiltinModIds.filter((id): id is string => typeof id === 'string' && isBuiltinPetModId(id) && !isProtectedPetModId(id)))]
+    : [];
+  const builtinIds = new Set(getAvailableBuiltinPetModManifests(deletedBuiltinModIds).map((mod) => mod.id));
   const activeModId = typeof raw.activeModId === 'string'
-    && (isBuiltinPetModId(raw.activeModId) || mods.some((mod) => mod.manifest.id === raw.activeModId))
-    ? raw.activeModId
+    ? builtinIds.has(raw.activeModId) || mods.some((mod) => mod.manifest.id === raw.activeModId)
+      ? raw.activeModId : builtinMintManifest.id
     : undefined;
-  return { schemaVersion: 1, activeModId, mods };
+  return { schemaVersion: 1, activeModId, mods, deletedBuiltinModIds };
 };
 
 const writeLibraryState = (state: PetModLibraryState) => {
@@ -175,7 +179,7 @@ const readPetModLibraryState = (): PetModLibraryState => {
   const legacyManifest = readLegacyManifest();
   if (legacyManifest && !isBuiltinPetModId(legacyManifest.id) && !library.mods.some((mod) => mod.manifest.id === legacyManifest.id)) {
     library = {
-      schemaVersion: 1,
+      ...library,
       activeModId: library.activeModId ?? legacyManifest.id,
       mods: [...library.mods, { manifest: legacyManifest, importedAt: Date.now() }].slice(-petModLibraryLimit),
     };
@@ -232,7 +236,8 @@ export const installPetMod = async (mod: ParsedPetMod) => {
 
 export const setActivePetMod = (modId?: string) => {
   const library = getPetModLibraryState();
-  const activeModId = modId && (isBuiltinPetModId(modId) || library.mods.some((mod) => mod.manifest.id === modId))
+  const builtinAvailable = getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds).some((mod) => mod.id === modId);
+  const activeModId = modId && (builtinAvailable || library.mods.some((mod) => mod.manifest.id === modId))
     ? modId
     : undefined;
   writeLibraryState({ ...library, activeModId });
@@ -240,41 +245,55 @@ export const setActivePetMod = (modId?: string) => {
 };
 
 export const deletePetMod = async (modId: string) => {
-  if (isBuiltinPetModId(modId)) return;
+  if (isProtectedPetModId(modId)) throw new Error('Mint 是保留角色，不能删除。');
   const library = getPetModLibraryState();
-  if (!library.mods.some((mod) => mod.manifest.id === modId)) return;
+  const builtin = isBuiltinPetModId(modId);
+  if (!builtin && !library.mods.some((mod) => mod.manifest.id === modId)) return;
   const wasActive = library.activeModId === modId;
-  await deleteModRecords(modId);
+  if (!builtin) await deleteModRecords(modId);
   writeLibraryState({
     ...library,
-    activeModId: library.activeModId === modId ? undefined : library.activeModId,
+    activeModId: wasActive ? builtinMintManifest.id : library.activeModId,
     mods: library.mods.filter((mod) => mod.manifest.id !== modId),
+    deletedBuiltinModIds: builtin ? [...new Set([...(library.deletedBuiltinModIds ?? []), modId])] : library.deletedBuiltinModIds,
   });
   if (wasActive) revokeObjectUrls('active');
   revokeObjectUrls('library');
 };
 
+export const restoreBuiltinPetMod = (modId: string) => {
+  if (!isBuiltinPetModId(modId)) throw new Error('找不到这个内置角色。');
+  const library = getPetModLibraryState();
+  writeLibraryState({ ...library, deletedBuiltinModIds: (library.deletedBuiltinModIds ?? []).filter((id) => id !== modId) });
+};
+
 export const listInstalledPetMods = async (): Promise<InstalledPetModSummary[]> => {
   const library = getPetModLibraryState();
   const records = await getRecords(library.mods.map((entry) => getImageRecordKey(entry.manifest.id, 'pet', 'content')));
+  const { getBuiltinPetMod } = await import('./builtinPetMods');
   revokeObjectUrls('library');
-  return library.mods.map((entry, index) => {
+  const builtinMods = getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds).map((manifest) => ({
+    manifest, importedAt: 0, contentImageUrl: getBuiltinPetMod(manifest.id)?.petImageUrls.content,
+  }));
+  return [...builtinMods, ...library.mods.map((entry, index) => {
     const record = records[index];
     return {
       ...entry,
       contentImageUrl: record?.blob ? createTrackedObjectUrl('library', record.blob) : undefined,
     };
-  });
+  })];
 };
 
 export const loadPetMod = async (modId: string): Promise<ActivePetMod | null> => {
+  const library = getPetModLibraryState();
   if (isBuiltinPetModId(modId)) {
+    if (!getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds).some((mod) => mod.id === modId)) return null;
     const { getBuiltinPetMod } = await import('./builtinPetMods');
     const builtinMod = getBuiltinPetMod(modId);
     revokeObjectUrls('active');
     return builtinMod;
   }
-  const manifest = getPetModLibraryState().mods.find((mod) => mod.manifest.id === modId)?.manifest;
+  const manifest = library.mods.find((mod) => mod.manifest.id === modId)?.manifest;
   if (!manifest) return null;
 
   const petImageUrls: ActivePetMod['petImageUrls'] = {};

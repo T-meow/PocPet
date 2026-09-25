@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "id": "local.blue-whale-maid",
+  "name": "DeepSeek",
+  "version": "0.1.4",
+  "defaultPetName": "小肥鱼",
+  "description": "蓝发鲸尾女仆小肥鱼，生日为 4 月 24 日，喜欢白米饭和米饭料理。",
+  "birthday": { "month": 4, "day": 24 },
+  "favoriteFoodIds": [
+    "dish_plain_rice", "dish_mushroom_rice", "dish_kelp_rice",
+    "dish_carp_rice", "dish_egg_rice", "dish_carrot_rice",
+    "dish_tomato_egg_bowl", "dish_pork_rice_bowl", "dish_pumpkin_rice",
+    "dish_pepper_pork_bowl", "dish_chestnut_rice", "dish_honey_eel_rice",
+    "dish_sardine_rice_ball", "dish_lemon_bream_rice", "dish_seafood_rice",
+    "dish_valley_travel_bento", "bento"
+  ],
+  "texts": {
+    "recentEvent": "小肥鱼来到小窝了，今天也想吃一碗热乎乎的米饭。",
+    "favoriteFood": "米饭的香气最喜欢了！心情额外 +{amount}。",
+    "status": {
+      "content": "心情不错", "hungry": "想吃米饭了", "sad": "有点失落",
+      "dirty": "需要清洁", "tired": "有点困了", "sick": "不太舒服", "sleeping": "睡得正香"
+    }
+  }
+}

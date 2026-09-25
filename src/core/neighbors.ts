@@ -13,8 +13,6 @@ type NeighborModSummary = {
 
 const builtinNeighborIdentities: readonly NeighborIdentity[] = [
   { modId: builtinFuroNeighborId, name: 'Furo' },
-  { modId: 'official.doro', name: 'Doro' },
-  { modId: 'official.mint', name: 'mint' },
 ];
 
 const sortedNeighbors = (neighbors: readonly NeighborIdentity[]) =>

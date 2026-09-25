@@ -7,12 +7,13 @@ import { activityText as L } from '../core/kitchenRecipes';
 import { AdventureMapLandscape } from './AdventureMapLandscape';
 import { adventureLandmarkIcons } from '../adventureLandmarkAssets';
 import { DialogShell } from './DialogShell';
-import type { PetState } from '../core/petTypes';
+import type { ItemRegistry, PetState } from '../core/pet';
 import { getRegionUnlocked } from '../core/expeditionData';
 import { currentExpeditionRequest, expeditionRegionForMap, type OutpostRequest } from './outpostNavigation';
 import { completedLandmark, getLandmarkReason, getRegionUnlockReason, landmarkId, landmarkNodes } from '../core/landmarkProgress';
 import { ExplorationHelp } from './help/ExplorationGuide';
 import { landmarkDescriptions, landmarkFirstRewardText } from './help/landmarkHelp';
+import { AdventureMapResources } from './AdventureMapResources';
 
 export interface AdventureMapSelection { region: AdventureRegionId; node?: AdventureNodeId }
 interface Props {
@@ -23,9 +24,10 @@ interface Props {
   mode: 'manual' | 'idle'; onMode: (mode: 'manual' | 'idle') => void; preparation?: ReactNode;
    onResume: () => void; onCollect: () => void; onClose: () => void;
   pet?: PetState; onOutpost?: (request: OutpostRequest) => void;
+  icons: Record<string, string>; registry: ItemRegistry;
 }
 
-export const AdventureMap = ({ adventure, today, selection, portrait, landscape, onToggleLandscape, onSelect, onResume, onCollect, onClose, pet, onOutpost, mode, onMode, preparation }: Props) => {
+export const AdventureMap = ({ adventure, today, selection, portrait, landscape, onToggleLandscape, onSelect, onResume, onCollect, onClose, pet, onOutpost, mode, onMode, preparation, icons, registry }: Props) => {
   const regions = getAdventureRegions();
   const region = regions.find(entry => entry.id === selection?.region) ?? regions[0];
   const expeditionRegion = expeditionRegionForMap[region.id];
@@ -70,6 +72,7 @@ export const AdventureMap = ({ adventure, today, selection, portrait, landscape,
             })}
             <div className="adventure-map-companion">{portrait && <img src={portrait} alt="" />}<span>{activeHere ? L('沿着这次的路线，慢慢走。', 'Following our chosen path.') : entranceStatus === 'available' ? L('准备好了，就出发吧。', 'Ready for a little journey.') : L('一起看看远方的路。', 'Let’s look at the paths ahead.')}</span></div>
           </div></div>
+          {pet && <AdventureMapResources key={`${region.id}:${node ?? ''}:${mode}`} pet={pet} region={region.id} node={node} mode={mode} icons={icons} registry={registry} />}
           <footer><span><MapPin size={14} />点击地标查看任务</span><span>{region.name} · 地标 {chapterCount}/8</span></footer>
         </section>
         <section className="adventure-map-detail" aria-label={L('节点任务详情', 'Landmark task details')} aria-live="polite" data-selected-node={node}>

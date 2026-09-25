@@ -1,4 +1,6 @@
 import { advancePet, normalizePet, defaultPetName, type NeighborEventContext, type PetState } from './pet';
+import { advanceCommunityMarket } from './communityMarket';
+import { marketPricingVersion } from './communityEconomy';
 import { rebasePetFutureCalendarState, shiftPetRuntimeTimestamps } from './gameClock';
 import { appBuild } from '../platform/edition';
 import { t } from '../i18n';
@@ -212,7 +214,7 @@ export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSumma
   createSaveFilePlainText(pet, activeMod, now);
 
 const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 1, festivalStories: 3, adventure: 8, community: 12 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 1, festivalStories: 3, adventure: 8, community: 13 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
@@ -365,7 +367,8 @@ const clearRestoredGachaHistory = (pet: PetState): PetState => ({
 export const parseSaveFileText = (text: string, now = Date.now(), fallbackName?: string): PocPetImportedSave => {
   const imported = decodeSaveSnapshot(text, fallbackName);
   const savedAt = imported.exportedAt ? Date.parse(imported.exportedAt) : imported.pet.lastUpdatedAt;
-  return { ...imported, pet: clearRestoredGachaHistory(resetImportedTimeBaseline(imported.pet, now, savedAt)) };
+  const pet = resetImportedTimeBaseline(imported.pet, now, savedAt);
+  return { ...imported, pet: clearRestoredGachaHistory(pet.community.market.pricingVersion < marketPricingVersion ? advanceCommunityMarket(pet, now) : pet) };
 };
 
 export const loadStoredPetJson = (

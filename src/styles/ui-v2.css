@@ -869,7 +869,7 @@
   background: #fff;
   border: 1px solid #dce4ed;
   box-shadow: 0 20px 90px #20355029;
-  max-height: calc(100dvh - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
+  max-height: calc(var(--viewport-height) - var(--dialog-top) - max(14px,env(safe-area-inset-bottom,0px)));
 }
 
 .ui-v2-app .modal-backdrop--fullscreen {
@@ -882,8 +882,8 @@
   display: block;
   width: 100vw;
   max-width: none;
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--viewport-height);
+  max-height: var(--viewport-height);
   border: 0;
   border-radius: 0;
   overflow-y: auto;
@@ -954,7 +954,7 @@
 
 .v2-notification.expanded .notice-copy p {
   display: block;
-  max-height: 35dvh;
+  max-height: calc(var(--viewport-height) * .35);
   overflow-y: auto;
 }
 
@@ -988,7 +988,7 @@
   border-color: #a9d7bc;
 }
 
-.notice-history-backdrop { z-index: 5100; }
+.notice-history-backdrop { z-index: 5100; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 @keyframes v2-notice-in {
   from { opacity: 0; transform: translate(-50%,-8px); }
   to { opacity: 1; transform: translate(-50%,0); }
@@ -999,6 +999,10 @@
   padding: 24px;
   overflow-y: auto;
 }
+
+.ui-v2-app .dialog-shell.notice-history-modal { display: flex; flex-direction: column; min-height: 0; max-height: 100%; overflow: hidden; }
+.notice-history-modal > .dialog-header { flex: none; }
+.notice-history { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 
 .environment-details-list {
   display: grid;
@@ -1612,7 +1616,7 @@
 
 .garden-manage-modal {
   width: min(520px,calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  max-height: calc(var(--viewport-height) - 32px);
   grid-template-rows: auto minmax(0,1fr);
   overflow: hidden;
 }

@@ -1,25 +1,25 @@
 import type { HelpContent } from './HelpButton';
 import type { PetState } from '../../core/petTypes';
 import type { MilkChoice } from '../../core/companionActivityTypes';
-import { getDishId, getIngredientReferenceCost, getRecipeMaterialCost, type RecipeDefinition } from '../../core/kitchenRecipes';
+import { getDishId, type RecipeDefinition } from '../../core/kitchenRecipes';
 import { getMarketQuote } from '../../core/communityMarket';
-import { getCuisineSaleNote } from '../../core/communityEconomy';
+import { getCommunitySale, getCuisineSaleNote, getRecipePricingCost } from '../../core/communityEconomy';
 import { getKitchenHeartReward } from '../../core/kitchen';
 
 export const getRecipeHelp = (pet: PetState, recipe: RecipeDefinition, banana: boolean, milk: MilkChoice): HelpContent => {
   const dishId = getDishId(recipe, banana), quote = getMarketQuote(pet, dishId);
-  const cost = getRecipeMaterialCost(recipe, banana, getIngredientReferenceCost, milk);
+  const cost = getRecipePricingCost(recipe, banana, milk);
   const saleNote = getCuisineSaleNote(dishId), reward = getKitchenHeartReward(pet, recipe.id, banana);
   return {
     title: '制作料理',
     overview: <><p>备齐食材和厨具，选择份数后一起制作。成品收入背包，可以喂给伙伴、交单或摆摊。</p><p>可替换的奶类成品效果相同，每批只消耗所选奶类，材料数量以清单为准。</p>{saleNote && <p>{saleNote}</p>}<p>每次完成制作获得 1 点料理经验，首做额外 5 点；批量制作计一次。</p></>,
-    details: <><p>每份材料参考成本 {Number(cost.toFixed(1))} 金币{quote && ' · 回收 ' + quote.base + ' · 当前摆摊 ' + quote.price + ' 金币'}。</p><p>成本按商店原价、作物种子成本和野生食材回收价值计算；加工材料包含原料，奶类按当前选择估算。</p><p>每份本步基础心心 {reward.baseHearts} · 料理 Lv.{reward.skillLevel} 加成 +{reward.skillHearts}。制作心心仅受料理技能加成，并扣除前序料理已发出的奖励。</p></>,
+    details: <><p>当前配料每份计价成本 {Number(cost.toFixed(2))} 金币{quote && ' · 基础售价 ' + quote.base + ' · 当前摆摊 ' + quote.price + ' 金币'}。</p><p>材料按商店原价和基础售价的较高者计价，前置料理保留制作收益，每道工序再加 25%。种养等待、钓鱼和采集难度已计入原料售价。两种奶共用成品价格，统一按较高成本定价。</p><p>每份本步基础心心 {reward.baseHearts} · 料理 Lv.{reward.skillLevel} 加成 +{reward.skillHearts}。制作心心仅受料理技能加成，并扣除前序料理已发出的奖励。</p></>,
   };
 };
 export const processingHelp: HelpContent = {
   title: '食材加工',
   overview: <><p>选择批次后即时加工，成品收入共用库存。只消耗列出的原料和费用，加工不发料理心心。</p><p>小麦可磨成面粉，收获的奶可以调制成其他奶类、奶油和奶酪。</p></>,
-  details: <p>一轮小麦收获 4 份，可免费磨出面粉 8 份；种子成本 24 金币，平均每份面粉 3 金币。面粉商店原价 10、七折 7 金币；这一轮回收共 32 金币，扣除种子成本余 8 金币。</p>,
+  get details() { return <p>一轮小麦收获 4 份，可免费磨出面粉 8 份；种子成本 24 金币，平均每份面粉 3 金币。面粉基础售价 {getCommunitySale('flour')!.base} 金币，每批加工在材料计价和费用基础上加 25%，摆摊加成另计。上架后等待客人购买。</p>; },
 };
 export const getCookingResultHelp = (result: { quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number }): HelpContent => ({
   title: '本次料理收获',

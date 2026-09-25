@@ -1,4 +1,5 @@
 import { normalizePetBirthday } from './dateRewards';
+import { allDishes } from './kitchenRecipes';
 import type {
   BuiltinItemId,
   InventoryItemDefinition,
@@ -156,6 +157,7 @@ export interface InstalledPetModSummary {
 export interface PetModLibraryState {
   schemaVersion: 1;
   activeModId?: string;
+  deletedBuiltinModIds?: string[];
   mods: Array<{
     manifest: PetModManifest;
     importedAt: number;
@@ -169,6 +171,7 @@ export type ItemDisplay = ShopItem & {
 
 const maxZipBytes = 25 * 1024 * 1024;
 const maxImageBytes = 3 * 1024 * 1024;
+const maxCgImageBytes = 8 * 1024 * 1024;
 const idPattern = /^[a-z0-9][a-z0-9._-]{1,63}$/;
 const versionPattern = /^[0-9]+(?:\.[0-9]+){0,2}(?:[-+][a-z0-9._-]+)?$/i;
 const customLocalIdPattern = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -185,6 +188,7 @@ const allowedPetPaths = new Map<string, PetImageKey>([
 const allowedItemPaths = new Map<string, ItemImageKey>(itemImageKeys.map((key) => ['items/' + key + '.png', key] as const));
 const allowedCgPaths = new Map<string, ModCgImageKey>(modCgImageKeys.map((key) => ['cg/' + key + '.png', key] as const));
 const itemIdSet = new Set<ItemImageKey>(itemImageKeys);
+const favoriteFoodIdSet = new Set<ItemId>([...itemImageKeys, ...allDishes.map((dish) => dish.id)]);
 const builtinItemIdSet = new Set<BuiltinItemId>([...itemImageKeys, 'birthday_cake']);
 const statusSet = new Set<PetStatus>(petStatusImageKeys);
 const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
@@ -392,7 +396,7 @@ export const validatePetModManifest = (value: unknown): PetModManifest => {
   if (Array.isArray(value.favoriteFoodIds)) {
     favoriteFoodIds = [];
     for (const id of value.favoriteFoodIds) {
-      if (!itemIdSet.has(id as ItemImageKey)) throw new Error('Unknown item id in favoriteFoodIds: ' + String(id));
+      if (!favoriteFoodIdSet.has(id as ItemId)) throw new Error('Unknown item id in favoriteFoodIds: ' + String(id));
       favoriteFoodIds.push(id as ItemId);
     }
   }
@@ -513,7 +517,7 @@ export const parsePetModZip = async (file: File): Promise<ParsedPetMod> => {
     const entry = zip.file(path);
     if (!entry) continue;
     const blob = await entry.async('blob');
-    if (blob.size > maxImageBytes) throw new Error(path + ' is larger than 3MB.');
+    if (blob.size > maxCgImageBytes) throw new Error(path + ' is larger than 8MB.');
     if (!(await isPngBlob(blob))) throw new Error(path + ' must be a PNG image.');
     cgImages[key] = blob.slice(0, blob.size, 'image/png');
   }

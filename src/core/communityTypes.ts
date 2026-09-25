@@ -42,6 +42,7 @@ export interface MarketReceipt {
   items: { itemId: string; quantity: number; coins: number }[];
 }
 export interface CommunityMarket {
+  pricingVersion: number;
   level: number; open: boolean; lastVisitAt: number; visitors: number; nextListingId: number;
   seed: number; nextVisitAt?: number; remainingVisitMs?: number;
   listings: MarketListing[]; reserve: Record<string, number>; revenue: number; premium: number; sold: number;
@@ -54,7 +55,7 @@ export interface CommunityActivityBoard {
   invitationId?: string;
 }
 export interface CommunityState {
-  schemaVersion: 12;
+  schemaVersion: 13;
   activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;
   expedition: ExpeditionState;

@@ -308,7 +308,7 @@
 
 .garden-dialog-list {
   display: grid;
-  max-height: min(520px, 58dvh);
+  max-height: min(520px, calc(var(--viewport-height) * .58));
   gap: 8px;
   overflow: auto;
 }

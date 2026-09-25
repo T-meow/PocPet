@@ -7,7 +7,7 @@ import { advanceGarden } from './garden';
 import { advanceCommunityAnimals } from './communityFarm';
 import { advanceCommunityFishing, isIdleFishing } from './communityFishing';
 import { fishingIntervalMs } from './fishingRules';
-import { advanceCommunityMarket } from './communityMarket';
+import { advanceCommunityMarket, migrateCommunityMarketPricing } from './communityMarket';
 import { advanceCommunityBoard } from './communityCommissions';
 import { advanceCommunityActivities } from './communityActivities';
 import { goldenAppleGachaDailyTicketLimit, resolveDailyGachaTicket } from './goldenAppleGacha';
@@ -748,7 +748,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
 
 export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState => {
   const now = args[1] ?? Date.now();
-  if (args[0].timePause !== undefined) return normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true });
+  if (args[0].timePause !== undefined) return migrateCommunityMarketPricing(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }));
   let pet = settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);

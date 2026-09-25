@@ -103,7 +103,7 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
     {hotspot('field', '菜地与水渠', fieldStatus, 22, 60, mature)}
     {hotspot('board', '邻里告示牌', boardStatus, 53, 90, boardReady)}
     {hotspot('hut', '钓鱼小屋', fishStatus, 81, 68, Boolean(c.fishing.pending || c.fishing.active))}
-    {hotspot('market', '溪畔小摊', c.market.open ? '营业中' : c.market.level ? '整理货架' : '修复与回收', 19, 94)}
+    {hotspot('market', '溪畔小摊', c.market.open ? '营业中' : c.market.level ? '整理货架' : '修复与经营', 19, 94)}
   </>;
   let content: ReactNode;
   const fishingPanel = c.facilities.fishing_hut.built && (panel === 'hut' || panel === 'pond' || panel === 'upstream' && c.facilities.upstream.built);

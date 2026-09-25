@@ -1,4 +1,4 @@
-import { adventureActorIds, adventureBagCapacity, adventureDestinationIds, adventureStepCount, adventureTutorialStepCount, adventureTransportLimit, createAdventureShopStock, getAdventureStepCount, getAdventureSteps } from './adventureData';
+import { adventureBagCapacity, adventureDestinationIds, adventureStepCount, adventureTutorialStepCount, adventureTransportLimit, createAdventureShopStock, getAdventureStepCount, getAdventureSteps } from './adventureData';
 import type { AdventureDestinationId, AdventureResult, AdventureState, AdventureTrip } from './adventureTypes';
 import { getInventoryItem, isBuiltinItemId } from './items';
 import type { Inventory, ItemId, PetState } from './petTypes';
@@ -90,7 +90,7 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
     ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
     ...(value.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: typeof value.gatherBonus === 'number' && Number.isFinite(value.gatherBonus) ? Math.max(0, Math.min(35, value.gatherBonus)) : 0 } : {}),
     energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length), rested: value.rested === true,
-    neighborId: !tutorial && adventureActorIds.some(id => id === value.neighborId && id !== value.actorId) ? String(value.neighborId) : undefined,
+    neighborId: !tutorial && typeof value.neighborId === 'string' && /^[a-z0-9][a-z0-9._-]{1,127}$/.test(value.neighborId) && value.neighborId !== value.actorId ? value.neighborId : undefined,
     shopStock, purchases: legacy ? value.bought === true ? 1 : 0 : count(value.purchases),
     transportedCount: legacy ? value.transported === true ? 1 : 0 : count(value.transportedCount, rulesVersion === 1 ? 1 : adventureTransportLimit),
     ...(!tutorial && !purpose && rulesVersion >= 4 ? { treasure: isAdventureTreasure(String(value.treasure)) ? value.treasure as AdventureTrip['treasure'] : getAdventureTripTreasure(text(value.id)) } : {}),

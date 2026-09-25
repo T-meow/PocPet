@@ -30,7 +30,6 @@ export const adventureStepCount = 6;
 export const adventureTutorialStepCount = 4;
 export const getAdventureStepCount = (destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute) => isLandmarkId(purpose) ? landmarkCosts(purpose).actions : isValleyQuest(purpose) ? valleyQuests[purpose].steps.length : purpose ? 3 : destination === 'tutorial' ? adventureTutorialStepCount : adventureStepCount;
 export const adventureBusyMessage = () => L('伙伴正在探查途中，请先返回前哨基地。', 'Your companion is exploring. Return to the outpost first.');
-export const adventureActorIds = ['official.furo', 'official.doro', 'official.mint'] as const;
 export const adventureRegionIds: readonly AdventureRegionId[] = ['valley', 'windmill', 'forest', 'coast', 'observatory'];
 export const adventureDestinationIds: readonly AdventureDestinationId[] = ['tutorial', ...adventureRegionIds];
 export const getAdventureRegions = () => [

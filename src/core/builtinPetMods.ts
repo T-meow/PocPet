@@ -37,7 +37,26 @@ import mintTiredImage from '../mods/mod-mint/pet/tired.png';
 import mintWorkFoodImage from '../mods/mod-mint/pet/work_food.png';
 import mintWorkPlantsImage from '../mods/mod-mint/pet/work_plants.png';
 import mintWorkoutImage from '../mods/mod-mint/pet/workout.png';
-import { builtinDoroManifest, builtinMintManifest } from './builtinPetModManifests';
+import deepseekGoodEndingImage from '../mods/mod-deepseek/cg/good_ending_year_1.png';
+import deepseekBathImage from '../mods/mod-deepseek/pet/bath.png';
+import deepseekContentImage from '../mods/mod-deepseek/pet/content.png';
+import deepseekDirtyImage from '../mods/mod-deepseek/pet/dirty.png';
+import deepseekEatCookieImage from '../mods/mod-deepseek/pet/eat_cookie.png';
+import deepseekEatMeatImage from '../mods/mod-deepseek/pet/eat_meat.png';
+import deepseekEatNoodlesImage from '../mods/mod-deepseek/pet/eat_noodles.png';
+import deepseekGiveHeartImage from '../mods/mod-deepseek/pet/give_heart.png';
+import deepseekHappyImage from '../mods/mod-deepseek/pet/happy.png';
+import deepseekHungryImage from '../mods/mod-deepseek/pet/hungry.png';
+import deepseekLevelUpImage from '../mods/mod-deepseek/pet/level_up.png';
+import deepseekReadingBooksImage from '../mods/mod-deepseek/pet/reading_books.png';
+import deepseekSadImage from '../mods/mod-deepseek/pet/sad.png';
+import deepseekSickImage from '../mods/mod-deepseek/pet/sick.png';
+import deepseekSleepingImage from '../mods/mod-deepseek/pet/sleeping.png';
+import deepseekTiredImage from '../mods/mod-deepseek/pet/tired.png';
+import deepseekWorkFoodImage from '../mods/mod-deepseek/pet/work_food.png';
+import deepseekWorkPlantsImage from '../mods/mod-deepseek/pet/work_plants.png';
+import deepseekWorkoutImage from '../mods/mod-deepseek/pet/workout.png';
+import { builtinDeepSeekManifest, builtinDoroManifest, builtinMintManifest } from './builtinPetModManifests';
 import type { ActivePetMod } from './mod';
 
 export const builtinDoroMod: ActivePetMod = {
@@ -98,7 +117,23 @@ export const builtinMintMod: ActivePetMod = {
   },
 };
 
-export const builtinPetMods: readonly ActivePetMod[] = [builtinDoroMod, builtinMintMod];
+export const builtinDeepSeekMod: ActivePetMod = {
+  manifest: builtinDeepSeekManifest,
+  petImageUrls: {
+    bath: deepseekBathImage, content: deepseekContentImage, dirty: deepseekDirtyImage,
+    eat_cookie: deepseekEatCookieImage, eat_meat: deepseekEatMeatImage, eat_noodles: deepseekEatNoodlesImage,
+    give_heart: deepseekGiveHeartImage, happy: deepseekHappyImage, hungry: deepseekHungryImage,
+    level_up: deepseekLevelUpImage, reading_books: deepseekReadingBooksImage, sad: deepseekSadImage,
+    sick: deepseekSickImage, sleeping: deepseekSleepingImage, tired: deepseekTiredImage,
+    work_food: deepseekWorkFoodImage, work_plants: deepseekWorkPlantsImage, workout: deepseekWorkoutImage,
+  },
+  itemImageUrls: {},
+  cgImageUrls: {
+    good_ending_year_1: deepseekGoodEndingImage,
+  },
+};
+
+export const builtinPetMods: readonly ActivePetMod[] = [builtinDoroMod, builtinMintMod, builtinDeepSeekMod];
 
 export const getBuiltinPetMod = (modId?: string) =>
   builtinPetMods.find((mod) => mod.manifest.id === modId) ?? null;

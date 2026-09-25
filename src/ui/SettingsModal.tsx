@@ -4,6 +4,7 @@ import { Check, RefreshCw, Trash2 } from 'lucide-react';
 import { ChevronRight, Cloud, Copy, FileImage, Heart, Play, Share2 } from 'lucide-react';
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
+import { builtinPetModManifests, isProtectedPetModId } from '../core/builtinPetModManifests';
 import { cloudSaveMaxEncodedLength, type CloudSaveManifestV1 } from '../core/cloudSave';
 import { acknowledgementsGiftCoins } from '../core/acknowledgementsGift';
 import { languages, list, t, type LanguageCode } from '../i18n';
@@ -80,6 +81,7 @@ interface SettingsModalProps {
   onClearMod: () => void;
   onActivateMod: (modId: string) => void;
   onDeleteMod: (modId: string) => void;
+  onRestoreBuiltinMod: (modId: string) => void;
   onExportSave: () => void;
   onDownloadSave: () => void;
   onImportPastedSave: () => void;
@@ -144,6 +146,7 @@ export const SettingsModal = ({
   onClearMod,
   onActivateMod,
   onDeleteMod,
+  onRestoreBuiltinMod,
   onExportSave,
   onDownloadSave,
   onImportPastedSave,
@@ -306,7 +309,7 @@ export const SettingsModal = ({
                           {t('ui.settings.mod.activate')}
                         </button>
                       )}
-                      <button
+                      {isProtectedPetModId(mod.manifest.id) ? <small>保留角色 · 不可删除</small> : <button
                         type="button"
                         className="icon-button"
                         onClick={() => onDeleteMod(mod.manifest.id)}
@@ -314,7 +317,7 @@ export const SettingsModal = ({
                         title={t('ui.settings.mod.delete', { name: mod.manifest.name })}
                       >
                         <Trash2 size={17} aria-hidden="true" />
-                      </button>
+                      </button>}
                     </div>
                   );
                 })}
@@ -322,6 +325,11 @@ export const SettingsModal = ({
                   ? <p className="settings-mod-list__empty">{t('ui.settings.mod.libraryEmpty')}</p>
                   : null}
               </div>
+              {builtinPetModManifests.filter((mod) => !installedMods.some((installed) => installed.manifest.id === mod.id)).map((mod) => (
+                <button key={mod.id} type="button" className="text-button" onClick={() => onRestoreBuiltinMod(mod.id)}>
+                  <RotateCcw size={16} aria-hidden="true" />恢复内置角色 {mod.name}
+                </button>
+              ))}
               <div className="modal-actions">
                 <button type="button" className="primary-button" disabled={!features.importMod} title={!features.importMod ? t('ui.editionNotice.restricted') : undefined} onClick={() => modFileInputRef.current?.click()}>
                   <Upload size={18} aria-hidden="true" />

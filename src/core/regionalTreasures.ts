@@ -2,11 +2,11 @@ import type { RegionId } from './expeditionTypes';
 import type { Inventory } from './petTypes';
 
 export const regionalTreasures = {
-  creek_aquamarine: { name: '溪光海蓝宝', glyph: '💎', region: 'valley', base: 240, investigations: 6, rarity: 'rare', color: '#64c8de', use: '镶嵌溪光水景；菜地、鸡舍、小摊升至 Lv.2 各需 1 件；也可回收或卖给收藏客人' },
-  hill_sunstone: { name: '风丘日光石', glyph: '🔶', region: 'hills', base: 300, investigations: 6, rarity: 'rare', color: '#edb652', use: '建造日光风向标；菜地、鸡舍升至 Lv.3，牛棚、小屋升至 Lv.2 各需 1 件；也可回收或卖给收藏客人' },
-  forest_emerald: { name: '雾松祖母绿', glyph: '💎', region: 'forest', base: 420, investigations: 8, rarity: 'epic', color: '#58bf8b', use: '制作古树绿宝挂饰；牛棚、钓鱼小屋升至 Lv.3 各需 1 件；也可回收或卖给收藏客人' },
-  tidal_pearl: { name: '月潮珍珠', glyph: '🦪', region: 'coast', base: 480, investigations: 8, rarity: 'epic', color: '#d9bee9', use: '制作月潮贝灯；小摊升至 Lv.3、小屋升至 Lv.4 各需 1 件；也可回收或卖给收藏客人' },
-  star_sapphire: { name: '星辉蓝宝石', glyph: '💎', region: 'station', base: 700, investigations: 10, rarity: 'legendary', color: '#8996ee', use: '镶嵌星辉穹顶模型；钓鱼小屋升至 Lv.5 需 1 件；也可回收或卖给收藏客人' },
+  creek_aquamarine: { name: '溪光海蓝宝', glyph: '💎', region: 'valley', base: 240, investigations: 6, rarity: 'rare', color: '#64c8de', use: '镶嵌溪光水景；菜地、鸡舍、小摊升至 Lv.2 各需 1 件；也可摆摊卖给收藏客人' },
+  hill_sunstone: { name: '风丘日光石', glyph: '🔶', region: 'hills', base: 300, investigations: 6, rarity: 'rare', color: '#edb652', use: '建造日光风向标；菜地、鸡舍升至 Lv.3，牛棚、小屋升至 Lv.2 各需 1 件；也可摆摊卖给收藏客人' },
+  forest_emerald: { name: '雾松祖母绿', glyph: '💎', region: 'forest', base: 420, investigations: 8, rarity: 'epic', color: '#58bf8b', use: '制作古树绿宝挂饰；牛棚、钓鱼小屋升至 Lv.3 各需 1 件；也可摆摊卖给收藏客人' },
+  tidal_pearl: { name: '月潮珍珠', glyph: '🦪', region: 'coast', base: 480, investigations: 8, rarity: 'epic', color: '#d9bee9', use: '制作月潮贝灯；小摊升至 Lv.3、小屋升至 Lv.4 各需 1 件；也可摆摊卖给收藏客人' },
+  star_sapphire: { name: '星辉蓝宝石', glyph: '💎', region: 'station', base: 700, investigations: 10, rarity: 'legendary', color: '#8996ee', use: '镶嵌星辉穹顶模型；钓鱼小屋升至 Lv.5 需 1 件；也可摆摊卖给收藏客人' },
 } as const satisfies Record<string, { name: string; glyph: string; region: RegionId; base: number; investigations: number; rarity: string; color: string; use: string }>;
 export type RegionalTreasureId = keyof typeof regionalTreasures;
 export const regionalTreasureIds = Object.keys(regionalTreasures) as RegionalTreasureId[];

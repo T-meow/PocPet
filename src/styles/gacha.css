@@ -610,6 +610,10 @@
 
 .gacha-detail-backdrop {
   z-index: 31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .gacha-draw-confirm__icon {
@@ -629,10 +633,24 @@
 }
 
 .gacha-detail-modal {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: min(640px, calc(100vw - 32px));
   gap: 14px;
   padding: 18px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-v2-app .dialog-shell.gacha-detail-modal { max-height: 100%; }
+.gacha-detail-modal > .dialog-header { flex: none; }
+.gacha-probability-content,
+.gacha-detail-modal > .gacha-history-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .gacha-probabilities__list {
