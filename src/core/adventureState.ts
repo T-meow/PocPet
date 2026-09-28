@@ -17,7 +17,7 @@ const object = (raw: unknown): Record<string, unknown> => raw && typeof raw === 
 const count = (raw: unknown, max = Number.MAX_SAFE_INTEGER) => typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(max, Math.floor(raw))) : 0;
 const text = (raw: unknown, max = 128) => typeof raw === 'string' ? raw.slice(0, max) : '';
 export const isAdventureSupply = (id: string): id is ItemId => {
-  if (id === 'berry_bait' || id === 'golden_apple') return true;
+  if (id === 'golden_apple') return true;
   const item = getInventoryItem(id as ItemId);
   return Boolean(item && item.usable !== false && id !== 'birthday_cake' && ((item.effect.hunger ?? 0) > 0 || (item.effect.energy ?? 0) > 0 || item.kind === 'care' && ((item.effect.health ?? 0) > 0 || (item.effect.mood ?? 0) > 0)));
 };
@@ -60,11 +60,11 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const value = object(raw);
   if (value.region === 'hills') value.region = 'windmill';
   if (value.region === 'station') value.region = 'observatory';
-  const modern = value.rulesVersion === 10 && isLandmarkId(value.purpose) && parseLandmarkId(value.purpose).region === value.region;
+  const modern = [10, 11].includes(Number(value.rulesVersion)) && isLandmarkId(value.purpose) && parseLandmarkId(value.purpose).region === value.region;
   if (!text(value.id) || (!modern && value.region !== 'valley' && value.region !== 'tutorial') || !text(value.actorId)) return undefined;
   const tutorial = value.region === 'tutorial';
-  const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9, 10].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
-  const rulesVersion = modern ? 10 : legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
+  const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9, 10, 11].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
+  const rulesVersion = value.rulesVersion === 11 && (modern || tutorial) ? 11 : modern ? 10 : legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
   const options = getAdventureSteps(rulesVersion, value.region as AdventureDestinationId, purpose);
   const choices: string[] = [];
   for (const choice of Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
@@ -88,6 +88,7 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
     rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true,
     ...(modern && isLandmarkId(purpose) ? { nodeId: parseLandmarkId(purpose).node, ...(typeof value.target === 'string' && landmarkTargets(parseLandmarkId(purpose).region).includes(value.target) ? { target: value.target } : {}), stageIds: getLandmarkSteps(purpose).slice(0, choices.length).map(step => step.id), firstCompletion: value.firstCompletion === true } : {}),
     ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
+    ...(rulesVersion >= 11 ? { earnedCoins: count(value.earnedCoins, 30000), earnedHearts: count(value.earnedHearts, 10000) } : {}),
     ...(value.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: typeof value.gatherBonus === 'number' && Number.isFinite(value.gatherBonus) ? Math.max(0, Math.min(35, value.gatherBonus)) : 0 } : {}),
     energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length), rested: value.rested === true,
     neighborId: !tutorial && typeof value.neighborId === 'string' && /^[a-z0-9][a-z0-9._-]{1,127}$/.test(value.neighborId) && value.neighborId !== value.actorId ? value.neighborId : undefined,
@@ -106,7 +107,7 @@ const normalizeResult = (raw: unknown): AdventureResult | undefined => {
   const steps = count(value.steps, getAdventureStepCount(region, purpose));
   const complete = value.complete === true && steps === getAdventureStepCount(region, purpose);
   return { id: text(value.id), region, actorId: text(value.actorId), actorName: text(value.actorName, 32), endedAt: count(value.endedAt), steps, complete,
-    ...(isLandmarkId(purpose) ? { rulesVersion: 10 as const } : {}),
+    ...(value.rulesVersion === 11 ? { rulesVersion: 11 as const } : isLandmarkId(purpose) ? { rulesVersion: 10 as const } : {}),
     purpose, first: complete && value.first === true, hearts: purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.hearts, 10000), coins: purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true, ...(value.coinsRemaining !== undefined ? { coinsRemaining: count(value.coinsRemaining, count(value.coins, 10000)) } : {}),
     ...(normalizeExplorationCheckResult(value.lastCheck) ? { lastCheck: normalizeExplorationCheckResult(value.lastCheck) } : {}),
     ...(value.returnReason === 'health' ? { returnReason: 'health' as const, ...(value.salvage && value.rewardsClaimed !== true ? { salvage: inventory(value.salvage), salvageTool: value.salvageTool === true } : {}) } : {}),

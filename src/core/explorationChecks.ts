@@ -29,11 +29,13 @@ export interface ExplorationCheckAction {
   mood?: number; finds?: Inventory; primaryItem?: string;
   check: ExplorationCheckDefinition;
   mealItem?: string;
+  campEnergy?: number;
   research?: { id: string; points: number; progress: number; required: number; yield: number };
 }
 export interface ExplorationCheckContext {
   region: RegionId; node: string; state: ExplorationCheckState;
   toolAvailable?: boolean; blockedReason?: string;
+  rulesVersion?: number;
 }
 export interface ExplorationCheckOutcome {
   outcome: ExplorationOutcome; probability: number;
@@ -44,8 +46,8 @@ export interface ExplorationCheckPreview {
   skill?: PartnerScheduleCategory; skillLevel: number; difficulty: number;
   chance: number; chanceCap: number; factors: { label: string; value: number }[];
   mood: ReturnType<typeof getExplorationMoodEffects>;
-  costFactors: { base: number; route: number; meal: number };
-  energy: [number, number]; healthLoss: [number, number];
+  costFactors: { base: number; route: number; meal: number; skillEnergy: number; skillHunger: number; toolEnergy: number; toolHunger: number; camp: number; hungerBase: number };
+  energy: [number, number]; hunger: [number, number]; healthLoss: [number, number];
   finds: Record<string, [number, number]>; researchPoints: [number, number];
   outcomes: ExplorationCheckOutcome[]; reason: string;
 }
@@ -94,7 +96,9 @@ const adjustFinds = (base: Inventory, outcome: ExplorationOutcome, primary?: str
   return finds;
 };
 export const getExplorationCheckPreview = (pet: PetState, action: ExplorationCheckAction, context: ExplorationCheckContext): ExplorationCheckPreview => {
-  const d = action.check, random = d.mode === 'check', skillLevel = d.skill ? pet.partnerSchedule.skills[d.skill].level : 0;
+  const d = action.check, modern = (context.rulesVersion ?? 0) >= 11;
+  const protectedTool = modern && Boolean(d.tool && context.toolAvailable);
+  const random = d.mode === 'check' && !protectedTool, skillLevel = d.skill ? pet.partnerSchedule.skills[d.skill].level : 0;
   const difficulty = d.difficulty ?? 0, mood = getExplorationMoodEffects(getPetStatRatio(pet, 'mood'));
   const familiarity = context.region === 'valley' ? Math.min(5, Math.floor(pet.adventure.valleyCompleted.length * 5 / 7)) : pet.community.expedition.regions[context.region].surveyed ? 5 : 0;
   const factors = random ? [
@@ -107,26 +111,34 @@ export const getExplorationCheckPreview = (pet: PetState, action: ExplorationChe
   const chanceCap = random ? getExplorationChanceCap(difficulty - skillLevel) : 100;
   const chance = random ? Math.min(chanceCap, clamp(70 + factors.reduce((n, f) => n + f.value, 0), 5, 95)) : 100;
   const probabilities: [ExplorationOutcome, number][] = random ? [['excellent', chance * .15], ['success', chance * .85], ['partial', (100 - chance) * .8], ['setback', (100 - chance) * .2]] : [['steady', 100]];
-  const route = d.mode === 'safe' ? 1.25 : d.risky ? .8 : 1;
+  const route = protectedTool ? 1 : d.mode === 'safe' ? 1.25 : d.risky ? .8 : 1;
   const meal = context.state.meal && context.state.meal.steps > 0 ? 1 - context.state.meal.reduction : 1;
+  const skillEnergy = modern ? 1 - skillLevel * .04 : 1, skillHunger = modern ? 1 - skillLevel * .02 : 1;
+  const toolEnergy = protectedTool && d.tool === 'trail_rope' ? .5 : protectedTool && d.tool === 'harvest_sickle' ? .75 : 1;
+  const toolHunger = protectedTool && d.tool === 'trail_rope' ? .8 : 1, camp = modern ? action.campEnergy ?? 1 : 1;
+  const energyReduction = modern ? Math.max(.3, skillEnergy * toolEnergy * camp * meal) : meal;
+  const hungerReduction = modern ? Math.max(.6, skillHunger * toolHunger) : 1;
   const outcomes = probabilities.map(([outcome, probability]): ExplorationCheckOutcome => {
-    const energy = action.energy > 0 ? Math.max(1, Math.round(action.energy * route * mood.energy * outcomeEnergy[outcome] * meal)) : 0;
+    const energy = action.energy > 0 ? Math.max(1, Math.round(action.energy * route * mood.energy * outcomeEnergy[outcome] * energyReduction)) : 0;
+    const hunger = action.hunger > 0 ? Math.max(1, Math.round(action.hunger * hungerReduction)) : 0;
     const injury = d.risky && random ? outcome === 'partial' ? 2 : outcome === 'setback' ? 6 : 0 : 0;
     const healthLoss = round1(injury * mood.injury * (d.tool === 'trail_rope' && context.toolAvailable ? .5 : 1));
     const finds = adjustFinds(action.finds ?? {}, outcome, action.primaryItem);
+    if (protectedTool && d.tool === 'harvest_sickle') { const main = action.primaryItem ?? Object.keys(finds)[0]; if (main) finds[main] = (finds[main] ?? 0) + 1; }
     const r = action.research;
     const researchPoints = r ? outcome === 'excellent' ? r.points + 1 : outcome === 'partial' ? Math.max(0, r.points - 1) : outcome === 'setback' ? 0 : r.points : 0;
     if (r && researchPoints) {
       const completed = Math.floor(((r.progress % r.required) + researchPoints) / r.required);
       if (completed) finds[r.id] = (finds[r.id] ?? 0) + completed * r.yield;
     }
-    return { outcome, probability, hunger: action.hunger, energy, healthLoss, moodChange: (action.mood ?? 0) + outcomeMood[outcome], finds, researchPoints };
+    return { outcome, probability, hunger, energy, healthLoss, moodChange: (action.mood ?? 0) + outcomeMood[outcome], finds, researchPoints };
   });
   const range = (values: number[]): [number, number] => [Math.min(...values), Math.max(...values)];
   const energy = range(outcomes.map(o => o.energy)), healthLoss = range(outcomes.map(o => o.healthLoss));
   const finds = Object.fromEntries([...new Set(outcomes.flatMap(o => Object.keys(o.finds)))].map(id => [id, range(outcomes.map(o => o.finds[id] ?? 0))]));
-  const reason = context.blockedReason || (pet.timePause ? '时间已冻结，恢复后再行动。' : pet.health < getPetStatCap(pet) * .2 ? '健康过低，正在安全返程。' : d.tool && !context.toolAvailable ? '缺少对应工具或耐久。' : pet.hunger < action.hunger ? '饱食不足，请先补充。' : pet.energy < energy[1] ? `至少需要 ${energy[1]} 体力，以承担本次行动的最坏消耗。` : '');
-  return { skill: d.skill, skillLevel, difficulty, chance, chanceCap, factors, mood, costFactors: { base: action.energy, route, meal }, energy, healthLoss, finds, researchPoints: range(outcomes.map(o => o.researchPoints)), outcomes, reason };
+  const hunger = range(outcomes.map(o => o.hunger));
+  const reason = context.blockedReason || (pet.timePause ? '时间已冻结，恢复后再行动。' : pet.health < getPetStatCap(pet) * .2 ? '健康过低，正在安全返程。' : d.tool && !context.toolAvailable ? '缺少对应工具或耐久。' : pet.hunger < hunger[1] ? '饱食不足，请先补充。' : pet.energy < energy[1] ? `至少需要 ${energy[1]} 体力，以承担本次行动的最坏消耗。` : '');
+  return { skill: d.skill, skillLevel, difficulty, chance, chanceCap, factors, mood, costFactors: { base: action.energy, route, meal, skillEnergy, skillHunger, toolEnergy, toolHunger, camp, hungerBase: action.hunger }, energy, hunger, healthLoss, finds, researchPoints: range(outcomes.map(o => o.researchPoints)), outcomes, reason };
 };
 export const resolveExplorationCheck = (pet: PetState, action: ExplorationCheckAction, context: ExplorationCheckContext, roll = getExplorationRoll(context.state.seed, context.node, action.id)): ExplorationCheckResult | undefined => {
   const preview = getExplorationCheckPreview(pet, action, context);

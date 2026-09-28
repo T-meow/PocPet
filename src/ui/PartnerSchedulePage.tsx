@@ -25,7 +25,7 @@ const duration = (ms: number) => {
   const minutes = Math.max(0, Math.ceil(ms / 60000));
   return minutes < 60 ? t('ui.time.minutes', { minutes }) : t('ui.time.hoursMinutes', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
 };
-const amount = (value: number) => Math.round(value * 10) / 10;
+const amount = (value: number) => Math.round(value);
 const getItemName = (id: ItemId) => getInventoryItem(id)?.name ?? id;
 
 interface PartnerSchedulePageProps {

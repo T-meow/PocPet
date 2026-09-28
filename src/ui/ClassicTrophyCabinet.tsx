@@ -24,7 +24,7 @@ const getTrophyEffectText = (trophy: ClassicTrophyDefinition) => {
     exercise: 'energy',
   };
   return t(`ui.classicEndgame.trophies.effects.${effectKeyByCategory[trophy.category]}`, {
-    value: trophy.effectValue,
+    value: trophy.effectValue * (trophy.category === 'study' || trophy.category === 'cooking' ? 100 : 1),
   });
 };
 

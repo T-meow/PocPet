@@ -36,7 +36,7 @@ pet.garden = { ...pet.garden, slots: pet.garden.slots.map(slot => ({ ...slot, un
 pet.kitchen = { ...pet.kitchen, starterClaimed: true, equipment: cookingMethods.map(method => method.id) };
 pet.inventory = { ...pet.inventory, community_wood: 200, community_stone: 200,
   animal_feed: 50, nutrient_compost: 30, fishing_bait: 50, river_bait: 50,
-  field_dressing: 20, comfort_charm: 20, berry_bait: 20, trail_mix: 20,
+  field_dressing: 20, comfort_charm: 20, trail_mix: 20,
   dish_carrot_rice: 20, dish_mushroom_rice: 20, dish_herb_porridge: 20,
   dish_honey_drink: 20, apple: 20, farm_milk: 30, creek_herb: 30,
   valley_mushroom: 30, hill_honey: 30, forest_berry: 30, pine_resin: 30,

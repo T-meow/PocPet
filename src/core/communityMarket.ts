@@ -116,7 +116,7 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
     market = { ...market, listings, visitors, lastVisitAt: at, nextVisitAt: at + getMarketVisit(market.seed, visitors).delayMs,
       // This counter also invalidates stale manual-listing quotes after a sale.
       nextListingId: market.nextListingId + (sold ? 1 : 0),
-      revenue: market.revenue + revenue, premium: market.premium + premium, sold: market.sold + sold,
+      revenue: market.revenue + revenue, sessionRevenue: market.sessionRevenue + revenue, premium: market.premium + premium, sold: market.sold + sold,
       log: sold ? [receipt, ...market.log].slice(0, 8) : market.log };
     // Stop at the actual sale time when stock/wallet space runs out, retaining
     // the next wait in full. This is identical for split and lumped offline time.
@@ -169,7 +169,7 @@ export const setCommunityMarketOpen = (pet: PetState, open: boolean, now = Date.
   pet = advanceCommunityMarket(pet, now);
   const m = pet.community.market;
   if (!m.level || m.open === open) return pet;
-  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open }, pet.coins, now) }, recentEvent: open ? '小摊营业中，客人每隔 5–20 分钟随机到访。低价货成交快，高价货需多等一会，慷慨游客仍会带来大单。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
+  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open, sessionRevenue: open ? 0 : m.sessionRevenue }, pet.coins, now) }, recentEvent: open ? '小摊营业中，客人每隔 5–20 分钟随机到访。低价货成交快，高价货需多等一会，慷慨游客仍会带来大单。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
 };
 export const upgradeCommunityMarket = (pet: PetState, expectedLevel: number, now = Date.now()): PetState => {
   if (pet.timePause || !Number.isFinite(now) || now < pet.lastUpdatedAt || now < pet.community.market.lastVisitAt || !canSpendCompanionTime(pet)) return pet;

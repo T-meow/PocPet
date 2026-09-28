@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Apple, ChefHat, Droplets, Heart, HeartPulse, PackageOpen, ShoppingBag, Smile, Sprout, X, Zap } from 'lucide-react';
+import { Apple, ArrowLeft, ChefHat, Droplets, Heart, HeartPulse, PackageOpen, ShoppingBag, Smile, Sprout, X, Zap } from 'lucide-react';
 import { batchActionUnlockLevel, getPetEnergyCap, getPetStatCap, type Inventory, type InventoryItemDefinition, type ItemId, type PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
 import { getItemStatEffect } from '../core/itemEffects';
 import { currencyIcon, unknownItemIcon } from '../assets';
 import { t } from '../i18n';
-import { DialogShell } from './DialogShell';
+import { DialogShell, useCloseDialogScope } from './DialogShell';
 import { QuantityStepper } from './QuantityStepper';
 import { QuantityPresets } from './QuantityPresets';
 import { formatCompactNumber } from './numberFormat';
@@ -53,6 +53,7 @@ interface Props {
 
 export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds }: Props) => {
   const [detailItemId, setDetailItemId] = useState<string>();
+  const closeScope = useCloseDialogScope();
   const perform = context?.perform ?? ((action: () => void) => action());
   const now = Date.now();
   const inventory = context?.inventory ?? pet.inventory;
@@ -122,7 +123,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
     </div>
   </DialogShell>
   {isDetailOpen && item && <DialogShell className={`storage-modal storage-modal--${mode} storage-item-modal`} backdropClassName={backdropClassName} labelId="storage-item-title" onClose={closeDetail}>
-    <header className="storage-item-header"><h2 id="storage-item-title">{L('物品详情', 'Item details')}</h2><HelpButton {...(typeof context?.help === 'function' ? context.help(item) : context?.help ?? getItemHelp(pet, item, resolved.quantity, favoriteFoodIds, context?.note))} /><button className="icon-button" onClick={closeDetail} aria-label={L('关闭并返回物品列表', 'Close and return to items')}><X size={20} /></button></header>
+    <header className="storage-item-header">{closeScope && <button className="icon-button" onClick={closeDetail} aria-label="返回物品列表"><ArrowLeft /></button>}<h2 id="storage-item-title">{L('物品详情', 'Item details')}</h2><HelpButton {...(typeof context?.help === 'function' ? context.help(item) : context?.help ?? getItemHelp(pet, item, resolved.quantity, favoriteFoodIds, context?.note))} /><button className="icon-button" onClick={closeScope ?? closeDetail} aria-label={closeScope ? '关闭物品面板' : L('关闭并返回物品列表', 'Close and return to items')}><X size={20} /></button></header>
     <section className="storage-detail" data-tone={getItemBrowseTone(item)}>
         <div className="storage-detail-copy">
           <div className="storage-detail-hero"><div className="storage-detail-art"><img src={iconFor(item)} alt="" draggable={false} /></div><div><h3>{item.displayName}</h3><span className="storage-category-label">{isKitchenIngredient(item) ? L('厨房食材', 'Cooking ingredient') : categories.find((category) => category.id === item.kind)?.label}</span></div></div>
@@ -130,7 +131,8 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
           {durableToolIds.includes(item.id as DurableToolId) && <p className="storage-ingredient-note">耐久 · {toolDurabilityLabel(pet, item.id as DurableToolId, item.id === 'trail_rope' && Boolean(context && (pet.adventure.active?.tool || pet.community.expedition.active?.tool)))}</p>}
           {mode === 'shop' && effects.length > 0 && <><p className="storage-effects-title">{L('每份效果', 'Base effects per item')}</p><div className="storage-effects">{effects.map((effect) => <span key={effect.key}>{effect.label}</span>)}</div></>}
         </div>
-        <div className="storage-detail-actions"><div className="storage-quantity"><div className="storage-owned"><span>{context?.countLabel ?? (item.purchaseContents ? L('饼干库存', 'Biscuits owned') : L('持有', 'Owned'))}</span><strong>{ownedCount(item)}</strong></div>{canBatch && <><div className="storage-quantity-row"><span>{L('数量', 'Quantity')}</span><QuantityStepper value={resolved.quantity} max={Math.max(1, maxQuantity)} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} onInputChange={context ? quantity => onBrowseChange({ ...resolved, quantity }) : undefined} /></div><QuantityPresets value={resolved.quantity} max={maxQuantity} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} /></>}</div>{(context?.showRecovery ?? mode === 'bag') && <ItemRecoveryPreview pet={pet} item={item} quantity={resolved.quantity} favoriteFoodIds={favoriteFoodIds} showHelp={false} />}<div className="storage-transaction">{renderActions(item, resolved.quantity)}</div></div>
+        <div className="storage-detail-actions"><div className="storage-quantity"><div className="storage-owned"><span>{context?.countLabel ?? (item.purchaseContents ? L('饼干库存', 'Biscuits owned') : L('持有', 'Owned'))}</span><strong>{ownedCount(item)}</strong></div>{canBatch && <><div className="storage-quantity-row"><span>{L('数量', 'Quantity')}</span><QuantityStepper value={resolved.quantity} max={Math.max(1, maxQuantity)} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} onInputChange={context ? quantity => onBrowseChange({ ...resolved, quantity }) : undefined} /></div><QuantityPresets value={resolved.quantity} max={maxQuantity} disabled={quantityDisabled || maxQuantity === 0} onChange={(quantity) => perform(() => onBrowseChange({ ...resolved, quantity }))} /></>}</div>{(context?.showRecovery ?? mode === 'bag') && <ItemRecoveryPreview pet={pet} item={item} quantity={resolved.quantity} favoriteFoodIds={favoriteFoodIds} showHelp={false} />}{!closeScope && <div className="storage-transaction">{renderActions(item, resolved.quantity)}</div>}</div>
     </section>
+    {closeScope && <footer><div className="storage-transaction">{renderActions(item, resolved.quantity)}</div></footer>}
   </DialogShell>}</>;
 };

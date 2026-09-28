@@ -13,8 +13,9 @@ import type { OutpostRequest } from '../outpostNavigation';
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
 import { decorationsHelp, getDecorationHelp } from '../help/decorationHelp';
+import { formatInteger } from '../numberFormat';
 
-const effectText = (id: CommunityDecorationId, level: number) => `${decorationEffects[id].label} ${getDecorationValue(id, level)}${decorationEffects[id].unit}`;
+const effectText = (id: CommunityDecorationId, level: number) => `${decorationEffects[id].label} ${formatInteger(getDecorationValue(id, level))}${decorationEffects[id].unit}`;
 const stage = (level: number) => level >= 10 ? 'complete' : level >= 5 ? 'grown' : 'first';
 const itemName = (item: string) => getInventoryItem(item as ItemId)?.name ?? item;
 export const DecorationSources = ({ treasure, onNavigate }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void }) => {
@@ -28,9 +29,9 @@ export const TreasureDisplay = ({ pet, onSelect }: { pet: PetState; onSelect: (i
   return <section className="community-card community-decorations" aria-label="装饰与永久加成">
     <header><h3>我的装饰 <small>{pet.community.decorations.length}/{communityDecorationIds.length} 件</small></h3><HelpButton {...decorationsHelp} /></header>
     <dl className="decoration-summary">
-      <div><dt>经营</dt><dd><span>订单 +{effects.amber_lantern}%</span><span>上架 +{effects.golden_sign}%</span></dd></div>
-      <div><dt>种植与生产</dt><dd><span>生长 −{effects.creek_fountain}%</span><span>生产 −{effects.sun_weather_vane}%</span></dd></div>
-      <div><dt>探索与垂钓</dt><dd><span>额外采集 {effects.emerald_pendant}%</span><span>珍宝 +{effects.star_dome} 个百分点</span><span>咬钩等待 −{effects.pearl_lamp}%</span></dd></div>
+      <div><dt>经营</dt><dd><span>订单 +{formatInteger(effects.amber_lantern)}%</span><span>上架 +{formatInteger(effects.golden_sign)}%</span></dd></div>
+      <div><dt>种植与生产</dt><dd><span>生长 −{formatInteger(effects.creek_fountain)}%</span><span>生产 −{formatInteger(effects.sun_weather_vane)}%</span></dd></div>
+      <div><dt>探索与垂钓</dt><dd><span>额外采集 {formatInteger(effects.emerald_pendant)}%</span><span>珍宝 +{formatInteger(effects.star_dome)} 个百分点</span><span>咬钩等待 −{formatInteger(effects.pearl_lamp)}%</span></dd></div>
     </dl>
     <div className="decoration-list">{communityDecorationIds.map(id => {
       const level = getDecorationLevel(pet, id), quote = level ? getDecorationUpgradeQuote(pet, id) : undefined;

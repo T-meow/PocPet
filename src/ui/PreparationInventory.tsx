@@ -1,11 +1,10 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Backpack, PackageOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Backpack, PackageOpen, X } from 'lucide-react';
 import { unknownItemIcon } from '../assets';
 import { getAdventureBagCount, isAdventureSupply } from '../core/adventureState';
 import { getInventoryDefinitions } from '../core/items';
 import { getEffectiveBatchQuantity } from '../core/petActions';
 import { getItemRecoveryPreview, getItemUsePlan, overfedMessage } from '../core/itemEffects';
-import { getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
 import { isTravelFood } from '../core/explorationRations';
 import { isExpeditionAway } from '../core/expeditionData';
 import { allDishes, activityText as L } from '../core/kitchenRecipes';
@@ -13,7 +12,8 @@ import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes
 import { QuantityStepper } from './QuantityStepper';
 import { QuantityPresets } from './QuantityPresets';
 import { ItemRecoveryPreview } from './ItemRecoveryPreview';
-import { getItemBrowseCategories, filterBrowseItems, isKitchenMaterial, type ItemBrowseCategory } from './itemBrowse';
+import { getItemBrowseCategories, filterBrowseItems, matchesItemBrowseCategory, isKitchenMaterial, type ItemBrowseCategory } from './itemBrowse';
+import { DialogShell } from './DialogShell';
 
 const dishIds = new Set<string>(allDishes.map(dish => dish.id));
 export interface PreparationResources {
@@ -26,7 +26,9 @@ interface Props extends PreparationResources {
 }
 
 export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPack, onUseHomeItem, perform, foodOnly = false, automaticFood = {}, bagHeadingExtra, bagExtra }: Props) => {
-  const [category, setCategory] = useState<ItemBrowseCategory | 'dishes' | 'rations'>('all');
+  const [open, setOpen] = useState(false);
+  const [source, setSource] = useState<'warehouse' | 'bag'>('warehouse');
+  const [category, setCategory] = useState<ItemBrowseCategory | 'dishes' | 'rations'>(foodOnly ? 'all' : 'food');
   const [selection, setSelection] = useState<{ id: ItemId; source: 'warehouse' | 'bag' }>();
   const [quantity, setQuantity] = useState(1);
   const [transfer, setTransfer] = useState<{ id: ItemId; quantity: number; intoBag: boolean; key: number }>();
@@ -34,13 +36,15 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   const warehouse = Object.fromEntries(Object.entries(pet.inventory).map(([id, count]) => [id, Math.max(0, count - (carried[id] ?? 0))]));
   const catalogueStock = { ...pet.inventory };
   for (const [id, n] of Object.entries(carried)) catalogueStock[id] = Math.max(catalogueStock[id] ?? 0, n);
-  const items = getInventoryDefinitions(registry, catalogueStock).filter(item => (carried[item.id] ?? 0) > 0 || (foodOnly ? isTravelFood(item.id) : isAdventureSupply(item.id) || item.usable && item.kind !== 'garden'));
-  const visible = category === 'dishes' || category === 'rations' ? items.filter(item => dishIds.has(item.id) === (category === 'dishes')) : filterBrowseItems(items, category);
+  const items = getInventoryDefinitions(registry, catalogueStock).filter(item => foodOnly ? isTravelFood(item.id)
+    : (matchesItemBrowseCategory(item, 'food') || item.kind === 'care') && ((carried[item.id] ?? 0) > 0 || isAdventureSupply(item.id) || item.usable));
+  const activeCategory = foodOnly ? category === 'dishes' || category === 'rations' ? category : 'all' : category === 'care' ? 'care' : 'food';
+  const visible = activeCategory === 'dishes' || activeCategory === 'rations' ? items.filter(item => dishIds.has(item.id) === (activeCategory === 'dishes')) : filterBrowseItems(items, activeCategory);
   const warehouseItems = visible.filter(item => !isKitchenMaterial(item));
   const packedItems = Object.entries(bag).filter(([id, n]) => n > 0 && visible.some(item => item.id === id));
-  const automaticItems = Object.entries(automaticFood).filter(([id, n]) => n > 0 && (category === 'all' || category === 'dishes' && dishIds.has(id) || category === 'rations' && !dishIds.has(id)));
+  const automaticItems = Object.entries(automaticFood).filter(([id, n]) => n > 0 && (activeCategory === 'all' || activeCategory === 'food' || activeCategory === 'dishes' && dishIds.has(id) || activeCategory === 'rations' && !dishIds.has(id)));
   const manualCount = getAdventureBagCount(bag), packed = manualCount + getAdventureBagCount(automaticFood);
-  const selected = items.find(item => item.id === selection?.id);
+  const selected = visible.find(item => item.id === selection?.id);
   const amount = selected ? (selection?.source === 'bag' ? carried : warehouse)[selected.id] ?? 0 : 0;
   const max = selection?.source === 'bag' ? amount : Math.min(capacity, amount);
   const count = Math.max(1, Math.min(quantity, max));
@@ -49,7 +53,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   const usePlan = selected ? getItemUsePlan(pet, selected, requestedUseCount) : undefined;
   const useCount = usePlan?.quantity ?? 0;
   const canUse = selected?.usable && useCount > 0 && selection?.source === 'warehouse' && amount >= useCount && !pet.timePause && !pet.adventure.active && !isExpeditionAway(pet) && !pet.partnerSchedule.active
-    && (isAdventureTreasure(selected.id) || Object.values(getItemRecoveryPreview(pet, selected, useCount, []).actual).some(value => value > 0));
+    && Object.values(getItemRecoveryPreview(pet, selected, useCount, []).actual).some(value => value > 0);
   const transferItem = () => {
     if (!selected || !selection || amount < count) return;
     const intoBag = selection.source === 'warehouse';
@@ -65,29 +69,29 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
       <span className="storage-tile-count">×{n}</span><span className="storage-tile-picture"><img src={icons[id] ?? unknownItemIcon} alt="" /></span><strong className="storage-tile-name">{name}</strong>
     </button>;
   };
-  const categories = foodOnly ? [{ id: 'all' as const, label: '全部' }, { id: 'dishes' as const, label: '料理' }, { id: 'rations' as const, label: '其他食物' }] : getItemBrowseCategories().filter(value => ['all', 'food', 'ingredients', 'care', 'item'].includes(value.id));
-  return <div className="preparation-inventory">
-    <div className="storage-tabs adventure-pack-tabs" role="group" aria-label="物品分类">{categories.map(value => <button key={value.id} aria-pressed={category === value.id} onClick={() => perform(() => setCategory(value.id))}>{value.label}</button>)}</div>
+  const categories = foodOnly ? [{ id: 'all' as const, label: '全部' }, { id: 'dishes' as const, label: '料理' }, { id: 'rations' as const, label: '其他食物' }] : getItemBrowseCategories().filter(value => value.id === 'food' || value.id === 'care');
+  return <><section className="exploration-pack-summary"><div><strong>{foodOnly ? '全程食物' : '随身行囊'} · {packed}/{capacity} 份</strong>{bagHeadingExtra}</div><p>{Object.entries({ ...bag, ...Object.fromEntries(Object.entries(automaticFood).map(([id, n]) => [id, n + (bag[id] ?? 0)])) }).filter(([, n]) => n > 0).map(([id, n]) => `${registry.get(id)?.name ?? id} ×${n}`).join('、') || '尚未装入补给；工具可直接从仓库使用。'}</p><button className="secondary-button" onClick={() => setOpen(true)}>{foodOnly ? '选择食物／现在食用' : '整理行囊／现在使用'}</button></section>{bagExtra}{open && <DialogShell className="exploration-pack-sheet" labelId="exploration-pack-sheet-title" onClose={() => setOpen(false)} closeOnBackdrop><header><h3 id="exploration-pack-sheet-title">{foodOnly ? '选择全程食物' : '整理随身行囊'}</h3><button className="icon-button" aria-label="关闭装包面板，保留选择" onClick={() => setOpen(false)}><X /></button></header><div className="preparation-inventory">
+    <div className="exploration-pack-source" role="group" aria-label="物品来源"><button aria-pressed={source === 'warehouse'} onClick={() => { setSource('warehouse'); setSelection(undefined); }}><PackageOpen size={18} />仓库</button><button aria-pressed={source === 'bag'} onClick={() => { setSource('bag'); setSelection(undefined); }}><Backpack size={18} />已装入 {packed}/{capacity}</button></div>
+    <div className="storage-tabs adventure-pack-tabs" role="group" aria-label="物品分类">{categories.map(value => <button key={value.id} aria-pressed={activeCategory === value.id} onClick={() => perform(() => { setCategory(value.id); setSelection(undefined); setQuantity(1); })}>{value.label}</button>)}</div>
     <div className="adventure-pack-columns">
-      <section className="adventure-pack-pane adventure-pack-pane--bag" aria-label={L('本次携带的背包', 'Packed travel bag')}><div className="adventure-pack-heading"><h3><Backpack size={18} />{L('背包', 'Travel bag')}<small>{packed}/{capacity}{foodOnly ? ' 份' : ''}</small></h3>{bagHeadingExtra}</div>
+      <section hidden={source !== 'bag'} className="adventure-pack-pane adventure-pack-pane--bag" aria-label={L('本次携带的背包', 'Packed travel bag')}><div className="adventure-pack-heading"><h3><Backpack size={18} />{L('背包', 'Travel bag')}<small>{packed}/{capacity}{foodOnly ? ' 份' : ''}</small></h3></div>
         <progress className="adventure-pack-slots" value={packed} max={capacity} aria-label={L('已占用容量', 'Occupied slots')} />
         <div className="storage-grid-scroll" tabIndex={0} aria-label="浏览背包物品">
           <div className="storage-item-grid">{packedItems.map(([id, n]) => tile(id as ItemId, 'bag', n))}{automaticItems.map(([id, n]) => <div className="storage-item-tile preparation-automatic" key={`automatic:${id}`} aria-label={`自动补给：${registry.get(id)?.name ?? id} ×${n}，出发时购买`}><span className="storage-tile-count">×{n}</span><span className="storage-tile-picture"><img src={icons[id] ?? unknownItemIcon} alt="" /></span><strong className="storage-tile-name">自动补给</strong></div>)}</div>
           {!packedItems.length && !automaticItems.length && <p className="adventure-pack-empty">{packed ? L('背包中没有这类物品。', 'No packed supplies in this category.') : L('从仓库选择物品装入。', 'Choose supplies from home inventory to pack.')}</p>}
-          {bagExtra}
         </div>
       </section>
-      <section className="adventure-pack-pane adventure-pack-pane--warehouse" aria-label={L('仓库未装入物资', 'Unpacked home supplies')}><h3><PackageOpen size={18} />{L('仓库', 'Home inventory')}<small>{L('尚未装入', 'Unpacked')}</small></h3><div className="storage-grid-scroll" tabIndex={0} aria-label="浏览仓库物品"><div className="storage-item-grid">{warehouseItems.map(item => tile(item.id, 'warehouse', warehouse[item.id] ?? 0))}</div>{!warehouseItems.length && <p className="adventure-pack-empty">{L('仓库里还没有这类补给。', 'No supplies in this category yet.')}</p>}</div></section>
+      <section hidden={source !== 'warehouse'} className="adventure-pack-pane adventure-pack-pane--warehouse" aria-label={L('仓库未装入物资', 'Unpacked home supplies')}><div className="storage-grid-scroll" tabIndex={0} aria-label="浏览仓库物品"><div className="storage-item-grid">{warehouseItems.map(item => tile(item.id, 'warehouse', warehouse[item.id] ?? 0))}</div>{!warehouseItems.length && <p className="adventure-pack-empty">{L('仓库里还没有这类补给。', 'No supplies in this category yet.')}</p>}</div></section>
     </div>
     <footer className="adventure-pack-footer">
       <div className="adventure-transfer-status" role="status">{transfer && <span key={transfer.key} data-direction={transfer.intoBag ? 'in' : 'out'}><img src={icons[transfer.id] ?? unknownItemIcon} alt="" />{registry.get(transfer.id)?.name} ×{transfer.quantity} {transfer.intoBag ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}{transfer.intoBag ? L('背包', 'Bag') : L('仓库', 'Home')}</span>}</div>
       {selected && selection ? <div className="adventure-pack-selection"><div><strong>{selected.displayName}</strong><small>{L('仓库', 'Home')} {warehouse[selected.id] ?? 0} · {L('背包', 'Bag')} {carried[selected.id] ?? 0}</small></div>
         <QuantityStepper value={count} max={Math.max(1, max)} disabled={!max} onChange={value => perform(() => setQuantity(value))} onInputChange={setQuantity} />
         {(canPack || selection.source === 'bag') && <button className="storage-primary" disabled={!max || selection.source === 'warehouse' && manualCount + count > capacity} onClick={transferItem}>{selection.source === 'warehouse' ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}{selection.source === 'warehouse' ? L('装入', 'Pack') : L('移回仓库', 'Unpack')} ×{count}</button>}
-        {selection.source === 'warehouse' && selected.usable && <button className="storage-secondary" disabled={!canUse} title={usePlan?.blocked ? overfedMessage : undefined} onClick={() => perform(() => { if (canUse) onUseHomeItem(selected.id, useCount); })}>{usePlan?.blocked ? '吃撑了，先消化一下' : isAdventureTreasure(selected.id) ? L(`兑换 ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} 金币`, `Exchange ×${useCount} · ${getAdventureTreasureValue(selected.id) * useCount} coins`) : L(`现在${selected.kind === 'food' ? '食用' : '使用'} ×${useCount}`, `Use now ×${useCount}`)}</button>}
+        {selection.source === 'warehouse' && selected.usable && <button className="storage-secondary" disabled={!canUse} title={usePlan?.blocked ? overfedMessage : undefined} onClick={() => perform(() => { if (canUse) onUseHomeItem(selected.id, useCount); })}>{usePlan?.blocked ? '吃撑了，先消化一下' : L(`现在${selected.kind === 'food' ? '食用' : '使用'} ×${useCount}`, `Use now ×${useCount}`)}</button>}
         {max > 1 && <QuantityPresets value={count} max={max} onChange={value => perform(() => setQuantity(value))} />}
       </div> : <p>选择物品，整理行囊。</p>}
       {selected && <ItemRecoveryPreview pet={pet} item={selected} quantity={requestedUseCount} favoriteFoodIds={[]} />}
     </footer>
-  </div>;
+  </div><footer><button className="primary-button" onClick={() => setOpen(false)}>完成整理，保留选择</button></footer></DialogShell>}</>;
 };

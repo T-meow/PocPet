@@ -2,8 +2,10 @@ import { expeditionBagCount, isExpeditionAway, regions } from './expeditionData'
 import type { ExpeditionItemId, ExpeditionReceipt } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 import { getPetStatCap } from './petStats';
-import { advanceExplorationBudget, earnExplorationPay, settleReservedHarvest, settleExplorationLoot } from './explorationBudget';
+import { advanceExplorationBudget, earnExplorationPay, earnExplorationHarvestPay, settleReservedHarvest, settleExplorationLoot } from './explorationBudget';
 import { valleyGatherFinds } from './valleyExplorationData';
+import type { ValleyGatherTarget } from './valleyExplorationData';
+import { getIdleExplorationFinds } from './explorationResources';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import { eatReturningRations, rationReturnLines } from './expeditionRationReturn';
@@ -52,37 +54,39 @@ export const finishExpedition = (pet: PetState, reason: ExpeditionReceipt['reaso
     t = pet.community.expedition.active!;
   }
   const foodLines = rationReturn ? rationReturnLines(rationReturn) : [];
-  return { ...withExpedition(pet, { active: undefined, pending: { id: t.id, rulesVersion: t.rulesVersion, mode: t.mode, route: t.route, items: t.bag, overflow: t.ground,
-    selected: expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: [...t.journal, ...foodLines].slice(-12), ...(rationReturn ? { rationReturn } : {}), ...(t.treasureFinds ? { treasureFinds: t.treasureFinds } : {}), ...(t.rationPlan ? { treasureChance: t.rationPlan.chance } : {}), ...(t.checkState?.last ? { lastCheck: t.checkState.last } : {}) } }),
+  const items = { ...t.bag };
+  if (t.rulesVersion >= 6) for (const [id, count] of Object.entries(t.ground)) items[id] = (items[id] ?? 0) + count;
+  return { ...withExpedition(pet, { active: undefined, pending: { id: t.id, rulesVersion: t.rulesVersion, mode: t.mode, route: t.route, items, overflow: t.rulesVersion >= 6 ? {} : t.ground,
+    selected: t.rulesVersion >= 6 || expeditionBagCount(t.ground) === 0, tool: t.tool, coins: t.coins, refundCoins, hearts: t.hearts, at: now, reason, journal: [...t.journal, ...foodLines].slice(-12), ...(rationReturn ? { rationReturn } : {}), ...(t.treasureFinds ? { treasureFinds: t.treasureFinds } : {}), ...(t.rationPlan ? { treasureChance: t.rationPlan.chance } : {}), ...(t.checkState?.last ? { lastCheck: t.checkState.last } : {}) } }),
     recentEvent: (reason === 'health' ? '健康不足，伙伴已安全返回。发现与已经完成的故事保留，先整理行囊再入库。' : '远行结束了。收好物资，把今天的见闻带回社区。') + foodLines.join('') };
 };
 // Only timed travel produces supplies from elapsed time. Manual trips never move offline.
-export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
+export const settleExpeditionTime = (pet: PetState, now: number, completeLegacy = false): PetState => {
   if (pet.timePause) return pet;
   let t = pet.community.expedition.active;
   if (!t || t.paused) return pet;
-  const unhealthy = pet.health < getPetStatCap(pet) * .2;
+  const unhealthy = !completeLegacy && pet.health < getPetStatCap(pet) * .2;
   if (t.mode === 'idle') {
     if (t.rulesVersion >= 3 && !t.rationPlan) {
       t = { ...t, rationSegments: t.rationSegments?.map((s, index) => s.started || now <= t!.startedAt + index * 7200000 ? s : { ...s, started: true }) };
       pet = withExpedition(pet, { active: t });
     }
     // A health crossing wins ties with a timed harvest; no work happens after retreat.
-    const until = Math.min(now - (unhealthy ? 1 : 0), t.endsAt);
+    const until = completeLegacy ? t.endsAt : Math.min(now - (unhealthy ? 1 : 0), t.endsAt);
     const done = Math.max(t.settledParts, Math.min(t.parts, Math.floor((until - t.startedAt) / 3600000)));
     if (done > t.settledParts) {
       if (t.rulesVersion >= 2) {
         for (let hour = t.settledParts + 1; hour <= done; hour++) {
           if (!(pet.community.expedition.active?.reservedHarvests ?? 0)) break;
-          const at = t.startedAt + hour * 3600000;
+          const at = completeLegacy ? now : t.startedAt + hour * 3600000;
           pet = settleReservedHarvest(pet, 1, false);
           const region = t.route[0];
-          pet = putExpeditionFinds(pet, region === 'valley' ? valleyGatherFinds(t.target ?? 'valley_mushroom', true) : { [regions[region].product]: 2 });
+          pet = putExpeditionFinds(pet, t.rulesVersion >= 6 ? getIdleExplorationFinds(region, t.target) : region === 'valley' ? valleyGatherFinds((t.target ?? 'valley_mushroom') as ValleyGatherTarget, true) : { [regions[region].product]: 2 });
           if (t.rewardsVersion === 1) {
             const extra = settleExplorationLoot(pet, 1, 'hour', region, at);
             pet = putExpeditionFinds(extra.pet, extra.finds);
           }
-          const earned = earnExplorationPay(pet, 'hour', at, region, t.rewardsVersion === 1);
+          const earned = t.rulesVersion >= 6 ? earnExplorationHarvestPay(pet, 1, 'hour', region) : earnExplorationPay(pet, 'hour', at, region, t.rewardsVersion === 1);
           pet = earned.pet;
           const current = pet.community.expedition.active!;
           pet = withExpedition(pet, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });
@@ -110,6 +114,6 @@ export const settleExpeditionTime = (pet: PetState, now: number): PetState => {
     }
   }
   if (unhealthy && isExpeditionAway(pet)) return finishExpedition(pet, 'health', now);
-  if (t.mode === 'idle' && now >= t.endsAt) return finishExpedition(pet, 'complete', t.endsAt);
+  if (t.mode === 'idle' && (completeLegacy || now >= t.endsAt)) return finishExpedition(pet, 'complete', completeLegacy ? now : t.endsAt);
   return pet;
 };

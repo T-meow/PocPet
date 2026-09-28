@@ -2,7 +2,7 @@ import type { AdventureChoice } from './adventureData';
 import type { AdventureRegionId } from './adventureTypes';
 import type { Inventory, PartnerScheduleCategory } from './petTypes';
 import { explorationTravel, getRegionActionCost } from './explorationTravelData';
-import { wildIngredientIds, wildIngredients } from './foodCatalog';
+import { getExplorationFoodYield, wildIngredientIds, wildIngredients } from './foodCatalog';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import { expeditionProducts, regions } from './expeditionData';
 import { explorationDifficulty } from './explorationChecks';
@@ -76,17 +76,21 @@ export const landmarkTargets = (region: AdventureRegionId) => {
   return [...new Set([def.product, def.alternative, ...(r === 'forest' ? ['forest_berry_seed'] : []), ...(r === 'valley' ? ['creek_herb'] : []), 'materials', ...wildIngredientIds.filter(id => wildIngredients[id].region === r), ...regionalTreasureIds.filter(id => regionalTreasures[id].region === r)])];
 };
 export const landmarkTargetName = (id: string) => id === 'materials' ? '木料与石料' : id === 'creek_herb' ? '溪谷香草' : expeditionProducts[id as keyof typeof expeditionProducts]?.name ?? id;
-const gatheringChoices = (region: AdventureRegionId, base: { hunger: number; energy: number }): AdventureChoice[] => landmarkTargets(region).flatMap(target => {
+const gatheringChoices = (region: AdventureRegionId, base: { hunger: number; energy: number }, modern = false): AdventureChoice[] => landmarkTargets(region).flatMap(target => {
   const r = expeditionRegionForMap[region], treasure = regionalTreasures[target as keyof typeof regionalTreasures], food = wildIngredients[target as keyof typeof wildIngredients];
   const research = treasure ? { kind: 'treasure' as const, id: target, points: 1 } : food && food.investigations > 1 ? { kind: 'food' as const, id: target, points: 1 } : undefined;
+  const foodYield = modern ? getExplorationFoodYield(target) : undefined;
   const finds: Inventory = research ? { [regions[r].product]: 1 } : target === 'materials' ? { community_wood: 4, community_stone: 3 } : target === 'forest_berry_seed' ? { forest_berry_seed: 2, pine_resin: 1 }
-    : r === 'valley' && ['valley_mushroom', 'bamboo_shoot', 'lotus_seed', 'creek_herb'].includes(target) ? valleyGatherFinds(target as 'valley_mushroom') : { [target]: food?.yield ?? 2 };
+    : foodYield !== undefined ? { [target]: foodYield } : r === 'valley' && ['valley_mushroom', 'bamboo_shoot', 'lotus_seed', 'creek_herb'].includes(target) ? valleyGatherFinds(target as 'valley_mushroom') : { [target]: food?.yield ?? 2 };
   const researchCost = research ? { hunger: Math.ceil(base.hunger * 1.2), energy: Math.ceil(base.energy * 1.2) } : base;
   const name = landmarkTargetName(target), action: AdventureChoice = { ...researchCost, id: `gather:${target}`, label: `${research ? '稳妥调查' : '采集'}${name}`, detail: research ? `每次调查进度 +1，累计 ${treasure?.investigations ?? food!.investigations} 点取得${name}。消耗 1 次采集机会。` : '消耗 1 次采集机会，按行动前清单获得物资。', harvest: 1, finds, research, check: { mode: 'safe' } };
   const tool = treasure ? 'prospector_pick' as const : research ? 'survey_lens' as const : 'harvest_sickle' as const;
-  return [action, { ...action, id: `tool:${target}`, label: `${treasure ? '用手镐勘探' : research ? '用放大镜调查' : '用镰刀采集'}${name}`, detail: `${research ? '调查进度 +2' : '提高采集表现'}；对应工具耐久 −1，消耗 ${treasure && r === 'valley' ? 2 : 1} 次采集机会。`, harvest: treasure && r === 'valley' ? 2 : 1, ...(research ? { finds: { [regions[r].product]: 2 }, research: { ...research, points: 2 }, check: { mode: 'story' as const, tool } } : { check: { mode: 'check' as const, skill: 'garden' as const, difficulty: explorationDifficulty[r][1], tool } }) }];
+  if (modern) action.check = { ...action.check!, skill: research ? 'study' : 'garden' };
+  const tools: AdventureChoice[] = [{ ...action, id: `tool:${target}`, label: `${treasure ? '用手镐勘探' : research ? '用放大镜调查' : '用镰刀采集'}${name}`, detail: `${research ? '调查进度 +2' : modern ? '稳定采收，主产物 +1，体力减免 25%' : '提高采集表现'}；对应工具耐久 −1，消耗 ${!modern && treasure && r === 'valley' ? 2 : 1} 次采集机会。`, harvest: !modern && treasure && r === 'valley' ? 2 : 1, ...(research ? { finds: { [regions[r].product]: 2 }, research: { ...research, points: 2 }, check: { mode: 'story' as const, ...(modern ? { skill: 'study' as const } : {}), tool } } : { check: { mode: 'check' as const, skill: 'garden' as const, difficulty: explorationDifficulty[r][1], tool } }) }];
+  if (modern && !research && target !== 'materials' && target !== 'pine_resin' && target !== 'sea_glass' && target !== 'observatory_part') tools.push({ ...action, id: `lens:${target}`, label: `定向查找${name}`, detail: '保证找到所选食材或种子，获得基础产量；采集 −1、放大镜耐久 −1。', check: { mode: 'story', skill: 'study', tool: 'survey_lens' } });
+  return [action, ...tools];
 });
-export const getLandmarkSteps = (id: LandmarkId): LandmarkStep[] => {
+export const getLandmarkSteps = (id: LandmarkId, version = 11): LandmarkStep[] => {
   const { region, node } = parseLandmarkId(id), script = scripts[region][node], r = expeditionRegionForMap[region];
   const moments: { key: string; title: string; story: string; event: LandmarkStep['event']; skill: PartnerScheduleCategory }[] = [
     { key: 'arrival', title: `抵达${landmarkNames[region][node]}`, story: script[1], event: 'arrival', skill: 'study' },
@@ -101,7 +105,8 @@ export const getLandmarkSteps = (id: LandmarkId): LandmarkStep[] => {
     const base = getRegionActionCost(r, index), safe: AdventureChoice = { ...base, id: `safe:${moment.key}`, label: moment.event === 'finish' ? '完成记录，收好本次发现' : `仔细${moment.event === 'arrival' ? '辨认入口与回程方向' : moment.event === 'obstacle' ? '沿稳固通路处理问题' : moment.event === 'gather' ? '观察物产，保留采集机会' : '核对并记录'}`, detail: '稳妥完成本阶段，不需要工具或随机成功。', check: { mode: moment.event === 'finish' ? 'story' : 'safe' }, observation: 'a' };
     const alternative: AdventureChoice = { ...base, id: `observe:${moment.key}`, label: moment.event === 'finish' ? '和伙伴复述经历后完成记录' : moment.event === 'obstacle' ? '看准落脚点，尝试近处通路' : '换个角度仔细调查', detail: '按显示的技能与消耗判定；结果不会阻断故事推进。', check: moment.event === 'finish' ? { mode: 'story' } : { mode: 'check', skill: moment.skill, difficulty: explorationDifficulty[r][moment.event === 'obstacle' ? 1 : 0], risky: moment.event === 'obstacle', ...(moment.event === 'arrival' ? { prepare: 'focus' as const } : {}) }, observation: 'b' };
     const choices = [safe, alternative];
-    if (moment.event === 'gather' || r === 'valley' && moment.key === 'record') choices.push(...gatheringChoices(region, base));
+    if (version >= 11) safe.check = { ...safe.check!, skill: moment.skill };
+    if (moment.event === 'gather' || r === 'valley' && moment.key === 'record') choices.push(...gatheringChoices(region, base, version >= 11));
     if (moment.event === 'obstacle') choices.push({ ...alternative, id: 'rope:obstacle', label: '固定探路绳，借助绳索通过', detail: '直接使用仓库中的探路绳，耐久 −1。', tool: true, check: { ...alternative.check!, tool: 'trail_rope' }, observation: 'b' });
     return { id: `${id}:${moment.key}`, title: moment.title, story: moment.story, choices, event: moment.event };
   });

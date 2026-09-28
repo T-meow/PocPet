@@ -25,7 +25,7 @@ export const ClientUpdatePanel = ({ controller, onBackup }: { controller: Client
       {update.publishedAt && <small>{new Date(update.publishedAt).toLocaleDateString(getLanguage())}</small>}
       <p className="client-update-notes">{update.notes || t('ui.updates.noNotes')}</p>
       {update.asset && <>
-        <p className="client-update-target">{update.asset.name} · {(update.asset.size / 1024 / 1024).toFixed(1)} MB</p>
+        <p className="client-update-target">{update.asset.name} · {Math.ceil(update.asset.size / 1024 / 1024)} MB</p>
         <p className="settings-cloud-warning">{t('ui.updates.backupHint')}</p>
         {result?.target.platform === 'android' && compareVersions(appBuild.version, '1.6.1') < 0 && <p className="settings-cloud-warning">{t('ui.updates.androidMigration')}</p>}
         <div className="save-actions">

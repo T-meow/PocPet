@@ -7,8 +7,8 @@ export const processingRecipes = [
   { id: 'mill_flour', name: '磨制面粉', inputs: { wheat: 1 }, output: 'flour', quantity: 2, fee: 0, unlock: 'garden' },
   { id: 'strawberry_milk', name: '草莓牛奶', inputs: { farm_milk: 2, strawberry: 1 }, output: 'strawberry_milk', quantity: 2, fee: 0, unlock: 'barn' },
   { id: 'ad_milk', name: 'AD 高钙奶', inputs: { farm_milk: 1 }, output: 'ad_milk', quantity: 1, fee: 2, unlock: 'barn' },
-  { id: 'cream', name: '鲜奶制奶油', inputs: { farm_milk: 2 }, output: 'cream', quantity: 1, fee: 0, unlock: 'barn' },
-  { id: 'cheese', name: '鲜奶制奶酪', inputs: { farm_milk: 3 }, output: 'cheese', quantity: 1, fee: 0, unlock: 'barn' },
+  { id: 'cream', name: '鲜奶制奶油', inputs: { farm_milk: 1 }, output: 'cream', quantity: 1, fee: 0, unlock: 'barn' },
+  { id: 'cheese', name: '鲜奶制奶酪', inputs: { farm_milk: 2 }, output: 'cheese', quantity: 1, fee: 0, unlock: 'barn' },
   { id: 'berry_jam', name: '林莓果酱', inputs: { forest_berry: 2 }, output: 'forest_berry_jam', quantity: 1, fee: 0, unlock: 'berry' },
   { id: 'cooking_oil', name: '葵花籽榨油', inputs: { sunflower_kernel: 2 }, output: 'cooking_oil', quantity: 1, fee: 0, unlock: 'sunflower' },
 ] as const satisfies readonly { id: string; name: string; inputs: Partial<Record<BuiltinItemId, number>>; output: BuiltinItemId; quantity: number; fee: number; unlock: string }[];

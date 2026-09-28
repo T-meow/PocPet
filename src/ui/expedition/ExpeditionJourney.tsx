@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, CornerDownLeft } from 'lucide-react';
+import { Clock, CornerDownLeft, X } from 'lucide-react';
 import { expeditionLandmarkIcons } from '../../adventureLandmarkAssets';
 import { claimExpedition, returnExpedition, selectExpeditionReturn } from '../../core/expedition';
 import { expeditionBagCount, regions } from '../../core/expeditionData';
@@ -7,17 +7,20 @@ import { getInventoryItem } from '../../core/items';
 import { getRemainingRations, rationReturnLines } from '../../core/expeditionRationReturn';
 import type { Inventory, ItemId } from '../../core/petTypes';
 import type { ExpeditionProps } from './types';
-import { valleyGatherNames } from '../../core/valleyExplorationData';
+import { landmarkTargetName } from '../../core/landmarkData';
+import { DialogShell } from '../DialogShell';
 import { getExplorationBagCapacity } from '../../core/explorationBackpack';
 import { useAdventureAction } from '../useAdventureAction';
 import { ExplorationCheckSummary } from '../ExplorationCheck';
 import { HelpButton } from '../help/HelpButton';
 import { getJourneyHelp } from '../help/explorationHelp';
+import { formatProbabilityPercent } from '../numberFormat';
 
 const itemName = (id: string) => getInventoryItem(id as ItemId)?.name ?? id;
 export const ExpeditionJourney = ({ pet, update, onCommunity: community, onShop: shop }: ExpeditionProps) => {
   const s = pet.community.expedition, t = s.active, pending = s.pending;
   const [selection, setSelection] = useState<Inventory | undefined>();
+  const [recall, setRecall] = useState(false);
   const action = useAdventureAction(), capacity = getExplorationBagCapacity(pet), busy = action.phase !== 'idle';
   const onCommunity = () => { action.cancel(); community(); }, onShop = () => { action.cancel(); shop(); };
   const move = (fn: (p: typeof pet) => typeof pet) => action.run(() => update(current => {
@@ -31,7 +34,7 @@ export const ExpeditionJourney = ({ pet, update, onCommunity: community, onShop:
     for (const [id, n] of Object.entries(pending.overflow)) all[id] = (all[id] ?? 0) + n;
     return <section className="exp-card exp-receipt"><span className="exp-eyebrow">{pending.route.map(id => regions[id].name).join(' → ')} · {pending.mode === 'idle' ? '挂机探索' : '旧探索返程'}</span><h2>{pending.reason === 'health' ? '健康不足，已安全返程' : pending.reason === 'complete' ? '旅途完成，收好物资' : '已返回前哨基地'}</h2><p>地区故事和发现已经记下。{pending.tool ? '探路绳另行归还，不占物资容量。' : ''}</p>
       <ExplorationCheckSummary result={pending.lastCheck} />
-      {pending.treasureChance !== undefined && <p>本次每两小时随机概率 {pending.treasureChance}%。</p>}
+      {pending.treasureChance !== undefined && <p>本次每两小时随机概率 {formatProbabilityPercent(pending.treasureChance)}。</p>}
       {pending.treasureFinds?.map(find => <p key={find.at + find.item}>{itemName(find.item)} ×1 · {find.guaranteed ? '第 10 次保底获得' : '随机发现'}</p>)}
       {(pending.rulesVersion ?? 1) >= 5 && <p>当前地区保底进度：{s.treasurePity[pending.route[0]]}/9 次未获得。</p>}
       {pending.rationReturn && rationReturnLines(pending.rationReturn).length > 0 && <div className="outpost-ration-return" aria-label="返程料理结算">{rationReturnLines(pending.rationReturn).map(line => <p key={line}>{line}</p>)}</div>}
@@ -47,12 +50,14 @@ export const ExpeditionJourney = ({ pet, update, onCommunity: community, onShop:
   return <section className="exp-card exp-journey"><div className="exp-card-heading"><span className="exp-icon"><img src={expeditionLandmarkIcons[region].story} alt="" /></span><h2>{r.name} · 伙伴正在路上</h2></div>
     <div className="exp-timed"><Clock size={28} /><strong>还需 {Math.floor(leftMinutes / 60)} 小时 {leftMinutes % 60} 分</strong><span>已完成 {t.settledParts}/{t.parts} 次采集</span></div>
     <progress aria-label="挂机探索进度" max={t.parts * 3600000} value={Math.max(0, Math.min(t.parts * 3600000, Date.now() - t.startedAt))} />
-    <div className="help-heading"><span>目标：{region === 'valley' ? valleyGatherNames[t.target ?? 'valley_mushroom'] : itemName(r.product)}</span><HelpButton {...getJourneyHelp(t)} /></div>
+    <div className="help-heading"><span>目标：{landmarkTargetName(t.target ?? r.product)}</span><HelpButton {...getJourneyHelp(t)} /></div>
+    <p>下次采集：{Math.max(1, Math.ceil((t.startedAt + (t.settledParts + 1) * 3600000 - Date.now()) / 60000))} 分钟后。</p>
     <p>已得 {t.coins} 金币 · {t.hearts} 心心 · 预留机会 {t.reservedHarvests ?? 0} 次</p>
-    {t.rulesVersion >= 5 && <p>随机概率 {t.rationPlan?.chance}% · 地区连续未获得 {s.treasurePity[region]}/9 次；第 10 次必得珍宝。</p>}
+    {t.rulesVersion >= 5 && t.rationPlan && <p>随机概率 {formatProbabilityPercent(t.rationPlan.chance)} · 地区连续未获得 {s.treasurePity[region]}/9 次；第 10 次必得珍宝。</p>}
     <div className="exp-stock-list">{Object.entries(t.bag).map(([id, n]) => <p key={id}>{itemName(id)} ×{n}</p>)}</div>
     {t.mode === 'idle' && t.rationPlan && <section className="exp-bag"><p>食物剩余 {expeditionBagCount(getRemainingRations(t, Date.now()))}/{expeditionBagCount(t.rationPlan.food)} 份 · 珍宝 {t.rationPlan.discoveries.filter(d => d.won).length} 件</p><small>提前返回不退食物和补给费。</small></section>}
     {t.mode === 'idle' && !t.rationPlan && t.rationSegments && <p>已寻找珍宝 {t.rationSegments.filter(segment => segment.settled).length}/{t.rationSegments.length} 次 · 找到 {t.rationSegments.filter(segment => segment.won).length} 件</p>}
-    <div className="exp-journey-footer"><button disabled={busy} onClick={() => move(p => returnExpedition(p, t.id))}><CornerDownLeft size={16} />{t.mode === 'idle' ? '提前召回伙伴' : '结束行程，保留发现返回'}</button>{t.paused && <button onClick={onCommunity}>回社区照顾伙伴</button>}<button onClick={onShop}>查看商店</button></div>
+    <div className="exp-journey-footer"><button disabled={busy} onClick={() => setRecall(true)}><CornerDownLeft size={16} />{t.mode === 'idle' ? '提前召回伙伴' : '结束行程，保留发现返回'}</button>{t.paused && <button onClick={onCommunity}>回社区照顾伙伴</button>}<button onClick={onShop}>查看商店</button></div>
+    {recall && <DialogShell role="alertdialog" className="exploration-confirm-sheet" labelId="expedition-recall-title" onClose={() => setRecall(false)}><header><h3 id="expedition-recall-title">提前召回伙伴</h3><button className="icon-button" aria-label="取消召回" onClick={() => setRecall(false)}><X /></button></header><div className="exploration-sheet-body"><p>保留已获得的物品、{t.coins} 金币与 {t.hearts} 心心。预计退还未使用的 {t.reservedHarvests ?? 0} 次采集机会，召回时按最新进度结算。</p><p>未满一小时的采集不发奖励。剩余料理由伙伴食用或分享，不退食物与补给费。</p></div><footer><button data-dialog-autofocus onClick={() => setRecall(false)}>继续挂机</button><button className="primary-button" disabled={busy} onClick={() => { move(p => returnExpedition(p, t.id)); setRecall(false); }}>确认召回</button></footer></DialogShell>}
   </section>;
 };

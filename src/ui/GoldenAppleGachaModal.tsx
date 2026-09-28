@@ -22,7 +22,7 @@ import type { SfxId } from '../core/audio';
 import { currencyIcon, unknownItemIcon } from '../assets';
 import { t } from '../i18n';
 import { DialogShell } from './DialogShell';
-import { formatCompactNumber } from './numberFormat';
+import { formatCompactNumber, formatProbabilityPercent } from './numberFormat';
 import { getGachaRewardContentLabels, getGachaRewardLabel, summarizeGachaResults, type GachaDisplayReward } from './gachaRewards';
 import { features } from '../platform/edition';
 
@@ -102,10 +102,7 @@ export const GachaResultsSummary = ({ results, itemIconMap }: { results: readonl
   );
 };
 
-const formatProbability = (weight: number) => {
-  const percent = weight / 1000;
-  return `${percent.toFixed(3).replace(/\.0+$|0+$/g, '').replace(/\.$/, '')}%`;
-};
+const formatProbability = (weight: number) => formatProbabilityPercent(weight / 1000);
 
 const supplyPoolGroups = [
   { key: 'supplies', matches: (reward: typeof goldenAppleGachaRewards[number]) => reward.kind === 'bundle' },

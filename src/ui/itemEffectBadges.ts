@@ -14,9 +14,8 @@ export const getItemEffectBadges = (effect: ItemEffect, quantity = 1): ItemEffec
     .map((key) => {
       const value = effect[key];
       if (!value) return undefined;
-      const total = Math.round(value * Math.max(1, Math.floor(quantity)) * 10) / 10;
-      if (!total) return undefined;
-      const amount = total > 0 ? `+${total}` : String(total);
+      const total = Math.round(value * Math.max(1, Math.floor(quantity)));
+      const amount = value > 0 ? `+${total}` : String(total);
       return {
         key,
         amount,

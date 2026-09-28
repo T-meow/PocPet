@@ -47,6 +47,6 @@ export const MiniGameBoard = ({ session, portrait, ballImage, style, feedback, o
     </div>
     <button className="activity-primary bubble-blow" onPointerDown={(event) => { if (!event.isPrimary) return; event.currentTarget.setPointerCapture(event.pointerId); onAct({ type: 'blow' }); }} onPointerUp={() => onAct({ type: 'release' })} onPointerCancel={() => onAct({ type: 'release' })} onKeyDown={(event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); onAct({ type: 'blow' }); } }} onKeyUp={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); onAct({ type: 'release' }); } }}>{held > 0 ? L('松开，让泡泡飘起来', 'Release to let it float') : L('按住吹泡泡', 'Hold to blow a bubble')}</button>
     <button className="activity-secondary" disabled={!canFinishMiniGame(session)} onClick={() => onAct({ type: 'finish' })}>{L('收下这段开心时光', 'Keep this happy moment')}</button>
-    <small className="activity-muted">{L('最多按住 1.5 秒就会飘出泡泡；吹 3 个并互动 6 秒即可收获。', 'Bubbles float free within 1.5 seconds. Make three and play for six seconds to finish.')}</small>
+    <small className="activity-muted">{L('按住一会儿就会飘出泡泡；吹 3 个并互动 6 秒即可收获。', 'Hold briefly to release a bubble. Make three and play for six seconds to finish.')}</small>
   </div>;
 };

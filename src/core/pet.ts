@@ -216,6 +216,7 @@ export {
   gardenTreeMaxHarvests,
   goldenAppleTreeLimit,
   gardenWaterCost,
+  getGardenActionBlockedReason,
   getGardenClearCost,
   getGardenCarePreview,
   getGardenAdvancedFertilizerDailyLimitMs,

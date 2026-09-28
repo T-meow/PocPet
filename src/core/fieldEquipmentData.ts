@@ -17,12 +17,12 @@ export const durableToolIds = Object.keys(toolDefinitions) as DurableToolId[];
 export type FieldEquipmentId = Exclude<DurableToolId, 'fishing_rod' | 'reinforced_rod' | 'trail_rope'> | 'nutrient_compost';
 export const fieldEquipmentItems: readonly ShopItem[] = [
   { id: 'field_watering_can', name: '细嘴浇水壶', kind: 'garden', price: 96, effect: {}, usable: false, tags: ['field_tool'], summary: '给菜地浇水，让作物更早成熟。' },
-  { id: 'harvest_sickle', name: '精收镰刀', kind: 'garden', price: 120, effect: {}, usable: false, tags: ['field_tool'], summary: '细心收割，每轮多收获一份作物。' },
+  { id: 'harvest_sickle', name: '精收镰刀', kind: 'garden', price: 120, effect: {}, usable: false, tags: ['field_tool'], summary: '农场产量 +1；探险稳定采收、主产物 +1，体力消耗减少 25%。' },
   { id: 'nutrient_compost', name: '营养堆肥', kind: 'garden', price: 8, effect: {}, usable: false, tags: ['field_supply'], summary: '为菜地添些养分，本轮产量 +1。' },
   { id: 'fishing_float', name: '醒目浮漂', kind: 'item', price: 60, effect: {}, usable: false, tags: ['fishing_tool'], summary: '手动钓鱼时，让鱼儿早一点上钩。' },
   { id: 'landing_net', name: '轻便抄网', kind: 'item', price: 100, effect: {}, usable: false, tags: ['fishing_tool'], summary: '手动收线少点一次，轻松收下鱼获。' },
-  { id: 'prospector_pick', name: '勘探手镐', kind: 'item', price: 120, effect: {}, usable: false, tags: ['expedition_tool'], summary: '敲开岩缝，帮助寻找当地珍宝。' },
-  { id: 'survey_lens', name: '调查放大镜', kind: 'item', price: 90, effect: {}, usable: false, tags: ['expedition_tool'], summary: '看清沿途细节，帮助调查与发现。' },
+  { id: 'prospector_pick', name: '勘探手镐', kind: 'item', price: 120, effect: {}, usable: false, tags: ['expedition_tool'], summary: '当地珍宝研究稳定 +2；每次采集 −1、耐久 −1，保留副产物。' },
+  { id: 'survey_lens', name: '调查放大镜', kind: 'item', price: 90, effect: {}, usable: false, tags: ['expedition_tool'], summary: '定向查找食材或种子；普通目标基础产量，研究食材进度 +2，采集与耐久各 −1。' },
   { id: 'camp_kit', name: '便携营具', kind: 'item', price: 72, effect: {}, usable: false, tags: ['expedition_tool'], summary: '路线中点可使用仓库营具休整一次，恢复体力、心情和健康；继续前进便错过休整点。' },
 ];
 export const getEquipmentPurchaseReason = (pet: PetState, id: string): string => {

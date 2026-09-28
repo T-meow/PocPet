@@ -9,7 +9,7 @@ import { finishExpedition, withExpedition } from './expeditionReturn';
 import type { ExpeditionTrip, RegionId } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 import { advanceExplorationBudget, getExplorationBudget, spendExplorationHarvest } from './explorationBudget';
-import { valleyGatherTargets, type ValleyGatherTarget } from './valleyExplorationData';
+import { getIdleExplorationTargets } from './explorationResources';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { explorationTravel } from './explorationTravelData';
 import { lockRationPlan, quoteExpeditionRations, type RationSelection } from './explorationRations';
@@ -29,23 +29,23 @@ export const getExpeditionStartReason = (pet: PetState, route: RegionId[], mode:
   if (!progress.surveyed || !progress.base) return '完成当地全部 8 个地标，并建好休息基地后开放挂机。';
   if (![2, 4, 8].includes(parts)) return '挂机可选择 2、4、8 小时。';
   if (pet.health < getPetStatCap(pet) * .4) return '健康不足，请先护理再出发。';
-  if (getExpeditionHarvestLeft(pet, region, now) < parts) return '需要采集机会 ' + parts + ' 次；每 3 小时恢复 1 次，最多积存 24 次。';
+  if (getExpeditionHarvestLeft(pet, region, now) < parts) return '需要采集机会 ' + parts + ' 次；每小时恢复 1 次，最多积存 72 次。';
   const quote = quoteExpeditionRations(pet, region, parts, rations), profile = explorationTravel[region];
   if (quote.reason) return quote.reason;
   return pet.energy < profile.idleEnergy * parts / 2 || pet.hunger < profile.idleHunger * parts / 2 ? '行路需饱食 ' + profile.idleHunger * parts / 2 + '、体力 ' + profile.idleEnergy * parts / 2 + '，请先补充。' : '';
 };
-export const startExpedition = (pet: PetState, route: RegionId[], bag: Inventory, tool: boolean, actorId: string, actorName: string, mode: 'idle' = 'idle', parts = 2, now = Date.now(), options: { target?: ValleyGatherTarget; rations?: RationSelection } = {}): PetState => {
+export const startExpedition = (pet: PetState, route: RegionId[], bag: Inventory, tool: boolean, actorId: string, actorName: string, mode: 'idle' = 'idle', parts = 2, now = Date.now(), options: { target?: string; rations?: RationSelection } = {}): PetState => {
   pet = advanceExplorationBudget(advancePet(pet, now), now);
   const reason = getExpeditionStartReason(pet, route, mode, parts, now, options.rations);
   if (reason) return fail(pet, reason);
   if (tool || expeditionBagCount(bag) || !actorId || actorId.length > 128) return pet;
-  const target = options.target ?? 'valley_mushroom';
-  if (!valleyGatherTargets.includes(target) || target === 'aquamarine') return pet;
+  const targets = getIdleExplorationTargets(route[0]), target = options.target ?? targets[0]?.id;
+  if (!targets.some(resource => resource.id === target)) return fail(pet, '该资源不能在此地区挂机采集，请重新选择目标。');
   const state = pet.community.expedition, startedAt = Math.max(now, pet.lastUpdatedAt);
   const quote = quoteExpeditionRations(pet, route[0], parts, options.rations);
   let inventory = { ...pet.inventory };
   for (const [id, quantity] of Object.entries(quote.used)) inventory = removeInventoryItem(inventory, id, quantity);
-  const trip: ExpeditionTrip = { rulesVersion: 5, id: 'expedition:' + state.nextId, revision: 0, mode: 'idle', actorId, actorName: actorName.slice(0, 32),
+  const trip: ExpeditionTrip = { rulesVersion: 6, id: 'expedition:' + state.nextId, revision: 0, mode: 'idle', actorId, actorName: actorName.slice(0, 32),
     route: [...route], leg: 0, step: 0, bag: {}, ground: {}, tool: false, rested: [], paused: false,
     target, rewardsVersion: 1, energySpent: 0, healthLost: 0, paidActions: 0, reservedHarvests: parts,
     rationPlan: lockRationPlan(quote, parts, pet.createdAt + ':' + state.nextId + ':' + startedAt),

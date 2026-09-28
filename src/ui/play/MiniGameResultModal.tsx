@@ -32,7 +32,7 @@ export const MiniGameResultModal = ({ result, portrait, canReplay, onClose, onBa
       <h2 id="play-reward-title">{L('又多了一段开心时光', 'Another happy moment together')}</h2>
       <div className="play-reward-hearts"><Heart size={28} fill="currentColor" /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></div>
       {result.rewardLevel !== undefined && <p className="play-reward-breakdown">{L(`Lv.${result.rewardLevel} 基础 ${result.baseHearts ?? result.hearts} 心`, `Lv.${result.rewardLevel} base: ${result.baseHearts ?? result.hearts} hearts`)}{bonus > 0 && L(` + 加成 ${bonus} 心`, ` + ${bonus} bonus hearts`)}</p>}
-      {result.mood !== undefined && <p className="play-reward-mood"><Smile size={17} />{result.mood > 0 ? L(`心情 +${Number(result.mood.toFixed(1))}`, `Mood +${Number(result.mood.toFixed(1))}`) : L('心情已经满满的啦', 'Already full of good spirits')}</p>}
+      {result.mood !== undefined && <p className="play-reward-mood"><Smile size={17} />{result.mood > 0 ? L(`心情 +${Math.round(result.mood)}`, `Mood +${Math.round(result.mood)}`) : L('心情已经满满的啦', 'Already full of good spirits')}</p>}
       {skillCategory && (result.skillXp ?? 0) > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp(skillCategory, result.skillXp)}</p>}
       <p className="play-reward-score">{score}</p>
       <p className="activity-muted">{L('收获已经放进小窝，随时可以休息。', 'Your rewards are already saved. Rest whenever you like.')}</p>

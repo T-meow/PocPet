@@ -428,7 +428,7 @@ export const getInventoryDefinitions = (registry: ItemRegistry, inventory: Inven
     .filter(([id, amount]) => amount > 0 && !knownIds.has(id as ItemId) && !isBuiltinItemId(id))
     .map(([id]) => registry.get(id) ?? createUnknownItemDefinition(id));
 
-  return [...knownItems, ...modAndUnknownItems].map((item) => ({
+  return [...knownItems, ...modAndUnknownItems].filter(item => !item.tags.includes('hidden')).map((item) => ({
     ...item,
     displayName: item.name,
     displaySummary: item.summary,
@@ -437,7 +437,7 @@ export const getInventoryDefinitions = (registry: ItemRegistry, inventory: Inven
 
 export const getShopDefinitions = (registry: ItemRegistry): readonly InventoryItemDefinition[] =>
   Array.from(registry.values())
-    .filter((item) => item.shop)
+    .filter((item) => item.shop && !item.tags.includes('hidden'))
     .map((item) => ({ ...item, displayName: item.name, displaySummary: item.summary }));
 
 export const isKnownUsableItem = (registry: ItemRegistry, id: ItemId | string) => Boolean(registry.get(id)?.usable);

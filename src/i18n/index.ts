@@ -1,5 +1,6 @@
 import zhCN from './zh-CN.json';
 import enUS from './en-US.json';
+import { formatInteger } from '../core/displayNumbers';
 
 export type LanguageCode = 'zh-CN' | 'en-US';
 
@@ -50,7 +51,7 @@ const resolvePath = (key: string, resource = locale): unknown =>
 const formatText = (template: string, params?: Params) =>
   template.replace(/\{(\w+)\}/g, (_, token: string) => {
     const value = params?.[token];
-    return value === undefined || value === null ? '' : String(value);
+    return value === undefined || value === null ? '' : typeof value === 'number' ? formatInteger(value) : String(value);
   });
 
 export const t = (key: string, params?: Params) => {

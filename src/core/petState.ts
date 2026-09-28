@@ -455,7 +455,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   };
   const normalizedAchievements = { ...achievements, unlockedAtById, claimedOneTimeRewardIds, counters };
 
-  return settleExpeditionTime(enforceAdventureHealth({
+  const normalized: PetState = {
     name: normalizedName,
     saveMetadata: fallback.saveMetadata,
     level,
@@ -559,7 +559,12 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     classicEndgame,
     timeGuard,
     ...(timePause ? { timePause } : {}),
-  }, isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now), isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now);
+  };
+  // Legacy active trips are completed by the lifecycle migration before health or
+  // offline simulation can turn them into an early-return receipt.
+  if (timePause || (adventure.active?.rulesVersion ?? 11) < 11 || (community.expedition.active?.rulesVersion ?? 6) < 6) return normalized;
+  const settlementAt = isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now;
+  return settleExpeditionTime(enforceAdventureHealth(normalized, settlementAt), settlementAt);
 };
 
 

@@ -9,6 +9,7 @@ export interface RationSelection { food: Inventory; autoFill: boolean }
 export interface RationQuote {
   food: Inventory; used: Inventory; purchased: number; coins: number; count: number;
   hunger: number; score: number; chance: number; baseChance: number; decorationBonus: number; minimum: number; maximum: number; nutrition: number; reason: string;
+  undiscountedCoins: number; cookingDiscount: number;
 }
 export interface RationDiscovery { roll: number; settled: boolean; won: boolean; guaranteed?: boolean }
 export interface RationPlan {
@@ -20,7 +21,8 @@ export interface RationReturn {
 }
 export interface RationQuoteSegment { food: Inventory; purchased: number; price: number; count: number; hunger: number; score: number; chance: number; reason: string }
 export interface RationSegment extends RationQuoteSegment { roll: number; started: boolean; settled: boolean; won: boolean }
-export const standardRationPrice = 28;
+export const standardRationPrice = 10;
+const legacyStandardRationPrice = 28;
 export const isTravelFood = (id: string) => {
   const item = getInventoryItem(id as ItemId);
   return Boolean(item && item.usable !== false && item.kind === 'food' && !['golden_apple', 'birthday_cake'].includes(id) && (item.effect.hunger ?? 0) > 0);
@@ -40,14 +42,15 @@ export const quoteExpeditionRations = (pet: PetState, region: RegionId, hours: n
   }
   const purchased = selection?.autoFill === false ? 0 : Math.max(0, minimum - count, Math.ceil((nutrition - hunger) / 36));
   count += purchased; hunger += purchased * 36; score += purchased * 54;
-  const coins = purchased * standardRationPrice, food = { ...used };
+  const undiscountedCoins = purchased * standardRationPrice, cookingDiscount = Math.min(30, pet.partnerSchedule.skills.cooking.level * 3);
+  const coins = Math.floor(undiscountedCoins * (1 - cookingDiscount / 100)), food = { ...used };
   if (purchased) food.trail_mix = (food.trail_mix ?? 0) + purchased;
   if (count > maximum) reason ||= `全程最多 ${maximum} 份，请移回多余料理`;
   else if (count < minimum || hunger < nutrition) reason ||= `全程需要至少 ${minimum} 份、${nutrition} 基础饱食`;
   if (Object.entries(used).some(([id, n]) => (pet.inventory[id] ?? 0) < n)) reason ||= '库存料理不足，请调整携带数量';
   if (pet.coins < coins) reason ||= '标准补给所需金币不足';
   const baseChance = getRationTreasureChance(score, minimum), decorationBonus = minimum ? getDecorationEffects(pet).star_dome : 0;
-  return { food, used, purchased, coins, count, hunger, score, baseChance, decorationBonus, chance: baseChance + decorationBonus, minimum, maximum, nutrition, reason };
+  return { food, used, purchased, coins, undiscountedCoins, cookingDiscount, count, hunger, score, baseChance, decorationBonus, chance: baseChance + decorationBonus, minimum, maximum, nutrition, reason };
 };
 export const lockRationPlan = (quote: RationQuote, hours: number, tripId: string): RationPlan => ({
   version: 3, food: { ...quote.food }, purchased: quote.purchased, coins: quote.coins, hunger: quote.hunger, score: quote.score, chance: quote.chance, baseChance: quote.baseChance, decorationBonus: quote.decorationBonus,
@@ -69,7 +72,7 @@ export const normalizeRationPlan = (raw: unknown, hours: number): RationPlan => 
   const value = record(raw), s = value.version === 1 || value.version === 2 || value.version === 3 ? value : {}, food = normalizeFood(s.food);
   const purchased = Math.floor(finite(s.purchased, food.trail_mix ?? 0));
   const discoveries = Array.isArray(s.discoveries) ? s.discoveries : [];
-  return { version: s.version === 3 ? 3 : s.version === 2 ? 2 : 1, food, purchased, coins: Math.floor(finite(s.coins, purchased * standardRationPrice)), hunger: finite(s.hunger, 100000), score: finite(s.score, 1000000), chance: finite(s.chance, Number(s.version) >= 2 ? 26 : 15),
+  return { version: s.version === 3 ? 3 : s.version === 2 ? 2 : 1, food, purchased, coins: Math.floor(finite(s.coins, purchased * legacyStandardRationPrice)), hunger: finite(s.hunger, 100000), score: finite(s.score, 1000000), chance: finite(s.chance, Number(s.version) >= 2 ? 26 : 15),
     ...(Number(s.version) >= 2 ? { baseChance: finite(s.baseChance, 20), decorationBonus: finite(s.decorationBonus, 6) } : {}),
     discoveries: Array.from({ length: hours / 2 }, (_, index) => {
       const d = record(discoveries[index]);
@@ -99,7 +102,7 @@ export const normalizeRationSegments = (raw: unknown, parts: number): RationSegm
       if (count) { food[id] = count; room -= count; }
     }
     const purchased = Math.min(room, Math.floor(finite(s.purchased, 14)));
-    return { food, purchased, price: Math.floor(finite(s.price, purchased * standardRationPrice)), count: 14 - room + purchased, hunger: finite(s.hunger, 10000), score: finite(s.score, 100000), chance: finite(s.chance, 15), reason: '', roll: typeof s.roll === 'number' && s.roll >= 0 && s.roll < 100 ? s.roll : 100,
+    return { food, purchased, price: Math.floor(finite(s.price, purchased * legacyStandardRationPrice)), count: 14 - room + purchased, hunger: finite(s.hunger, 10000), score: finite(s.score, 100000), chance: finite(s.chance, 15), reason: '', roll: typeof s.roll === 'number' && s.roll >= 0 && s.roll < 100 ? s.roll : 100,
       started: index === 0 || s.started === true || s.settled === true, settled: s.settled === true, won: s.settled === true && s.won === true };
   });
 };

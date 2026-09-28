@@ -21,7 +21,7 @@ export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 13,
   facilities: { coop: { found: false, work: 0, built: false }, barn: { found: false, work: 0, built: false }, fishing_hut: { found: false, work: 0, built: false }, upstream: { found: false, work: 0, built: false }, stall: { found: false, work: 0, built: false } },
   animals: { coop: { feed: 0, stock: 0, cycleMs: 21600000, cared: false, revision: 0 }, barn: { feed: 0, stock: 0, cycleMs: 28800000, cared: false, revision: 0 } },
   fishing: { casts: 0, nextIdleId: 1, journal: {} },
-  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, listings: [], reserve: {}, revenue: 0, premium: 0, sold: 0, log: [] },
+  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, listings: [], reserve: {}, revenue: 0, sessionRevenue: 0, premium: 0, sold: 0, log: [] },
 });
 const day = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
@@ -102,6 +102,8 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   market.level = state.facilities.stall.built ? Math.max(1, n(m.level, 3)) : 0;
   market.open = market.level > 0 && m.open === true;
   market.lastVisitAt = n(m.lastVisitAt); market.visitors = n(m.visitors); market.revenue = n(m.revenue); market.premium = n(m.premium, market.revenue); market.sold = n(m.sold);
+  // Older saves have no opening checkpoint; preserve their lifetime revenue without guessing a session from the short receipt log.
+  market.sessionRevenue = n(m.sessionRevenue, market.revenue);
   market.seed = n(m.seed, 0xffffffff);
   if (market.seed && stamp(m.nextVisitAt) && market.open) market.nextVisitAt = n(m.nextVisitAt);
   if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, marketMaxVisitMs);

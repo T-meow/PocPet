@@ -13,7 +13,7 @@ export const getRecipeHelp = (pet: PetState, recipe: RecipeDefinition, banana: b
   return {
     title: '制作料理',
     overview: <><p>备齐食材和厨具，选择份数后一起制作。成品收入背包，可以喂给伙伴、交单或摆摊。</p><p>可替换的奶类成品效果相同，每批只消耗所选奶类，材料数量以清单为准。</p>{saleNote && <p>{saleNote}</p>}<p>每次完成制作获得 1 点料理经验，首做额外 5 点；批量制作计一次。</p></>,
-    details: <><p>当前配料每份计价成本 {Number(cost.toFixed(2))} 金币{quote && ' · 基础售价 ' + quote.base + ' · 当前摆摊 ' + quote.price + ' 金币'}。</p><p>材料按商店原价和基础售价的较高者计价，前置料理保留制作收益，每道工序再加 25%。种养等待、钓鱼和采集难度已计入原料售价。两种奶共用成品价格，统一按较高成本定价。</p><p>每份本步基础心心 {reward.baseHearts} · 料理 Lv.{reward.skillLevel} 加成 +{reward.skillHearts}。制作心心仅受料理技能加成，并扣除前序料理已发出的奖励。</p></>,
+    details: <><p>当前配料每份计价成本 {Math.round(cost)} 金币{quote && ' · 基础售价 ' + quote.base + ' · 当前摆摊 ' + quote.price + ' 金币'}。</p><p>材料按商店原价和基础售价的较高者计价，前置料理保留制作收益，每道工序再加 25%。种养等待、钓鱼和采集难度已计入原料售价。两种奶共用成品价格，统一按较高成本定价。</p><p>每份本步基础心心 {reward.baseHearts} · 料理 Lv.{reward.skillLevel} 加成 +{reward.skillHearts}。制作心心仅受料理技能加成，并扣除前序料理已发出的奖励。</p></>,
   };
 };
 export const processingHelp: HelpContent = {

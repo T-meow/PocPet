@@ -15,6 +15,8 @@ import type { ExplorationCheckResult } from '../core/explorationChecks';
 import { ExplorationCheckSummary } from './ExplorationCheck';
 import { adventureTreasureIds } from '../core/adventureItems';
 import { CommunityMemories } from './community/CommunityMemories';
+import { ExplorationHandbook } from './help/ExplorationGuide';
+import { formatProbabilityPercent } from './numberFormat';
 
 interface TravelRecord {
   id: string; at: number; title: string; status: string; detail?: string;
@@ -23,7 +25,7 @@ interface TravelRecord {
 }
 const returnLabel = (reason: string) => reason === 'health' ? '安全返程' : reason === 'complete' ? '完成行程' : '提前返回';
 const recordLines = (entry: { journal: string[]; rationReturn?: RationReturn; treasureFinds?: import('../core/expeditionTypes').RegionalTreasureFind[]; treasureChance?: number }) => {
-  const treasureLines = [...(entry.treasureChance !== undefined ? [`每两小时随机概率 ${entry.treasureChance}%`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
+  const treasureLines = [...(entry.treasureChance !== undefined ? [`每两小时随机概率 ${formatProbabilityPercent(entry.treasureChance)}`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
   if (!entry.rationReturn) return [...entry.journal, ...treasureLines];
   // Structured food counts also rebuild entries whose display text was shortened or omitted by saving.
   const journal = entry.journal.filter(line => !line.startsWith('提前吃掉了：') && !line.startsWith('吃饱后，把剩余料理分给了路过的邻居 '));
@@ -55,8 +57,8 @@ export const getTravelRecords = (pet: PetState): TravelRecord[] => {
   return [...records.values()].sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
 };
 
-export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 'records' }: {
-  pet: PetState; onClose: () => void; onMap: () => void; onReceipt: (system: 'adventure' | 'expedition') => void; initialTab?: 'records' | 'discoveries';
+export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 'records', embedded }: {
+  pet: PetState; onClose: () => void; onMap: () => void; onReceipt: (system: 'adventure' | 'expedition') => void; initialTab?: 'records' | 'discoveries' | 'help'; embedded?: boolean;
 }) => {
   const [tab, setTab] = useState(initialTab);
   const records = getTravelRecords(pet), expedition = pet.community.expedition;
@@ -65,11 +67,11 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
   const discoveredProducts = { ...expeditionProducts, ...Object.fromEntries(adventureTreasureIds.map(id => [id, { name: getInventoryItem(id)!.name, glyph: id === 'coin_hoard' ? '🪙' : '✦' }])) };
   const products = Object.entries(discoveredProducts).filter(([id]) => (expedition.collection[id as keyof typeof expedition.collection] ?? 0) > 0);
   const observations = expedition.loop?.observations ?? [];
-  return <DialogShell className="outpost-dialog outpost-journal" backdropClassName="outpost-backdrop" labelId="travel-journal-title" onClose={onClose}>
-    <header className="outpost-header"><span className="outpost-symbol" data-tone="lilac"><BookOpen size={22} /></span><div><small>前哨基地</small><h2 id="travel-journal-title">旅行日志</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭旅行日志，返回前哨"><X size={21} /></button></header>
-    <nav className="outpost-tabs" aria-label="旅行日志内容"><button aria-pressed={tab === 'records'} onClick={() => setTab('records')}>旅途记录</button><button aria-pressed={tab === 'discoveries'} onClick={() => setTab('discoveries')}>故事与发现</button></nav>
+  const contents = <>
+    {!embedded && <header className="outpost-header"><span className="outpost-symbol" data-tone="lilac"><BookOpen size={22} /></span><div><small>前哨基地</small><h2 id="travel-journal-title">旅行日志</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭旅行日志，返回前哨"><X size={21} /></button></header>}
+    <nav className="outpost-tabs" aria-label="旅行手册内容"><button aria-pressed={tab === 'records'} onClick={() => setTab('records')}>旅途记录</button><button aria-pressed={tab === 'discoveries'} onClick={() => setTab('discoveries')}>故事与发现</button><button aria-pressed={tab === 'help'} onClick={() => setTab('help')}>玩法手册</button></nav>
     <div className="outpost-scroll">
-      {tab === 'records' ? <div className="outpost-form-content">
+      {tab === 'help' ? <ExplorationHandbook pet={pet} /> : tab === 'records' ? <div className="outpost-form-content">
         <p className="outpost-note">探查记录与最近一次远行，都在这里。<span>已有的地区故事和发现会一直保留。</span></p>
         {!records.length ? <div className="outpost-empty"><Compass size={32} /><h3>第一段旅途，等你出发</h3><p>结束旅途后，在这里查看回程记录。</p><button className="exp-secondary" onClick={onMap}>去地图看看</button></div> : <ol className="travel-timeline">{records.map(entry => <li key={entry.id}><article><div className="travel-record-heading"><time dateTime={new Date(entry.at).toISOString()}>{dateLabel(entry.at)}</time><span data-pending={Boolean(entry.pending)}>{entry.pending ? '物资待领取' : entry.status}</span></div><h3>{entry.title}</h3>{entry.detail && <p>{entry.detail}</p>}
           {(entry.coins !== undefined || entry.hearts !== undefined) && <div className="travel-record-rewards"><span>{entry.coins ?? 0} 金币</span><span>{entry.hearts ?? 0} 心心</span></div>}
@@ -89,5 +91,6 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
         {memories.length > 0 && <CommunityMemories pet={pet} />}
       </div>}
     </div>
-  </DialogShell>;
+  </>;
+  return embedded ? <section className="exploration-journal">{contents}</section> : <DialogShell className="outpost-dialog outpost-journal" backdropClassName="outpost-backdrop" labelId="travel-journal-title" onClose={onClose}>{contents}</DialogShell>;
 };

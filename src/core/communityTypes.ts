@@ -45,7 +45,7 @@ export interface CommunityMarket {
   pricingVersion: number;
   level: number; open: boolean; lastVisitAt: number; visitors: number; nextListingId: number;
   seed: number; nextVisitAt?: number; remainingVisitMs?: number;
-  listings: MarketListing[]; reserve: Record<string, number>; revenue: number; premium: number; sold: number;
+  listings: MarketListing[]; reserve: Record<string, number>; revenue: number; sessionRevenue: number; premium: number; sold: number;
   log: MarketReceipt[];
 }
 export interface CommunityActivityBoard {

@@ -5,7 +5,7 @@ import { getExplorationBagCapacity } from './explorationBackpack';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { applyExplorationCheck } from './explorationCheckActions';
 import type { ExplorationCheckAction } from './explorationChecks';
-import { getExplorationBudget, recordValleyObservation, settleExplorationLoot, spendExplorationHarvest } from './explorationBudget';
+import { earnExplorationHarvestPay, getExplorationBudget, recordValleyObservation, settleExplorationLoot, spendExplorationHarvest } from './explorationBudget';
 import { completedChapter, completedLandmark, expeditionRegionForMap, isLandmarkId, parseLandmarkId } from './landmarkProgress';
 import { getLandmarkSteps, landmarkFirstReward } from './landmarkData';
 import { completeValleyQuest, isValleyQuest } from './valleyQuests';
@@ -20,8 +20,25 @@ export const landmarkCheckAction = (pet: PetState, choice: AdventureChoice, now:
   const data = research ? research.kind === 'treasure' ? regionalTreasures[research.id as keyof typeof regionalTreasures] : wildIngredients[research.id as keyof typeof wildIngredients] : undefined;
   const location = isLandmarkId(pet.adventure.active?.purpose) ? parseLandmarkId(pet.adventure.active.purpose) : undefined;
   const base = location ? pet.community.expedition.regions[expeditionRegionForMap[location.region]].base : 0;
-  const energy = base >= 2 && choice.id === 'safe:obstacle' ? Math.ceil(choice.energy * .8) : choice.energy;
-  return { ...choice, energy, title: choice.label, check: choice.check!, finds: available ? choice.finds : {}, research: research && data ? { id: research.id, points: research.points, required: data.investigations, yield: 'yield' in data ? data.yield : 1, progress: (research.kind === 'treasure' ? pet.community.treasureResearch[research.id as keyof typeof regionalTreasures] : pet.community.forageResearch[research.id as keyof typeof wildIngredients]) ?? 0 } : undefined };
+  const modern = (pet.adventure.active?.rulesVersion ?? 0) >= 11;
+  const camp = base >= 2 && choice.id === 'safe:obstacle' ? .8 : 1;
+  const energy = modern ? choice.energy : Math.ceil(choice.energy * camp);
+  return { ...choice, energy, ...(modern ? { campEnergy: camp } : {}), title: choice.label, check: choice.check!, finds: available ? choice.finds : {}, research: research && data ? { id: research.id, points: research.points, required: data.investigations, yield: 'yield' in data ? data.yield : 1, progress: (research.kind === 'treasure' ? pet.community.treasureResearch[research.id as keyof typeof regionalTreasures] : pet.community.forageResearch[research.id as keyof typeof wildIngredients]) ?? 0 } : undefined };
+};
+export const completeLandmarkStory = (pet: PetState, trip: AdventureTrip, now: number) => {
+  if (!isLandmarkId(trip.purpose)) return { pet, first: false, items: {} as Inventory };
+  const { region, node } = parseLandmarkId(trip.purpose), r = expeditionRegionForMap[region];
+  const first = !completedLandmark(pet.adventure, region, node);
+  if (!first) return { pet, first, items: {} as Inventory };
+  let next = { ...pet, adventure: { ...pet.adventure, landmarks: [...pet.adventure.landmarks, trip.purpose] } };
+  const quest = `valley_${node}`;
+  if (region === 'valley' && isValleyQuest(quest)) next = completeValleyQuest(next, quest);
+  if (completedChapter(next.adventure, region)) {
+    const expedition = next.community.expedition;
+    next = { ...next, community: { ...next.community, expedition: { ...expedition, regions: { ...expedition.regions, [r]: { ...expedition.regions[r], surveyed: true, storyAt: now, actorId: trip.actorId, actorName: trip.actorName } } },
+      ...(region === 'forest' || region === 'coast' ? { waterAccess: { ...next.community.waterAccess, [region === 'forest' ? 'forest_pool' : 'coast_pier']: { ...next.community.waterAccess[region === 'forest' ? 'forest_pool' : 'coast_pier'], found: true } } } : {}) } };
+  }
+  return { pet: next, first, items: landmarkFirstReward(trip.purpose).items };
 };
 export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, choice: AdventureChoice, index: number, now: number): PetState => {
   if (!isLandmarkId(trip.purpose)) return pet;
@@ -34,9 +51,11 @@ export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, cho
   if (!checked) return pet;
   let next = checked.pet;
   const finds: Inventory = { ...checked.result.finds };
+  let coins = 0, hearts = 0;
   const add = (items: Inventory) => { for (const [item, quantity] of Object.entries(items)) finds[item] = (finds[item] ?? 0) + quantity; };
   if (harvest) {
     next = spendExplorationHarvest(next, harvest, now);
+    if (trip.rulesVersion >= 11) { const pay = earnExplorationHarvestPay(next, harvest, 'manual', r); next = pay.pet; coins = pay.coins; hearts = pay.hearts; }
     if (choice.research) {
       if (choice.research.kind === 'treasure') { const id = choice.research.id as keyof typeof regionalTreasures; next = { ...next, community: { ...next.community, treasureResearch: { ...next.community.treasureResearch, [id]: (next.community.treasureResearch[id] ?? 0) + checked.result.researchPoints } } }; }
       else { const id = choice.research.id as keyof typeof wildIngredients; next = { ...next, community: { ...next.community, forageResearch: { ...next.community.forageResearch, [id]: (next.community.forageResearch[id] ?? 0) + checked.result.researchPoints } } }; }
@@ -48,18 +67,9 @@ export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, cho
     const discovery = discoverCommunityFinds(next, now, 'commission'); next = discovery.pet; add(discovery.items);
   }
   next = recordLandmarkTaskEvent(next, r, node, step.event === 'finish' ? 'survey' : step.id.endsWith(':record') ? 'search' : 'visit', now);
-  const first = complete && !completedLandmark(next.adventure, region, node);
-  if (first) {
-    add(landmarkFirstReward(purpose).items);
-    next = { ...next, adventure: { ...next.adventure, landmarks: [...next.adventure.landmarks, purpose] } };
-    const valleyQuest = `valley_${node}`;
-    if (region === 'valley' && isValleyQuest(valleyQuest)) next = completeValleyQuest(next, valleyQuest);
-    if (completedChapter(next.adventure, region)) {
-      const expedition = next.community.expedition;
-      next = { ...next, community: { ...next.community, expedition: { ...expedition, regions: { ...expedition.regions, [r]: { ...expedition.regions[r], surveyed: true, storyAt: now, actorId: trip.actorId, actorName: trip.actorName } } },
-        ...(region === 'forest' || region === 'coast' ? { waterAccess: { ...next.community.waterAccess, [region === 'forest' ? 'forest_pool' : 'coast_pier']: { ...next.community.waterAccess[region === 'forest' ? 'forest_pool' : 'coast_pier'], found: true } } } : {}) } };
-    }
-  }
+  const completion = complete ? completeLandmarkStory(next, trip, now) : undefined;
+  const first = completion?.first ?? false;
+  if (completion) { next = completion.pet; add(completion.items); }
   if (region === 'valley' && node === 'entrance') {
     const observed = recordValleyObservation(next, `${index}:${choice.observation ?? (choice.id.startsWith('tool:') ? 'b' : 'a')}`, now); next = observed.pet; add(observed.finds);
     const loop = next.community.expedition.loop;
@@ -76,5 +86,6 @@ export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, cho
   return { ...next, lastInteractionAt: now, community: { ...next.community, expedition: { ...next.community.expedition, collection } },
     adventure: { ...next.adventure, active: { ...trip, nodeId: node, revision: trip.revision + 1, choices: [...trip.choices, choice.id], stageIds: [...trip.stageIds ?? [], step.id], bag, loot,
       tool: trip.tool && !(checked.toolBroken && choice.check?.tool === 'trail_rope'), energySpent: Math.max(0, (trip.energySpent ?? 0) + checked.energySpent), healthLost: Math.max(0, (trip.healthLost ?? 0) + checked.healthLost), paidActions: (trip.paidActions ?? 0) + 1,
-      checkState: { ...checked.state, last: { ...checked.result, finds } }, ...(complete ? { firstCompletion: first, completedDay: getEffectiveDailyDateKey(next, now) } : {}) } } };
+      ...(trip.rulesVersion >= 11 ? { earnedCoins: (trip.earnedCoins ?? 0) + coins, earnedHearts: (trip.earnedHearts ?? 0) + hearts } : {}),
+      checkState: { ...checked.state, last: { ...checked.result, finds, ...(coins ? { coins } : {}), ...(hearts ? { hearts } : {}) } }, ...(complete ? { firstCompletion: first, completedDay: getEffectiveDailyDateKey(next, now) } : {}) } } };
 };

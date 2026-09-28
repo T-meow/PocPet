@@ -1,0 +1,161 @@
+.exploration-app { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; color: #3e4c40; background: #f8f8ef; border: 1px solid #d9e1d1; border-radius: 20px; overflow: hidden; container: exploration / inline-size; }
+.exploration-app *, .exploration-sheet * { box-sizing: border-box; }
+.exploration-app button, .exploration-app select, .exploration-app input, .exploration-sheet button, .exploration-sheet select, .exploration-sheet input { min-height: 44px; font-size: 14px; }
+.exploration-app button, .exploration-sheet button { white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
+.exploration-app h2, .exploration-app h3, .exploration-app p, .exploration-sheet h2, .exploration-sheet h3, .exploration-sheet p { margin: 0 0 12px; }
+.exploration-app p, .exploration-sheet p { font-size: 14px; line-height: 1.7; }
+.exploration-app small, .exploration-sheet small { font-size: 12px; line-height: 1.5; }
+.exploration-app .primary-button, .exploration-app .secondary-button, .exploration-sheet .primary-button, .exploration-sheet .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.exploration-header { flex: none; padding: 10px 18px; border-bottom: 1px solid #dce5d5; background: #fffdf6; z-index: 2; }
+.exploration-heading { display: flex; align-items: center; gap: 10px; }
+.exploration-heading h2 { margin: 0; font-size: 20px; flex: 1; }
+.exploration-heading > span { color: #687464; font-size: 12px; }
+.exploration-harvest-status { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; background: #e7f0df; border: 1px solid #cedec4; border-radius: 12px; color: #365936; text-align: left; }
+.exploration-harvest-status:disabled { opacity: 1; color: #365936; cursor: default; }
+.exploration-stat-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 8px; }
+.exploration-stat-row .adventure-stat-meter { min-width: 0; }
+.exploration-main { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 20px 16px; padding: 20px max(16px,calc((100% - 960px)/2)); scroll-padding-block: 16px; }
+.exploration-main > * + * { margin-top: 16px; }
+.exploration-bottom-nav { flex: none; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); padding: 6px 12px; padding-bottom: calc(6px + var(--safe-bottom)); gap: 6px; border-top: 1px solid #dce5d5; background: #fffdf6; }
+.exploration-bottom-nav button { border: 0; background: transparent; color: #697861; border-radius: 12px; }
+.exploration-bottom-nav button[aria-current="page"] { background: #e6eedf; color: #29492c; font-weight: 700; }
+.exploration-home-art { height: calc(var(--viewport-height) * .25); min-height: 150px; max-height: 260px; position: relative; border-radius: 18px; overflow: hidden; }
+.exploration-home-art > img { width: 100%; height: 100%; object-fit: cover; }
+.exploration-home-art > span { position: absolute; bottom: 0; left: 0; right: 0; padding: 36px 20px 16px; color: white; font-weight: 700; background: linear-gradient(transparent,#243527b3); }
+.exploration-next, .exploration-growth, .exploration-pack-summary, .exploration-receipt, .exploration-camp-prompt { padding: 18px; border: 1px solid #dce5d5; border-radius: 16px; background: #fffdf7; }
+.exploration-next h3 { margin-top: 8px; }
+.exploration-next > button { margin: 6px 8px 0 0; }
+.exploration-home-links { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.exploration-home-links > button { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 4px 10px; padding: 16px; text-align: left; border: 1px solid #dce5d5; border-radius: 16px; background: #fffdf7; }
+.exploration-home-links small { grid-column: 2; color: #73836d; }
+.exploration-camp-prompt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.exploration-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.exploration-inline-actions button, .exploration-camp-prompt button { border: 1px solid #cddcc4; border-radius: 12px; padding: 8px 12px; background: #f0f4e9; color: #3d5c3c; }
+.exploration-scene { position: relative; width: 100%; height: calc(var(--viewport-height) * .28); max-height: 240px; border-radius: 16px; overflow: hidden; margin-bottom: 12px; background: #e8eddf; }
+.exploration-scene > img:first-child { width: 100%; height: 100%; object-fit: cover; }
+.exploration-scene-pet { position: absolute; right: 12px; bottom: 4px; height: 68%; object-fit: contain; }
+.exploration-journey .adventure-choices { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.exploration-journey .exploration-choice-action { width: 100%; padding: 14px; text-align: left; }
+.exploration-cost-breakdown { padding: 8px 14px; color: #63725c; background: #f4f6ed; border-radius: 0 0 12px 12px; font-size: 12px; }
+.exploration-cost-breakdown summary { min-height: 44px; cursor: pointer; padding-top: 10px; }
+.exploration-cost-breakdown p { font-size: 12px; margin: 6px 0; }
+.exploration-item-list { display: grid; gap: 8px; margin-block: 16px; }
+.exploration-item-list > div { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f1f4e8; border-radius: 12px; }
+.exploration-item-list img { width: 40px; height: 40px; object-fit: contain; }
+.exploration-item-list span { flex: 1; }
+.exploration-region-select { display: flex; align-items: center; gap: 12px; }
+.exploration-region-select select { flex: 1; }
+.exploration-handbook details { margin-bottom: 10px; border: 1px solid #dce5d5; border-radius: 12px; padding: 0 16px; background: #fffdf7; }
+.exploration-handbook summary { min-height: 48px; padding: 14px 0; cursor: pointer; font-weight: 700; }
+.exploration-handbook details[open] summary { margin-bottom: 10px; border-bottom: 1px solid #e0e6d8; }
+.exploration-sheet summary, .exploration-journal .exp-bag summary, .exploration-journal .travel-discoveries summary { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+.exploration-main .outpost-scroll, .exploration-main .outpost-form-content { overflow: visible; max-height: none; padding: 0; }
+.exploration-main .adventure-map-preparation { display: block; height: auto; overflow: visible; }
+.exploration-main .adventure-pack-depart { position: sticky; bottom: -20px; padding: 16px; margin-top: 16px; border: 1px solid #d6e2cc; border-radius: 14px; background: #fffdf5f5; z-index: 1; }
+.exploration-main .adventure-pack-depart > div { max-height: none; overflow: visible; }
+.exploration-main .idle-preparation-controls, .exploration-main .idle-preparation-route { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.exploration-main .idle-preparation-field select { width: 100%; }
+.exploration-main .adventure-map-body, .exploration-main .adventure-map-layout { display: block; overflow: visible; height: auto; max-height: none; padding: 0; }
+.exploration-main .adventure-map-chart { overflow: visible; }
+.exploration-main .adventure-map-regions { display: flex; overflow-x: auto; padding: 0 0 8px; gap: 8px; }
+.exploration-main .adventure-map-regions button { flex: 0 0 130px; }
+.exploration-main .adventure-map-node { min-width: 44px; min-height: 44px; }
+.exploration-main .adventure-map-node-label { font-size: 12px; max-width: 90px; white-space: normal; }
+.exploration-main .adventure-mode-switch { margin-block: 10px; }
+.exploration-pack-summary > div { display: flex; gap: 10px; justify-content: space-between; }
+.exploration-pack-summary p { margin-top: 12px; }
+.modal-backdrop.exploration-backdrop { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 16px; padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)); background: rgba(35,49,38,.5); }
+.dialog-shell.exploration-sheet { display: flex; flex-direction: column; width: 100%; max-width: 560px; height: auto; max-height: calc(var(--viewport-height) * .85 - var(--safe-top) - var(--safe-bottom)); min-height: 0; overflow: hidden; border-radius: 20px; padding: 0; color: #3e4c40; background: #fffdf6; box-shadow: 0 18px 64px #14291844; }
+.dialog-shell.exploration-sheet.storage-modal, .dialog-shell.exploration-sheet.exploration-pack-sheet { max-width: 720px; height: calc(var(--viewport-height) * .9 - var(--safe-top) - var(--safe-bottom)); max-height: 800px; }
+.exploration-sheet-view { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1; }
+.exploration-sheet-view[hidden], .exploration-sheet [hidden] { display: none !important; }
+.exploration-sheet-status { flex: none; padding: 10px 14px 0; }
+.exploration-sheet-view > header { display: flex; flex: none; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e0e6d8; }
+.exploration-sheet-view > header h2, .exploration-sheet-view > header h3 { flex: 1; margin: 0; font-size: 18px; }
+.exploration-sheet-view > footer { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 12px 16px; padding-bottom: calc(12px + var(--safe-bottom)); border-top: 1px solid #e0e6d8; }
+.exploration-sheet-body, .exploration-sheet .game-help-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px; }
+.exploration-sheet .adventure-map-detail { width: auto; max-height: none; border: 0; border-radius: 0; }
+.exploration-sheet .adventure-map-landmark-preview { height: 100px; width: 100px; margin-inline: auto; }
+.exploration-sheet .exploration-choice-card + .exploration-choice-card { margin-top: 12px; }
+.exploration-sheet .storage-body, .exploration-sheet .storage-catalogue { min-height: 0; flex: 1; }
+.exploration-sheet .storage-body { display: flex; }
+.exploration-sheet .storage-catalogue { display: flex; flex-direction: column; width: 100%; }
+.exploration-sheet .storage-grid-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.exploration-sheet .storage-grid-scroll .storage-item-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); gap: 8px; padding: 10px; }
+.exploration-sheet .storage-item-modal, .exploration-sheet .storage-detail { min-height: 0; overflow-y: auto; padding: 16px; }
+.exploration-sheet .storage-detail { display: block; flex: 1; height: auto; }
+.exploration-sheet .storage-detail-actions { margin-top: 16px; }
+.exploration-sheet-view > footer .storage-transaction { width: 100%; }
+.exploration-sheet .storage-wallet { display: none; }
+.exploration-sheet .preparation-inventory { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.exploration-pack-source { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; }
+.exploration-pack-source button { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #cfddc6; border-radius: 12px; background: #f3f5ed; }
+.exploration-pack-source button[aria-pressed="true"] { background: #dfead5; font-weight: 700; }
+.exploration-sheet .adventure-pack-columns { display: flex; flex: 1; min-height: 100px; padding: 0 12px; overflow: hidden; }
+.exploration-sheet .adventure-pack-pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.exploration-sheet .adventure-pack-pane .storage-item-grid { display: grid; grid-template-columns: 1fr; }
+.exploration-sheet .adventure-pack-pane .storage-item-tile { min-height: 58px; height: auto; aspect-ratio: auto; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; text-align: left; }
+.exploration-sheet .adventure-pack-pane .storage-tile-picture { width: 42px; height: 42px; padding: 0; grid-column: 1; grid-row: 1; }
+.exploration-sheet .adventure-pack-pane .storage-tile-picture img { position: static; width: 100%; height: 100%; object-fit: contain; }
+.exploration-sheet .adventure-pack-pane .storage-tile-name { grid-column: 2; grid-row: 1; font-size: 14px; white-space: normal; overflow: visible; }
+.exploration-sheet .adventure-pack-pane .storage-tile-count { position: static; width: auto; max-width: none; white-space: nowrap; grid-column: 3; grid-row: 1; }
+.exploration-sheet .adventure-pack-footer { flex: none; max-height: calc(var(--viewport-height) * 38 / 100); overflow-y: auto; padding: 10px 14px; }
+.exploration-sheet .adventure-pack-selection { display: flex; flex-wrap: wrap; gap: 8px; }
+.exploration-sheet .adventure-pack-tabs, .exploration-sheet .storage-tabs { flex: none; overflow-x: auto; display: flex; padding: 8px 12px; gap: 6px; }
+.exploration-sheet .storage-tabs button { flex: 0 0 auto; }
+.exploration-sheet .adventure-pack-selection > div:first-child { flex: 1 0 100%; }
+.exploration-sheet .quantity-stepper { width: 134px; min-width: 134px; height: 46px; flex: none; }
+.exploration-sheet .quantity-stepper .quantity-stepper__button { width: 44px; min-width: 44px; max-width: 44px; height: 44px; min-height: 44px; flex: none; }
+.exploration-sheet .quantity-stepper .quantity-stepper__input { width: 44px; min-width: 0; height: 44px; min-height: 44px; flex: 1; }
+.exploration-sheet .quantity-presets .quantity-presets__button { min-width: 44px; min-height: 44px; }
+.exploration-sheet .adventure-confirm > p { padding-inline: 16px; }
+@media (max-width: 600px) {
+  .app-shell.app-shell--adventure { padding-left: 0; padding-right: 0; padding-left: env(safe-area-inset-left,0px); padding-right: env(safe-area-inset-right,0px); }
+  .exploration-app { border-radius: 0; border: 0; }
+  .exploration-header { padding: 6px 10px 8px; }
+  .exploration-heading { gap: 6px; flex-wrap: wrap; }
+  .exploration-heading h2 { font-size: 18px; }
+  .exploration-main { padding: 14px 12px; scrollbar-gutter: auto; }
+  .exploration-home-links > button { padding: 12px; }
+  .exploration-main .adventure-map-node-label { max-width: 62px; font-size: 12px; }
+  .exploration-main .adventure-map-companion { display: none; }
+  .exploration-main .adventure-pack-depart { bottom: -14px; padding: 12px; flex-wrap: wrap; }
+  .exploration-main .adventure-pack-depart > button { width: 100%; }
+  .exploration-stat-row { gap: 8px; }
+  .modal-backdrop.exploration-backdrop { align-items: flex-end; padding: 0; padding-top: var(--safe-top); padding-right: env(safe-area-inset-right,0px); padding-left: env(safe-area-inset-left,0px); }
+  .dialog-shell.exploration-sheet { width: 100%; max-height: calc(var(--viewport-height) * .85 - var(--safe-top)); border-radius: 20px 20px 0 0; }
+  .dialog-shell.exploration-sheet.storage-modal, .dialog-shell.exploration-sheet.exploration-pack-sheet { height: calc(var(--viewport-height) * .94 - var(--safe-top)); max-height: calc(var(--viewport-height) * .94 - var(--safe-top)); }
+  .exploration-sheet .storage-detail-hero { gap: 12px; }
+  .exploration-sheet .storage-detail-art { width: 96px; height: 96px; }
+  .exploration-sheet .storage-grid-scroll .storage-item-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .exploration-sheet .adventure-pack-pane .storage-item-grid { grid-template-columns: 1fr; }
+  .exploration-sheet .storage-item-tile { min-width: 0; }
+  .exploration-sheet .storage-tile-name { font-size: 12px; white-space: normal; }
+}
+@media (orientation: landscape) and (max-height: 600px) { .exploration-scene, .exploration-home-art { display: none; } .exploration-header { padding-block: 4px; } .exploration-stat-row { margin-top: 4px; } .exploration-sheet .adventure-pack-footer { max-height: calc(var(--viewport-height) * 45 / 100); } }
+@container exploration (min-width: 900px) { .exploration-home-links { grid-template-columns: repeat(4,minmax(0,1fr)); } .exploration-journey .adventure-choices { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+/* The map must keep its height and usable markers without aspect-ratio/container queries. */
+.exploration-main .adventure-map-frame { display: block; aspect-ratio: auto; }
+.exploration-main .adventure-map-canvas { height: 0; padding-bottom: 65%; aspect-ratio: auto; }
+.exploration-main .adventure-map-node { --map-marker-size: 44px; }
+@media (max-width: 599px) { .exploration-main .adventure-map-canvas { height: 340px; padding-bottom: 0; } }
+@media (min-width: 600px) { .exploration-main .adventure-map-node { --map-marker-size: 64px; } }
+.exploration-sheet .storage-grid-scroll, .exploration-sheet .adventure-pack-pane, .exploration-sheet .adventure-pack-footer { -webkit-overflow-scrolling: touch; }
+.exploration-sheet-view > header > button, .exploration-inline-actions > button, .exploration-sheet-view > footer > button { margin: 2px; }
+@media (min-width: 600px) and (max-height: 600px) {
+  .dialog-shell.exploration-sheet.exploration-pack-sheet { height: calc(var(--viewport-height) - 24px); max-height: calc(var(--viewport-height) - 24px); }
+  .exploration-sheet-status { padding-top: 4px; }
+  .exploration-sheet-view > header, .exploration-sheet-view > footer { padding: 4px 12px; }
+  .exploration-sheet .preparation-inventory { display: grid; grid-template-columns: minmax(0,1fr) minmax(230px,40%); grid-template-rows: 52px 52px minmax(0,1fr); }
+  .exploration-pack-source { grid-column: 1; grid-row: 1; padding: 4px 12px; }
+  .exploration-sheet .adventure-pack-tabs { grid-column: 1; grid-row: 2; padding: 4px 12px; }
+  .exploration-sheet .adventure-pack-columns { grid-column: 1; grid-row: 3; min-height: 0; }
+  .exploration-sheet .adventure-pack-footer { grid-column: 2; grid-row: 1 / 4; min-height: 0; max-height: none; overflow-y: auto; }
+}
+@media (max-width: 599px) and (max-height: 520px) {
+  .exploration-main .adventure-pack-depart { position: static; }
+  .exploration-sheet .preparation-inventory { display: block; overflow-y: auto; }
+  .exploration-sheet .adventure-pack-columns, .exploration-sheet .adventure-pack-pane, .exploration-sheet .adventure-pack-pane .storage-grid-scroll { display: block; overflow: visible; }
+  .exploration-sheet .adventure-pack-footer { max-height: none; overflow: visible; }
+}

@@ -1,7 +1,7 @@
 import type { AdventureRegionId } from './adventureTypes';
 import type { ItemId, PetState } from './petTypes';
 import { adventureTreasureIds } from './adventureItems';
-import { regions } from './expeditionData';
+import { getIdleExplorationTargets } from './explorationResources';
 import { getExplorationBudget } from './explorationBudget';
 import { wildIngredients } from './foodCatalog';
 import { getEffectiveDailyDateKey } from './gameClock';
@@ -9,7 +9,6 @@ import { landmarkFirstReward, landmarkTargets } from './landmarkData';
 import { completedLandmark, expeditionRegionForMap, getLandmarkReason, landmarkId, landmarkNames, landmarkNodes, type LandmarkNode } from './landmarkProgress';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import { getToolUsesLeft } from './toolDurability';
-import { valleyGatherFinds, valleyGatherTargets } from './valleyExplorationData';
 
 export const getAdventureMapResources = (pet: PetState, region: AdventureRegionId, node: LandmarkNode | undefined, mode: 'manual' | 'idle', now = Date.now()) => {
   const result = new Map<ItemId, Set<string>>();
@@ -20,12 +19,9 @@ export const getAdventureMapResources = (pet: PetState, region: AdventureRegionI
   };
   const r = expeditionRegionForMap[region], budget = getExplorationBudget(pet, now);
   const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === r)!;
-  const chanceFinds = budget?.vouchers.some(v => v.rewardsVersion === 1 && (v.lootUsed ?? 0) < (mode === 'idle' ? 80 : 100) && (!v.lootRegion || v.lootRegion === r));
+  const chanceFinds = budget?.version === 2 || budget?.vouchers.some(v => v.rewardsVersion === 1 && (v.lootUsed ?? 0) < (mode === 'idle' ? 80 : 100) && (!v.lootRegion || v.lootRegion === r));
   if (mode === 'idle') {
-    if (r === 'valley') for (const target of valleyGatherTargets) {
-      for (const id of Object.keys(valleyGatherFinds(target, true))) add(id, '选择对应挂机采集目标后获得');
-    }
-    else add(regions[r].product, '挂机每小时采集');
+    for (const target of getIdleExplorationTargets(r)) for (const [id, count] of Object.entries(target.idle ?? {})) add(id, `必得：选择「${target.name}」挂机，每小时 ${count} 份`);
     add(treasure, '挂机每两小时判定；料理影响概率，连续未获得时第 10 次判定保底');
   } else {
     for (const target of landmarkTargets(region)) {

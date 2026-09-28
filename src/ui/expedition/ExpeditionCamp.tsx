@@ -1,4 +1,6 @@
-import { Check } from 'lucide-react';
+import { useState } from 'react';
+import { Check, X } from 'lucide-react';
+import { DialogShell } from '../DialogShell';
 import { expeditionLandmarkIcons } from '../../adventureLandmarkAssets';
 import { getBaseUpgrade, upgradeExpeditionBase } from '../../core/expedition';
 import { getRegionUnlocked, regions } from '../../core/expeditionData';
@@ -9,6 +11,7 @@ import type { ExpeditionProps } from './types';
 export const ExpeditionCamp = ({ pet, update, region, onMap, onGather, onIdle }: Pick<ExpeditionProps, 'pet' | 'update'> & {
   region: RegionId; onMap: () => void; onGather: () => void; onIdle: () => void;
 }) => {
+  const [confirm, setConfirm] = useState(false);
   const progress = pet.community.expedition.regions[region], place = regions[region];
   const upgrade = getBaseUpgrade(progress.base, region);
   const ready = getRegionUnlocked(pet, region) && progress.surveyed;
@@ -24,7 +27,8 @@ export const ExpeditionCamp = ({ pet, update, region, onMap, onGather, onIdle }:
     {progress.base < 2 && <>
       <div className="outpost-costs"><span>金币 <b>{pet.coins}/{upgrade.coins}</b></span><span>木料 <b>{pet.inventory.community_wood ?? 0}/{upgrade.wood}</b></span><span>石料 <b>{pet.inventory.community_stone ?? 0}/{upgrade.stone}</b></span></div>
       {reason && <p className="exp-warning" role="status">{reason}</p>}
-      <button className="exp-primary" disabled={Boolean(reason)} onClick={() => update(p => upgradeExpeditionBase(p, region, progress.base))}>{upgrade.name}</button>
+      <button className="exp-primary" onClick={() => setConfirm(true)}>查看建设方案</button>
+      {confirm && <DialogShell role="alertdialog" className="exploration-confirm-sheet" labelId="camp-upgrade-title" onClose={() => setConfirm(false)}><header><h3 id="camp-upgrade-title">{upgrade.name}</h3><button className="icon-button" aria-label="关闭营地建设方案" onClick={() => setConfirm(false)}><X /></button></header><div className="exploration-sheet-body"><p>{upgrade.benefit}</p><p>金币 {pet.coins}/{upgrade.coins} · 木料 {pet.inventory.community_wood ?? 0}/{upgrade.wood} · 石料 {pet.inventory.community_stone ?? 0}/{upgrade.stone}</p>{reason && <p>{reason}</p>}</div><footer><button data-dialog-autofocus onClick={() => setConfirm(false)}>暂不建设</button><button className="primary-button" disabled={Boolean(reason)} onClick={() => { update(p => upgradeExpeditionBase(p, region, progress.base)); setConfirm(false); }}>确认建设</button></footer></DialogShell>}
     </>}
     <div className="outpost-inline-actions">{!ready ? <button className="exp-secondary" onClick={onMap}>去地图继续故事</button> : <button className="exp-secondary" onClick={onGather}>去采集建材</button>}{progress.base > 0 && <button className="exp-secondary" onClick={onIdle}>安排挂机探索</button>}</div>
   </section>;

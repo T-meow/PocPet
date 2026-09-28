@@ -3,6 +3,7 @@ import { getPetEnergyCap, getPetStatCap, updatePetSatiety } from './petStats';
 import type { PetState } from './petTypes';
 import { spendToolUse } from './toolDurability';
 import { getAdventureStepCount } from './adventureData';
+import { formatInteger } from './displayNumbers';
 
 export type ExplorationSystem = 'adventure';
 const activeTrip = (pet: PetState, system: ExplorationSystem) => pet.adventure.active;
@@ -26,7 +27,7 @@ export const rescueExploration = (pet: PetState, system: ExplorationSystem, id: 
   const t = activeTrip(pet, system), q = getExplorationRescueQuote(pet, system);
   if (!t || t.id !== id || t.revision !== revision || q.reason) return pet;
   return updatePetSatiety({ ...recordRecovery(pet, system, q.energy, 0, false), hearts: pet.hearts - q.cost, hunger: pet.hunger + q.hunger, energy: pet.energy + q.energy, mood: pet.mood + q.mood, lastInteractionAt: now,
-    recentEvent: `邻居送来了应急物资包：饱食 +${q.hunger}、体力 +${q.energy}、心情 +${q.mood}。花费 100 心心，可以继续当前行程。` });
+    recentEvent: `邻居送来了应急物资包：饱食 +${formatInteger(q.hunger)}、体力 +${formatInteger(q.energy)}、心情 +${formatInteger(q.mood)}。花费 100 心心，可以继续当前行程。` });
 };
 export const getExplorationCampQuote = (pet: PetState, system: ExplorationSystem) => {
   const t = activeTrip(pet, system), cap = getPetStatCap(pet), energyCap = getPetEnergyCap(pet);
@@ -47,5 +48,5 @@ export const restExplorationWithKit = (pet: PetState, system: ExplorationSystem,
   const use = spendToolUse(pet, 'camp_kit');
   if (!use) return pet;
   return { ...recordRecovery(use.pet, system, q.energy, q.health, true), energy: pet.energy + q.energy, health: pet.health + q.health, mood: pet.mood + q.mood, lastInteractionAt: now,
-    recentEvent: `支起便携营具：体力 +${q.energy}、心情 +${q.mood}、健康 +${q.health}。营具耐久 −1${use.broken ? '，已用尽' : ''}；本趟休整次数已使用。` };
+    recentEvent: `支起便携营具：体力 +${formatInteger(q.energy)}、心情 +${formatInteger(q.mood)}、健康 +${formatInteger(q.health)}。营具耐久 −1${use.broken ? '，已用尽' : ''}；本趟休整次数已使用。` };
 };

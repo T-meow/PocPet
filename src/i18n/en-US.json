@@ -589,7 +589,7 @@
       "jackpot": "Ultimate Jackpot",
       "probabilities": "Full probabilities",
       "guaranteeNote": "If none of ten base results contains a golden apple, the tenth is replaced with one golden apple.",
-      "heartGuaranteeNote": "The base rates are shown above. If all ten base results are below 100 Hearts, the tenth is replaced by a new draw of 100 (62.5%), 233 (31.25%), or 888 (6.25%) Hearts.",
+      "heartGuaranteeNote": "The base rates are shown above. If all ten base results are below 100 Hearts, the tenth is replaced by a new draw of 100 (about 63%), 233 (about 31%), or 888 (about 6%) Hearts.",
       "pityProgress": "First ultimate pity progress: {current}/{threshold}",
       "pityRule": "While the first pity is available, {threshold} consecutive draws without Golden Apples ×100 make the next draw award it. A natural jackpot resets the miss counter without using the pity. The pity can trigger only once.",
       "recentTitle": "Recent results",
@@ -683,11 +683,11 @@
           "diamond": "Diamond Friendship Trophy"
         },
         "effects": {
-          "schedule": "All work settlement rewards ×{value}",
-          "food": "Positive stat effects from normal food ×{value}",
+          "schedule": "All work settlement rewards at {value}% of base",
+          "food": "Positive stat effects from normal food at {value}% of base",
           "garden": "Garden extra-yield chance +{value} percentage points",
           "energy": "Energy cap +{value}",
-          "diamond": "Community work and food ×2.5 · Garden extra-yield chance +150 points · Energy cap +150"
+          "diamond": "Community work and food effects 250% · Garden extra-yield chance +150 points · Energy cap +150"
         }
       },
       "exchange": {

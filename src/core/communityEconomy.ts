@@ -10,7 +10,7 @@ import { processingRecipes } from './foodProcessing';
 import type { BuiltinItemId } from './petTypes';
 import type { MilkChoice } from './companionActivityTypes';
 
-export const marketPricingVersion = 1;
+export const marketPricingVersion = 2;
 // These are valuation anchors, not calculated sale prices. Free gifts, seeds,
 // tools and Mod items do not become saleable merely because they have a price.
 const produce: Record<string, number> = {
@@ -87,6 +87,6 @@ export const getCommunitySale = (id: string): CommunitySale | undefined => {
 export const getCuisineSaleNote = (id: string): string => {
   const craft = getCommunitySale(id)?.craft;
   if (!craft) return '';
-  const format = (value: number) => Number(value.toFixed(2));
+  const format = (value: number) => Math.round(value);
   return `每份计价成本 ${format(craft.materialCost)} · 本步制作收益 +${format(craft.processingProfit)}（按成本加 25% 后向上取整，已计入基础售价）`;
 };

@@ -161,9 +161,14 @@ const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
   const community = rawPet.community;
   const expedition = isObject(community) ? community.expedition : undefined;
   const expeditionTrip = isObject(expedition) ? expedition.active : undefined;
-  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 5 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 5) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(expedition) && typeof expedition.schemaVersion === 'number' && expedition.schemaVersion > 6 || isObject(expeditionTrip) && typeof expeditionTrip.rulesVersion === 'number' && expeditionTrip.rulesVersion > 6) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const trip = isObject(adventure) ? adventure.active : undefined;
-  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 10) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(trip) && typeof trip.rulesVersion === 'number' && trip.rulesVersion > 11) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  for (const [receipt, maximum] of [[isObject(adventure) ? adventure.pending : undefined, 11], [isObject(expedition) ? expedition.pending : undefined, 6]] as const) {
+    if (isObject(receipt) && typeof receipt.rulesVersion === 'number' && receipt.rulesVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  }
+  const loop = isObject(expedition) ? expedition.loop : undefined;
+  if (isObject(loop) && typeof loop.version === 'number' && loop.version > 2) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
 };
 
 const compareVersions = (left: string, right: string) => {

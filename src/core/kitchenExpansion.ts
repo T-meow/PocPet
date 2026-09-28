@@ -16,7 +16,7 @@ export const expandedRecipes: readonly RecipeDefinition[] = [
   dish('bamboo_mushroom_soup', '笋菇鲜汤', 'soup', 'fine', ['bamboo_shoot', 'valley_mushroom', 'creek_herb'], 18, 30, 12, 2),
   dish('lotus_pork_soup', '莲藕暖肉汤', 'soup', 'rare', ['lotus_root', 'pork', 'ginger'], 26, 40, 16, 3),
   dish('chestnut_rice', '山栗焖饭', 'main', 'rare', ['mountain_chestnut', 'rice'], 46, 40, 14, 2),
-  dish('cream_matsutake', '奶油煎松茸', 'side', 'epic', ['matsutake', 'cream'], 28, 72, 34, 4),
+  dish('cream_matsutake', '奶油煎松茸', 'side', 'epic', ['matsutake', 'cream'], 42, 120, 50, 6),
   dish('cheese_vegetables', '奶酪焗蔬菜', 'side', 'rare', ['potato', 'greens', 'cheese'], 44, 50, 28, 3, 'oven'),
   dish('wood_ear_dumplings', '木耳白菜素饺', 'main', 'fine', ['wood_ear', 'cabbage', 'flour'], 50, 30, 18, 2),
   dish('crispy_wheat_fish', '香酥麦穗鱼', 'side', 'common', ['wheat_fish', 'flour'], 28, 22, 12, 1),
@@ -38,7 +38,7 @@ export const expandedRecipes: readonly RecipeDefinition[] = [
   dish('mint_lemon_drink', '薄荷柠檬饮', 'drink', 'fine', ['mint', 'wild_lemon'], 8, 26, 26, 2, 'mix'),
   dish('lotus_milk_soup', '莲子鲜奶羹', 'soup', 'rare', ['lotus_seed', 'farm_milk'], 16, 34, 28, 2),
   dish('pine_honey_biscuit', '松子蜂蜜饼', 'dessert', 'rare', ['pine_nut', 'hill_honey', 'flour'], 38, 40, 36, 3, 'oven'),
-  dish('mountain_herb_tea', '高山香草茶', 'drink', 'epic', ['mountain_tea', 'creek_herb'], 6, 64, 36, 4, 'mix'),
+  dish('mountain_herb_tea', '高山香草茶', 'drink', 'epic', ['mountain_tea', 'creek_herb'], 12, 112, 60, 6, 'mix'),
   dish('seafood_rice', '蛤蜊海虾烩饭', 'main', 'rare', ['clam', 'sea_shrimp', 'rice'], 54, 48, 24, 3),
   dish('valley_travel_bento', '溪谷远行便当', 'main', 'legendary', ['dish_chestnut_rice', 'dish_bamboo_mushroom_soup', 'egg'], 78, 84, 32, 6, 'mix'),
 ];

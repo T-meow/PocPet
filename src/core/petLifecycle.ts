@@ -41,6 +41,7 @@ import { adventureHealthRules, enforceAdventureHealth } from './adventureReturn'
 import { isExpeditionAway } from './expeditionData';
 import { settleExpeditionTime } from './expeditionReturn';
 import { advanceExplorationBudget } from './explorationBudget';
+import { completeLegacyExploration } from './explorationMigration';
 import { explorationTravel } from './explorationTravelData';
 
 const travelStopsEnergyRecovery = (pet: PetState) => Boolean(isIdleFishing(pet) || (pet.adventure.active?.rulesVersion ?? 0) >= 8 || (pet.community.expedition.active?.rulesVersion ?? 0) >= 2 && !pet.community.expedition.active?.paused);
@@ -749,6 +750,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
 export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState => {
   const now = args[1] ?? Date.now();
   if (args[0].timePause !== undefined) return migrateCommunityMarketPricing(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }));
+  if ((args[0].adventure.active?.rulesVersion ?? 11) < 11 || (args[0].community.expedition.active?.rulesVersion ?? 6) < 6) args[0] = completeLegacyExploration(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }), now);
   let pet = settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);

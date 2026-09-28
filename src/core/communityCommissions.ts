@@ -21,8 +21,8 @@ export interface CommissionDefinition { name: string; detail: string; coins: num
 export const commissionDefinitions = {
   valley_basket: { name: '晚饭前的一篮野菇', detail: '交付溪谷野菇 ×3，可使用库存；在溪边采集地手动采集可备齐。', coins: 55, take: { valley_mushroom: 3 } },
   valley_rice: { name: '邻居想尝尝野菇焖饭', detail: '交付野菇焖饭 ×1，可使用已有料理；读完温室手账后记下配方。', coins: 65, take: { dish_mushroom_rice: 1 } },
-  forest_delicacy: { name: '美食家的林间珍味', detail: '交付松茸 ×1；在雾松林地的林莓丛调查累计 3 点获得，可以使用库存。', coins: 85, take: { matsutake: 1 } },
-  tea_order: { name: '观星茶会的邀请', detail: '交付高山茶叶 ×1；在旧观测站的碎片采集地调查累计 3 点获得，可以使用库存。', coins: 80, take: { mountain_tea: 1 } },
+  forest_delicacy: { name: '美食家的林间珍味', detail: '交付松茸 ×1；在雾松林地的林莓丛调查累计 3 点获得，可以使用库存。', coins: 360, take: { matsutake: 1 } },
+  tea_order: { name: '观星茶会的邀请', detail: '交付高山茶叶 ×1；在旧观测站的碎片采集地调查累计 3 点获得，可以使用库存。', coins: 330, take: { mountain_tea: 1 } },
   search: { name: '旧桥边的工具包', detail: '接取后前往溪谷旧木桥，在“整理发现与交接”阶段找到工具包，不消耗库存。', coins: 40, reward: { community_wood: 1, community_stone: 1 }, event: 'search' },
   forage: { name: '一束新鲜野香草', detail: '接取后实地采集，溪谷旧桥得到香草 ×1；带回后交付。已有库存不能替代采集事实。', coins: 45, take: { creek_herb: 1 }, event: 'forage' },
   vegetables: { name: '邻里晚餐的配菜', detail: '交付胡萝卜 ×2，可以使用已有库存；商店或社区菜地获得。', coins: 28, take: { carrot: 2 } },

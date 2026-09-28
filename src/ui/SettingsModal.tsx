@@ -405,7 +405,7 @@ export const SettingsModal = ({
                   <dl className="settings-cloud-meta">
                     <div><dt>{t('ui.settings.cloud.pet')}</dt><dd>{cloudManifest.petName} · Lv.{cloudManifest.petLevel}</dd></div>
                     <div><dt>{t('ui.settings.cloud.uploadedAt')}</dt><dd>{cloudUploadedAt}</dd></div>
-                    <div><dt>{t('ui.settings.cloud.capacity')}</dt><dd>{t('ui.settings.cloud.capacityValue', { used: (cloudManifest.encodedLength / 1024).toFixed(1), max: cloudSaveMaxEncodedLength / 1024, percent: Math.ceil(cloudManifest.encodedLength / cloudSaveMaxEncodedLength * 100) })}</dd></div>
+                    <div><dt>{t('ui.settings.cloud.capacity')}</dt><dd>{t('ui.settings.cloud.capacityValue', { used: Math.ceil(cloudManifest.encodedLength / 1024), max: Math.ceil(cloudSaveMaxEncodedLength / 1024), percent: Math.ceil(cloudManifest.encodedLength / cloudSaveMaxEncodedLength * 100) })}</dd></div>
                     {cloudManifest.activeMod && <div><dt>Mod</dt><dd>{cloudManifest.activeMod.name} v{cloudManifest.activeMod.version}</dd></div>}
                   </dl>
                 )}

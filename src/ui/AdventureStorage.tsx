@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Backpack, Trash2, X } from 'lucide-react';
-import { buyAdventureSupply, discardAdventureItem, getAdventureServiceQuote, pickupAdventureLoot, redeemAdventureTreasure, transportAdventureSupply, useAdventureSupply } from '../core/adventure';
+import { buyAdventureSupply, discardAdventureItem, getAdventureServiceQuote, pickupAdventureLoot, redeemAdventureTreasure, transportAdventureSupply, useAdventureSupply, sendAdventureItemsHome } from '../core/adventure';
+import { inventoryItemLimit } from '../core/saveMetadata';
 import { adventureTransportLimit, createAdventureShopStock, getAdventureShopPrice } from '../core/adventureData';
 import { getExplorationBagCapacity } from '../core/explorationBackpack';
 import { adventureItems, getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
@@ -13,6 +14,7 @@ import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes
 import type { AdventureDestinationId } from '../core/adventureTypes';
 import type { CommunityRoute } from '../core/communityTypes';
 import { communityShopItems } from '../core/communityItems';
+import { fieldEquipmentItems, getEquipmentPurchaseReason } from '../core/fieldEquipmentData';
 import { AdventurePreparation } from './AdventurePreparation';
 import { DialogShell } from './DialogShell';
 import { ItemStorageModal } from './ItemStorageModal';
@@ -38,7 +40,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? trip?.bag ?? {}
     : panel === 'loot' ? trip?.loot ?? {} : panel === 'shop' ? trip?.shopStock ?? {} : pet.inventory;
-  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : [...adventureItems, ...communityShopItems.filter(item => item.kind === 'care')].map(item => item.id)).map(id => [id, 1])) : stock)
+  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : [...adventureItems, ...fieldEquipmentItems.filter(item => item.tags?.includes('expedition_tool') || item.id === 'harvest_sickle'), ...communityShopItems.filter(item => item.kind === 'care')].map(item => item.id)).map(id => [id, 1])) : stock)
     .filter(item => panel !== 'delivery' || isAdventureSupply(item.id));
   const titles = { pack: L('出发整备', 'Pack for the trip'), bag: L('旅行背包', 'Travel bag'), loot: L('待拾取物资', 'Pending finds'), shop: L('伙伴的随身补给', 'Neighbor supplies'), delivery: L('请伙伴从仓库送货', 'Delivery from home'), supplies: L('基地补给', 'Outpost supplies') };
   const canRecover = (id: ItemId, quantity: number) => {
@@ -56,7 +58,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
       : panel === 'shop' ? trip && trip.rulesVersion < 3 ? L('本趟沿用出发时的补给报价，售完不再补货。', 'This trip keeps its original supply prices. Stock does not refresh.') : L('伙伴把补给带到了路上，同款物资售价高于基地商店；本趟售完不再补货。', 'Trail delivery costs extra. Matching supplies cost more than at home; stock does not refresh.') : undefined;
   return <><ItemStorageModal mode={shopping ? 'shop' : 'bag'} pet={pet} items={definitions} itemIconMap={icons} browse={browse} onBrowseChange={setBrowse} onClose={onClose}
     onSwitch={switchTarget ? () => onPanel(switchTarget) : undefined} favoriteFoodIds={[]}
-    context={{ title: titles[panel], inventory: stock, quantityLimit: item => quantityLimit(item.id), backdropClassName: 'adventure-modal-backdrop', categories: ['all', 'food', 'ingredients', 'item', 'care'],
+    context={{ title: titles[panel], inventory: stock, quantityLimit: item => quantityLimit(item.id), backdropClassName: 'adventure-modal-backdrop', categories: ['all', 'food', 'ingredients', 'item', 'garden', 'care'],
       showStats: false, showRecovery: true, note, perform,
       countLabel: panel === 'shop' ? L('剩余 ', 'Stock ') : panel === 'delivery' ? L('仓库 ', 'Home ') : L('数量 ', 'Count '),
       switchLabel: switchTarget ? titles[switchTarget] : undefined }}
@@ -71,7 +73,8 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
       const exchange = L('兑换 · ', 'Exchange · ') + quantity * getAdventureTreasureValue(id) + L(' 金币', ' coins');
       if (panel === 'supplies') {
         const quote = getItemPurchaseQuote(pet, id, quantity);
-        return <button className="storage-primary" disabled={!quote.canPurchase} onClick={() => perform(() => onBuy(id, quantity))}>{L('购买', 'Buy')} {quote.quantity} · {quote.totalPrice} {L('金币', 'coins')}</button>;
+        const reason = getEquipmentPurchaseReason(pet, id);
+        return <>{reason && <p>{reason}</p>}<button className="storage-primary" disabled={!quote.canPurchase} onClick={() => perform(() => onBuy(id, quantity))}>{L('购买', 'Buy')} {quote.quantity} · {quote.totalPrice} {L('金币', 'coins')}</button></>;
       }
       if (!trip) return null;
       if (panel === 'shop' || panel === 'delivery') {
@@ -83,14 +86,15 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
       const usePlan = getItemUsePlan(pet, item, quantity);
       return <>
         {source === 'loot' && <button className="storage-primary" disabled={getAdventureBagCount(trip.bag) + quantity > capacity} onClick={() => perform(() => update(current => pickupAdventureLoot(current, trip.id, trip.revision, id, quantity)))}><Backpack size={16} />{L('收起 ×', 'Collect ×')}{quantity}</button>}
+        <button className="storage-secondary" disabled={Boolean(pet.timePause) || pet.hearts < quantity * 2 || (pet.inventory[id] ?? 0) + quantity > inventoryItemLimit} onClick={() => perform(() => update(current => sendAdventureItemsHome(current, trip.id, trip.revision, id, quantity, source)))}>送回仓库 · {quantity * 2} 心心</button>
         {isAdventureTreasure(id) ? <button className="storage-primary" onClick={() => perform(() => update(current => redeemAdventureTreasure(current, trip.id, trip.revision, quantity, source, id)))}>{exchange}</button> : item.usable && <button className="storage-primary" disabled={!canRecover(id, quantity)} title={usePlan.blocked ? overfedMessage : undefined} onClick={() => perform(() => update(current => useAdventureSupply(current, trip.id, trip.revision, id, usePlan.quantity, source)))}>{usePlan.blocked ? '吃撑了，先消化一下' : `${source === 'loot' ? L('当场食用 ×', 'Eat here ×') : L('使用 ×', 'Use ×')}${usePlan.quantity}`}</button>}
         <button className="storage-secondary adventure-discard" onClick={() => perform(() => setDiscard({ tripId: trip.id, revision: trip.revision, id, name: item.displayName, quantity, source }))}><Trash2 size={16} />{L('丢弃 ×', 'Discard ×')}{quantity}</button>
       </>;
     }} />
-    {discard && <DialogShell className="adventure-dialog adventure-confirm" backdropClassName="adventure-modal-backdrop" labelId="adventure-discard-title" onClose={() => perform(() => setDiscard(undefined))}>
+    {discard && <DialogShell role="alertdialog" className="adventure-dialog adventure-confirm" backdropClassName="adventure-modal-backdrop" labelId="adventure-discard-title" onClose={() => perform(() => setDiscard(undefined))}>
       <header><h3 id="adventure-discard-title">{L('确认放弃这些物资？', 'Leave these items behind?')}</h3><button className="icon-button" onClick={() => perform(() => setDiscard(undefined))} aria-label={L('取消丢弃', 'Cancel discard')}><X size={19} /></button></header>
-      <p>{discard.name} ×{discard.quantity}</p><p>{L('丢弃后无法找回，不会获得金币。家中仓库不会被扣除。', 'Discarded items cannot be recovered and grant no coins. Home inventory is unaffected.')}</p>
-      <div className="adventure-dialog-actions"><button className="secondary-button" onClick={() => perform(() => setDiscard(undefined))}>{L('保留', 'Keep')}</button><button className="primary-button" disabled={trip?.id !== discard.tripId || trip?.revision !== discard.revision} onClick={() => perform(() => { update(current => discardAdventureItem(current, discard.tripId, discard.revision, discard.id, discard.quantity, discard.source)); setDiscard(undefined); })}>{L('确认丢弃', 'Discard')}</button></div>
+      <div className="exploration-sheet-body"><p>{discard.name} ×{discard.quantity}</p><p>{L('丢弃后无法找回，不会获得金币。家中仓库不会被扣除。', 'Discarded items cannot be recovered and grant no coins. Home inventory is unaffected.')}</p></div>
+      <footer><button data-dialog-autofocus className="secondary-button" onClick={() => perform(() => setDiscard(undefined))}>{L('保留', 'Keep')}</button><button className="primary-button" disabled={trip?.id !== discard.tripId || trip?.revision !== discard.revision} onClick={() => perform(() => { update(current => discardAdventureItem(current, discard.tripId, discard.revision, discard.id, discard.quantity, discard.source)); setDiscard(undefined); })}>{L('确认丢弃', 'Discard')}</button></footer>
       {(trip?.id !== discard.tripId || trip?.revision !== discard.revision) && <p>{L('物资已变化，请关闭后重新选择。', 'Supplies changed. Close and select again.')}</p>}
     </DialogShell>}
   </>;

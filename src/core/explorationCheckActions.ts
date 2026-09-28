@@ -5,16 +5,17 @@ import { applyItemHungerEffect, getItemStatEffect, getItemUsePlan, overfedMessag
 import { addSkillXp } from './partnerSchedule';
 import { clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, updatePetSatiety } from './petStats';
 import { getToolUsesLeft, spendToolUse } from './toolDurability';
+import { formatInteger } from './displayNumbers';
 import type { Inventory, ItemId, PetState } from './petTypes';
 import type { RegionId } from './expeditionTypes';
 import { advanceExplorationCheckState, createExplorationCheckState, explorationOutcomeNames, explorationSkillNames, getExplorationCheckPreview, resolveExplorationCheck, type ExplorationCheckAction, type ExplorationCheckContext, type ExplorationCheckState } from './explorationChecks';
 
-interface CheckTrip { id: string; tool: boolean; bag: Inventory; checkState?: ExplorationCheckState }
+interface CheckTrip { id: string; tool: boolean; bag: Inventory; checkState?: ExplorationCheckState; rulesVersion?: number }
 export const getExplorationActionContext = (pet: PetState, trip: CheckTrip, action: ExplorationCheckAction, node: string, region: RegionId = 'valley'): ExplorationCheckContext => {
   const tool = action.check.tool, item = action.mealItem ? getInventoryItem(action.mealItem as ItemId) : undefined;
   const blockedReason = action.check.prepare !== 'meal' ? '' : !item || !getDish(item.id) || !(trip.bag[item.id] > 0) ? '行囊中需要一份料理，可先补充料理或选择其他路线。' : getItemUsePlan(pet, item, 1).blocked ? overfedMessage : '';
   const toolAvailable = tool ? getToolUsesLeft(pet, tool, tool === 'trail_rope' && trip.tool) > 0 : false;
-  return { region, node, state: trip.checkState ?? createExplorationCheckState(trip.id), toolAvailable, blockedReason };
+  return { region, node, state: trip.checkState ?? createExplorationCheckState(trip.id), toolAvailable, blockedReason, rulesVersion: trip.rulesVersion };
 };
 export const previewExplorationAction = (pet: PetState, trip: CheckTrip, action: ExplorationCheckAction, node: string, region: RegionId = 'valley') =>
   getExplorationCheckPreview(pet, action, getExplorationActionContext(pet, trip, action, node, region));
@@ -41,7 +42,7 @@ export const applyExplorationCheck = (pet: PetState, trip: CheckTrip, action: Ex
     next = updatePetSatiety(incrementAchievementItemUse({ ...next, ...recovery }, item.id));
   }
   const state = advanceExplorationCheckState(context.state, action, result);
-  const recentEvent = `${action.title}：${explorationOutcomeNames[result.outcome]}。饱食 −${result.hunger}，体力 −${result.energy}${result.healthLoss ? `，健康 −${result.healthLoss}` : '，健康无损'}。${result.xp && result.skill ? `${explorationSkillNames[result.skill]}经验 +${result.xp}。` : ''}${use ? `工具耐久 −1${use.broken ? '，已用尽' : ''}。` : ''}`;
+  const recentEvent = `${action.title}：${explorationOutcomeNames[result.outcome]}。饱食 −${formatInteger(result.hunger)}，体力 −${formatInteger(result.energy)}${result.healthLoss ? `，健康 −${formatInteger(result.healthLoss)}` : '，健康无损'}。${result.xp && result.skill ? `${explorationSkillNames[result.skill]}经验 +${result.xp}。` : ''}${use ? `工具耐久 −1${use.broken ? '，已用尽' : ''}。` : ''}`;
   return { pet: { ...next, recentEvent }, result, state, toolBroken: Boolean(use?.broken),
     energySpent: result.energy - (result.recovery?.energy ?? 0), healthLost: result.healthLoss - (result.recovery?.health ?? 0) };
 };

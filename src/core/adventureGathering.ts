@@ -13,7 +13,7 @@ export interface AdventureStageChoice extends AdventureChoice {
 // presentation and incoming command use the compact gathering methods.
 export const getAdventureStageChoices = (pet: PetState, choices: readonly AdventureChoice[]): AdventureStageChoice[] => {
   const trip = pet.adventure.active;
-  if (trip?.rulesVersion !== 10 || !choices.some(choice => choice.harvest)) return [...choices];
+  if (!trip || trip.rulesVersion < 10 || !choices.some(choice => choice.harvest)) return [...choices];
   const result: AdventureStageChoice[] = [];
   const add = (method: string, label: string, detail: string, pool: AdventureChoice[]) => {
     if (!pool.length) return;
@@ -26,5 +26,6 @@ export const getAdventureStageChoices = (pet: PetState, choices: readonly Advent
   if (leave) result.push({ ...leave, id: 'gather:leave', sourceChoiceId: leave.id, label: '离开采集点', detail: '跳过本次采集，继续旅程；不消耗采集机会。' });
   if (getToolUsesLeft(pet, 'harvest_sickle') > 0) add('sickle', '用镰刀采集', '随机采收当地适用物产，镰刀耐久 −1。', choices.filter(choice => choice.check?.tool === 'harvest_sickle'));
   if (getToolUsesLeft(pet, 'prospector_pick') > 0) add('pick', '用手镐采集', '勘探当地珍宝，保留累计调查进度；手镐耐久 −1。', choices.filter(choice => choice.check?.tool === 'prospector_pick'));
+  if (trip.rulesVersion >= 11) result.push(...choices.filter(choice => choice.check?.tool === 'survey_lens'));
   return result;
 };
