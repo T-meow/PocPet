@@ -84,7 +84,7 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   const neighbors = [...new Set(neighborIds)].filter(value => value !== actorId && /^[a-z0-9][a-z0-9._-]{1,127}$/.test(value)).sort();
   const roll = hashString(id);
   // The first valley completion teaches the service; tutorial trips have no shop.
-  const neighborId = neighbors.length > 0 && region === 'valley' && (!(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
+  const neighborId = neighbors.length > 0 && region !== 'tutorial' && (region === 'valley' && !(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
   const inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   const tool = false; // New trips use warehouse tools; true is reserved for legacy packed ropes.
   return { ...pet, inventory, lastInteractionAt: now,
@@ -233,14 +233,6 @@ export const pickupAdventureLoot = (pet: PetState, tripId: string, revision: num
   return { ...pet, adventure: { ...pet.adventure, active: { ...trip, revision: revision + 1, bag: addInventoryItem(trip.bag, itemId, quantity), loot: removeInventoryItem(trip.loot, itemId, quantity) } }, recentEvent: L('发现的物资已收进行囊。', 'Your finds are now in the travel bag.') };
 };
 
-export const sendAdventureItemsHome = (pet: PetState, tripId: string, revision: number, itemId: ItemId, quantity: number, source: 'bag' | 'loot'): PetState => {
-  if (pet.timePause) return pet;
-  pet = enforceAdventureHealth(pet);
-  const trip = pet.adventure.active, fee = quantity * adventureTransportCost;
-  if (!trip || trip.id !== tripId || trip.revision !== revision || !validQuantity(pet, quantity) || (trip[source][itemId] ?? 0) < quantity || pet.hearts < fee || (pet.inventory[itemId] ?? 0) + quantity > inventoryItemLimit) return pet;
-  return { ...pet, hearts: pet.hearts - fee, inventory: addInventoryItem(pet.inventory, itemId, quantity), adventure: { ...pet.adventure, active: { ...trip, revision: revision + 1, [source]: removeInventoryItem(trip[source], itemId, quantity) } }, recentEvent: `已送回仓库 ${quantity} 份物品，花费 ${fee} 心心。` };
-};
-
 export const discardAdventureItem = (pet: PetState, tripId: string, revision: number, itemId: ItemId, quantity: number, source: 'bag' | 'loot' | 'tool' = 'bag'): PetState => {
   if (pet.timePause) return pet;
   pet = enforceAdventureHealth(pet);
@@ -252,7 +244,7 @@ export const discardAdventureItem = (pet: PetState, tripId: string, revision: nu
   return { ...pet, community: { ...pet.community, toolWear }, adventure: { ...pet.adventure, active: { ...trip, revision: revision + 1, ...(source === 'tool' ? { tool: false } : { [source]: removeInventoryItem(trip[source], itemId, quantity) }) } }, recentEvent: L('已放弃所选物资。', 'The selected supplies have been left behind.') };
 };
 
-export const canUseAdventureService = (pet: PetState) => Boolean(!needsAdventureHealthReturn(pet) && pet.adventure.active?.region === 'valley' && pet.adventure.active.neighborId && (pet.adventure.active.rulesVersion >= 10 ? pet.adventure.active.stageIds?.some(id => id.endsWith(':obstacle')) && !pet.adventure.active.stageIds?.some(id => id.endsWith(':finish')) : pet.adventure.active.choices.length === 4) && !getAdventureBagCount(pet.adventure.active.loot));
+export const canUseAdventureService = (pet: PetState) => Boolean(!needsAdventureHealthReturn(pet) && pet.adventure.active && pet.adventure.active.region !== 'tutorial' && pet.adventure.active.neighborId && (pet.adventure.active.rulesVersion >= 10 ? pet.adventure.active.stageIds?.some(id => id.endsWith(':obstacle')) && !pet.adventure.active.stageIds?.some(id => id.endsWith(':finish')) : pet.adventure.active.choices.length === 4) && !getAdventureBagCount(pet.adventure.active.loot));
 export const getAdventureServiceQuote = (pet: PetState, itemId: ItemId, quantity: number, service: 'buy' | 'transport') => {
   const trip = pet.adventure.active;
   const remaining = service === 'buy' ? trip?.rulesVersion === 1 && trip.purchases > 0 ? 0 : trip?.shopStock[itemId] ?? 0 : Math.max(0, (trip?.rulesVersion === 1 ? 1 : adventureTransportLimit) - (trip?.transportedCount ?? 0));

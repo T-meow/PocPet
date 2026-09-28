@@ -2,16 +2,11 @@ import type { HelpContent } from './HelpButton';
 import type { PetState } from '../../core/petTypes';
 import type { ExpeditionTrip } from '../../core/expeditionTypes';
 import type { RationQuote } from '../../core/explorationRations';
-import { explorationOutcomeNames, explorationSkillNames, getExplorationMoodEffects, type ExplorationCheckDefinition, type ExplorationCheckPreview } from '../../core/explorationChecks';
+import { explorationSkillNames, getExplorationMoodEffects } from '../../core/explorationChecks';
 import { getPetStatRatio } from '../../core/petStats';
 import { explorationCapacity, explorationRefillMs, getExplorationBudget, getExplorationTier, getExplorationHarvestPay, manualTreasureChance, getExplorationRefillMs } from '../../core/explorationBudget';
-import type { AdventureChoice } from '../../core/adventureData';
 import { formatInteger as number, formatMultiplierPercent, formatProbabilityPercent } from '../numberFormat';
 
-export const getAdventureActionHelp = (choice: AdventureChoice): HelpContent => ({
-  title: choice.label,
-  overview: <><p>{choice.tool ? '直接使用仓库中的探路绳，消耗 1 点耐久；用尽时才扣除一件。旧行程已携带的绳索优先使用，未用尽返程归还。' : choice.detail}</p>{choice.item && <p>交出的物品从行囊扣除，不计作喂食。</p>}<p>本次按卡片列出的数值结算，可以打开背包补给或随时返程。</p></>,
-});
 export const explorationHelp: HelpContent = {
   title: '探索与行动',
   overview: <><p>行动前列出预计消耗，完成后显示实际收获。沿路标稳妥前进也能完成故事，危险路线可能受伤。</p><p>采集阶段可以「采集」或「离开采集点」；仓库有可用镰刀或手镐时，增加对应采集方式。离开只消耗普通推进所需的饱食和体力，不扣采集机会或工具耐久。</p><p>技能、心情和工具影响表现。工具直接读取仓库，不占行囊；途中可使用行囊补给或免费返回，健康过低时会安全返程。</p></>,
@@ -21,29 +16,24 @@ export const getExplorationPreparationHelp = (pet: PetState): HelpContent => ({
   ...explorationHelp,
   details: <>{explorationHelp.details}<p>{Object.entries(explorationSkillNames).map(([id, label]) => label + ' ' + pet.partnerSchedule.skills[id as keyof typeof explorationSkillNames].level + ' 级').join(' · ')}</p><p>当前心情 {number(getPetStatRatio(pet, 'mood') * 100)}% · 心情修正后的体力消耗为 {formatMultiplierPercent(getExplorationMoodEffects(getPetStatRatio(pet, 'mood')).energy)}</p></>,
 });
-export const getExplorationChoiceHelp = (title: string, p: ExplorationCheckPreview, d: ExplorationCheckDefinition): HelpContent => ({
-  title,
-  overview: <>{explorationHelp.overview}{d.prepare === 'focus' && <p>观察顺利时准备 1 次，出色时准备 2 次；准备会提高后续行动的把握。</p>}{d.prepare === 'meal' && <p>食用一份料理恢复状态；出色或顺利时，接下来 2 步减少体力消耗，勉强时持续 1 步。</p>}{d.tool && <p>本次使用工具耐久 1 次。{d.tool === 'trail_rope' && '探路绳保证越障健康损失为 0，体力减免 50%、饥饿减免 20%。'}</p>}{p.reason && <p>{p.reason}</p>}</>,
-  details: <>{d.mode === 'check' && p.chance < 100 && <>
-    <p>{p.skill && explorationSkillNames[p.skill]} {p.skillLevel} 级 · 推荐 {p.difficulty} 级 · 顺利以上 {formatProbabilityPercent(p.chance)}</p>
-    <p>{p.outcomes.map(o => explorationOutcomeNames[o.outcome] + ' ' + formatProbabilityPercent(o.probability)).join(' · ')}</p>
-    <p>基础 70%{p.factors.filter(f => f.value).map(f => ' · ' + f.label + ' ' + (f.value >= 0 ? '+' : '') + number(f.value) + ' 个百分点').join('')}{p.chanceCap < 95 && ' · 越级上限 ' + formatProbabilityPercent(p.chanceCap)}</p>
-    <p>{p.outcomes.map(o => explorationOutcomeNames[o.outcome] + '：体力 −' + number(o.energy) + (o.healthLoss ? '、健康 −' + number(o.healthLoss) : '')).join('；')}。</p>
-  </>}<p>基础体力 {number(p.costFactors.base)} · 消耗倍率：路线 {formatMultiplierPercent(p.costFactors.route)} · 心情 {formatMultiplierPercent(p.mood.energy)}{p.costFactors.meal < 1 && ' · 餐食 ' + formatMultiplierPercent(p.costFactors.meal)}{d.risky && ' · 心情伤害倍率 ' + formatMultiplierPercent(p.mood.injury)}</p>{d.prepare === 'focus' && <p>观察准备使后续行动的顺利以上概率增加 5 个百分点，仍受推荐等级上限约束。</p>}{d.prepare === 'meal' && <p>料理出色时，接下来 2 步体力消耗减少 15%；顺利时减少 10%，持续 2 步；勉强时减少 5%，持续 1 步。</p>}{p.chance === 100 && <p>此行动可确定完成。</p>}</>,
-});
 export const backpackHelp: HelpContent = {
   title: '旅行背包',
-  overview: <><p>选择仓库物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可永久扩容至 24／36／48／72 份。挂机食物按全程配餐上限计算，途中收获全部保留待领。可在背包标题旁升级，满级只显示状态。</p><p>探路绳和营具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现会保留待处理，可整理、使用或按每份 2 心心送回仓库；返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
+  overview: <><p>从仓库的食物、护理分类选择物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可在「营地与成长」永久扩容至 24／36／48／72 份。挂机食物按全程配餐上限计算，途中收获全部保留待领。</p><p>工具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现保留待处理，可部分收取、使用、兑换珍宝或确认丢弃。返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
   details: <p>扩容依次需要：600 金币、木料 8、石料 4、溪光海蓝宝 ×1；1800 金币、木料 16、石料 10、风丘日光石 ×1；4200 金币、木料 24、石料 16、雾松祖母绿或月潮珍珠 ×1。需先完成对应地区故事，并结束行程、收好回执。</p>,
 };
 export const campHelp: HelpContent = {
   title: '营具与休整',
-  overview: <><p>营具仅在完成路线一半阶段后可用一次：6／8／10／12 阶段分别在完成第 3／4／5／6 阶段后，教学路线在完成第 2 阶段后。继续前进便错过本趟休整点。</p><p>点击「营具休整」先查看恢复预览，再确认使用仓库营具。一次消耗 1 点耐久；体力和健康只补回本趟尚未恢复的损耗。邻居救援独立使用，不受休整点限制。</p></>,
+  overview: <><p>营具仅在完成路线一半阶段后可用一次：6／8／10／12 阶段分别在完成第 3／4／5／6 阶段后，教学路线在完成第 2 阶段后。继续前进便错过本趟休整点。</p><p>抵达休整点、尚未休整、有可用营具且确有状态可恢复时，才显示「营具休整」。点击查看恢复预览，确认后消耗 1 点耐久；体力和健康只补回本趟尚未恢复的损耗。</p></>,
   details: <p>最多恢复体力上限的 25%、心情上限的 20%，以及 3 点健康；本次实际恢复量以操作处预览为准。</p>,
 };
 export const rescueHelp: HelpContent = {
   title: '邻居救援',
-  overview: <p>花费 100 心心请求应急补给。补给直接恢复状态，不占背包，当前节点和发现保留；需要时可再次呼叫。</p>,
+  overview: <><p>饱食或体力不高于各自上限的 30% 时显示救援；若所有普通推进选项都因饱食或体力不足而无法执行，也会提前显示。单纯没有食物、心情低或健康低不会触发入口。</p><p>花费 100 心心直接恢复饱食、体力和心情，不占背包，不推进阶段。点击入口先看恢复量和费用，再确认接收补给；健康过低触发安全返程时不可救援。</p></>,
+};
+export const neighborHelp: HelpContent = {
+  title: '前哨伙伴与途中商店',
+  overview: <><p>前哨空闲时会有最多 3 位邻居歇脚，每个游戏日轮换，点击可以聊天。正式地区手动探险都有机会偶遇伙伴，通常每趟约 67%；溪谷首次教学偶遇保留，新手踩点不出现商店。</p><p>遇到伙伴后，完成越障至结束行程前可以购买随身补给，或按每份 2 心心请伙伴从仓库送来物资。商品本趟售完不补；先处理待拾取物资，再使用商店。</p></>,
+  details: <p>伙伴与库存由出发行程固定，重新打开或读档不会重抽、补货。其他地区的偶遇从新出发行程生效，已有行程保留原来的伙伴和库存。</p>,
 };
 export const commonTreasureRules = <p>每次实际采集分别结算固定货币、目标物品和随机宝物。金币堆、琥珀与金条保留原满额度单次概率，不再受每日奖励券限制；它们的可兑换价值与固定金币分开展示。</p>;
 export const manualTreasureRules = <p>手动每次实际消耗采集机会，独立以 {manualTreasureChance}% 概率发现当地珍宝。与手镐研究、挂机保底分别计算；免费观察不产生采集奖励。</p>;

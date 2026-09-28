@@ -550,6 +550,60 @@ async function verifySavesAndErrors() {
       assert.deepEqual(advancePet(reload(legacy), now, quiet).adventure.pending, legacy.adventure.pending, 'successful migration cannot issue the receipt twice');
     });
 
+    await check('各地区伙伴商店、库存恢复与交易防重', async () => {
+      const { startAdventure, advanceAdventure, canUseAdventureService, buyAdventureSupply, transportAdventureSupply } = await import('../src/core/adventure.ts');
+      const { getAdventureShopPrice } = await import('../src/core/adventureData.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state), mood: getPetStatCap(state) });
+      const act = (state, id) => advanceAdventure(state, state.adventure.active.id, state.adventure.active.choices.length, id, now, state.adventure.active.revision);
+      const initial = fuel(normalizePet({ ...pet, hearts: 1000, adventure: { ...pet.adventure, completed: { tutorial: 1, valley: 1 }, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) } }, now));
+      for (const region of mapRegions) {
+        let started;
+        for (let attempt = 0; attempt < 12; attempt++) {
+          started = startAdventure({ ...initial, adventure: { ...initial.adventure, tripsStarted: attempt } }, region, 'official.furo', 'Furo', {}, false, now, undefined, undefined, ['official.furo', 'fixture.neighbor']);
+          if (started.adventure.active?.neighborId) break;
+        }
+        assert.equal(started.adventure.active?.neighborId, 'fixture.neighbor', region + ' can meet a non-installed companion');
+        assert.equal(canUseAdventureService(started), false, 'services wait until the obstacle is completed');
+        const savedStart = reload(started);
+        assert.equal(savedStart.adventure.active.neighborId, started.adventure.active.neighborId, 'restoring cannot redraw the encounter');
+        assert.deepEqual(savedStart.adventure.active.shopStock, started.adventure.active.shopStock);
+        const steps = getLandmarkSteps(landmarkId(region, 'entrance'));
+        let ready = savedStart;
+        for (const step of steps.slice(0, 4)) ready = act(fuel(ready), step.choices[0].id);
+        ready = reload(ready);
+        assert.equal(canUseAdventureService(ready), true, region + ' opens its saved shop after the obstacle');
+        const trip = ready.adventure.active;
+        const bought = buyAdventureSupply(ready, trip.id, trip.revision, 'trail_mix', 1);
+        assert.equal(bought.coins, ready.coins - getAdventureShopPrice('trail_mix', trip.rulesVersion));
+        assert.equal(bought.adventure.active.bag.trail_mix, 1);
+        const restored = reload(bought);
+        assert.equal(restored.adventure.active.neighborId, trip.neighborId);
+        assert.equal(restored.adventure.active.shopStock.trail_mix, trip.shopStock.trail_mix - 1);
+        assert.equal(restored.adventure.active.purchases, 1);
+        assert.deepEqual(buyAdventureSupply(restored, trip.id, trip.revision, 'trail_mix', 1), restored, 'a saved purchase cannot charge twice');
+        const soldOut = reload(buyAdventureSupply(restored, trip.id, restored.adventure.active.revision, 'trail_mix', 1));
+        assert.equal(soldOut.adventure.active.shopStock.trail_mix ?? 0, 0, 'reload must not restock sold-out items');
+        assert.deepEqual(buyAdventureSupply(soldOut, trip.id, soldOut.adventure.active.revision, 'trail_mix', 1), soldOut);
+        const delivered = transportAdventureSupply(soldOut, trip.id, soldOut.adventure.active.revision, 'apple', 1);
+        assert.equal(delivered.inventory.apple, soldOut.inventory.apple - 1);
+        assert.equal(delivered.hearts, soldOut.hearts - 2);
+        const savedDelivery = reload(delivered);
+        assert.equal(savedDelivery.adventure.active.transportedCount, 1);
+        assert.deepEqual(transportAdventureSupply(savedDelivery, trip.id, soldOut.adventure.active.revision, 'apple', 1), savedDelivery);
+        ready = act(fuel(savedDelivery), steps[4].choices[0].id);
+        assert.equal(canUseAdventureService(reload(ready)), true, 'shop access follows stages rather than a hard-coded step 4');
+        for (const step of steps.slice(5)) ready = act(fuel(ready), step.choices[0].id);
+        assert.equal(canUseAdventureService(reload(ready)), false, 'services close when the trip is complete');
+        const noEncounter = reload({ ...started, adventure: { ...started.adventure, active: { ...started.adventure.active, neighborId: undefined, shopStock: {} } } });
+        assert.equal(noEncounter.adventure.active.neighborId, undefined, 'existing trips without a neighbor retain that result');
+        assert.deepEqual(noEncounter.adventure.active.shopStock, {});
+      }
+    });
+
     await check('随机采集存档固定、原行动记录与重复请求防重', async () => {
       const { startAdventure, advanceAdventure, getAdventureChoicePreview } = await import('../src/core/adventure.ts');
       const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
@@ -659,7 +713,7 @@ async function verifySavesAndErrors() {
     await check('中点营具休整状态恢复与错过节点保护', async () => {
       const { startAdventure, advanceAdventure } = await import('../src/core/adventure.ts');
       const { getAdventureSteps } = await import('../src/core/adventureData.ts');
-      const { getExplorationCampQuote, restExplorationWithKit, rescueExploration } = await import('../src/core/explorationSupport.ts');
+      const { getExplorationCampQuote, getExplorationRescueQuote, restExplorationWithKit, rescueExploration } = await import('../src/core/explorationSupport.ts');
       const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
@@ -688,9 +742,16 @@ async function verifySavesAndErrors() {
         const missed = reload(skipped), live = missed.adventure.active;
         assert.equal(getExplorationCampQuote(missed, 'adventure').atCheckpoint, false);
         assert.deepEqual(restExplorationWithKit(missed, 'adventure', live.id, live.revision, now).community.toolWear, missed.community.toolWear);
-        const rescued = rescueExploration(missed, 'adventure', live.id, live.revision, now);
-        assert.equal(rescued.hearts, missed.hearts - 100, 'neighbor rescue is independent of the missed camp');
+        const healthy = fuel(missed);
+        assert.equal(getExplorationRescueQuote(healthy, 'adventure').visible, false);
+        assert.equal(rescueExploration(healthy, 'adventure', live.id, live.revision, now).hearts, healthy.hearts);
+        const depleted = reload({ ...missed, hunger: getPetStatCap(missed) * .3 });
+        assert.equal(getExplorationRescueQuote(depleted, 'adventure').visible, true);
+        const rescued = rescueExploration(depleted, 'adventure', live.id, live.revision, now);
+        assert.equal(rescued.hearts, depleted.hearts - 100, 'low-state rescue is independent of the missed camp');
         assert.equal(rescued.adventure.active.rested, false);
+        const savedRescue = reload(rescued);
+        assert.equal(rescueExploration(savedRescue, 'adventure', live.id, live.revision, now).hearts, savedRescue.hearts, 'a rescue restored from disk cannot charge twice');
       }
     });
 

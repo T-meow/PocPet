@@ -1,6 +1,12 @@
-.exploration-support { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 10px 0; }
+.exploration-support { display: flex; flex-wrap: wrap; align-items: flex-start; margin: 10px -4px; }
+.exploration-support > button, .exploration-support-rescue { margin: 4px; }
+.exploration-support-rescue { display: flex; flex-direction: column; align-items: flex-start; }
+.exploration-support-rescue > small { margin-top: 5px; font-size: 12px; }
 .exploration-support > .exp-warning,.exploration-support > .exp-quote { flex-basis: 100%; }
-.exploration-support > button { padding: 8px 12px; font-size: 13px; }
+.exploration-support > button, .exploration-support-rescue > button { display: inline-flex; align-items: center; padding: 8px 12px; font-size: 14px; }
+.exploration-support button > svg { flex: none; margin-right: 6px; }
+.exploration-support-sheet .exploration-recovery { color: #34633c; }
+.exploration-recovery > strong { display: inline-block; margin: 0 12px 6px 0; }
 .exploration-support button,.exploration-backpack-upgrade button { min-height: 44px; }
 .exploration-backpack-upgrade { padding: 8px; }
 .exploration-backpack-upgrade select { max-width: 100%; min-height: 44px; padding: 6px 8px; border: 1px solid #c8d6b4; border-radius: 8px; background: #fffdf7; color: #526d42; }

@@ -1,8 +1,10 @@
 import { advancePet } from './petLifecycle';
 import { getPetEnergyCap, getPetStatCap, updatePetSatiety } from './petStats';
 import type { PetState } from './petTypes';
-import { spendToolUse } from './toolDurability';
-import { getAdventureStepCount } from './adventureData';
+import { getToolUsesLeft, spendToolUse } from './toolDurability';
+import { getAdventureStepCount, getAdventureSteps } from './adventureData';
+import { getAdventureChoicePreview } from './adventure';
+import { getAdventureStageChoices } from './adventureGathering';
 import { formatInteger } from './displayNumbers';
 
 export type ExplorationSystem = 'adventure';
@@ -13,9 +15,17 @@ const supportReason = (pet: PetState, system: ExplorationSystem) => {
 };
 export const getExplorationRescueQuote = (pet: PetState, system: ExplorationSystem) => {
   const cap = getPetStatCap(pet), energyCap = getPetEnergyCap(pet);
+  const trip = activeTrip(pet, system);
+  const step = trip && getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[trip.choices.length];
+  const ordinary = getAdventureStageChoices(pet, step?.choices ?? []).filter(choice => !choice.harvest && !choice.tool && !choice.check?.tool && !choice.item);
+  const blocked = ordinary.length > 0 && ordinary.every(choice => {
+    const preview = getAdventureChoicePreview(pet, choice);
+    return pet.hunger < (preview?.hunger[1] ?? choice.hunger) || pet.energy < (preview?.energy[1] ?? choice.energy);
+  });
+  const visible = Boolean(step && !supportReason(pet, system) && (pet.hunger <= cap * .3 || pet.energy <= energyCap * .3 || blocked));
   const hunger = Math.max(0, Math.min(cap - pet.hunger, Math.floor(cap * .8))), energy = Math.max(0, Math.min(energyCap - pet.energy, Math.floor(energyCap * .5))), mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
-  const reason = supportReason(pet, system) || (!hunger && !energy ? '饱食和体力都无需恢复' : pet.hearts < 100 ? '需要 100 心心' : '');
-  return { cost: 100, hunger, energy, mood, reason };
+  const reason = supportReason(pet, system) || (!visible ? '当前无需应急救援' : !hunger && !energy ? '饱食和体力都无需恢复' : pet.hearts < 100 ? `需要 100 心心，还差 ${formatInteger(100 - pet.hearts)} 心心` : '');
+  return { cost: 100, hunger, energy, mood, reason, visible };
 };
 const recordRecovery = (pet: PetState, system: ExplorationSystem, energy: number, health: number, rest: boolean): PetState => {
   const t = pet.adventure.active!;
@@ -37,7 +47,7 @@ export const getExplorationCampQuote = (pet: PetState, system: ExplorationSystem
   const rested = pet.adventure.active?.rested;
   const checkpoint = t ? Math.floor(getAdventureStepCount(t.region, t.purpose) / 2) : 0;
   const atCheckpoint = Boolean(t && t.choices.length === checkpoint);
-  const reason = supportReason(pet, system) || (rested ? '本趟已休整过' : !atCheckpoint ? `仅在完成第 ${checkpoint} 阶段后、继续前进前可以休整` : !(pet.inventory.camp_kit ?? 0) ? '仓库中需要便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
+  const reason = supportReason(pet, system) || (rested ? '本趟已休整过' : !atCheckpoint ? `仅在完成第 ${checkpoint} 阶段后、继续前进前可以休整` : getToolUsesLeft(pet, 'camp_kit') <= 0 ? '仓库中需要有剩余耐久的便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
   return { energy, health, mood, reason, checkpoint, atCheckpoint };
 };
 export const restExplorationWithKit = (pet: PetState, system: ExplorationSystem, id: string, revision: number, now = Date.now()): PetState => {

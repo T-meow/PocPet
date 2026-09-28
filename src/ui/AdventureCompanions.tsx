@@ -1,0 +1,38 @@
+import { useState } from 'react';
+import { resolvePetStatusImages } from '../assets';
+import type { InstalledPetModSummary } from '../core/mod';
+import { hashString } from '../core/utils';
+import { adventureHallScene } from './adventureScenes';
+
+export interface AdventureCompanion { id: string; name: string; portrait: string }
+const fallbackPortrait = resolvePetStatusImages(null).content;
+
+export const getAdventureCompanions = (mods: readonly InstalledPetModSummary[]): AdventureCompanion[] =>
+  [...new Map([
+    { id: 'official.furo', name: 'Furo', portrait: fallbackPortrait },
+    ...mods.map(mod => ({ id: mod.manifest.id, name: mod.manifest.defaultPetName, portrait: mod.contentImageUrl ?? fallbackPortrait })),
+  ].map(actor => [actor.id, actor])).values()];
+
+export const resolveAdventureCompanion = (roster: readonly AdventureCompanion[], id: string, name?: string): AdventureCompanion => {
+  const actor = roster.find(value => value.id === id);
+  return { id, name: name ?? actor?.name ?? '旅途伙伴', portrait: actor?.portrait ?? fallbackPortrait };
+};
+
+export const AdventureHall = ({ actor, roster, day, traveling }: {
+  actor: AdventureCompanion; roster: readonly AdventureCompanion[]; day: string; traveling: boolean;
+}) => {
+  const [greeting, setGreeting] = useState<AdventureCompanion>();
+  const neighbors = roster.filter(value => value.id !== actor.id);
+  const offset = neighbors.length ? hashString(`${day}:${actor.id}`) % neighbors.length : 0;
+  const visitors = traveling ? [] : [...neighbors.slice(offset), ...neighbors.slice(0, offset)].slice(0, 3);
+  return <section className="exploration-hall" aria-label="前哨伙伴">
+    <div className="exploration-home-art exploration-hall-scene">
+      <img className="exploration-hall-backdrop" src={adventureHallScene} alt="有地图桌与补给架的木质大厅" />
+      <div className="exploration-hall-cast">
+        <div className="exploration-hall-actor exploration-hall-actor--you"><img src={actor.portrait} alt="" /><span>{actor.name}</span></div>
+        {visitors.map((visitor, index) => <button className={`exploration-hall-actor exploration-hall-neighbor exploration-hall-neighbor--${index}`} key={visitor.id} aria-label={`聊聊 · ${visitor.name}`} onClick={() => setGreeting(visitor)}><img src={visitor.portrait} alt="" /><span>{visitor.name}</span></button>)}
+      </div>
+    </div>
+    {greeting && visitors.some(visitor => visitor.id === greeting.id) ? <p className="exploration-hall-greeting" role="status"><strong>{greeting.name}：</strong>这趟记得带几份料理！路上遇见我，可以买补给，也可以请我从仓库送来物资。</p> : <p className="exploration-hall-caption">{traveling ? `${actor.name}的旅途进度已保存，准备好就继续出发。` : visitors.length ? '伙伴们正在前哨歇脚，点一下就能聊聊。' : '收好行囊，和伙伴开始下一段故事。'}</p>}
+  </section>;
+};

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Backpack, Trash2, X } from 'lucide-react';
-import { buyAdventureSupply, discardAdventureItem, getAdventureServiceQuote, pickupAdventureLoot, redeemAdventureTreasure, transportAdventureSupply, useAdventureSupply, sendAdventureItemsHome } from '../core/adventure';
-import { inventoryItemLimit } from '../core/saveMetadata';
+import { buyAdventureSupply, canUseAdventureService, discardAdventureItem, getAdventureServiceQuote, pickupAdventureLoot, redeemAdventureTreasure, transportAdventureSupply, useAdventureSupply } from '../core/adventure';
 import { adventureTransportLimit, createAdventureShopStock, getAdventureShopPrice } from '../core/adventureData';
 import { getExplorationBagCapacity } from '../core/explorationBackpack';
 import { adventureItems, getAdventureTreasureValue, isAdventureTreasure } from '../core/adventureItems';
@@ -47,7 +46,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
     const item = registry.get(id);
     return item?.usable && (id !== 'golden_apple' || quantity === 1) && Object.values(getItemRecoveryPreview(pet, item, quantity, []).actual).some(value => value > 0);
   };
-  const switchTarget = panel === 'shop' || panel === 'delivery' || panel === 'loot' ? 'bag' : panel === 'supplies' ? 'pack' : panel === 'bag' && getAdventureBagCount(trip?.loot ?? {}) ? 'loot' : panel === 'bag' && trip?.choices.length === 4 && trip.neighborId ? 'shop' : undefined;
+  const switchTarget = panel === 'shop' || panel === 'delivery' || panel === 'loot' ? 'bag' : panel === 'supplies' ? 'pack' : panel === 'bag' && getAdventureBagCount(trip?.loot ?? {}) ? 'loot' : panel === 'bag' && canUseAdventureService(pet) ? 'shop' : undefined;
   const quantityLimit = (id: ItemId) => {
     if (panel === 'shop' || panel === 'delivery') return getAdventureServiceQuote(pet, id, 1, panel === 'shop' ? 'buy' : 'transport').limit;
     if (panel === 'supplies') return Math.min(capacity, getAdventureItemPurchaseCapacity(pet, id), getItemPurchaseQuote(pet, id, capacity).quantity);
@@ -86,7 +85,6 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
       const usePlan = getItemUsePlan(pet, item, quantity);
       return <>
         {source === 'loot' && <button className="storage-primary" disabled={getAdventureBagCount(trip.bag) + quantity > capacity} onClick={() => perform(() => update(current => pickupAdventureLoot(current, trip.id, trip.revision, id, quantity)))}><Backpack size={16} />{L('收起 ×', 'Collect ×')}{quantity}</button>}
-        <button className="storage-secondary" disabled={Boolean(pet.timePause) || pet.hearts < quantity * 2 || (pet.inventory[id] ?? 0) + quantity > inventoryItemLimit} onClick={() => perform(() => update(current => sendAdventureItemsHome(current, trip.id, trip.revision, id, quantity, source)))}>送回仓库 · {quantity * 2} 心心</button>
         {isAdventureTreasure(id) ? <button className="storage-primary" onClick={() => perform(() => update(current => redeemAdventureTreasure(current, trip.id, trip.revision, quantity, source, id)))}>{exchange}</button> : item.usable && <button className="storage-primary" disabled={!canRecover(id, quantity)} title={usePlan.blocked ? overfedMessage : undefined} onClick={() => perform(() => update(current => useAdventureSupply(current, trip.id, trip.revision, id, usePlan.quantity, source)))}>{usePlan.blocked ? '吃撑了，先消化一下' : `${source === 'loot' ? L('当场食用 ×', 'Eat here ×') : L('使用 ×', 'Use ×')}${usePlan.quantity}`}</button>}
         <button className="storage-secondary adventure-discard" onClick={() => perform(() => setDiscard({ tripId: trip.id, revision: trip.revision, id, name: item.displayName, quantity, source }))}><Trash2 size={16} />{L('丢弃 ×', 'Discard ×')}{quantity}</button>
       </>;
