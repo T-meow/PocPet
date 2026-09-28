@@ -13,29 +13,22 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenAcknowledge
 }) => {
   useEffect(() => { recordEditionNoticeShown(); }, []);
   const sections = [
-    { key: 'adventure', emoji: '🧭', tone: 'green', paragraphs: ['adventureAdvice', 'adventurePreparation'] },
-    { key: 'farm', emoji: '🌱', tone: 'green', paragraphs: ['farmAdvice'] },
-    { key: 'fishing', emoji: '🎣', tone: 'blue', paragraphs: ['fishingAdvice'] },
-    { key: 'kitchen', emoji: '🍳', tone: 'amber', paragraphs: ['kitchenAdvice', 'kitchenProcessing'] },
-    { key: 'market', emoji: '🏡', tone: 'amber', paragraphs: ['marketAdvice', 'commissionAdvice'] },
-    { key: 'treasure', emoji: '💎', tone: 'purple', paragraphs: ['treasureAdvice'] },
-    { key: 'activities', emoji: '🎉', tone: 'purple', paragraphs: ['activitiesAdvice', 'activitiesRewards'] },
-    { key: 'music', emoji: '🎵', tone: 'blue', paragraphs: ['musicAdvice'] },
-    { key: 'features', emoji: '❄️', tone: 'green', paragraphs: ['timePauseAdvice', 'careAdvice', 'uiAdvice'] },
+    { key: 'harvest', emoji: '🌱', tone: 'green', paragraphs: ['harvestAdvice'] },
+    { key: 'tools', emoji: '🔎', tone: 'blue', paragraphs: ['toolsAdvice'] },
+    { key: 'supplies', emoji: '🍳', tone: 'amber', paragraphs: ['suppliesAdvice'] },
+    { key: 'companions', emoji: '🏡', tone: 'purple', paragraphs: ['companionsAdvice'] },
     { key: 'backup', emoji: '💾', tone: 'blue', paragraphs: ['backupAdvice', 'formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
   ];
   return <DialogShell className="edition-notice" labelId="edition-notice-title" onClose={onAcknowledge}>
     <header className="edition-notice__header">
       <span className="dialog-title-icon"><Bell size={23} aria-hidden="true" /></span>
-      <div><h2 id="edition-notice-title">{t('ui.editionNotice.title')}</h2><p>v{appBuild.version} · {t('ui.editionNotice.subtitle')}</p></div>
+      <div><h2 id="edition-notice-title">{t('ui.editionNotice.title', { version: appBuild.version })}</h2><p>v{appBuild.version} · {t('ui.editionNotice.subtitle')}</p></div>
     </header>
     <div className="edition-notice__body">
-      <p className="edition-notice__intro">{t('ui.editionNotice.intro')}</p>
-      <p className="edition-notice__intro"><strong>{t('ui.editionNotice.overview')}</strong></p>
       {sections.map(({ key, emoji, tone, paragraphs }) => <section className={`edition-notice__section edition-notice__section--${key}`} data-tone={tone} key={key}>
         <span className="edition-notice__emoji" aria-hidden="true">{emoji}</span>
         <div><h3>{t(`ui.editionNotice.${key}Title`)}</h3>
-          {paragraphs.map((paragraph) => <p className={['adventureAdvice', 'activitiesAdvice', 'backupAdvice'].includes(paragraph) ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${paragraph}`)}</p>)}
+          {paragraphs.map((paragraph) => <p className={['harvestAdvice', 'backupAdvice'].includes(paragraph) ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${paragraph}`)}</p>)}
           {key === 'backup' && onOpenUpdates && <button type="button" className="text-button edition-notice__update-link" onClick={onOpenUpdates}><RefreshCw size={16} />{t('ui.editionNotice.openUpdates')}</button>}
         </div>
       </section>)}

@@ -1,6 +1,6 @@
 import { appBuild } from '../platform/edition';
 
-export const editionNoticeRevision = 'release-2.0.0';
+export const editionNoticeRevision = `release-${appBuild.version}-announcement`;
 export const editionNoticeKey = `pocpet.edition-notice.${appBuild.version}.${editionNoticeRevision}`;
 const launchId = `${Date.now()}-${Math.random()}`;
 export const localDateKey = (now = Date.now()) => {
