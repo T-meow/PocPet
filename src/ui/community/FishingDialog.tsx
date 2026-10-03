@@ -11,7 +11,7 @@ import type { FishId, FishingCatch, WaterId } from '../../core/communityTypes';
 import { fish, fishIds, isWaterOpen, waterIds, waters } from '../../core/communityData';
 import { actCommunityFishing, cancelCommunityFishing, claimCommunityFish, getFishingWaitMs, getManualFishingReason, quoteIdleFishing, startCommunityFishing, startIdleFishing } from '../../core/communityFishing';
 import { getFishingLevelEffects } from '../../core/communityUpgradeData';
-import { getFishCrownThreshold, getFishingClicks } from '../../core/fishingRules';
+import { getFishCrownThreshold, getFishingClicks, getFishingHeartReward } from '../../core/fishingRules';
 import { getInventoryItem } from '../../core/items';
 import { isTravelFood, standardRationPrice, type RationSelection } from '../../core/explorationRations';
 import { toolDurabilityLabel } from '../../core/toolDurability';
@@ -72,7 +72,7 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
   const haulTotal = haul.reduce((total, id) => total + (haulCounts[id] ?? 0), 0);
   const start = () => update(p => mode === 'manual' ? startCommunityFishing(p, water, bait, strong, Date.now(), gear) : startIdleFishing(p, water, bait, strong, hours, actorId, actorName, rations));
   const action = pending ? () => update(p => claimCommunityFish(p, pending.id)) : idle ? () => update(p => cancelCommunityFishing(p, idle.id)) : manual ? () => update(p => actCommunityFishing(p, manual.id, manual.revision, 'reel')) : start;
-  const button = pending ? '收下鱼获' : idle ? '提前返回' : manual ? biting ? `收线 · 还需 ${manual.requiredClicks - manual.clicks} 次` : '等鱼上钩' : mode === 'idle' ? '去钓鱼' : '抛竿';
+  const button = pending ? `收下鱼获 · ${getFishingHeartReward(pending.items)} 心心` : idle ? '提前返回' : manual ? biting ? `收线 · 还需 ${manual.requiredClicks - manual.clicks} 次` : '等鱼上钩' : mode === 'idle' ? '去钓鱼' : '抛竿';
   const disabled = frozen || (pending ? !canSpendCompanionTime(pet) : idle ? false : manual ? !biting : Boolean(reason));
   const minutes = idle ? Math.max(0, Math.ceil((idle.endsAt - now) / 60000)) : 0;
   const status = pending ? pending.reason === 'health' ? '伙伴已安全返回，先照顾一下再出发吧' : pending.catches.length ? '今天的收获，已经写进鱼类手账' : '这一趟还没钓到鱼，补给已整理好' : idle ? `剩余 ${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分 · 已钓 ${idle.settledCasts}/${idle.plannedCasts} 条` : manual ? biting ? '鱼儿上钩了，轻点收线就好' : '听听水声，等鱼儿靠近' : reason || (mode === 'manual' ? `鱼饵 1 · 钓具耐久各 1 · 饱食 ${effects.hunger} · 体力 ${effects.energy}` : `预计 ${quote.plannedCasts} 条 · 鱼饵 ${quote.plannedCasts} · 耐久 ${quote.plannedCasts}`);
@@ -113,7 +113,7 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
         </span> : status}</p>{preparing && reason && /鱼饵|钓竿|钓具|金币|食物|附件|耐久/.test(reason) && <button className="fishing-text-button" onClick={onShop}>补充物资<ChevronRight size={14} /></button>}</div>
         <button className="fishing-primary" disabled={disabled} onClick={action}>{button}</button>
         {manual && <button className="fishing-text-button fishing-cancel" disabled={frozen} onClick={() => update(p => cancelCommunityFishing(p, manual.id))}>收竿 · 已用鱼饵和耐久不返还</button>}
-        {pending && Object.entries(pending.items).some(([id, n]) => n && (pet.inventory[id] ?? 0) >= inventoryItemLimit) && <small>仓库已满的物品会留在收获篮。</small>}
+        {pending && Object.entries(pending.items).some(([id, n]) => n && (pet.inventory[id] ?? 0) >= inventoryItemLimit) && <small>仓库已满的物品会留在收获篮，心心随实际领到的鱼分批发放。</small>}
       </>}
     </footer>
   </DialogShell>;

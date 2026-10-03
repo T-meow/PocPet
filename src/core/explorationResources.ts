@@ -3,6 +3,7 @@ import type { RegionId } from './expeditionTypes';
 import { getLandmarkSteps, landmarkTargetName } from './landmarkData';
 import { landmarkId, mapRegionForExpedition } from './landmarkProgress';
 import { communityCrops, getExplorationFoodYield } from './foodCatalog';
+import { getExplorationRoll } from './explorationChecks';
 
 export interface ExplorationResource {
   id: string; name: string; manual: Inventory; idle?: Inventory;
@@ -22,3 +23,23 @@ export const getExplorationResources = (region: RegionId): ExplorationResource[]
     });
 export const getIdleExplorationTargets = (region: RegionId) => getExplorationResources(region).filter(resource => resource.idle);
 export const getIdleExplorationFinds = (region: RegionId, target?: string): Inventory => getIdleExplorationTargets(region).find(resource => resource.id === target)?.idle ?? {};
+
+export const idleExplorationRandomTarget = 'random';
+export const idleExplorationFocusWeight = 3;
+export const getIdleExplorationDrops = (region: RegionId, target = idleExplorationRandomTarget) => {
+  const entries = getIdleExplorationTargets(region).map(resource => ({ ...resource, weight: resource.id === target ? idleExplorationFocusWeight : 1 }));
+  const total = entries.reduce((sum, resource) => sum + resource.weight, 0);
+  return entries.map(resource => ({ ...resource, chance: resource.weight / total * 100 }));
+};
+
+// A saved seed survives clock rebasing on import and pause/resume. The completed
+// check number keeps offline catch-up independent of previews and treasure rolls.
+export const rollIdleExplorationFinds = (region: RegionId, target: string | undefined, seed: number, check: number): Inventory => {
+  const drops = getIdleExplorationDrops(region, target);
+  let roll = getExplorationRoll(seed, String(check), 'idle-materials') * drops.reduce((sum, resource) => sum + resource.weight, 0);
+  for (const resource of drops) {
+    roll -= resource.weight;
+    if (roll < 0) return { ...resource.idle };
+  }
+  return {};
+};

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Coins } from 'lucide-react';
-import { deliverCommunityOrder } from '../../core/community';
-import { acceptCommunityTask, cancelCommunityTask, canClaimCommunityTask, claimCommunityTask, commissionDefinitions, getCommunityCandidates, getCommunityDay, getCommunityTasks } from '../../core/communityCommissions';
+import { communityTaskHearts } from '../../core/activityHearts';
+import { communityConfig, deliverCommunityOrder } from '../../core/community';
+import { acceptCommunityTask, cancelCommunityTask, canClaimCommunityTask, claimCommunityTask, commissionDefinitions, getCommunityCandidates, getCommunityDay, getCommunityTaskRewardCoins, getCommunityTasks } from '../../core/communityCommissions';
 import { canSpendCompanionTime } from '../../core/kitchen';
 import type { CommunityTask, CommissionTemplate, WaterId } from '../../core/communityTypes';
 import type { BuiltinItemId, ItemId } from '../../core/petTypes';
@@ -41,7 +42,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { actorId: string; a
     const active = tasks.some(value => value.id === task.id);
     const def = commissionDefinitions[task.template], used = accepted.includes(task.id), sameKind = tasks.some(t => t.template === task.template);
     return <CommunityDetailDialog title={def.name} eyebrow={active ? '已接取 · 不过期' : used ? '今日已接过' : '今日候选'} onClose={close}>
-      <div className="community-letter"><img className="community-letter-item" src={icon(art(task).item)} alt="" /><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{task.rewardCoins ?? def.coins} 金币{def.reward ? ' · 木料 ×1 · 石料 ×1' : ''}</p></div>
+      <div className="community-letter"><img className="community-letter-item" src={icon(art(task).item)} alt="" /><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{getCommunityTaskRewardCoins(task)} 金币 · {communityTaskHearts} 小心心{def.reward ? ' · 木料 ×1 · 石料 ×1' : ''}</p></div>
       <p>地点：{def.region ? regionNames[mapRegionForExpedition[def.region]] + (def.node ? '／' + landmarkNames[mapRegionForExpedition[def.region]][def.node] : '') : def.water ? '钓鱼小屋／对应水域' : '社区'} · {def.event ? '必须记录接取后的行动' : '接受库存'}</p>
       <p>交付数量：{def.deliveryItem ? '行囊便当 ×1（现场扣除）' : def.take ? Object.entries(def.take).map(([id, n]) => (registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id) + ' ×' + n).join('、') : '只记录行动，不扣物品'}</p>
       {active ? <>
@@ -80,7 +81,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { actorId: string; a
     </section>
     {selectedTask && details(selectedTask)}
     {selected === 'warm-order' && <CommunityDetailDialog title="给修渠邻居的一碗暖粥" eyebrow={warmDone ? '心意已送达' : '常驻故事 · 慢慢来，不会过期'} onClose={close}>
-      <div className="community-letter"><img className="community-letter-item" src={icon('dish_herb_porridge')} alt="" /><p>{warmDone ? '邻居把空碗洗得干干净净。溪谷带回的种子，已经成了大家日常的一部分。' : '修好菜地，把第一份香草做成暖粥，感谢一起修渠的邻居。'}</p><p className="community-letter-reward">首次酬谢：80 金币 · 5 小心心 · 体力上限 +3</p></div>
+      <div className="community-letter"><img className="community-letter-item" src={icon('dish_herb_porridge')} alt="" /><p>{warmDone ? '邻居把空碗洗得干干净净。溪谷带回的种子，已经成了大家日常的一部分。' : '修好菜地，把第一份香草做成暖粥，感谢一起修渠的邻居。'}</p><p className="community-letter-reward">首次酬谢：{communityConfig.orderCoins} 金币 · {communityConfig.orderHearts} 小心心 · 体力上限 +3</p></div>
       {!warmDone && <><p>菜地开放后交付暖粥 ×1，可用已有料理。持有 {pet.inventory.dish_herb_porridge ?? 0} 份。</p><div className="community-actions"><button className="primary-button" disabled={!free || !pet.community.gardenBuilt || !(pet.inventory.dish_herb_porridge ?? 0)} onClick={() => { update(deliverCommunityOrder); close(); }}>交付暖粥</button><button className="secondary-button" disabled={!free || !pet.community.herbDiscovered} onClick={() => onKitchen('herb_porridge')}>去厨房做暖粥</button></div></>}
     </CommunityDetailDialog>}
   </>;

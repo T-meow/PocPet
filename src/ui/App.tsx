@@ -186,6 +186,7 @@ import { SeasonalStoryPage } from './SeasonalStoryPage';
 import { advanceSeasonalStory, startSeasonalStory } from '../core/seasonalStories';
 import type { FestivalId } from '../core/festivalCalendar';
 import type { RecipeId } from '../core/companionActivityTypes';
+import { toggleItemFavorite, toggleRecipeFavorite } from '../core/favorites';
 import { isAlbumArtworkUnlocked } from './albumData';
 
 const getPomodoroRemainingMs = (pet: PetState) =>
@@ -388,6 +389,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError, retryPersistence, adoptCommittedPet, saveAction, timePauseBusy, freezeTime, resumeTime } = usePetSession(initialPet, isHomeRef, eventContext, initialPersistenceError, notices.notify);
   const actorId = activeMod?.manifest.id ?? 'official.furo';
   const musicBlocked = Boolean(persistenceError || pendingImportedSave || isImportingSave || timePauseBusy);
+  const handleToggleItemFavorite = (id: ItemId) => {
+    if (persistenceError || pendingImportedSave || isImportingSave || timePauseBusy) return;
+    setPet(current => toggleItemFavorite(current, id));
+  };
+  const handleToggleRecipeFavorite = (id: RecipeId) => {
+    if (persistenceError || pendingImportedSave || isImportingSave || timePauseBusy) return;
+    setPet(current => toggleRecipeFavorite(current, id));
+  };
   const music = useMusicCompanion({ pet, petRef, actorId, blocked: musicBlocked, save: saveAction, commit: commitPet });
   const startMusic = () => {
     if (musicBlocked) return;
@@ -1697,13 +1706,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onQuickWork={() => handleAction('work')}
         />
       ) : activePage === 'adventure' ? (
-        <AdventurePage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
+        <AdventurePage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
           communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
           update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
-        <CommunityPage pet={pet} actorId={actorId} actorName={getSharePetName()} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+        <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
           orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
             onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}
@@ -1834,12 +1843,13 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           </span>
         </button>
       )}
-      {utilityDialog === 'kitchen' && <KitchenModal onOpenOutpost={handleOpenOutpost} pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} />}
+      {utilityDialog === 'kitchen' && <KitchenModal onToggleRecipeFavorite={handleToggleRecipeFavorite} onOpenOutpost={handleOpenOutpost} pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} workingPortrait={activityWorkingPortrait} icons={itemIconMap} registry={itemRegistry} recipeId={activities.recipeId} onRecipe={activities.setRecipeId} banana={activities.banana} onBanana={activities.setBanana} quantity={activities.quantity} onQuantity={activities.setQuantity} update={activities.update} onClose={closeUtilityDialog} onShop={() => handleOpenShop('ingredients')} onFeed={(id) => useItemNow(id, 1)} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} />}
       {utilityDialog === 'play' && <PlayModal pet={pet} actorId={actorId} portrait={petStatusImageMap[pet.isSleeping ? 'sleeping' : 'content']} happyPortrait={activityHappyPortrait} ballImage={itemIconMap.toy_ball} onClose={() => { activities.update(pauseMiniGame); closeUtilityDialog(); }} onShop={() => handleOpenShop('item')} onQuickPlay={() => handleAction('play')} update={activities.update} onAct={activities.act} />}
       {activePage === 'memories' && <MemoryAlbum onReplayFestival={(id) => { setFestivalReplayId(id); setActivePage('festival'); }} onContinueFestival={(id) => { const run = pet.festivalStories.runs[id]; if (run) openFestival(run.festival, true); }} pet={{ ...pet, name: getSharePetName() }} actorId={actorId} portrait={activityHappyPortrait} art={memoryArt} onBack={() => setActivePage('home')} onOpenArt={() => { if (memoryAchievement) handleOpenAchievementCg(memoryAchievement); }} onSave={(imageUrl) => requestImageSave({ kind: 'album', fileName: createShareImageFileName(`${getSharePetName()}-memories`).replace(/\.jpg$/, '.png'), imageUrl })} onError={(message) => notices.notify(message, 'error')} />}
       <NoticeCenter controller={notices} recentEvent={pet.recentEvent} />
       {isInventoryOpen && (
         <InventoryModal
+          onToggleItemFavorite={handleToggleItemFavorite}
           items={ownedItems}
           pet={pet}
           favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
@@ -1851,7 +1861,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onOpenShop={() => handleOpenShop()}
           onOpenGarden={handleOpenGarden}
           onOpenCommunity={() => { handleCloseInventory(); handleOpenCommunity(); }}
-          onOpenTravelCrafts={() => { handleCloseInventory(); handleOpenCommunity(); setCommunityPlace('journey'); }}
+          onOpenTravelCrafts={() => { handleCloseInventory(); handleOpenCommunity(); setCommunityPlace('decorations'); }}
           onOpenKitchen={openKitchen}
           onUseItem={handleUseItem}
         />
@@ -1924,6 +1934,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
       {isShopOpen && (
         <ShopModal
+          onToggleItemFavorite={handleToggleItemFavorite}
           pet={pet}
           items={displayShopItems}
           browse={inventoryController.browse}

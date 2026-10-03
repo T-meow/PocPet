@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { getProductionHeartReward, grantActivityHearts } from './activityHearts';
 import { getAchievementEffects, incrementAchievementGardenHarvest, incrementAchievementGardenPlant, incrementAchievementGardenWater, recordEarnedCoins } from './achievements';
 import { getBoostCardEffects, normalizeBoostCardState } from './boostCards';
 import { getClassicTrophyEffects } from './classicTrophies';
@@ -494,15 +495,16 @@ export const harvestTree = (pet: PetState, slotIndex: number, now = Date.now()):
   const itemCount = getDropItemCount(slot.pendingDrops);
   const coinAmount = getDropCoinAmount(slot.pendingDrops);
   const eventKey = getHarvestEventKey(itemCount, coinAmount, isWithered);
+  const hearts = getProductionHeartReward(gardenTreeDefinitions[slot.treeId].harvestCooldownMs / hourMs);
   const nextPet = incrementAchievementGardenHarvest({
     ...current,
     coins: clampCoins(current.coins + coinAmount),
     inventory: addDropsToInventory(current.inventory, slot.pendingDrops),
     garden: updateGardenSlot({ ...current.garden, dailyHarvestDateKey: dateKey, dailyHarvestCount: current.garden.dailyHarvestCount + 1, lifetimeHarvestCount: current.garden.lifetimeHarvestCount + 1 }, slotIndex, () => nextSlot),
-    recentEvent: t(eventKey, { count: itemCount, coins: coinAmount }),
+    recentEvent: t(eventKey, { count: itemCount, coins: coinAmount }) + ` 获得 ${hearts} 颗小心心。`,
     lastInteractionAt: now,
   }, slot.treeId);
-  return grantPracticeSkillXp(coinAmount > 0 ? recordEarnedCoins(nextPet, coinAmount) : nextPet, 'garden');
+  return grantPracticeSkillXp(grantActivityHearts(coinAmount > 0 ? recordEarnedCoins(nextPet, coinAmount) : nextPet, hearts), 'garden');
 };
 export const clearWitheredTree = (pet: PetState, slotIndex: number, now = Date.now()): PetState => { if (getGardenActionBlockedReason(pet)) return pet; const current = advanceGarden(pet, now); const slot = current.garden.slots[slotIndex]; if (!slot || !slot.treeId || slot.state === 'empty') return failGardenAction(current, 'pet.garden.cannotClear'); const cost = getGardenClearCost(current.garden.tools, slot.treeId); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const eventKey = slot.state === 'withered' ? 'pet.garden.clearSuccess' : 'pet.garden.removeSuccess'; const dateKey = getEffectiveDailyDateKey(current, now); return { ...current, coins: clampCoins(current.coins - cost), garden: updateGardenSlot(current.garden, slotIndex, () => ({ ...defaultGardenSlot(slotIndex, now, dateKey), unlocked: true, lastFertilizedAt: slot.lastFertilizedAt, lastFertilizedDateKey: slot.lastFertilizedDateKey, dailyAdvancedFertilizerReductionMs: slot.dailyAdvancedFertilizerReductionMs })), recentEvent: t(eventKey, { coins: cost }), lastInteractionAt: now }; };
 export const upgradeGardenTool = (pet: PetState, toolId: GardenToolId, now = Date.now()): PetState => { if (getGardenActionBlockedReason(pet)) return pet; const current = advanceGarden(pet, now); const currentLevel = getToolLevel(current.garden.tools, toolId); if (currentLevel >= maxGardenToolLevel) return failGardenAction(current, 'pet.garden.toolMaxLevel'); const cost = getGardenToolUpgradeCost(current.garden.tools, toolId); if (current.coins < cost) return failGardenAction(current, 'pet.garden.notEnoughCoins', { coins: cost }); const nextLevel = currentLevel + 1; return { ...current, coins: clampCoins(current.coins - cost), garden: { ...current.garden, tools: setToolLevel(current.garden.tools, toolId, nextLevel) }, recentEvent: t('pet.garden.toolUpgradeSuccess', { tool: t('ui.garden.tools.' + toolId + '.name'), level: nextLevel, coins: cost }), lastInteractionAt: now }; };

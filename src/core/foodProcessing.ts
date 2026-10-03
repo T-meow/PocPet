@@ -5,6 +5,8 @@ import { inventoryItemLimit } from './saveMetadata';
 
 export const processingRecipes = [
   { id: 'mill_flour', name: '磨制面粉', inputs: { wheat: 1 }, output: 'flour', quantity: 2, fee: 0, unlock: 'garden' },
+  { id: 'wheat_feed', name: '小麦制饲料', inputs: { wheat: 1 }, output: 'animal_feed', quantity: 4, fee: 0, unlock: 'coop' },
+  { id: 'corn_feed', name: '玉米制饲料', inputs: { sweet_corn: 1 }, output: 'animal_feed', quantity: 4, fee: 0, unlock: 'coop' },
   { id: 'strawberry_milk', name: '草莓牛奶', inputs: { farm_milk: 2, strawberry: 1 }, output: 'strawberry_milk', quantity: 2, fee: 0, unlock: 'barn' },
   { id: 'ad_milk', name: 'AD 高钙奶', inputs: { farm_milk: 1 }, output: 'ad_milk', quantity: 1, fee: 2, unlock: 'barn' },
   { id: 'cream', name: '鲜奶制奶油', inputs: { farm_milk: 1 }, output: 'cream', quantity: 1, fee: 0, unlock: 'barn' },
@@ -18,6 +20,7 @@ export const getProcessingUnlockReason = (pet: PetState, id: ProcessingId) => {
   if (!recipe) return '未知加工配方';
   const c = pet.community;
   if (recipe.unlock === 'garden' && !c.gardenBuilt) return '先开放菜地';
+  if (recipe.unlock === 'coop' && !c.facilities.coop.built) return '先开放鸡舍';
   if (recipe.unlock === 'barn' && !c.facilities.barn.built) return '先开放牛棚';
   if (recipe.unlock === 'berry' && !c.expedition.regions.forest.surveyed && !c.expedition.collection.forest_berry && !c.discoveredCrops.includes('berry') && !(pet.inventory.forest_berry > 0)) return '先发现林莓';
   if (recipe.unlock === 'sunflower' && !c.expedition.regions.hills.surveyed && !c.discoveredCrops.includes('sunflower')) return '先在山丘发现向日葵';

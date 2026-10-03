@@ -10,7 +10,10 @@ import type { ExpeditionItemId } from './expeditionTypes';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import type { RegionalTreasureFind } from './expeditionTypes';
 import { communityGiftPool } from './communityProjectData';
-import { getIdleExplorationTargets } from './explorationResources';
+import { getIdleExplorationTargets, idleExplorationRandomTarget } from './explorationResources';
+import { idleExplorationBaseIntervalMs, idleExplorationMinIntervalMs } from './expeditionTiming';
+import { hashString } from './utils';
+import { commonLootPityLimit } from './explorationBudget';
 
 const obj = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
 const n = (v: unknown, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
@@ -29,7 +32,7 @@ const bag = (v: unknown, max = expeditionCapacity): Inventory => {
 const regionAlias = (id: unknown) => id === 'windmill' ? 'hills' : id === 'observatory' ? 'station' : id;
 const route = (raw: unknown): RegionId[] => { const v = Array.isArray(raw) ? raw.map(regionAlias) : raw; return Array.isArray(v) && v.length >= 1 && v.length <= 3 && new Set(v).size === v.length && v.every(id => regionIds.includes(id as RegionId)) ? v as RegionId[] : []; };
 const journal = (v: unknown): string[] => Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(-12).map(x => x.slice(0, 240)) : [];
-export const defaultExpeditionState = (): ExpeditionState => ({ schemaVersion: 6, nextId: 1, treasurePity: { valley: 0, hills: 0, forest: 0, coast: 0, station: 0 },
+export const defaultExpeditionState = (): ExpeditionState => ({ schemaVersion: 8, nextId: 1, treasurePity: { valley: 0, hills: 0, forest: 0, coast: 0, station: 0 },
   regions: Object.fromEntries(regionIds.map(id => [id, { surveyed: false, base: 0, harvestDay: '', harvestUsed: 0 }])) as ExpeditionState['regions'],
   projects: Object.fromEntries(projectIds.map(id => [id, { completed: 0, stage: 0, lastDay: '' }])) as ExpeditionState['projects'], collection: {},
 });
@@ -38,7 +41,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
   for (const field of ['regions', 'treasurePity']) { const values = { ...obj(v[field]) }; values.hills ??= values.windmill; values.station ??= values.observatory; v[field] = values; }
   state.nextId = Math.max(1, n(v.nextId));
   for (const region of regionIds) state.treasurePity[region] = n(obj(v.treasurePity)[region], 9);
-  const treasureFinds = (raw: unknown): RegionalTreasureFind[] => (Array.isArray(raw) ? raw : []).slice(0, 4).flatMap(value => {
+  const treasureFinds = (raw: unknown): RegionalTreasureFind[] => (Array.isArray(raw) ? raw : []).slice(0, 32).flatMap(value => {
     const x = obj(value), item = regionalTreasureIds.find(id => id === x.item);
     return item && regionalTreasures[item].region === x.region && stamp(x.at) ? [{ region: x.region, item, at: x.at, guaranteed: x.guaranteed === true }] : [];
   });
@@ -46,7 +49,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
   if (stamp(loop.refillAt) && day(loop.day)) {
     const voucherIds = new Set<string>(), heartIds = new Set<string>();
     state.loop = { refillAt: loop.refillAt, available: n(loop.available, loop.version === 2 ? 72 : 24), used: n(loop.used), day: day(loop.day), ...(loop.lootSettledThrough !== undefined ? { lootSettledThrough: n(loop.lootSettledThrough, n(loop.used)) } : {}),
-      ...(loop.version === 2 ? { version: 2, paySettledThrough: n(loop.paySettledThrough, n(loop.used)), ...(loop.compensation ? { compensation: { coins: n(obj(loop.compensation).coins), hearts: n(obj(loop.compensation).hearts) } } : {}) } : {}),
+      ...(loop.version === 2 ? { version: 2, paySettledThrough: n(loop.paySettledThrough, n(loop.used)), ...(loop.commonLootMisses !== undefined ? { commonLootMisses: n(loop.commonLootMisses, commonLootPityLimit - 1) } : {}), ...(loop.compensation ? { compensation: { coins: n(obj(loop.compensation).coins), hearts: n(obj(loop.compensation).hearts) } } : {}) } : {}),
       vouchers: (Array.isArray(loop.vouchers) ? loop.vouchers : []).slice(0, 12).flatMap((entry: unknown) => {
         const q = obj(entry), key = `${q.day}:${q.slot}`;
         if (!day(q.day) || ![0, 1, 2, 3].includes(q.slot) || ![150, 300, 600].includes(q.face) || voucherIds.has(key)) return [];
@@ -89,7 +92,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
   }
   const p = obj(v.pending), pr = route(p.route);
   if (label(p.id) && pr.length && (p.mode === 'manual' || p.mode === 'idle') && stamp(p.at)) state.pending = {
-    id: label(p.id), rulesVersion: p.rulesVersion === 6 ? 6 : p.rulesVersion === 5 ? 5 : p.rulesVersion === 4 ? 4 : p.rulesVersion === 3 ? 3 : p.rulesVersion === 2 ? 2 : 1, mode: p.mode, route: pr, items: bag(p.items, p.rulesVersion >= 6 ? 1024 : p.mode === 'idle' && p.rulesVersion >= 2 ? 512 : capacity), overflow: p.selected ? {} : bag(p.overflow, 512), tool: p.tool === true,
+    id: label(p.id), rulesVersion: p.rulesVersion === 8 ? 8 : p.rulesVersion === 7 ? 7 : p.rulesVersion === 6 ? 6 : p.rulesVersion === 5 ? 5 : p.rulesVersion === 4 ? 4 : p.rulesVersion === 3 ? 3 : p.rulesVersion === 2 ? 2 : 1, mode: p.mode, route: pr, items: bag(p.items, p.rulesVersion >= 6 ? 1024 : p.mode === 'idle' && p.rulesVersion >= 2 ? 512 : capacity), overflow: p.selected ? {} : bag(p.overflow, 512), tool: p.tool === true,
     selected: p.selected === true, coins: n(p.coins, p.rulesVersion >= 2 ? 30000 : 300), hearts: n(p.hearts, p.rulesVersion >= 2 ? 10000 : 30), refundCoins: n(p.refundCoins, 1568), at: p.at,
     reason: p.reason === 'complete' || p.reason === 'health' ? p.reason : 'return', journal: journal(p.journal),
     ...(p.mode === 'idle' && normalizeRationReturn(p.rationReturn) ? { rationReturn: normalizeRationReturn(p.rationReturn) } : {}),
@@ -97,21 +100,26 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
     ...(p.treasureFinds ? { treasureFinds: treasureFinds(p.treasureFinds) } : {}), ...(p.treasureChance !== undefined ? { treasureChance: amount(p.treasureChance, 26) } : {}),
   };
   const a = obj(v.active), ar = route(a.route);
-  if (!state.pending && label(a.id) && [1, 2, 3, 4, 5, 6].includes(a.rulesVersion) && ar.length && (a.mode === 'manual' || a.mode === 'idle') && stamp(a.startedAt) && stamp(a.endsAt)) {
+  if (!state.pending && label(a.id) && [1, 2, 3, 4, 5, 6, 7, 8].includes(a.rulesVersion) && ar.length && (a.mode === 'manual' || a.mode === 'idle') && stamp(a.startedAt) && stamp(a.endsAt)) {
     const modern = a.rulesVersion >= 2;
     const parts = modern ? [2, 4, 8].includes(a.parts) ? a.parts : 2 : a.parts === 3 ? 3 : 1;
+    const checkIntervalMs = a.rulesVersion >= 7
+      ? Math.max(idleExplorationMinIntervalMs, n(a.checkIntervalMs, idleExplorationBaseIntervalMs) || idleExplorationBaseIntervalMs) : 3600000;
+    const checks = Math.floor(parts * 3600000 / checkIntervalMs);
     const trip: ExpeditionTrip = { rulesVersion: a.rulesVersion, id: label(a.id), revision: n(a.revision), mode: a.mode, actorId: label(a.actorId), actorName: label(a.actorName),
       route: ar, leg: 0, step: 0, bag: bag(a.bag, modern && a.mode === 'idle' ? 512 : capacity), ground: bag(a.ground, 512), tool: a.tool === true,
       rested: [], paused: false,
-      startedAt: a.startedAt, endsAt: a.endsAt, parts, settledParts: n(a.settledParts, parts),
+      startedAt: a.startedAt, endsAt: a.endsAt, parts, settledParts: n(a.settledParts, checks),
+      ...(a.rulesVersion >= 7 ? { checkIntervalMs } : {}),
+      ...(a.rulesVersion >= 8 ? { gatherSeed: Number.isInteger(a.gatherSeed) && a.gatherSeed >= 0 && a.gatherSeed <= 0xffffffff ? a.gatherSeed : hashString(label(a.id)) } : {}),
       coins: n(a.coins, modern ? 30000 : 300), hearts: n(a.hearts, modern ? 10000 : 30), journal: journal(a.journal),
       energySpent: n(a.energySpent, 10000), healthLost: amount(a.healthLost, 10000),
       paidActions: n(a.paidActions),
       ...(a.rulesVersion >= 4 && a.mode === 'manual' ? { checkState: normalizeExplorationCheckState(a.checkState, label(a.id)) } : {}),
       ...(a.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: amount(a.gatherBonus, 35) } : {}),
-      ...(modern ? { target: a.rulesVersion >= 6 ? getIdleExplorationTargets(ar[0]).find(target => target.id === a.target)?.id ?? getIdleExplorationTargets(ar[0])[0]?.id : valleyGatherTargets.includes(a.target) ? a.target : 'valley_mushroom', reservedHarvests: n(a.reservedHarvests, parts - n(a.settledParts, parts)), rationsRemaining: n(a.rationsRemaining, Math.max(0, Math.ceil(parts / 2) - 1)) } : {}),
+      ...(modern ? { target: a.rulesVersion >= 6 ? getIdleExplorationTargets(ar[0]).find(target => target.id === a.target)?.id ?? (a.rulesVersion >= 8 ? idleExplorationRandomTarget : getIdleExplorationTargets(ar[0])[0]?.id) : valleyGatherTargets.includes(a.target) ? a.target : 'valley_mushroom', reservedHarvests: n(a.reservedHarvests, checks - n(a.settledParts, checks)), rationsRemaining: n(a.rationsRemaining, Math.max(0, Math.ceil(parts / 2) - 1)) } : {}),
       ...(a.treasureFinds ? { treasureFinds: treasureFinds(a.treasureFinds) } : {}),
-      ...(a.rulesVersion >= 3 && a.mode === 'idle' ? a.rationPlan !== undefined ? { rationPlan: normalizeRationPlan(a.rationPlan, parts) } : { rationSegments: normalizeRationSegments(a.rationSegments, parts) } : {}) };
+      ...(a.rulesVersion >= 3 && a.mode === 'idle' ? a.rationPlan !== undefined ? { rationPlan: normalizeRationPlan(a.rationPlan, parts, a.rulesVersion >= 7 ? checks : parts / 2) } : { rationSegments: normalizeRationSegments(a.rationSegments, parts) } : {}) };
     if (trip.mode === 'manual') {
       const items = { ...trip.bag };
       for (const [id, count] of Object.entries(trip.ground)) items[id] = (items[id] ?? 0) + count;

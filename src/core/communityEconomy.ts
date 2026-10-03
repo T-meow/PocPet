@@ -74,7 +74,7 @@ export const getCommunitySale = (id: string): CommunitySale | undefined => {
   const dish = getDish(id), process = processingRecipes.find(recipe => recipe.output === id);
   let sale: CommunitySale | undefined;
   if (dish) sale = craftedSale(getRecipePricingCost(dish.recipe, dish.banana), dish.recipe.demand);
-  else if (process) {
+  else if (process && rawSale(id)) {
     const cost = (process.fee + Object.entries(process.inputs).reduce((sum, [item, count]) => sum + getIngredientValuation(item as BuiltinItemId) * count, 0)) / process.quantity;
     sale = craftedSale(cost, rawSale(id)!.demand);
   } else {

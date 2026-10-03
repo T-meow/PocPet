@@ -1,4 +1,5 @@
 import { recordEarnedCoins, recordEarnedHearts } from './achievements';
+import { getProductionHeartReward, grantActivityHearts } from './activityHearts';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
@@ -6,12 +7,13 @@ import type { Inventory, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getCommunityDay, acceptCommunityTask, cancelCommunityTask, claimCommunityTask, recordCommunityTaskEvent } from './communityCommissions';
 import type { CommunityCrop, CommunityRoute } from './communityTypes';
-import { communityCrops, getCropUnlockReason } from './foodCatalog';
+import { communityCrops, getCropUnlockReason, type CropId } from './foodCatalog';
 import { spendToolUse } from './toolDurability';
 import { getDecorationEffects } from './decorationEffects';
+import { clampCoins } from './petStats';
 export { communityCrops } from './foodCatalog';
 
-export const communityConfig = { herbHours: 6, carrotHours: 4, herbYield: 4, carrotYield: 3, commissionCoins: 40, orderCoins: 80, orderHearts: 5 } as const;
+export const communityConfig = { herbHours: 6, carrotHours: 4, herbYield: 4, carrotYield: 3, commissionCoins: 160, orderCoins: 320, orderHearts: 25 } as const;
 const fail = (pet: PetState, recentEvent: string): PetState => ({ ...pet, recentEvent });
 const fits = (pet: PetState, items: Inventory) => Object.entries(items).every(([id, n]) => (pet.inventory[id] ?? 0) + n <= inventoryItemLimit);
 const add = (pet: PetState, items: Inventory) => Object.entries(items).reduce((stock, [id, n]) => addInventoryItem(stock, id, n), pet.inventory);
@@ -32,13 +34,22 @@ export const discoverCommunityFinds = (pet: PetState, now: number, _purpose?: Co
   if (forage) next = recordCommunityTaskEvent(next, 'forage', now);
   return { pet: next, items: { ...(seed ? { creek_herb_seed: 2 } : {}), ...(forage ? { creek_herb: 1 } : {}) } };
 };
-const setPlotCrop = (pet: PetState, plotId: number, crop?: CommunityCrop): PetState => ({ ...pet, community: { ...pet.community, plots: pet.community.plots.map(plot => plot.id === plotId ? { ...plot, crop } : plot) } });
+const setPlotCrop = (pet: PetState, plotId: number, crop?: CommunityCrop): PetState => ({ ...pet, community: { ...pet.community, plots: pet.community.plots.map(plot => plot.id === plotId ? { ...plot, crop, lastCrop: crop?.id ?? plot.lastCrop ?? plot.crop?.id } : plot) } });
 export const plantCommunityCrop = (pet: PetState, plotId: number, id: keyof typeof communityCrops, now = Date.now()): PetState => {
   const c = pet.community, definition = communityCrops[id];
   const plot = c.plots.find(plot => plot.id === plotId);
   if (!definition || !plot || !Number.isFinite(now) || pet.timePause || !canSpendCompanionTime(pet) || !c.gardenBuilt || plot.crop || getCropUnlockReason(pet, id) || (pet.inventory[definition.seed] ?? 0) < 1) return pet;
   const plantedAt = Math.max(now, pet.lastUpdatedAt);
   return { ...setPlotCrop(pet, plotId, { id, plantedAt, readyAt: plantedAt + Math.round(definition.hours * 3600000 * (1 - getDecorationEffects(pet).creek_fountain / 100)) }), inventory: removeInventoryItem(pet.inventory, definition.seed), recentEvent: `第 ${plotId} 块菜地种下了一份期待。成熟后会一直等你，不会因离线枯萎。` };
+};
+export const plantCommunityCrops = (pet: PetState, seeds: { plotId: number; cropId: CropId }[], now = Date.now()): PetState => {
+  let planted = 0;
+  for (const { plotId, cropId } of seeds) {
+    const next = plantCommunityCrop(pet, plotId, cropId, now);
+    if (next !== pet) planted++;
+    pet = next;
+  }
+  return planted ? { ...pet, recentEvent: `已播种 ${planted} 块菜地，消耗种子 ×${planted}。${planted < seeds.length ? '其余地块暂不可播种或种子不足。' : '成熟后会一直等你。'}` } : pet;
 };
 export const careCommunityCrop = (pet: PetState, plotId: number, plantedAt: number, action: 'water' | 'fertilize', now = Date.now()): PetState => {
   const crop = pet.community.plots.find(plot => plot.id === plotId)?.crop;
@@ -68,11 +79,30 @@ export const harvestCommunityCrop = (pet: PetState, plotId: number, plantedAt: n
   if (sickle && !use) return pet;
   pet = use?.pet ?? pet;
   pet = setPlotCrop(pet, plotId);
-  return { ...pet, inventory: add(pet, items), community: { ...pet.community, discoveredCrops: [...new Set([...c.discoveredCrops, crop.id])] }, recentEvent: `第 ${plotId} 块菜地收获${definition.name} ${quantity} 份。${sickle ? `精收镰刀耐久 −1${use?.broken ? '，这把镰刀已用尽' : ''}。` : ''}${crop.id === 'wheat' ? `可免费磨出面粉 ${quantity * 2} 份；本轮种子成本 24 金币。` : '仓库、加工台与厨房共用这些食材。'}` };
+  const hearts = getProductionHeartReward(definition.hours);
+  return grantActivityHearts({ ...pet, inventory: add(pet, items), community: { ...pet.community, discoveredCrops: [...new Set([...c.discoveredCrops, crop.id])] }, recentEvent: `第 ${plotId} 块菜地收获${definition.name} ${quantity} 份、${hearts} 颗小心心。${sickle ? `精收镰刀耐久 −1${use?.broken ? '，这把镰刀已用尽' : ''}。` : ''}${crop.id === 'wheat' ? `可免费磨出面粉 ${quantity * 2} 份；本轮种子成本 24 金币。` : '仓库、加工台与厨房共用这些食材。'}` }, hearts);
+};
+export const harvestCommunityCrops = (pet: PetState, plots: { id: number; plantedAt: number }[], now = Date.now()): PetState => {
+  let harvested = 0, hearts = 0;
+  const produce: Partial<Record<CropId, number>> = {};
+  for (const { id, plantedAt } of plots) {
+    const crop = pet.community.plots.find(plot => plot.id === id)?.crop;
+    if (!crop || crop.plantedAt !== plantedAt) continue;
+    const quantity = getCommunityCropYield(pet, id), next = harvestCommunityCrop(pet, id, plantedAt, now);
+    if (!next.community.plots.find(plot => plot.id === id)?.crop) {
+      harvested++;
+      hearts += getProductionHeartReward(communityCrops[crop.id].hours);
+      produce[crop.id] = (produce[crop.id] ?? 0) + quantity;
+    }
+    pet = next;
+  }
+  const summary = (Object.entries(produce) as [CropId, number][]).map(([id, quantity]) => `${communityCrops[id].name} ×${quantity}`).join('、');
+  return harvested ? { ...pet, recentEvent: `一键收获 ${harvested} 块菜地：${summary}，获得 ${hearts} 颗小心心。${harvested < plots.length ? '其余作物保留在菜地，可在成熟或腾出仓库后收获。' : ''}` } : pet;
 };
 export const deliverCommunityOrder = (pet: PetState): PetState => {
   if (!canSpendCompanionTime(pet) || !pet.community.gardenBuilt || pet.community.firstOrderDelivered || (pet.inventory.dish_herb_porridge ?? 0) < 1) return pet;
   const { orderCoins, orderHearts } = communityConfig;
+  if (clampCoins(pet.coins + orderCoins) !== pet.coins + orderCoins) return fail(pet, '金币已满，暖粥与首次送餐酬谢继续保留。');
   return recordEarnedHearts(recordEarnedCoins({ ...pet, inventory: removeInventoryItem(pet.inventory, 'dish_herb_porridge'), coins: pet.coins + orderCoins, hearts: pet.hearts + orderHearts,
-    community: { ...pet.community, firstOrderDelivered: true }, recentEvent: '把第一碗香草暖粥送给了修渠的邻居。收到 80 金币、5 小心心，体力上限永久 +3。' }, orderCoins), orderHearts);
+    community: { ...pet.community, firstOrderDelivered: true }, recentEvent: `把第一碗香草暖粥送给了修渠的邻居。收到 ${orderCoins} 金币、${orderHearts} 小心心，体力上限永久 +3。` }, orderCoins), orderHearts);
 };

@@ -9,11 +9,13 @@ import { finishExpedition, withExpedition } from './expeditionReturn';
 import type { ExpeditionTrip, RegionId } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 import { advanceExplorationBudget, getExplorationBudget, spendExplorationHarvest } from './explorationBudget';
-import { getIdleExplorationTargets } from './explorationResources';
+import { getIdleExplorationTargets, idleExplorationRandomTarget } from './explorationResources';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { explorationTravel } from './explorationTravelData';
 import { lockRationPlan, quoteExpeditionRations, type RationSelection } from './explorationRations';
 import { getRegionUnlockReason, mapRegionForExpedition } from './landmarkProgress';
+import { formatExpeditionInterval, getIdleExplorationTiming } from './expeditionTiming';
+import { hashString } from './utils';
 
 const fail = (pet: PetState, recentEvent: string): PetState => ({ ...pet, recentEvent });
 export const getExpeditionHarvestLeft = (pet: PetState, _id: RegionId, now = Date.now()) => getExplorationBudget(pet, now)?.available ?? 0;
@@ -29,7 +31,8 @@ export const getExpeditionStartReason = (pet: PetState, route: RegionId[], mode:
   if (!progress.surveyed || !progress.base) return '完成当地全部 8 个地标，并建好休息基地后开放挂机。';
   if (![2, 4, 8].includes(parts)) return '挂机可选择 2、4、8 小时。';
   if (pet.health < getPetStatCap(pet) * .4) return '健康不足，请先护理再出发。';
-  if (getExpeditionHarvestLeft(pet, region, now) < parts) return '需要采集机会 ' + parts + ' 次；每小时恢复 1 次，最多积存 72 次。';
+  const timing = getIdleExplorationTiming(pet, parts);
+  if (getExpeditionHarvestLeft(pet, region, now) < timing.checks) return '需要采集机会 ' + timing.checks + ' 次；每小时恢复 1 次，最多积存 72 次。';
   const quote = quoteExpeditionRations(pet, region, parts, rations), profile = explorationTravel[region];
   if (quote.reason) return quote.reason;
   return pet.energy < profile.idleEnergy * parts / 2 || pet.hunger < profile.idleHunger * parts / 2 ? '行路需饱食 ' + profile.idleHunger * parts / 2 + '、体力 ' + profile.idleEnergy * parts / 2 + '，请先补充。' : '';
@@ -39,20 +42,21 @@ export const startExpedition = (pet: PetState, route: RegionId[], bag: Inventory
   const reason = getExpeditionStartReason(pet, route, mode, parts, now, options.rations);
   if (reason) return fail(pet, reason);
   if (tool || expeditionBagCount(bag) || !actorId || actorId.length > 128) return pet;
-  const targets = getIdleExplorationTargets(route[0]), target = options.target ?? targets[0]?.id;
-  if (!targets.some(resource => resource.id === target)) return fail(pet, '该资源不能在此地区挂机采集，请重新选择目标。');
+  const targets = getIdleExplorationTargets(route[0]), target = options.target ?? idleExplorationRandomTarget;
+  if (target !== idleExplorationRandomTarget && !targets.some(resource => resource.id === target)) return fail(pet, '该资源不能在此地区挂机采集，请重新选择目标。');
   const state = pet.community.expedition, startedAt = Math.max(now, pet.lastUpdatedAt);
   const quote = quoteExpeditionRations(pet, route[0], parts, options.rations);
+  const timing = getIdleExplorationTiming(pet, parts);
   let inventory = { ...pet.inventory };
   for (const [id, quantity] of Object.entries(quote.used)) inventory = removeInventoryItem(inventory, id, quantity);
-  const trip: ExpeditionTrip = { rulesVersion: 6, id: 'expedition:' + state.nextId, revision: 0, mode: 'idle', actorId, actorName: actorName.slice(0, 32),
+  const trip: ExpeditionTrip = { rulesVersion: 8, id: 'expedition:' + state.nextId, revision: 0, mode: 'idle', actorId, actorName: actorName.slice(0, 32),
     route: [...route], leg: 0, step: 0, bag: {}, ground: {}, tool: false, rested: [], paused: false,
-    target, rewardsVersion: 1, energySpent: 0, healthLost: 0, paidActions: 0, reservedHarvests: parts,
-    rationPlan: lockRationPlan(quote, parts, pet.createdAt + ':' + state.nextId + ':' + startedAt),
+    target, gatherSeed: hashString(`${pet.saveMetadata.id}:${state.nextId}:${startedAt}`), rewardsVersion: 1, energySpent: 0, healthLost: 0, paidActions: 0, reservedHarvests: timing.checks, checkIntervalMs: timing.intervalMs,
+    rationPlan: lockRationPlan(quote, parts, pet.createdAt + ':' + state.nextId + ':' + startedAt, timing.checks),
     startedAt, endsAt: startedAt + parts * 3600000, settledParts: 0, parts, coins: 0, hearts: 0, journal: ['和' + actorName + '前往' + regions[route[0]].name + '挂机探索。'] };
-  pet = spendExplorationHarvest(pet, parts, now, true);
+  pet = spendExplorationHarvest(pet, timing.checks, now, true);
   return { ...withExpedition(pet, { nextId: state.nextId + 1, active: trip }), inventory, coins: pet.coins - quote.coins, lastInteractionAt: now,
-    recentEvent: '全程料理与采集机会已备好。每小时采集，每两小时判定当地珍宝；该地区连续未获得时，第 10 次判定保底。' };
+    recentEvent: `全程料理与采集机会已备好。每 ${formatExpeditionInterval(timing.intervalMs)} 随机采集当地物产，定向仅提高目标比例，并获得金币与心心、判定当地珍宝；该地区连续未获得时，第 10 次珍宝判定保底。` };
 };
 export const getBaseUpgrade = (level: number, region: RegionId = 'valley') => level === 0
   ? { coins: 120, wood: 3, stone: 2, name: '修好休息基地', benefit: '开放本地区 2／4／8 小时挂机探索' }

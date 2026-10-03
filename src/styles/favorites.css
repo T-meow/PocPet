@@ -1,0 +1,16 @@
+.favorite-button {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  min-height: 44px; padding: 8px 12px; border: 1px solid #d6c7a4; border-radius: 12px;
+  background: #fffcf4; color: #796441; font: inherit; font-size: 12px; line-height: 1.3;
+}
+.favorite-button svg { flex-shrink: 0; margin-right: 6px; }
+.favorite-button--active { background: #fff1c5; border-color: #cda958; color: #826015; }
+.favorite-button--active svg { fill: #e6ba51; }
+.favorite-button:focus { outline: 2px solid #8b713d; outline-offset: 2px; }
+.favorite-mark { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -1px; color: #9d741d; }
+.favorite-mark svg { display: block; width: 12px; height: 12px; fill: #ecc45c; }
+.storage-detail-hero .favorite-button { margin-top: 8px; }
+.recipe-detail .favorite-button { align-self: flex-start; margin-bottom: 8px; }
+.exploration-pack-item-heading .favorite-button { margin-top: 6px; }
+/* Moving a starred card must not make the browser follow it to the top. */
+.kitchen-modal > .activity-body, .storage-grid-scroll { overflow-anchor: none; }

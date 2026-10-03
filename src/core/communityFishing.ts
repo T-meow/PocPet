@@ -1,4 +1,5 @@
 import { fish, isWaterOpen, waters, waterIds } from './communityData';
+import { grantActivityHearts } from './activityHearts';
 import { recordCommunityCatch } from './communityCommissions';
 import type { FishingCatch, FishingReceipt, WaterId } from './communityTypes';
 import { getToolUsesLeft, spendToolUse } from './toolDurability';
@@ -10,7 +11,7 @@ import type { Inventory, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getFishingLevelEffects } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
-import { fishingIntervalMs, getFishingClicks, isGoldCrownFish, sampleFishingCatch } from './fishingRules';
+import { fishingIntervalMs, getFishingClicks, getFishingHeartReward, isGoldCrownFish, sampleFishingCatch } from './fishingRules';
 import { eatReturningRations, rationReturnLines } from './expeditionRationReturn';
 import { quoteFishingRations } from './fishingRations';
 import type { RationSelection } from './explorationRations';
@@ -156,7 +157,8 @@ export const claimCommunityFish = (pet: PetState, id: string): PetState => {
     if (amount < count) remaining[item] = count - amount;
   }
   const rest = Object.keys(remaining).length ? { ...pending, items: remaining } : undefined;
-  return { ...withFishing(pet, { pending: rest }), inventory, recentEvent: rest ? '仓库装不下的鱼获与鱼饵仍在收获篮，腾出空间后继续领取。' : '鱼获已收好，图鉴和金冠永久保留。' };
+  const hearts = getFishingHeartReward(pending.items) - getFishingHeartReward(remaining);
+  return grantActivityHearts({ ...withFishing(pet, { pending: rest }), inventory, recentEvent: (rest ? '仓库装不下的鱼获与鱼饵仍在收获篮，腾出空间后继续领取。' : '鱼获已收好，图鉴和金冠永久保留。') + (hearts > 0 ? ` 获得 ${hearts} 颗小心心。` : '') }, hearts);
 };
 
 export const buildWaterBoardwalk = (pet: PetState, water: 'forest_pool' | 'coast_pier'): PetState => {

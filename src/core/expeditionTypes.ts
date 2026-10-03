@@ -8,10 +8,12 @@ export interface RegionProgress {
   storyAt?: number; actorId?: string; actorName?: string;
 }
 export interface ExpeditionTrip {
-  rulesVersion: 1 | 2 | 3 | 4 | 5 | 6; id: string; revision: number; mode: 'manual' | 'idle';
+  rulesVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8; id: string; revision: number; mode: 'manual' | 'idle';
   actorId: string; actorName: string; route: RegionId[]; leg: number; step: number;
   bag: Inventory; ground: Inventory; tool: boolean; rested: RegionId[]; paused: boolean;
   startedAt: number; endsAt: number; settledParts: number; parts: number;
+  checkIntervalMs?: number;
+  gatherSeed?: number;
   coins: number; hearts: number; journal: string[];
   target?: string;
   harvestSpent?: number; energySpent?: number; healthLost?: number;
@@ -29,7 +31,7 @@ export interface ExpeditionTrip {
 export interface ExpeditionReceipt {
   id: string; mode: 'manual' | 'idle'; route: RegionId[]; items: Inventory; overflow: Inventory; tool: boolean;
   selected: boolean; coins: number; hearts: number; at: number; reason: 'complete' | 'return' | 'health'; journal: string[];
-  rulesVersion?: 1 | 2 | 3 | 4 | 5 | 6;
+  rulesVersion?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   refundCoins?: number;
   rationReturn?: import('./explorationRations').RationReturn;
   lastCheck?: import('./explorationChecks').ExplorationCheckResult;
@@ -44,7 +46,7 @@ export interface CommunityProject {
   reward?: import('./communityProjectData').CommunityProjectReward;
 }
 export interface ExpeditionState {
-  schemaVersion: 6; nextId: number;
+  schemaVersion: 8; nextId: number;
   treasurePity: Record<RegionId, number>;
   regions: Record<RegionId, RegionProgress>;
   projects: Record<ProjectId, CommunityProject>;

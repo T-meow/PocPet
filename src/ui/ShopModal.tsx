@@ -16,14 +16,15 @@ interface ShopModalProps {
   onClose: () => void;
   onOpenInventory: () => void;
   onBuyItem: (itemId: ItemId, quantity: number) => void;
+  onToggleItemFavorite: (id: ItemId) => void;
   onExchangeHeart: () => void;
   isHeartExchangeCoolingDown: boolean;
 }
 
-export const ShopModal = ({ pet, items, browse, onBrowseChange, itemIconMap, onClose, onOpenInventory, onBuyItem }: ShopModalProps) => {
+export const ShopModal = ({ pet, items, browse, onBrowseChange, itemIconMap, onClose, onOpenInventory, onBuyItem, onToggleItemFavorite }: ShopModalProps) => {
   const now = Date.now();
   const discountInfo = getDailyShopDiscountInfo(pet, now);
-  return <ItemStorageModal mode="shop" pet={pet} items={items} browse={browse} onBrowseChange={onBrowseChange} itemIconMap={itemIconMap} onClose={onClose} onSwitch={onOpenInventory}
+  return <ItemStorageModal mode="shop" pet={pet} items={items} browse={browse} onBrowseChange={onBrowseChange} itemIconMap={itemIconMap} onClose={onClose} onSwitch={onOpenInventory} onToggleItemFavorite={onToggleItemFavorite}
     tileInfo={(item) => {
       const quote = getItemPurchaseQuote(pet, item.id, 1, now, item);
       const discount = discountInfo?.items.find((entry) => entry.itemId === item.id);

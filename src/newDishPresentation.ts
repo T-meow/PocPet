@@ -3,6 +3,12 @@ import type { DishId } from './core/companionActivityTypes';
 // Lower rim offsets use each approved 256 px master silhouette at the ornament columns.
 // Bowls, cups, trays and boxes keep their own vessels and do not receive plate ornaments.
 export const newDishPresentation = {
+  dish_highland_potato_stew: { container: 'emoji', rimBottom: '0%' },
+  dish_snow_bean_rice: { container: 'emoji', rimBottom: '0%' },
+  dish_rock_honey_milk: { container: 'emoji', rimBottom: '0%' },
+  dish_highland_potato_gratin: { container: 'emoji', rimBottom: '0%' },
+  dish_snow_bean_soup: { container: 'emoji', rimBottom: '0%' },
+  dish_summit_travel_bento: { container: 'emoji', rimBottom: '0%' },
   dish_mushroom_rice: { container: 'fixed_plate', rimBottom: '29.30%' },
   dish_honey_drink: { container: 'fixed_glass', rimBottom: '19.14%' },
   dish_berry_milk: { container: 'fixed_glass', rimBottom: '17.97%' },

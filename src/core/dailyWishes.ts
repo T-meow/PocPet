@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { dailyWishHearts, grantActivityHearts } from './activityHearts';
 import { getDailyResetDateKey } from './dailyReset';
 import { incrementDailyWishClaim, incrementReturnWelcomeClaim, recordEarnedCoins } from './achievements';
 import { addInventoryItem, allItemIds } from './items';
@@ -245,6 +246,7 @@ export const recordWishProgress = (pet: PetState, action: WishProgressActionKey,
   recordReturnWelcomeProgress(recordDailyWishProgress(pet, action, now), action, now);
 
 export const claimDailyWishReward = (pet: PetState, now = Date.now()): PetState => {
+  if (pet.timePause) return pet;
   const current = ensureDailyWishForDate(pet, now);
   const wish = current.dailyWish;
   if (wish.claimedAt) return { ...current, recentEvent: t('pet.dailyWish.alreadyClaimed') };
@@ -257,9 +259,9 @@ export const claimDailyWishReward = (pet: PetState, now = Date.now()): PetState 
     ...current,
     coins: clampCoins(current.coins + rewardCoins),
     dailyWish: { ...wish, claimedAt: now },
-    recentEvent: t('pet.dailyWish.claimed', { coins: rewardCoins }),
+    recentEvent: t('pet.dailyWish.claimed', { coins: rewardCoins }) + ` 另获 ${dailyWishHearts} 颗小心心。`,
   }), rewardCoins);
-  return resolveDailyGachaTicket(rewarded, 'daily_wish', 20, now).pet;
+  return resolveDailyGachaTicket(grantActivityHearts(rewarded, dailyWishHearts), 'daily_wish', 20, now).pet;
 };
 
 export const claimReturnWelcomeReward = (pet: PetState, now = Date.now()): PetState => {
@@ -294,7 +296,7 @@ export const getDailyWishView = (pet: PetState): WishTaskView => {
   return {
     title: t('ui.dailyWish.wishes.' + wish.id + '.title'),
     progressText: t('ui.wishes.progress', { progress: wish.progress, target: wish.target }),
-    rewardText: t('ui.wishes.rewardCoins', { coins: rewardCoins }),
+    rewardText: t('ui.wishes.rewardCoins', { coins: rewardCoins }) + ` · ${dailyWishHearts} 小心心`,
     buttonLabel: getButtonLabel(canClaim, claimed),
     canClaim,
     claimed,

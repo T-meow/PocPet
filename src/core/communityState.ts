@@ -1,12 +1,12 @@
 import type { CommunityState, CommissionTemplate, MarketReceipt } from './communityTypes';
-import { commissionTemplates, facilityIds } from './communityData';
+import { commissionTemplates, facilityIds, normalizeAnimalName } from './communityData';
 import { getCommunitySale, marketPricingVersion } from './communityEconomy';
 import { defaultExpeditionState, normalizeExpeditionState } from './expeditionState';
 import { marketMaxVisitMs, marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { cropIds, wildIngredientIds } from './foodCatalog';
 import { durableToolIds, toolDefinitions } from './fieldEquipmentData';
 import { communityDecorationIds, regionalTreasureIds } from './regionalTreasures';
-import { specialtyGoods, type SpecialtyItem } from './communitySpecialtyOrders';
+import { specialtyGoods, specialtyRegularMultiplier, specialtyUrgentMultiplier, type SpecialtyItem } from './communitySpecialtyOrders';
 import { getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
 import { normalizeFishingState } from './fishingState';
@@ -14,10 +14,10 @@ import { regionIds, projectIds } from './expeditionData';
 import { getWeekStartDateKey } from './dailyReset';
 import { landmarkNodes } from './landmarkProgress';
 
-export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 13, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
+export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 14, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
   plots: [{ id: 1 }], upgrades: { garden: 1, coop: 1, barn: 1, fishing_hut: 1 },
   toolWear: {}, treasureResearch: {}, decorations: [], decorationLevels: {}, commissionsCompleted: 0, specialtyOrders: { acceptedDay: '', completed: 0 },
-  discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false },
+  discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false }, ranchCompostCycles: 0,
   facilities: { coop: { found: false, work: 0, built: false }, barn: { found: false, work: 0, built: false }, fishing_hut: { found: false, work: 0, built: false }, upstream: { found: false, work: 0, built: false }, stall: { found: false, work: 0, built: false } },
   animals: { coop: { feed: 0, stock: 0, cycleMs: 21600000, cared: false, revision: 0 }, barn: { feed: 0, stock: 0, cycleMs: 28800000, cared: false, revision: 0 } },
   fishing: { casts: 0, nextIdleId: 1, journal: {} },
@@ -50,7 +50,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   state.commissionsCompleted = n(v.commissionsCompleted);
   const specialty = object(v.specialtyOrders), order = object(specialty.active), item = order.item as SpecialtyItem;
   state.specialtyOrders = { acceptedDay: day(specialty.acceptedDay), completed: n(specialty.completed) };
-  if (Object.prototype.hasOwnProperty.call(specialtyGoods, item) && day(order.day) && order.id === `specialty:${order.day}:${item}` && stamp(order.acceptedAt) && [3, 5].includes(order.multiplier) && order.quantity === specialtyGoods[item].quantity && order.unitPrice === specialtyGoods[item].base * order.multiplier) {
+  if (Object.prototype.hasOwnProperty.call(specialtyGoods, item) && day(order.day) && order.id === `specialty:${order.day}:${item}` && stamp(order.acceptedAt) && [3, 5, specialtyRegularMultiplier, specialtyUrgentMultiplier].includes(order.multiplier) && order.quantity === specialtyGoods[item].quantity && order.unitPrice === specialtyGoods[item].base * order.multiplier) {
     state.specialtyOrders.active = { id: order.id, day: order.day, item, quantity: order.quantity, unitPrice: order.unitPrice, multiplier: order.multiplier, acceptedAt: order.acceptedAt, ...(stamp(order.rewardCoins) ? { rewardCoins: n(order.rewardCoins, Math.floor(order.quantity * order.unitPrice * 1.2)) } : {}) };
     if (!state.specialtyOrders.acceptedDay) state.specialtyOrders.acceptedDay = order.day;
   }
@@ -61,7 +61,8 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
     const c = object(saved?.crop ?? (index === 0 && !Array.isArray(v.plots) ? legacyCrop : undefined));
     const crop = built && cropIds.includes(c.id) && stamp(c.plantedAt) && stamp(c.readyAt) && c.readyAt >= c.plantedAt
       ? { id: c.id, plantedAt: c.plantedAt, readyAt: c.readyAt, ...(c.watered === true ? { watered: true } : {}), ...(c.fertilized === true ? { fertilized: true } : {}) } : undefined;
-    return { id, ...(crop ? { crop } : {}) };
+    const lastCrop = crop?.id ?? (cropIds.includes(saved?.lastCrop!) ? saved!.lastCrop : undefined);
+    return { id, ...(crop ? { crop } : {}), ...(lastCrop ? { lastCrop } : {}) };
   });
   for (const id of durableToolIds) { const wear = n(object(v.toolWear)[id], toolDefinitions[id].uses - 1); if (wear) state.toolWear[id] = wear; }
   for (const id of regionalTreasureIds) { const progress = n(object(v.treasureResearch)[id]); if (progress) state.treasureResearch[id] = progress; }
@@ -76,14 +77,15 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   state.processing.revision = n(object(v.processing).revision);
   const ranch = object(v.ranchDay);
   state.ranchDay = { day: day(ranch.day), cared: ranch.cared === true, collected: ranch.collected === true, claimed: ranch.claimed === true };
+  state.ranchCompostCycles = n(v.ranchCompostCycles);
   const q = v.commission;
-  if (q && typeof q.id === 'string' && /^search:\d{4}-\d{2}-\d{2}$/.test(q.id) && Number.isFinite(q.acceptedAt) && q.acceptedAt >= 0) state.commission = { id: q.id, acceptedAt: q.acceptedAt, found: q.found === true, ...(stamp(q.rewardCoins) ? { rewardCoins: n(q.rewardCoins, 48) } : {}) };
+  if (q && typeof q.id === 'string' && /^search:\d{4}-\d{2}-\d{2}$/.test(q.id) && Number.isFinite(q.acceptedAt) && q.acceptedAt >= 0) state.commission = { id: q.id, acceptedAt: q.acceptedAt, found: q.found === true, ...(stamp(q.rewardCoins) ? { rewardCoins: n(q.rewardCoins, 192) } : {}) };
   state.candidates = Array.isArray(v.candidates) ? [...new Set(v.candidates.filter(id => commissionTemplates.includes(id)))].slice(0, 3) : [];
   const seen = new Set<string>();
   state.tasks = (Array.isArray(v.tasks) ? v.tasks : []).flatMap(task => {
     if (!task || !taskId(task.id) || task.template === 'search' || task.id.split(':')[0] !== task.template || !stamp(task.acceptedAt) || seen.has(task.id)) return [];
     seen.add(task.id);
-    return [{ id: task.id, template: task.template, acceptedAt: task.acceptedAt, found: task.found === true, ...(regionIds.includes(task.region!) ? { region: task.region } : {}), ...(landmarkNodes.includes(task.node!) ? { node: task.node } : {}), ...(stamp(task.rewardCoins) ? { rewardCoins: n(task.rewardCoins, 1000) } : {}) }];
+    return [{ id: task.id, template: task.template, acceptedAt: task.acceptedAt, found: task.found === true, ...(regionIds.includes(task.region!) ? { region: task.region } : {}), ...(landmarkNodes.includes(task.node!) ? { node: task.node } : {}), ...(stamp(task.rewardCoins) ? { rewardCoins: n(task.rewardCoins, 4000) } : {}) }];
   }).slice(0, state.commission ? 1 : 2);
   for (const id of facilityIds) {
     const facility = object(object(v.facilities)[id]), built = facility.built === true;
@@ -94,6 +96,8 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
     const a = object(object(v.animals)[id]);
     const capacity = getAnimalCapacity(state, id);
     state.animals[id] = { feed: n(a.feed, capacity.feed), stock: n(a.stock, capacity.stock), cycleMs: Math.max(Math.round((id === 'coop' ? 19872000 : 26496000) * (1 - getDecorationEffects({ community: state }).sun_weather_vane / 100)), n(a.cycleMs, id === 'coop' ? 21600000 : 28800000)), cared: a.cared === true, revision: n(a.revision) };
+    const name = normalizeAnimalName(a.name);
+    if (name) state.animals[id].name = name;
     if (stamp(a.nextAt) && a.feed > 0 && a.stock + 2 <= capacity.stock) state.animals[id].nextAt = a.nextAt;
   }
   state.fishing = normalizeFishingState(v.fishing, state);

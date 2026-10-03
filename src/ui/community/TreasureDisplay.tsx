@@ -1,9 +1,9 @@
 import { useState, type CSSProperties } from 'react';
-import { ArrowRight, Sparkles, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { decorationIcons } from '../../decorationAssets';
 import { buildCommunityDecoration, getDecorationUpgradeQuote, upgradeCommunityDecoration } from '../../core/communityDecorations';
 import { communityDecorations, communityDecorationIds, regionalTreasures, regionalTreasureIds, type CommunityDecorationId, type RegionalTreasureId } from '../../core/regionalTreasures';
-import { decorationEffects, getDecorationEffects, getDecorationLevel, getDecorationValue } from '../../core/decorationEffects';
+import { decorationEffects, getDecorationLevel, getDecorationValue } from '../../core/decorationEffects';
 import { adventureTreasureIds } from '../../core/adventureItems';
 import { getInventoryItem } from '../../core/items';
 import { canSpendCompanionTime } from '../../core/kitchen';
@@ -12,7 +12,7 @@ import type { CommunityPanelProps } from './types';
 import type { OutpostRequest } from '../outpostNavigation';
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
-import { decorationsHelp, getDecorationHelp } from '../help/decorationHelp';
+import { getDecorationHelp } from '../help/decorationHelp';
 import { formatInteger } from '../numberFormat';
 
 const effectText = (id: CommunityDecorationId, level: number) => `${decorationEffects[id].label} ${formatInteger(getDecorationValue(id, level))}${decorationEffects[id].unit}`;
@@ -24,39 +24,22 @@ export const DecorationSources = ({ treasure, onNavigate }: { treasure?: Regiona
 };
 export const DecorationArt = ({ id, level }: { id: CommunityDecorationId; level: number }) => <span className="decoration-art" data-stage={stage(level)} data-owned={level > 0}><img src={decorationIcons[id]} alt="" />{level >= 5 && <span className="decoration-art-trim" aria-hidden="true">{level >= 10 ? '✦' : '◇'}</span>}</span>;
 
-export const TreasureDisplay = ({ pet, onSelect }: { pet: PetState; onSelect: (id: CommunityDecorationId) => void }) => {
-  const effects = getDecorationEffects(pet);
-  return <section className="community-card community-decorations" aria-label="装饰与永久加成">
-    <header><h3>我的装饰 <small>{pet.community.decorations.length}/{communityDecorationIds.length} 件</small></h3><HelpButton {...decorationsHelp} /></header>
-    <dl className="decoration-summary">
-      <div><dt>经营</dt><dd><span>订单 +{formatInteger(effects.amber_lantern)}%</span><span>上架 +{formatInteger(effects.golden_sign)}%</span></dd></div>
-      <div><dt>种植与生产</dt><dd><span>生长 −{formatInteger(effects.creek_fountain)}%</span><span>生产 −{formatInteger(effects.sun_weather_vane)}%</span></dd></div>
-      <div><dt>探索与垂钓</dt><dd><span>额外采集 {formatInteger(effects.emerald_pendant)}%</span><span>珍宝 +{formatInteger(effects.star_dome)} 个百分点</span><span>咬钩等待 −{formatInteger(effects.pearl_lamp)}%</span></dd></div>
-    </dl>
-    <div className="decoration-list">{communityDecorationIds.map(id => {
-      const level = getDecorationLevel(pet, id), quote = level ? getDecorationUpgradeQuote(pet, id) : undefined;
-      const craftReady = !pet.timePause && canSpendCompanionTime(pet) && Object.entries(communityDecorations[id].items).every(([item, n]) => (pet.inventory[item] ?? 0) >= n);
-      return <button type="button" key={id} className="decoration-row" onClick={() => onSelect(id)} aria-haspopup="dialog"><DecorationArt id={id} level={level} /><span><strong>{communityDecorations[id].name}<small>{level ? `Lv.${level}${level === 10 ? ' · 满级' : ''}` : '待制作'}</small></strong><span>{effectText(id, level || 1)}</span><small>{level === 10 ? `已陈列 · ${decorationEffects[id].place}` : level ? quote?.ready ? '材料齐备，可以升级' : '继续收集升级材料' : craftReady ? '材料齐备，可以制作' : '查看制作材料'}</small></span><ArrowRight size={18} /></button>;
-    })}</div>
-  </section>;
-};
-
 export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost }: Pick<CommunityPanelProps, 'pet' | 'update' | 'onOpenOutpost'> & { id: CommunityDecorationId; onClose: () => void }) => {
   const level = getDecorationLevel(pet, id), definition = communityDecorations[id];
-  const [selection, setSelection] = useState<Inventory>();
-  const quote = getDecorationUpgradeQuote(pet, id, selection), full = level === 10;
+  const [selection, setSelection] = useState<{ level: number; items: Inventory }>();
+  const quote = getDecorationUpgradeQuote(pet, id, selection?.level === level ? selection.items : undefined), full = level === 10;
   const items = level ? quote.items : definition.items;
   const missing = Object.fromEntries(Object.entries(items).flatMap(([item, n]) => n > (pet.inventory[item] ?? 0) ? [[item, n - (pet.inventory[item] ?? 0)]] : []));
   const reason = level ? quote.reason : pet.timePause ? '时间冻结中，恢复后可制作' : !canSpendCompanionTime(pet) ? '等伙伴回家并空闲后再制作' : Object.keys(missing).length ? '制作材料尚未备齐' : '';
   const treasure = level ? decorationEffects[id].treasure : regionalTreasureIds.includes(definition.material as RegionalTreasureId) ? definition.material as RegionalTreasureId : undefined;
   const selectedCount = Object.values(quote.common).reduce((sum, n) => sum + n, 0);
-  return <DialogShell fullscreen className="decoration-dialog" backdropClassName="decoration-backdrop" labelId="decoration-title" onClose={onClose}>
-    <header><div><small>旅途与日常 · {level ? `Lv.${level} / 10` : '制作永久装饰'}</small><h2 id="decoration-title">{definition.name}</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭装饰详情，返回原位置"><X size={22} /></button></header>
+  return <DialogShell fullscreen historyNavigation className="decoration-dialog" backdropClassName="decoration-backdrop" labelId="decoration-title" onClose={onClose}>
+    <header><div><small>装饰工坊 · {level ? `Lv.${level} / 10` : '制作永久装饰'}</small><h2 id="decoration-title">{definition.name}</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭装饰详情，返回原位置"><X size={22} /></button></header>
     <div className="decoration-detail-scroll"><div className="decoration-hero"><DecorationArt id={id} level={level} /><p>{definition.description}</p><small>陈列在{decorationEffects[id].place} · 设施未开放时暂放旅途角</small></div>
       <section className="decoration-effect-card"><div className="help-heading"><h3><Sparkles size={18} />{level ? '当前永久效果' : '制作后获得'}</h3><HelpButton {...getDecorationHelp(id, level)} /></div><strong>{effectText(id, level || 1)}</strong>{level > 0 && !full && <p>下一级 · {effectText(id, level + 1)}</p>}</section>
       {!full && <section className="decoration-materials"><h3>{level ? `升至 Lv.${level + 1}` : '制作材料'}</h3>{level > 0 && <p>金币 <b>{pet.coins}/{quote.coins}</b>{pet.coins < quote.coins && <em>还差 {quote.coins - pet.coins}</em>}</p>}
         {Object.entries(items).filter(([item]) => !level || !adventureTreasureIds.includes(item as typeof adventureTreasureIds[number])).map(([item, n]) => <p key={item}><span>{itemName(item)}</span><b>{pet.inventory[item] ?? 0}/{n}</b>{missing[item] > 0 && <em>还差 {missing[item]}</em>}</p>)}
-        {level > 0 && <fieldset><legend>通用探索物品 · 已选 {selectedCount}/{quote.commonCount} 件</legend>{adventureTreasureIds.map(item => <label key={item}><span>{itemName(item)}<small>库存 {pet.inventory[item] ?? 0}</small></span><input type="number" min={0} max={Math.min(quote.commonCount, pet.inventory[item] ?? 0)} aria-label={`升级消耗${itemName(item)}`} value={quote.common[item] ?? 0} onChange={event => setSelection({ ...quote.common, [item]: Math.max(0, Math.min(quote.commonCount, pet.inventory[item] ?? 0, Math.floor(Number(event.target.value)) || 0)) })} /></label>)}{selectedCount !== quote.commonCount && <p className="decoration-shortage">{selectedCount < quote.commonCount ? `还需选择 ${quote.commonCount - selectedCount} 件` : `请减少 ${selectedCount - quote.commonCount} 件`}</p>}</fieldset>}
+        {level > 0 && <fieldset><legend>通用探索物品 · 已选 {selectedCount}/{quote.commonCount} 件</legend>{adventureTreasureIds.map(item => <label key={item}><span>{itemName(item)}<small>库存 {pet.inventory[item] ?? 0}</small></span><input type="number" min={0} max={Math.min(quote.commonCount, pet.inventory[item] ?? 0)} aria-label={`升级消耗${itemName(item)}`} value={quote.common[item] ?? 0} onChange={event => setSelection({ level, items: { ...quote.common, [item]: Math.max(0, Math.min(quote.commonCount, pet.inventory[item] ?? 0, Math.floor(Number(event.target.value)) || 0)) } })} /></label>)}{selectedCount !== quote.commonCount && <p className="decoration-shortage">{selectedCount < quote.commonCount ? `还需选择 ${quote.commonCount - selectedCount} 件` : `请减少 ${selectedCount - quote.commonCount} 件`}</p>}</fieldset>}
         <p className="decoration-deduction">本次提交：{level ? `${quote.coins} 金币；` : ''}{Object.entries(items).map(([item, n]) => `${itemName(item)} ×${n}`).join('、')}。实物提交后消耗。</p>
       </section>}
       {!full && onOpenOutpost && <DecorationSources treasure={treasure} onNavigate={onOpenOutpost} />}

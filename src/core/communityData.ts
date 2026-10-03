@@ -22,6 +22,10 @@ export const facilityAvailable = (pet: PetState, id: FacilityId) => {
 export const animals: Record<AnimalId, { item: 'egg' | 'farm_milk'; name: string; hours: number }> = {
   coop: { item: 'egg', name: '鸡蛋', hours: 6 }, barn: { item: 'farm_milk', name: '牧场鲜奶', hours: 8 },
 };
+export const ranchCompostCycleCount = 4;
+export const animalNameMaxLength = 16;
+export const normalizeAnimalName = (name: unknown) => typeof name === 'string'
+  ? Array.from(name.replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, animalNameMaxLength).join('') : '';
 // `rare` retains the old collection flag; edible rare fish use rarity without becoming collectibles.
 export const fish: Record<FishId, { name: string; water: WaterId; base: number; rare: boolean; rarity: FoodRarity; length: number; weight: number }> = {
   pond_crucian: { name: '池塘鲫鱼', water: 'pond', base: 12, rare: false, rarity: 'common', length: 18, weight: 44 },

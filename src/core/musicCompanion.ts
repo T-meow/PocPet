@@ -7,6 +7,7 @@ export interface MusicCompanionState {
 }
 
 export const musicHeartIntervalMs = 2 * 60 * 1000;
+export const musicHeartsPerInterval = 2;
 export const defaultMusicCompanionState = (): MusicCompanionState => ({ schemaVersion: 1, pendingListeningMs: 0 });
 export const normalizeMusicCompanionState = (value: unknown): MusicCompanionState => {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
@@ -18,7 +19,7 @@ export const addMusicListeningTime = (pet: PetState, milliseconds: number): PetS
   return { ...pet, musicCompanion: { schemaVersion: 1,
     pendingListeningMs: Math.min(Number.MAX_SAFE_INTEGER, pet.musicCompanion.pendingListeningMs + Math.floor(milliseconds)) } };
 };
-export const getMusicHeartReward = (pet: PetState) => Math.floor(pet.musicCompanion.pendingListeningMs / musicHeartIntervalMs);
+export const getMusicHeartReward = (pet: PetState) => Math.floor(pet.musicCompanion.pendingListeningMs / musicHeartIntervalMs) * musicHeartsPerInterval;
 export const claimMusicHearts = (pet: PetState): PetState => {
   const hearts = getMusicHeartReward(pet);
   if (pet.timePause || hearts === 0) return pet;

@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import { pomodoroPhaseLabels, type PetState, type PomodoroDurations } from '../core/pet';
 import { t } from '../i18n';
 import { formatPomodoroTime } from './time';
+import { pomodoroFocusHearts } from '../core/activityHearts';
+import { pomodoroHeartBlockMs } from '../core/pomodoro';
 
 type PomodoroSettingKey = keyof PomodoroDurations;
 
@@ -94,7 +96,7 @@ export const PomodoroOverlay = ({
         </div>
       </div>
 
-      <p className="pomodoro-description">{pomodoroText.description}</p>
+      <p className="pomodoro-description">{pomodoroText.description}<br />有效专注每 {pomodoroHeartBlockMs / 60_000} 分钟自动获得 {pomodoroFocusHearts} 心心；当前累计 {Math.floor(pet.pomodoro.heartRemainderMs / 60_000)} 分钟，零头保留。休息和暂停不计入。</p>
 
       <div className="pomodoro-settings" aria-label={pomodoroText.settings}>
         {pomodoroMinuteSettingFields.map((field) => (

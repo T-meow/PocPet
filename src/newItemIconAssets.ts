@@ -134,7 +134,19 @@ import dish_mountain_herb_tea from './assets/icon/item_dish_mountain_herb_tea.we
 import dish_seafood_rice from './assets/icon/item_dish_seafood_rice.webp';
 import dish_valley_travel_bento from './assets/icon/item_dish_valley_travel_bento.webp';
 
+// Temporary emoji art uses the same image slots as finished icons.
+const emojiIcon = (glyph: string) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><text x="64" y="96" text-anchor="middle" font-size="88" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">${glyph}</text></svg>`);
+
 export const newItemIcons = {
+  highland_potato: emojiIcon('🥔'),
+  snow_bean: emojiIcon('🫘'),
+  rock_honey: emojiIcon('🍯'),
+  dish_highland_potato_stew: emojiIcon('🍲'),
+  dish_snow_bean_rice: emojiIcon('🍛'),
+  dish_rock_honey_milk: emojiIcon('🥛'),
+  dish_highland_potato_gratin: emojiIcon('🧀'),
+  dish_snow_bean_soup: emojiIcon('🥣'),
+  dish_summit_travel_bento: emojiIcon('🍱'),
   field_watering_can,
   harvest_sickle,
   nutrient_compost,

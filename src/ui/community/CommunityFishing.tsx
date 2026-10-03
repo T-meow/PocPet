@@ -1,4 +1,5 @@
 import { Crown } from 'lucide-react';
+import { fishingCatchHearts } from '../../core/activityHearts';
 import { fish, fishIds, waters } from '../../core/communityData';
 import { buildWaterBoardwalk } from '../../core/communityFishing';
 import { rarityNames } from '../../core/foodCatalog';
@@ -19,7 +20,7 @@ export const CommunityFishing = ({ pet, update, onAdventure, registry, itemIconM
   return <>
     <HelpButton {...fishingHelp} />
     {(view === 'all' || view === 'management') && <section className="community-card">
-      <h3>钓鱼小屋 · Lv.{level}</h3><p>手动每竿体力 {effects.energy}、饱食 {effects.hunger}，基础等待 {effects.waitSeconds} 秒。所有已开放水域通用。</p>
+      <h3>钓鱼小屋 · Lv.{level}</h3><p>手动每竿体力 {effects.energy}、饱食 {effects.hunger}，基础等待 {effects.waitSeconds} 秒。所有已开放水域通用；手动和挂机每条鱼另得 {fishingCatchHearts} 心心，随鱼获领取。</p>
       <CommunityUpgradeTask pet={pet} update={update} id="fishing_hut" registry={registry} itemIconMap={itemIconMap} />
       <h3>水域与栈道</h3><p>亲自探索发现水域，回小屋修好栈道后永久直通。</p>
       {(['forest_pool', 'coast_pier'] as const).map(id => {

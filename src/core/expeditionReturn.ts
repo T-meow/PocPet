@@ -5,11 +5,13 @@ import { getPetStatCap } from './petStats';
 import { advanceExplorationBudget, earnExplorationPay, earnExplorationHarvestPay, settleReservedHarvest, settleExplorationLoot } from './explorationBudget';
 import { valleyGatherFinds } from './valleyExplorationData';
 import type { ValleyGatherTarget } from './valleyExplorationData';
-import { getIdleExplorationFinds } from './explorationResources';
+import { getIdleExplorationFinds, rollIdleExplorationFinds } from './explorationResources';
+import { hashString } from './utils';
 import { getExplorationBagCapacity } from './explorationBackpack';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import { eatReturningRations, rationReturnLines } from './expeditionRationReturn';
 import type { RationReturn } from './explorationRations';
+import { getExpeditionCheckCount, getExpeditionCheckIntervalMs } from './expeditionTiming';
 
 export const withExpedition = (pet: PetState, changes: Partial<PetState['community']['expedition']>): PetState => ({ ...pet, community: { ...pet.community, expedition: { ...pet.community.expedition, ...changes } } });
 export const putExpeditionFinds = (pet: PetState, finds: Inventory): PetState => {
@@ -73,15 +75,19 @@ export const settleExpeditionTime = (pet: PetState, now: number, completeLegacy 
     }
     // A health crossing wins ties with a timed harvest; no work happens after retreat.
     const until = completeLegacy ? t.endsAt : Math.min(now - (unhealthy ? 1 : 0), t.endsAt);
-    const done = Math.max(t.settledParts, Math.min(t.parts, Math.floor((until - t.startedAt) / 3600000)));
+    const intervalMs = getExpeditionCheckIntervalMs(t);
+    const done = Math.max(t.settledParts, Math.min(getExpeditionCheckCount(t), Math.floor((until - t.startedAt) / intervalMs)));
     if (done > t.settledParts) {
       if (t.rulesVersion >= 2) {
-        for (let hour = t.settledParts + 1; hour <= done; hour++) {
+        for (let check = t.settledParts + 1; check <= done; check++) {
           if (!(pet.community.expedition.active?.reservedHarvests ?? 0)) break;
-          const at = completeLegacy ? now : t.startedAt + hour * 3600000;
+          const at = completeLegacy ? now : t.startedAt + check * intervalMs;
           pet = settleReservedHarvest(pet, 1, false);
           const region = t.route[0];
-          pet = putExpeditionFinds(pet, t.rulesVersion >= 6 ? getIdleExplorationFinds(region, t.target) : region === 'valley' ? valleyGatherFinds((t.target ?? 'valley_mushroom') as ValleyGatherTarget, true) : { [regions[region].product]: 2 });
+          const finds = t.rulesVersion >= 8 ? rollIdleExplorationFinds(region, t.target, t.gatherSeed ?? hashString(t.id), check)
+            : t.rulesVersion >= 6 ? getIdleExplorationFinds(region, t.target)
+            : region === 'valley' ? valleyGatherFinds((t.target ?? 'valley_mushroom') as ValleyGatherTarget, true) : { [regions[region].product]: 2 };
+          pet = putExpeditionFinds(pet, finds);
           if (t.rewardsVersion === 1) {
             const extra = settleExplorationLoot(pet, 1, 'hour', region, at);
             pet = putExpeditionFinds(extra.pet, extra.finds);
@@ -90,8 +96,8 @@ export const settleExpeditionTime = (pet: PetState, now: number, completeLegacy 
           pet = earned.pet;
           const current = pet.community.expedition.active!;
           pet = withExpedition(pet, { active: { ...current, coins: current.coins + earned.coins, hearts: current.hearts + earned.hearts } });
-          if (t.rulesVersion >= 3 && hour % 2 === 0) {
-            const trip = pet.community.expedition.active!, index = hour / 2 - 1, segment = trip.rationSegments?.[index], plan = trip.rationPlan, discovery = plan?.discoveries[index];
+          if (t.rulesVersion >= 7 || t.rulesVersion >= 3 && check % 2 === 0) {
+            const trip = pet.community.expedition.active!, index = t.rulesVersion >= 7 ? check - 1 : check / 2 - 1, segment = trip.rationSegments?.[index], plan = trip.rationPlan, discovery = plan?.discoveries[index];
             if (plan && discovery && !discovery.settled) {
               const pityEnabled = trip.rulesVersion >= 5 && plan.version >= 3;
               const misses = pet.community.expedition.treasurePity[region], guaranteed = pityEnabled && misses >= 9, won = guaranteed || discovery.roll < plan.chance;

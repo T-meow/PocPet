@@ -11,6 +11,7 @@ export const pomodoroPhaseLabels: Record<PomodoroPhase, string> = {
 
 export const pomodoroMinHealthThreshold = 35;
 export const pomodoroRewardBlockMs = 5 * 60 * 1000;
+export const pomodoroHeartBlockMs = 25 * 60 * 1000;
 export const pomodoroMoodRewardBlockMs = 30 * 60 * 1000;
 export const pomodoroBonusRewardHourMs = 60 * 60 * 1000;
 export const pomodoroResetEventMinFocusMs = 60 * 60 * 1000;
@@ -74,6 +75,7 @@ export const defaultPomodoroState = (now: number): PomodoroState => ({
   pausedRemainingMs: getPomodoroPhaseDurationMs('focus', defaultPomodoroDurations),
   focusRewardCheckpointAt: 0,
   sessionFocusMs: 0,
+  heartRemainderMs: 0,
   baseRewardCoinsPaid: 0,
   bonusRewardedHours: 0,
   moodRewardedBlocks: 0,
@@ -123,6 +125,7 @@ export const normalizePomodoroState = (
     pausedRemainingMs: isRunning ? 0 : rawPausedRemainingMs > 0 ? rawPausedRemainingMs : defaultRemainingMs,
     focusRewardCheckpointAt: isNumber(raw.focusRewardCheckpointAt) ? Math.max(0, Math.round(raw.focusRewardCheckpointAt)) : 0,
     sessionFocusMs: isNumber(raw.sessionFocusMs) ? Math.max(0, Math.round(raw.sessionFocusMs)) : 0,
+    heartRemainderMs: clampPomodoroInteger(raw.heartRemainderMs, 0, 0, pomodoroHeartBlockMs - 1),
     baseRewardCoinsPaid: clampCount(isNumber(raw.baseRewardCoinsPaid) ? raw.baseRewardCoinsPaid : 0),
     bonusRewardedHours: clampCount(isNumber(raw.bonusRewardedHours) ? raw.bonusRewardedHours : 0),
     moodRewardedBlocks: clampCount(isNumber(raw.moodRewardedBlocks) ? raw.moodRewardedBlocks : 0),

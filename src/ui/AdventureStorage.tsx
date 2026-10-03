@@ -28,13 +28,14 @@ interface Props {
   onDepart: () => void; onPanel: (panel: AdventureStoragePanel) => void; onClose: () => void;
   onBuy: (id: ItemId, quantity: number) => void; onUseHomeItem: (id: ItemId, quantity: number) => void;
   update: (action: (pet: PetState) => PetState) => void;
+  onToggleItemFavorite: (id: ItemId) => void;
   perform?: (action: () => void) => void;
 }
-export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination, purpose, onPack, onDepart, onPanel, onClose, onBuy, onUseHomeItem, update, perform = action => action() }: Props) => {
+export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination, purpose, onPack, onDepart, onPanel, onClose, onBuy, onUseHomeItem, onToggleItemFavorite, update, perform = action => action() }: Props) => {
   const capacity = getExplorationBagCapacity(pet);
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [discard, setDiscard] = useState<{ tripId: string; revision: number; id: ItemId; name: string; quantity: number; source: 'bag' | 'loot' }>();
-  if (panel === 'pack') return <AdventurePreparation pet={pet} update={update} registry={registry} icons={icons} bag={bag} destination={destination} purpose={purpose} onPack={onPack} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} perform={perform} />;
+  if (panel === 'pack') return <AdventurePreparation pet={pet} update={update} registry={registry} icons={icons} bag={bag} destination={destination} purpose={purpose} onPack={onPack} onDepart={onDepart} onClose={onClose} onUseHomeItem={onUseHomeItem} onToggleItemFavorite={onToggleItemFavorite} perform={perform} />;
   const trip = pet.adventure.active;
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? trip?.bag ?? {}
@@ -56,9 +57,9 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
     : panel === 'bag' ? L('这里只显示随身物资。战利品可直接兑换金币，腾出背包空间。', 'Only carried supplies are shown. Exchange treasure for coins to free bag space.')
       : panel === 'shop' ? trip && trip.rulesVersion < 3 ? L('本趟沿用出发时的补给报价，售完不再补货。', 'This trip keeps its original supply prices. Stock does not refresh.') : L('伙伴把补给带到了路上，同款物资售价高于基地商店；本趟售完不再补货。', 'Trail delivery costs extra. Matching supplies cost more than at home; stock does not refresh.') : undefined;
   return <><ItemStorageModal mode={shopping ? 'shop' : 'bag'} pet={pet} items={definitions} itemIconMap={icons} browse={browse} onBrowseChange={setBrowse} onClose={onClose}
-    onSwitch={switchTarget ? () => onPanel(switchTarget) : undefined} favoriteFoodIds={[]}
+    onSwitch={switchTarget ? () => onPanel(switchTarget) : undefined} favoriteFoodIds={[]} onToggleItemFavorite={onToggleItemFavorite}
     context={{ title: titles[panel], inventory: stock, quantityLimit: item => quantityLimit(item.id), backdropClassName: 'adventure-modal-backdrop', categories: ['all', 'food', 'ingredients', 'item', 'garden', 'care'],
-      showStats: false, showRecovery: true, note, perform,
+      showStats: false, showRecovery: true, note, perform, layout: 'exploration',
       countLabel: panel === 'shop' ? L('剩余 ', 'Stock ') : panel === 'delivery' ? L('仓库 ', 'Home ') : L('数量 ', 'Count '),
       switchLabel: switchTarget ? titles[switchTarget] : undefined }}
     tileInfo={shopping ? item => ({ price: (panel === 'shop' ? getAdventureShopPrice(item.id, trip?.rulesVersion) : getItemPurchaseQuote(pet, item.id).totalPrice) + L(' 金币', ' coins'), mark: panel === 'shop' && !(stock[item.id] ?? 0) ? L('已售完', 'Sold out') : undefined }) : undefined}

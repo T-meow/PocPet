@@ -19,7 +19,7 @@ import type { CommunityPanelProps } from './types';
 
 const customerNames = { ordinary: '邻里客人', foodie: '美食客人', collector: '收藏客人', generous: '慷慨游客', legacy: '成交记录' };
 
-export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap }: CommunityPanelProps) => {
+export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, onToggleItemFavorite }: CommunityPanelProps) => {
   const name = (id: string) => registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id;
   const icons: Partial<Record<string, string>> = itemIconMap ?? itemIcons;
   const icon = (id: string) => icons[id] ?? registry?.get(id)?.imageUrl ?? unknownItemIcon;
@@ -65,7 +65,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap }: 
         <button type="button" className="secondary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('construction')}><Hammer size={20} />建设</button>
       </div></footer>
     </section>
-    {panel === 'stock' && <ItemStorageModal mode="bag" pet={pet} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} quantityDisabled={!free}
+    {panel === 'stock' && <ItemStorageModal onToggleItemFavorite={onToggleItemFavorite} mode="bag" pet={pet} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} quantityDisabled={!free}
       context={{ title: '手动上架', inventory: pet.inventory, quantityLimit: item => getMarketListingOffer(pet, item.id)?.quantityLimit ?? 0, countLabel: '持有', showStats: false, showRecovery: false, help: item => getMarketItemHelp(pet, item.id) }}
       footer={<><span>货架 {occupied}/{capacity} 格 · 共 {stock} 份</span><button className="storage-switch" onClick={() => setPanel('manage')}>管理货架</button></>}
       tileInfo={item => { const offer = getMarketListingOffer(pet, item.id), quote = getMarketQuote(pet, item.id)!; return { price: <span>{offer ? `${offer.unitPrice} 金币／份` : '暂无可用栏位'}</span>, mark: offer?.listingId !== undefined ? '原价补货' : quote.collector ? '收藏品' : undefined }; }}

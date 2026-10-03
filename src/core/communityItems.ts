@@ -15,7 +15,7 @@ export const communityShopItems: readonly ShopItem[] = [
   { id: 'carrot_seed', name: '胡萝卜种子', kind: 'garden', price: 12, effect: {}, usable: false, summary: '在社区菜地种植，4 小时收获 3 根胡萝卜。' },
   { id: 'community_wood', name: '修复木料', kind: 'item', price: 12, effect: {}, usable: false, summary: '商店购买或溪谷采集。用于农场设施建设、菜地扩容与设施升级。' },
   { id: 'community_stone', name: '修复石料', kind: 'item', price: 10, effect: {}, usable: false, summary: '商店购买或溪谷采集。用于农场设施建设、菜地扩容与设施升级。' },
-  { id: 'animal_feed', name: '谷物饲料', kind: 'garden', price: 5, effect: {}, usable: false, summary: '添进鸡舍或牛棚的食槽，每轮一份。' },
+  { id: 'animal_feed', name: '谷物饲料', kind: 'garden', price: 5, effect: {}, usable: false, summary: '鸡舍或牛棚每轮消耗一份。鸡舍开放后，小麦或甜玉米每份可免费加工成 4 份饲料。' },
   { id: 'fishing_bait', name: '普通鱼饵', kind: 'item', price: 4, effect: {}, usable: false, summary: '日常钓鱼的好帮手，每竿一份。' },
   { id: 'river_bait', name: '溪流鱼饵', kind: 'item', price: 8, effect: {}, usable: false, summary: '更容易吸引珍稀鱼，适合寻觅新鱼获。' },
   { id: 'fishing_rod', name: '普通钓竿', kind: 'item', price: 80, effect: {}, usable: false, summary: '轻巧顺手，上钩后收线 4 次。' },

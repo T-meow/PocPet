@@ -5,7 +5,7 @@ import { expeditionProducts, projectIds, regionIds, regions } from '../core/expe
 import { getInventoryItem } from '../core/items';
 import { rationReturnLines } from '../core/expeditionRationReturn';
 import type { RationReturn } from '../core/explorationRations';
-import { mapRegions, landmarkNodes, landmarkNames, regionNames, completedLandmark, landmarkId } from '../core/landmarkProgress';
+import { mapRegions, landmarkNodes, landmarkNames, regionNames, completedLandmark, landmarkId, mainStoryProgress } from '../core/landmarkProgress';
 import { landmarkSummary } from '../core/landmarkData';
 import { valleyObservationNames } from '../core/valleyExplorationData';
 import type { Inventory, ItemId, PetState } from '../core/petTypes';
@@ -17,6 +17,7 @@ import { adventureTreasureIds } from '../core/adventureItems';
 import { CommunityMemories } from './community/CommunityMemories';
 import { ExplorationHandbook } from './help/ExplorationGuide';
 import { formatProbabilityPercent } from './numberFormat';
+import readingPortrait from '../assets/pet/pet_reading_books.png';
 
 interface TravelRecord {
   id: string; at: number; title: string; status: string; detail?: string;
@@ -25,7 +26,7 @@ interface TravelRecord {
 }
 const returnLabel = (reason: string) => reason === 'health' ? '安全返程' : reason === 'complete' ? '完成行程' : '提前返回';
 const recordLines = (entry: { journal: string[]; rationReturn?: RationReturn; treasureFinds?: import('../core/expeditionTypes').RegionalTreasureFind[]; treasureChance?: number }) => {
-  const treasureLines = [...(entry.treasureChance !== undefined ? [`每两小时随机概率 ${formatProbabilityPercent(entry.treasureChance)}`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
+  const treasureLines = [...(entry.treasureChance !== undefined ? [`每次珍宝判定随机概率 ${formatProbabilityPercent(entry.treasureChance)}`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
   if (!entry.rationReturn) return [...entry.journal, ...treasureLines];
   // Structured food counts also rebuild entries whose display text was shortened or omitted by saving.
   const journal = entry.journal.filter(line => !line.startsWith('提前吃掉了：') && !line.startsWith('吃饱后，把剩余料理分给了路过的邻居 '));
@@ -67,6 +68,7 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
   const discoveredProducts = { ...expeditionProducts, ...Object.fromEntries(adventureTreasureIds.map(id => [id, { name: getInventoryItem(id)!.name, glyph: id === 'coin_hoard' ? '🪙' : '✦' }])) };
   const products = Object.entries(discoveredProducts).filter(([id]) => (expedition.collection[id as keyof typeof expedition.collection] ?? 0) > 0);
   const observations = expedition.loop?.observations ?? [];
+  const story = mainStoryProgress(pet.adventure);
   const contents = <>
     {!embedded && <header className="outpost-header"><span className="outpost-symbol" data-tone="lilac"><BookOpen size={22} /></span><div><small>前哨基地</small><h2 id="travel-journal-title">旅行日志</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭旅行日志，返回前哨"><X size={21} /></button></header>}
     <nav className="outpost-tabs" aria-label="旅行手册内容"><button aria-pressed={tab === 'records'} onClick={() => setTab('records')}>旅途记录</button><button aria-pressed={tab === 'discoveries'} onClick={() => setTab('discoveries')}>故事与发现</button><button aria-pressed={tab === 'help'} onClick={() => setTab('help')}>玩法手册</button></nav>
@@ -91,6 +93,7 @@ export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 're
         {memories.length > 0 && <CommunityMemories pet={pet} />}
       </div>}
     </div>
+    {embedded && <aside className="exploration-panel exploration-journal-summary"><div className="exploration-journal-illustration"><img src={readingPortrait} alt="" /></div><span className="exploration-tag">一路的风景，都在这里</span><h3>写给下一次出发</h3><p>翻翻走过的路，看看还没去过的地方。每一个发现，都是和伙伴一起的记忆。</p><div className="exploration-journal-totals"><div><strong>{records.length}</strong><span>旅途记录</span></div><div><strong>{story.completed} / 40</strong><span>主线地标</span></div><div><strong>{story.chapters} / 5</strong><span>完整章节</span></div></div><button className="primary-button" onClick={onMap}><Compass size={20} />继续探索新的风景</button></aside>}
   </>;
   return embedded ? <section className="exploration-journal">{contents}</section> : <DialogShell className="outpost-dialog outpost-journal" backdropClassName="outpost-backdrop" labelId="travel-journal-title" onClose={onClose}>{contents}</DialogShell>;
 };

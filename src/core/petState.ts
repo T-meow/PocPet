@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import { migrateLandmarks } from './landmarkProgress';
 import { readTimePause } from './timePauseState';
+import { defaultFavorites, normalizeFavorites } from './favorites';
 import { defaultBoostCardState, normalizeBoostCardState } from './boostCards';
 import { defaultKitchenState, normalizeKitchenState } from './kitchen';
 import { defaultMiniGameState, normalizeMiniGameState } from './miniGames';
@@ -130,6 +131,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   hearts: 0,
   musicCompanion: defaultMusicCompanionState(),
   inventory: { emergency_biscuit: 1, golden_apple: 1 },
+  favorites: defaultFavorites(),
   kitchen: defaultKitchenState(),
   miniGames: defaultMiniGameState(),
   companionMemories: defaultCompanionMemories(),
@@ -479,6 +481,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts),
     musicCompanion: normalizeMusicCompanionState(raw.musicCompanion),
     inventory: normalizedInventory,
+    favorites: normalizeFavorites(raw.favorites),
     kitchen,
     miniGames: normalizeMiniGameState(raw.miniGames, normalizedInventory, normalizedAchievements.counters.itemUseCountsById, { preserveSession: Boolean(timePause) || options.preserveMiniGameSession, level }),
     companionMemories: normalizeCompanionMemories(raw.companionMemories),

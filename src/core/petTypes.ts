@@ -4,6 +4,7 @@ import type { MusicCompanionState } from './musicCompanion';
 import type { FestivalStoryState } from './festivalStories';
 import type { AdventureItemId, AdventureState } from './adventureTypes';
 import type { CommunityItemId, CommunityState } from './communityTypes';
+import type { FavoritesState } from './favorites';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
@@ -250,6 +251,7 @@ export interface PomodoroState {
   pausedRemainingMs: number;
   focusRewardCheckpointAt: number;
   sessionFocusMs: number;
+  heartRemainderMs: number;
   baseRewardCoinsPaid: number;
   bonusRewardedHours: number;
   moodRewardedBlocks: number;
@@ -370,6 +372,7 @@ export interface ActivePartnerSchedule {
   startedAt: number;
   endsAt: number;
   coinReward: number;
+  heartReward?: number;
   skillXp: number;
   trophyRewardMultiplier: number;
   grantsMasterCompletion: boolean;
@@ -390,6 +393,7 @@ export interface PartnerScheduleResult {
   completedAt: number;
   startedAt?: number;
   coinReward: number;
+  heartReward?: number;
   skillXp: number;
   trophyRewardMultiplier: number;
   grantsMasterCompletion: boolean;
@@ -488,6 +492,7 @@ export interface PetState {
   coins: number;
   hearts: number;
   inventory: Inventory;
+  favorites: FavoritesState;
   musicCompanion: MusicCompanionState;
   lastDailyRewardAt: number;
   lastDailyEncounterAt: number;

@@ -104,6 +104,8 @@ export const standardWorkEnergyCost = 12;
 export const getWorkEnergyCost = (pet: Pick<PetState, 'weather'>) =>
   pet.weather === 'breezy' ? 10 : standardWorkEnergyCost;
 
+export const getQuickWorkHeartReward = (pet: Pick<PetState, 'level'>) => Math.round(5 * getPetStatScale(pet));
+
 const getWorkQuote = (pet: PetState, now: number, energyCost: number) => {
   const standardOutputCoins = (pet.weather === 'rainy' ? 20 : 24) + getWorkSeasonCoinBonus(now);
   const energyOutputMultiplier = Math.max(1, energyCost / standardWorkEnergyCost);
@@ -124,7 +126,7 @@ export const getQuickWorkPreview = (pet: PetState, now = Date.now()) => {
   const reason = pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active ? 'busy' : pet.isSleeping ? 'sleeping'
     : isPetCriticallyHungry(pet) ? 'hunger' : pet.energy < quote.energyCost ? 'energy' : undefined;
   return { energyCost: quote.energyCost, minimumCoins, maximumCoins: minimumCoins + Math.max(1, Math.floor(quote.baseCoins * 0.15)),
-    boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
+    hearts: getQuickWorkHeartReward(pet), boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
 };
 
 export const getWorkReward = (pet: PetState, now = Date.now(), energyCost = getWorkEnergyCost(pet)) => {
@@ -288,17 +290,19 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
         const base = current;
         const energyCost = getWorkEnergyCost(base);
         const reward = getWorkReward(base, now, energyCost);
+        const heartGain = applyHeartGain({ ...base, boostCards: reward.boostCards }, getQuickWorkHeartReward(base));
         const bonusText = reward.bonusCoins > 0 ? t('pet.action.workBonus', { coins: reward.bonusCoins }) : '';
         const boostBonusText = reward.boostBonusCoins > 0 ? t('pet.boostCards.workBonus', { coins: reward.boostBonusCoins }) : '';
         const seasonWorkText = getWorkSeasonCoinBonus(now) > 0 ? t('pet.season.effect.autumnWork') : '';
 
-        return recordEarnedCoins(incrementAchievementCareAction(recordWishProgress(recordYearlyCareAction({
+        return recordEarnedHearts(recordEarnedCoins(incrementAchievementCareAction(recordWishProgress(recordYearlyCareAction({
           ...withActivity(base, Math.floor(base.ageSeconds / 60) % 2 === 0 ? 'work_food' : 'work_plants', now, 2200),
           coins: base.coins + reward.totalCoins,
-          boostCards: reward.boostCards,
+          hearts: heartGain.hearts,
+          boostCards: heartGain.boostCards,
           energy: clampPetEnergy(base, base.energy - energyCost),
-          recentEvent: `${t('pet.action.work', { name: base.name, coins: reward.totalCoins })}${bonusText}${boostBonusText}${base.weather === 'rainy' ? t('pet.weather.effect.rainyWork') : ''}${base.weather === 'breezy' ? t('pet.weather.effect.breezyWork') : ''}${seasonWorkText}`,
-        }, 'work', now), 'work', now), 'work'), reward.totalCoins);
+          recentEvent: `${t('pet.action.work', { name: base.name, coins: reward.totalCoins })} 收获 ${heartGain.amount} 颗心心。${bonusText}${boostBonusText}${base.weather === 'rainy' ? t('pet.weather.effect.rainyWork') : ''}${base.weather === 'breezy' ? t('pet.weather.effect.breezyWork') : ''}${seasonWorkText}`,
+        }, 'work', now), 'work', now), 'work'), reward.totalCoins), heartGain.amount);
       }
     case 'sleep':
       if (current.isSleeping) {
@@ -742,6 +746,7 @@ export const resetPomodoro = (pet: PetState, now = Date.now()): PetState => {
     pomodoro: {
       ...defaultPomodoroState(now),
       settings,
+      heartRemainderMs: current.pomodoro.heartRemainderMs,
       dailyFocusDate: today,
       dailyCompletedFocusCount,
       pausedRemainingMs: getPomodoroPhaseDurationMs('focus', settings),

@@ -12,11 +12,13 @@ interface DialogShellProps {
   role?: 'dialog' | 'alertdialog';
   fullscreen?: boolean;
   closeOnBackdrop?: boolean;
+  historyNavigation?: boolean;
 }
 
 type ScopedEntry = DialogShellProps & { id: symbol; owner?: symbol };
 const ScopeContext = createContext<{ put: (entry: ScopedEntry) => void; remove: (id: symbol) => void; closeAll: () => void } | undefined>(undefined);
 const OwnerContext = createContext<symbol | undefined>(undefined);
+const HistoryNavigationContext = createContext(false);
 export const useCloseDialogScope = () => useContext(ScopeContext)?.closeAll;
 export const DialogScope = ({ children, status }: { children: ReactNode; status?: ReactNode }) => {
   const [entries, setEntries] = useState<ScopedEntry[]>([]);
@@ -54,7 +56,7 @@ export const DialogShell = (props: DialogShellProps) => {
   const scope = useContext(ScopeContext), owner = useContext(OwnerContext), id = useRef(Symbol('sheet'));
   useLayoutEffect(() => {
     scope?.put({ ...props, id: id.current, owner });
-  }, [scope, owner, props.children, props.className, props.backdropClassName, props.labelId, props.descriptionId, props.onClose, props.closeOnEscape, props.role, props.fullscreen, props.closeOnBackdrop]);
+  }, [scope, owner, props.children, props.className, props.backdropClassName, props.labelId, props.descriptionId, props.onClose, props.closeOnEscape, props.role, props.fullscreen, props.closeOnBackdrop, props.historyNavigation]);
   useLayoutEffect(() => () => scope?.remove(id.current), [scope]);
   return scope ? null : <DialogFrame {...props} />;
 };
@@ -83,8 +85,11 @@ const DialogFrame = ({
   role = 'dialog',
   fullscreen = false,
   closeOnBackdrop = false,
+  historyNavigation,
   focusKey,
 }: DialogShellProps & { focusKey?: symbol }) => {
+  const inheritedHistoryNavigation = useContext(HistoryNavigationContext);
+  const useHistoryNavigation = !focusKey && (historyNavigation ?? inheritedHistoryNavigation);
   const dialogRef = useRef<HTMLElement>(null);
   const dialogIdRef = useRef(Symbol('dialog'));
   const closeRef = useRef(onClose);
@@ -98,6 +103,7 @@ const DialogFrame = ({
     if (dialogStack.length === 0) bodyOverflowBeforeDialogs = document.body.style.overflow;
     dialogStack.push(dialogId);
     document.body.style.overflow = 'hidden';
+    const unregisterBack = useHistoryNavigation ? registerDialogBack(dialogId, () => closeRef.current()) : undefined;
 
     const dialog = dialogRef.current;
     const backdrop = dialog?.parentElement;
@@ -144,6 +150,7 @@ const DialogFrame = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      unregisterBack?.();
       document.removeEventListener('keydown', handleKeyDown);
       const stackIndex = dialogStack.lastIndexOf(dialogId);
       if (stackIndex >= 0) dialogStack.splice(stackIndex, 1);
@@ -156,7 +163,7 @@ const DialogFrame = ({
       }
       window.requestAnimationFrame(() => { if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true }); });
     };
-  }, [closeOnEscape]);
+  }, [closeOnEscape, useHistoryNavigation]);
 
   useEffect(() => {
     if (!focusKey) return;
@@ -182,7 +189,7 @@ const DialogFrame = ({
         aria-describedby={descriptionId}
         tabIndex={-1}
       >
-        {children}
+        <HistoryNavigationContext.Provider value={useHistoryNavigation}>{children}</HistoryNavigationContext.Provider>
       </section>
     </div>
   );

@@ -1,5 +1,6 @@
 import { getExplorationSource } from '../../core/explorationSources';
-import { acceptSpecialtyOrder, cancelSpecialtyOrder, canClaimSpecialtyOrder, claimSpecialtyOrder, getSpecialtyCandidates, specialtyDay, specialtyGoods } from '../../core/communitySpecialtyOrders';
+import { specialtyOrderHearts } from '../../core/activityHearts';
+import { acceptSpecialtyOrder, cancelSpecialtyOrder, canClaimSpecialtyOrder, claimSpecialtyOrder, getSpecialtyCandidates, isUrgentSpecialtyOrder, specialtyDay, specialtyGoods } from '../../core/communitySpecialtyOrders';
 import { newItemIcons } from '../../newItemIconAssets';
 import { CommunityBoardNote } from './CommunityBoardNote';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
@@ -21,18 +22,18 @@ export const CommunitySpecialtyOrders = ({ pet, update, onOpenOutpost, itemIconM
   return <>
     {orders.map(value => {
       const inProgress = value.id === active?.id, ready = inProgress && canClaimSpecialtyOrder(pet);
-      const kind = value.multiplier === 5 ? '急单' : '收购';
+      const kind = isUrgentSpecialtyOrder(value) ? '急单' : '收购';
       return <CommunityBoardNote key={value.id} summary={`收购${specialtyGoods[value.item].name} ×${value.quantity}`}
         label={`${kind} · ${ready ? '可交付' : inProgress ? '已锁价' : used ? '今日已接' : '待接取'}`}
-        art={<img src={icon(value.item)} alt="" />} tone={value.multiplier === 5 ? 'peach' : 'cream'}
+        art={<img src={icon(value.item)} alt="" />} tone={isUrgentSpecialtyOrder(value) ? 'peach' : 'cream'}
         active={inProgress} ready={ready} onClick={() => onSelect(value.id)} />;
     })}
     {order && <CommunityDetailDialog title={`收购${specialtyGoods[order.item].name} ×${order.quantity}`}
-      eyebrow={`${order.multiplier} 倍${order.multiplier === 5 ? '急单' : '收购'} · ${accepted ? '已锁价 · 不过期' : used ? '今日已接过收购单' : '今日候选'}`} onClose={onClose}>
+      eyebrow={`${order.multiplier} 倍${isUrgentSpecialtyOrder(order) ? '急单' : '收购'} · ${accepted ? '已锁价 · 不过期' : used ? '今日已接过收购单' : '今日候选'}`} onClose={onClose}>
       <div className="community-letter">
         <img className="community-letter-item" src={icon(order.item)} alt="" />
         <p>邻居想收一份地区特产，可用库存交货；交付时扣除材料，收购价不叠加小摊加价。</p>
-        <p className="community-letter-reward">酬谢：{order.rewardCoins ?? order.unitPrice * order.quantity} 金币</p>
+        <p className="community-letter-reward">酬谢：{order.rewardCoins ?? order.unitPrice * order.quantity} 金币 · {specialtyOrderHearts} 小心心</p>
       </div>
       <p>持有 {have} · {missing ? `还差 ${missing} 份` : '材料已齐'}</p>
       <div className="community-actions">{accepted ? <>

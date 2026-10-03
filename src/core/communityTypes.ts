@@ -12,9 +12,9 @@ export type AnimalId = 'coop' | 'barn';
 export type WaterId = 'pond' | 'upstream' | 'forest_pool' | 'coast_pier';
 export type CommissionTemplate = 'search' | 'forage' | 'vegetables' | 'eggs' | 'milk' | 'fish_pond' | 'fish_upstream' | 'fish_forest_pool' | 'fish_coast_pier' | 'soup' | 'fresh_porridge' | 'delivery' | 'forest_delicacy' | 'tea_order' | 'valley_basket' | 'valley_rice' | `${import('./expeditionTypes').RegionId}_${'survey' | 'supplies' | 'search' | 'delivery'}`;
 export interface CommunityTask { id: string; template: CommissionTemplate; acceptedAt: number; found: boolean; rewardCoins?: number; region?: import('./expeditionTypes').RegionId; node?: import('./landmarkProgress').LandmarkNode }
-export interface AnimalProduction { feed: number; stock: number; nextAt?: number; cycleMs: number; cared: boolean; revision: number }
+export interface AnimalProduction { name?: string; feed: number; stock: number; nextAt?: number; cycleMs: number; cared: boolean; revision: number }
 export interface CommunityCrop { id: CropId; plantedAt: number; readyAt: number; watered?: boolean; fertilized?: boolean }
-export interface CommunityPlot { id: number; crop?: CommunityCrop }
+export interface CommunityPlot { id: number; crop?: CommunityCrop; lastCrop?: CropId }
 export interface ManualFishingSession {
   mode: 'manual'; id: string; water: WaterId; fish: FishId; size: number; phase: 'waiting' | 'reeling';
   biteAt: number; lastActionAt: number; clicks: number; requiredClicks: number; revision: number;
@@ -55,7 +55,7 @@ export interface CommunityActivityBoard {
   invitationId?: string;
 }
 export interface CommunityState {
-  schemaVersion: 13;
+  schemaVersion: 14;
   activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;
   expedition: ExpeditionState;
@@ -76,6 +76,7 @@ export interface CommunityState {
   forageResearch: Partial<Record<WildIngredientId, number>>;
   processing: { revision: number };
   ranchDay: { day: string; cared: boolean; collected: boolean; claimed: boolean };
+  ranchCompostCycles: number;
   boardDay: string;
   acceptedToday: string[];
   commission?: { id: string; acceptedAt: number; found: boolean; rewardCoins?: number };

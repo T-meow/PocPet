@@ -10,14 +10,16 @@ import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
 
 const kitchenFirstRecipeXp = 5;
+const kitchenHeartBaseMultiplier = 1.25;
 export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
   ? 0 : practiceSkillXp + (pet.kitchen.made[recipeId] ? 0 : kitchenFirstRecipeXp);
 export const getKitchenHeartReward = (pet: PetState, recipeId: RecipeId, banana = false) => {
   const recipe = getRecipe(recipeId);
   const skillLevel = Math.max(1, Math.min(partnerScheduleMaxSkillLevel, Math.floor(pet.partnerSchedule.skills.cooking.level)));
   const skillBonusPercent = (skillLevel - 1) * 10;
-  const inputBudgets = recipe ? getRecipeIngredientEntries(recipe, banana).map(({ id, quantity }) => ({ hearts: getDish(id)?.recipe.chainHearts ?? 0, quantity })) : [];
-  const chainHearts = recipe?.chainHearts ?? 0;
+  const baseBudget = (hearts: number) => Math.ceil(hearts * kitchenHeartBaseMultiplier);
+  const inputBudgets = recipe ? getRecipeIngredientEntries(recipe, banana).map(({ id, quantity }) => ({ hearts: baseBudget(getDish(id)?.recipe.chainHearts ?? 0), quantity })) : [];
+  const chainHearts = baseBudget(recipe?.chainHearts ?? 0);
   const baseHearts = chainHearts - inputBudgets.reduce((sum, input) => sum + input.hearts * input.quantity, 0);
   // Round whole-chain budgets before subtraction so extra processing cannot mint hearts.
   const scaleBudget = (hearts: number) => Math.round(hearts * (100 + skillBonusPercent) / 100);

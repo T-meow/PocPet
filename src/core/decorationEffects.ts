@@ -22,4 +22,8 @@ export const getDecorationValue = (id: CommunityDecorationId, level: number) => 
   return Math.round((level <= 5 ? first + (middle - first) * (level - 1) / 4 : middle + (last - middle) * (Math.min(10, level) - 5) / 5) * 10) / 10;
 };
 export const getDecorationEffects = (pet: Pick<PetState, 'community'>) => Object.fromEntries(communityDecorationIds.map(id => [id, getDecorationValue(id, getDecorationLevel(pet, id))])) as Record<CommunityDecorationId, number>;
+export const getDecorationIdleTimeReduction = (level: number) => {
+  if (level <= 0) return 0;
+  return Math.round((level <= 5 ? 5 + 5 * (level - 1) / 4 : 10 + 10 * (Math.min(10, level) - 5) / 5) * 10) / 10;
+};
 export const decoratedOrderCoins = (pet: PetState, coins: number) => Math.floor(coins * (1 + getDecorationEffects(pet).amber_lantern / 100));

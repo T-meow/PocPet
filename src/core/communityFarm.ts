@@ -1,4 +1,5 @@
-import { animals } from './communityData';
+import { animals, normalizeAnimalName, ranchCompostCycleCount } from './communityData';
+import { getProductionHeartReward, grantActivityHearts } from './activityHearts';
 import type { AnimalId } from './communityTypes';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
@@ -9,6 +10,26 @@ import { getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
 
 export const getAnimalCycleMs = (pet: PetState, id: AnimalId) => Math.round(animals[id].hours * 3600000 * (pet.partnerSchedule.skills.garden.level >= 10 ? .92 : 1) * (1 - getDecorationEffects(pet).sun_weather_vane / 100));
+export const getAnimalHarvestHearts = (id: AnimalId, stock: number) => Math.ceil(stock / 2) * getProductionHeartReward(animals[id].hours);
+export const renameCommunityAnimal = (pet: PetState, id: AnimalId, value: string): PetState => {
+  if (!pet.community.facilities[id]?.built || typeof value !== 'string') return pet;
+  const name = normalizeAnimalName(value), state = pet.community.animals[id];
+  if ((state.name ?? '') === name) return pet;
+  return { ...pet, community: { ...pet.community, animals: { ...pet.community.animals, [id]: { ...state, name: name || undefined } } },
+    recentEvent: name ? `${id === 'coop' ? '鸡群' : '奶牛'}有了新名字：${name}。` : '已恢复默认称呼。' };
+};
+export const getRanchCompost = (pet: PetState) => ({
+  ready: Math.floor(pet.community.ranchCompostCycles / ranchCompostCycleCount),
+  progress: pet.community.ranchCompostCycles % ranchCompostCycleCount,
+});
+export const collectRanchCompost = (pet: PetState): PetState => {
+  if (pet.timePause || !canSpendCompanionTime(pet) || (!pet.community.facilities.coop.built && !pet.community.facilities.barn.built)) return pet;
+  const quantity = Math.min(getRanchCompost(pet).ready, inventoryItemLimit - (pet.inventory.nutrient_compost ?? 0));
+  if (quantity <= 0) return pet;
+  return { ...pet, inventory: addInventoryItem(pet.inventory, 'nutrient_compost', quantity),
+    community: { ...pet.community, ranchCompostCycles: pet.community.ranchCompostCycles - quantity * ranchCompostCycleCount },
+    recentEvent: `收好营养堆肥 ×${quantity}，可以给菜地施肥，每块地本轮增产 1 份。` };
+};
 
 export const getRanchDay = (pet: PetState, now = Date.now()) => {
   const day = getEffectiveDailyDateKey(pet, now), previous = pet.community.ranchDay;
@@ -21,18 +42,20 @@ export const claimRanchMilk = (pet: PetState, choice: 'strawberry_milk' | 'ad_mi
 };
 
 export const advanceCommunityAnimals = (pet: PetState, now: number): PetState => {
-  if (pet.timePause) return pet;
+  if (pet.timePause || !Number.isFinite(now)) return pet;
   let states = pet.community.animals;
+  let compostCycles = pet.community.ranchCompostCycles;
   for (const id of ['coop', 'barn'] as const) {
     const old = states[id], capacity = getAnimalCapacity(pet.community, id);
     if (!pet.community.facilities[id].built || old.nextAt === undefined || old.nextAt > now || old.feed <= 0 || old.stock + 2 > capacity.stock) continue;
     const cycleMs = getAnimalCycleMs(pet, id);
     const cycles = Math.min(old.feed, Math.floor((capacity.stock - old.stock) / 2), 1 + Math.floor((now - old.nextAt) / cycleMs));
     if (!cycles) continue;
+    compostCycles = Math.min(Number.MAX_SAFE_INTEGER, compostCycles + cycles);
     const feed = old.feed - cycles, stock = old.stock + 2 * cycles;
     states = { ...states, [id]: { ...old, feed, stock, cycleMs, nextAt: feed > 0 && stock + 2 <= capacity.stock ? old.nextAt + cycles * cycleMs : undefined, cared: false, revision: old.revision + cycles } };
   }
-  return states === pet.community.animals ? pet : { ...pet, community: { ...pet.community, animals: states } };
+  return states === pet.community.animals ? pet : { ...pet, community: { ...pet.community, animals: states, ranchCompostCycles: compostCycles } };
 };
 export const feedCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevision: number, quantity = 1, now = Date.now()): PetState => {
   if (pet.timePause) return pet;
@@ -49,8 +72,11 @@ export const collectCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevi
   const state = pet.community.animals[id], item = animals[id]?.item;
   if (!state || !item || !canSpendCompanionTime(pet) || !state.stock || state.revision !== expectedRevision) return pet;
   if ((pet.inventory[item] ?? 0) + state.stock > inventoryItemLimit) return { ...pet, recentEvent: '仓库放不下整批产物，它们会留在设施里。' };
-  return { ...pet, inventory: addInventoryItem(pet.inventory, item, state.stock), community: { ...pet.community, ranchDay: { ...getRanchDay(pet, now), collected: true }, animals: { ...pet.community.animals,
-    [id]: { ...state, stock: 0, revision: state.revision + 1, cycleMs: state.nextAt === undefined ? getAnimalCycleMs(pet, id) : state.cycleMs, nextAt: state.nextAt ?? (state.feed ? Math.max(now, pet.lastUpdatedAt) + getAnimalCycleMs(pet, id) : undefined) } } }, recentEvent: `收好${animals[id].name} ×${state.stock}。有余粮时继续下一轮生产。` };
+  const hearts = getAnimalHarvestHearts(id, state.stock);
+  const harvested = grantActivityHearts({ ...pet, inventory: addInventoryItem(pet.inventory, item, state.stock), community: { ...pet.community, ranchDay: { ...getRanchDay(pet, now), collected: true }, animals: { ...pet.community.animals,
+    [id]: { ...state, stock: 0, revision: state.revision + 1, cycleMs: state.nextAt === undefined ? getAnimalCycleMs(pet, id) : state.cycleMs, nextAt: state.nextAt ?? (state.feed ? Math.max(now, pet.lastUpdatedAt) + getAnimalCycleMs(pet, id) : undefined) } } }, recentEvent: `收好${animals[id].name} ×${state.stock}，获得 ${hearts} 颗小心心。有余粮时继续下一轮生产。` }, hearts);
+  const next = collectRanchCompost(harvested);
+  return { ...next, recentEvent: harvested.recentEvent + (next !== harvested ? next.recentEvent : '') + (getRanchCompost(next).ready ? '堆肥仓库已满，剩余堆肥留在牧场等你。' : '') };
 };
 export const careCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevision: number, now = Date.now()): PetState => {
   if (pet.timePause) return pet;

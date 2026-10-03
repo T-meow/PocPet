@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, Compass, Fish, Leaf, MapPin, Sprout, X, Zap } from 'lucide-react';
 import { getAdventureGrowthSources } from '../core/adventureGrowth';
 import { getCommunityTasks, canClaimCommunityTask } from '../core/communityCommissions';
@@ -9,7 +9,7 @@ import { gardenCompensationRewardId } from '../core/petState';
 import { getPetEnergyCap } from '../core/petStats';
 import { mainStoryProgress, regionNames, expeditionRegionForMap } from '../core/landmarkProgress';
 import type { CommunityRoute, FacilityId, WaterId } from '../core/communityTypes';
-import type { ItemRegistry, PetState } from '../core/petTypes';
+import type { ItemId, ItemRegistry, PetState } from '../core/petTypes';
 import type { RecipeId } from '../core/companionActivityTypes';
 import { DialogShell } from './DialogShell';
 import { CommunityFacilities } from './community/CommunityFacilities';
@@ -26,15 +26,16 @@ import '../styles/valley-loop.css';
 import { CommunityValleyProgress } from './community/CommunityValleyProgress';
 import { canClaimSpecialtyOrder } from '../core/communitySpecialtyOrders';
 import type { OutpostRequest } from './outpostNavigation';
-import { TreasureDisplay, DecorationDetail, DecorationScene, DecorationCorner } from './community/TreasureDisplay';
+import { DecorationDetail, DecorationScene, DecorationCorner } from './community/TreasureDisplay';
+import { DecorationEntry, DecorationWorkshop } from './community/DecorationWorkshop';
 import type { CommunityDecorationId } from '../core/regionalTreasures';
-import { getDecorationLevel } from '../core/decorationEffects';
 import { getCommunityActivityReminder } from '../core/communityActivities';
 import '../styles/decorations.css';
 
 interface Props {
   pet: PetState; portrait: string; update: (action: (pet: PetState) => PetState) => void;
   actorId?: string; actorName?: string;
+  onToggleItemFavorite: (id: ItemId) => void;
   onBack: () => void; onExplore: (purpose: CommunityRoute) => void; onKitchen: (recipe?: RecipeId) => void; onShop: () => void; orchard: ReactNode;
   initialTab?: CommunityTab; initialPlace?: CommunityPlace; tab?: CommunityTab; onTabChange?: (tab: CommunityTab) => void;
   place?: CommunityPlace | null; onPlaceChange?: (place: CommunityPlace | null) => void;
@@ -42,14 +43,25 @@ interface Props {
 }
 // Retain previous navigation values for callers; operations now live in dialogs.
 export type CommunityTab = 'village' | 'board' | 'field' | 'farm' | 'fishing' | 'market';
-export type CommunityPlace = 'field' | 'orchard' | 'coop' | 'barn' | 'hut' | 'hut_manage' | 'pond' | 'upstream' | 'fishbook' | 'board' | 'market' | 'journey' | 'growth';
+export type CommunityPlace = 'field' | 'orchard' | 'coop' | 'barn' | 'hut' | 'hut_manage' | 'pond' | 'upstream' | 'fishbook' | 'board' | 'market' | 'journey' | 'growth' | 'decorations';
 type Place = CommunityPlace;
 const fishingPlaces: readonly Place[] = ['hut', 'hut_manage', 'pond', 'upstream', 'fishbook'];
-const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', hut_manage: '小屋建设与水域', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长' };
+const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', hut_manage: '小屋建设与水域', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长', decorations: '装饰工坊' };
 
-export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorName = pet.name, update, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
+export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorName = pet.name, update, onToggleItemFavorite, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
   const [localTab, setLocalTab] = useState<CommunityTab>(initialPlace && fishingPlaces.includes(initialPlace) ? 'fishing' : initialTab);
   const [selectedDecoration, setSelectedDecoration] = useState<CommunityDecorationId | null>(null);
+  const communityRef = useRef<HTMLElement>(null), decorationTrigger = useRef<HTMLElement | null>(null);
+  const selectDecoration = (id: CommunityDecorationId) => {
+    decorationTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSelectedDecoration(id);
+  };
+  const closeDecoration = () => {
+    setSelectedDecoration(null);
+    window.requestAnimationFrame(() => {
+      if (!decorationTrigger.current?.isConnected) communityRef.current?.querySelector<HTMLButtonElement>('.decoration-workshop-filters [aria-pressed="true"]')?.focus({ preventScroll: true });
+    });
+  };
   const tab = controlledTab ?? localTab;
   const [localPanel, setLocalPanel] = useState<Place | null>(() => initialPlace ?? (['field', 'board', 'market'].includes(tab) ? tab as Place : null));
   const panel = controlledPlace !== undefined ? controlledPlace : localPanel;
@@ -61,7 +73,7 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   const [selectedWater, setSelectedWater] = useState<WaterId>('pond');
   const visitWater = (water: WaterId = 'pond') => { setSelectedWater(water); openPlace(water === 'upstream' ? 'upstream' : 'pond'); };
   const goKitchen = (recipe?: RecipeId) => { setPanel(null); onKitchen(recipe); };
-  const panelProps = { pet, update, onExplore, onKitchen: goKitchen, onShop, registry, itemIconMap, onAdventure: onAdventure ? () => { setPanel(null); onAdventure(); } : undefined, onOpenOutpost: onOpenOutpost ? (request: OutpostRequest) => { setPanel(null); onOpenOutpost(request); } : undefined };
+  const panelProps = { pet, update, onToggleItemFavorite, onExplore, onKitchen: goKitchen, onShop, registry, itemIconMap, onAdventure: onAdventure ? () => { setPanel(null); onAdventure(); } : undefined, onOpenOutpost: onOpenOutpost ? (request: OutpostRequest) => { setPanel(null); onOpenOutpost(request); } : undefined };
   const mapUnlocked = (pet.adventure.completed.tutorial ?? 0) > 0;
   const tasks = getCommunityTasks(pet), readyTasks = tasks.filter(task => canClaimCommunityTask(pet, task)).length + Number(canClaimSpecialtyOrder(pet));
   const activeTasks = tasks.length + Number(Boolean(c.specialtyOrders.active));
@@ -115,20 +127,22 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   else if (panel === 'fishbook') content = <CommunityFishing {...panelProps} view="journal" />;
   else if (panel === 'board') content = <CommunityBoard {...panelProps} actorId={actorId} actorName={actorName} onFishing={visitWater} onFarm={openPlace} />;
   else if (panel === 'market') content = c.facilities.stall.built ? <CommunityMarket {...panelProps} /> : <CommunityFacilities {...panelProps} only="stall" />;
+  else if (panel === 'decorations') content = <DecorationWorkshop pet={pet} onSelect={selectDecoration} />;
   else if (panel === 'growth') content = <section className="community-card"><p>首次成果永久增加体力上限，通过休息恢复新增容量。社区活动可以在布告牌接取。</p>{getAdventureGrowthSources(pet).map(source => <div className="community-growth-row" key={source.id} data-done={source.achieved}><span>{source.achieved ? '✓' : '○'} {source.name}</span><b>+{source.energy}</b></div>)}</section>;
-  else if (panel === 'journey') content = <><section className="community-card"><h3>从前哨出发，把收获带回农场</h3><p>地图里继续故事、采集与营地建设；回到农场，交付订单或制作收藏。</p><div className="community-actions"><button className="primary-button" disabled={!onAdventure} onClick={adventure}>去前哨基地</button>{onOpenOutpost && <><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'idle', region: 'valley' })}>安排挂机探索</button><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'journal' })}>旅行日志</button></>}<button className="secondary-button" onClick={() => setPanel('growth')}>旅途留下的成长</button></div></section><TreasureDisplay pet={pet} onSelect={setSelectedDecoration} /><CommunityValleyProgress {...panelProps} onAdventure={adventure} onOpen={openPlace} /></>;
+  else if (panel === 'journey') content = <><section className="community-card"><h3>从前哨出发，把收获带回农场</h3><p>地图里继续故事、采集与营地建设；回到农场，交付订单或制作收藏。</p><div className="community-actions"><button className="primary-button" disabled={!onAdventure} onClick={adventure}>去前哨基地</button>{onOpenOutpost && <><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'idle', region: 'valley' })}>安排挂机探索</button><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'journal' })}>旅行日志</button></>}<button className="secondary-button" onClick={() => setPanel('growth')}>旅途留下的成长</button></div></section><DecorationEntry pet={pet} onOpen={() => openPlace('decorations')} /><CommunityValleyProgress {...panelProps} onAdventure={adventure} onOpen={openPlace} /></>;
 
-  return <section className="community-page">
+  return <section className="community-page" ref={communityRef}>
     <header className="community-header"><button className="icon-button" onClick={fishing ? () => changeScene('village') : onBack} aria-label={fishing ? '返回农场' : '返回小窝'}><ArrowLeft /></button><div><small>沿着溪流，慢慢生活</small><h2>{fishing ? '钓鱼小屋' : '溪畔农场'}</h2></div><span className="community-energy" aria-label={`体力 ${Math.floor(pet.energy)}/${getPetEnergyCap(pet)}`}><Zap size={16} />{Math.floor(pet.energy)}/{getPetEnergyCap(pet)}</span></header>
     <div className="community-scene-heading"><div><small>{fishing ? '溪水送来的一点闲暇' : '每一次发现，都在这里生长'}</small><h1>{fishing ? '风很轻，今天钓点什么？' : c.gardenBuilt ? '菜地有了水，日子慢慢热闹。' : '从一条水渠，开始新的日常。'}</h1></div><span className="community-season"><Leaf size={15} />{fishing ? `水域 ${waterIds.filter(id => isWaterOpen(pet, id)).length}/${waterIds.length} 已直通` : `已开放 ${builtCount}/6 处`}</span></div>
-    <div className="community-scene-layout"><div className="community-scene-card"><div className="community-place-scene" data-scene={fishing ? 'fishing' : 'farm'}><CommunitySceneArt community={c} fishing={fishing} />{portrait && <img className="community-scene-companion" src={portrait} alt={pet.name} />}{places}<DecorationScene pet={pet} fishing={fishing} onSelect={setSelectedDecoration} /></div>{!fishing && <DecorationCorner pet={pet} onSelect={setSelectedDecoration} />}<footer><MapPin size={15} />点击地点，查看修复、收获和正在发生的事。</footer></div>
+    {!fishing && <DecorationEntry pet={pet} onOpen={() => openPlace('decorations')} />}
+    <div className="community-scene-layout"><div className="community-scene-card"><div className="community-place-scene" data-scene={fishing ? 'fishing' : 'farm'}><CommunitySceneArt community={c} fishing={fishing} />{portrait && <img className="community-scene-companion" src={portrait} alt={pet.name} />}{places}<DecorationScene pet={pet} fishing={fishing} onSelect={selectDecoration} /></div>{!fishing && <DecorationCorner pet={pet} onSelect={selectDecoration} />}<footer><MapPin size={15} />点击地点，查看修复、收获和正在发生的事。</footer></div>
       <aside className="community-today"><section className="community-card community-next"><small>接下来，一起做这件事</small><h3>{next.title}</h3><p>{next.detail}</p><button className="primary-button" disabled={next.action === adventure && !onAdventure} onClick={next.action}>{next.label}<ArrowRight size={16} /></button></section><section className="community-card"><h3>今天的小收获</h3><button className="community-status-link" data-tone="mint" onClick={() => openPlace('field')}><Sprout size={16} /><span>菜地<small>{fieldStatus}</small></span>{mature && <Check size={16} />}</button><button className="community-status-link" data-tone="sky" onClick={() => visitWater(c.fishing.active?.water)}><Fish size={16} /><span>水边<small>{fishStatus}</small></span></button><button className="community-status-link" data-tone="lilac" onClick={() => openPlace('board')}><BookOpen size={16} /><span>邻里委托<small>{readyTasks ? `${readyTasks} 单待交付` : `${activeTasks} 单进行中 · 邻里 2 单＋特产 1 单`}</small></span></button><button className="community-status-link" data-tone="gold" onClick={() => openPlace('journey')}><Compass size={16} /><span>旅途与日常<small>{story.completed}/40 个地标</small></span></button></section></aside>
     </div>
     {!free && <p className="community-note">伙伴正在休息或忙碌，可以先看看场景与任务。{c.fishing.active && <button className="text-button" onClick={() => visitWater(c.fishing.active?.water)}>回到当前鱼竿</button>}</p>}
     <p className="community-event" role={panel ? undefined : 'status'}>{pet.recentEvent}</p>
     {fishing && <div className="community-actions"><button className="secondary-button" onClick={() => openPlace('hut_manage')}>小屋建设与水域</button><button className="secondary-button" onClick={() => openPlace('fishbook')}>鱼类手账与金冠</button></div>}
     {fishingPanel && <FishingDialog {...panelProps} portrait={portrait} actorId={actorId} actorName={actorName} initialWater={c.fishing.active?.water ?? c.fishing.pending?.water ?? (panel === 'upstream' ? 'upstream' : selectedWater)} onClose={() => setPanel(null)} onManage={() => openPlace('hut_manage')} onShop={() => { setPanel(null); onShop(); }} />}
-    {selectedDecoration && <DecorationDetail key={`${selectedDecoration}:${getDecorationLevel(pet, selectedDecoration)}`} pet={pet} update={update} id={selectedDecoration} onClose={() => setSelectedDecoration(null)} onOpenOutpost={panelProps.onOpenOutpost ? request => { setSelectedDecoration(null); panelProps.onOpenOutpost?.(request); } : undefined} />}
-    {panel && !fishingPanel && <DialogShell fullscreen className="community-place-dialog" backdropClassName="community-modal-backdrop" labelId="community-place-title" onClose={() => setPanel(null)}><header><div><small>{fishingPlaces.includes(panel) ? '钓鱼小屋' : '溪畔农场'}</small><h2 id="community-place-title">{titles[panel]}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="关闭地点窗口，返回场景"><X size={21} /></button></header><div className="community-dialog-content">{panel !== 'orchard' && !mapUnlocked && <p className="community-note">先去前哨完成踩点探索，就能在溪谷寻找建设线索。{onAdventure && <button className="text-button" onClick={adventure}>去前哨基地</button>}</p>}{!free && <p className="community-note">伙伴正在休息或忙碌；生产和建设操作会在空闲时开放。</p>}{content}</div></DialogShell>}
+    {selectedDecoration && <DecorationDetail key={selectedDecoration} pet={pet} update={update} id={selectedDecoration} onClose={closeDecoration} onOpenOutpost={panelProps.onOpenOutpost ? request => { setSelectedDecoration(null); panelProps.onOpenOutpost?.(request); } : undefined} />}
+    {panel && !fishingPanel && <DialogShell fullscreen historyNavigation={panel === 'decorations'} className={'community-place-dialog' + (panel === 'decorations' ? ' community-decoration-workshop' : '')} backdropClassName="community-modal-backdrop" labelId="community-place-title" onClose={() => setPanel(null)}><header><div><small>{fishingPlaces.includes(panel) ? '钓鱼小屋' : '溪畔农场'}</small><h2 id="community-place-title">{titles[panel]}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="关闭地点窗口，返回场景"><X size={21} /></button></header><div className="community-dialog-content">{panel !== 'orchard' && panel !== 'decorations' && !mapUnlocked && <p className="community-note">先去前哨完成踩点探索，就能在溪谷寻找建设线索。{onAdventure && <button className="text-button" onClick={adventure}>去前哨基地</button>}</p>}{!free && <p className="community-note">伙伴正在休息或忙碌；生产和建设操作会在空闲时开放。</p>}{content}</div></DialogShell>}
   </section>;
 };

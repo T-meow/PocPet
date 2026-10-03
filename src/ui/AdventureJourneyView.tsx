@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Backpack, Compass, Search, ShieldCheck, ShoppingBag, Truck, Wrench } from 'lucide-react';
+import { ArrowLeft, Backpack, Check, Compass, Search, ShieldCheck, ShoppingBag, Truck, Wrench } from 'lucide-react';
 import type { ItemId, PetState } from '../core/petTypes';
 import type { DurableToolId } from '../core/fieldEquipmentData';
 import { advanceAdventure, canUseAdventureService, getAdventureChoicePreview, getAdventureChoiceReason } from '../core/adventure';
 import { getAdventureSteps, adventureJourneyName } from '../core/adventureData';
 import { getAdventureStageChoices, type AdventureStageChoice } from '../core/adventureGathering';
 import { getAdventureBagCount } from '../core/adventureState';
-import { getAdventureNodeScene } from './adventureScenes';
 import { getAdventureRouteNode } from '../core/valleyQuests';
 import { getToolUsesLeft } from '../core/toolDurability';
 import { getInventoryItem } from '../core/items';
@@ -19,12 +18,14 @@ import type { AdventureCompanion } from './AdventureCompanions';
 import { getExplorationHarvestPay } from '../core/explorationBudget';
 import { expeditionRegionForMap } from '../core/landmarkProgress';
 import { formatInteger } from './numberFormat';
+import { AdventureCompanionStatus, AdventureLandscape } from './AdventurePresentation';
+import { getExplorationBagCapacity } from '../core/explorationBackpack';
 
 const toolDescriptions: Partial<Record<DurableToolId, string>> = {
   trail_rope: '保证通过，健康无损；体力减少 50%、饱食减少 20%。',
   harvest_sickle: '稳定采收，主产物额外 +1；体力减少 25%。',
   prospector_pick: '珍宝调查稳定增加 2 点进度，同时带回当地副产物。',
-  survey_lens: '定向取得所选食材或种子；研究食材调查进度 +2。',
+  survey_lens: '定向取得所选食材、材料或种子；研究食材调查进度 +2。',
   camp_kit: '使用营具恢复状态。',
 };
 const lensTarget = (choice: AdventureStageChoice) => choice.research?.id ?? choice.id.split(':')[1];
@@ -37,7 +38,8 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
   const [lensSelection, setLensSelection] = useState<{ tripId: string; step: number; id: string }>();
   const trip = pet.adventure.active;
   if (!trip) return <p>当前行程已结束，可在结算页领取收获。</p>;
-  const step = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[trip.choices.length];
+  const steps = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag);
+  const step = steps[trip.choices.length];
   const choices = getAdventureStageChoices(pet, step?.choices ?? []).filter(choice => {
     const tool = choice.check?.tool;
     return !tool || getToolUsesLeft(pet, tool, tool === 'trail_rope' && trip.tool) > 0;
@@ -66,9 +68,8 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
       </button>
     </article>;
   };
-  return <div className="exploration-journey">
-    <div className="exploration-scene"><img src={getAdventureNodeScene(region, getAdventureRouteNode(trip.purpose))} alt={adventureJourneyName(trip.region, trip.purpose)} /><img className="exploration-scene-pet" src={portrait} alt={trip.actorName} /></div>
-    <div className="exploration-inline-actions"><button onClick={() => onStorage('bag')}><Backpack size={18} />途中背包</button><button onClick={onReturn}>返回前哨</button></div>
+  return <div className="exploration-journey-layout"><div className="exploration-journey">
+    <section className="exploration-panel exploration-journey-hero"><ol className="exploration-stage-steps" aria-label="探险阶段">{steps.map((stage,index) => <li key={`${trip.id}:${index}`} className={index < trip.choices.length ? 'is-complete' : index === trip.choices.length ? 'is-current' : ''} aria-current={index === trip.choices.length ? 'step' : undefined}><span>{index < trip.choices.length ? <Check size={15} /> : index+1}</span><strong title={stage.title}>{stage.title}</strong></li>)}</ol><AdventureLandscape region={region} node={getAdventureRouteNode(trip.purpose)} portrait={portrait} label={adventureJourneyName(trip.region,trip.purpose)} /></section>
     <ExplorationCheckSummary result={trip.checkState?.last} /><ExplorationCheckBuffs state={trip.checkState} />
     {choices.some(choice => choice.harvest) && <p className="exploration-collect-pay">每次有效采集：<strong>金币 +{harvestPay.coins} · 基础心心 +{harvestPay.hearts}</strong>，返程领取。物产、研究与概率宝物另计。</p>}
     <section className="exploration-current-event"><div className="help-heading"><h3>{step?.title ?? '本次探查已完成'}</h3><ExplorationHelp pet={pet} purpose={trip.purpose} destination={trip.region} choices={choices} /></div><p>{step?.story ?? '带着发现返回前哨，领取收获并选择下一站。'}</p></section>
@@ -87,5 +88,5 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
       {choices.filter(choice => choice.id === 'gather:leave').map(card)}
       {!step && <button className="primary-button" onClick={onReturn}>完成探查，返回前哨</button>}
     </div>}
-  </div>;
+  </div><aside className="exploration-panel exploration-journey-aside"><div className="exploration-section-heading"><h3>旅途状态</h3><span className="exploration-tag">进度已保存</span></div><AdventureCompanionStatus pet={pet} actor={{id:trip.actorId,name:trip.actorName,portrait}} /><section className="exploration-journey-bag"><h3>这一段旅途</h3><div><span>随身行囊</span><strong>{getAdventureBagCount(trip.bag)} / {getExplorationBagCapacity(pet)}</strong></div><div><span>当前进度</span><strong>{trip.choices.length} / {steps.length} 阶段</strong></div><button className="primary-button" onClick={() => onStorage('bag')}><Backpack size={19} />查看旅行背包</button>{getAdventureBagCount(trip.loot) > 0 && <button className="secondary-button" onClick={() => onStorage('loot')}>整理待拾取物资</button>}<button className="secondary-button" disabled={!services} onClick={() => onStorage('shop')}><ShoppingBag size={18} />{services ? '伙伴的随身补给' : '遇见邻居后可购买补给'}</button></section><button className="secondary-button exploration-return-button" disabled={busy} onClick={onReturn}><ArrowLeft size={18} />{step ? '提前返回前哨' : '完成探查，返回前哨'}</button></aside></div>;
 };

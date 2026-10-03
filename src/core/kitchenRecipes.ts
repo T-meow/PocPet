@@ -34,7 +34,7 @@ const legacyRecipes: readonly Omit<RecipeDefinition, 'category' | 'demand'>[] = 
   { id: 'mushroom_rice', name: '野菇焖饭', en: '野菇焖饭', glyph: '🍄', method: 'pan', technique: 'simmer', rarity: 'fine', ingredients: ['valley_mushroom', 'rice'], effect: { hunger: 28, energy: 24, health: 6 }, chainHearts: 2, main: true },
   { id: 'honey_drink', name: '蜂蜜暖饮', en: '蜂蜜暖饮', glyph: '🍯', method: 'mix', rarity: 'fine', ingredients: ['hill_honey', 'creek_herb'], effect: { hunger: 8, energy: 14, mood: 30 }, chainHearts: 2 },
   { id: 'berry_milk', name: '林莓奶饮', en: '林莓奶饮', glyph: '🫐', method: 'mix', rarity: 'fine', ingredients: ['forest_berry', 'farm_milk'], effect: { hunger: 10, energy: 24, mood: 24 }, chainHearts: 2 },
-  { id: 'kelp_rice', name: '海藻饭团', en: '海藻饭团', glyph: '🍙', method: 'pan', rarity: 'fine', ingredients: ['coast_kelp', 'rice'], effect: { hunger: 32, energy: 20, health: 14 }, chainHearts: 2, main: true },
+  { id: 'kelp_rice', name: '海藻饭团', en: '海藻饭团', glyph: '🍙', method: 'pan', rarity: 'fine', ingredients: ['coast_kelp', 'dish_plain_rice'], effect: { hunger: 44, energy: 28, health: 14 }, chainHearts: 2, main: true },
   { id: 'creek_fish_soup', name: '香草鲜鱼汤', en: '香草鲜鱼汤', glyph: '🍲', method: 'pan', technique: 'simmer', rarity: 'fine', ingredients: ['pond_crucian', 'creek_herb'], effect: { hunger: 18, energy: 24, health: 10, mood: 8 }, chainHearts: 2 },
   { id: 'river_grill', name: '溪流香烤鱼', en: '溪流香烤鱼', glyph: '🐟', method: 'pan', rarity: 'fine', ingredients: ['stream_trout', 'carrot'], effect: { hunger: 30, energy: 30, mood: 12 }, chainHearts: 2, main: true },
   { id: 'milk_custard', name: '鲜奶蛋羹', en: '鲜奶蛋羹', glyph: '🍮', method: 'pan', technique: 'simmer', rarity: 'fine', ingredients: ['farm_milk', 'egg'], effect: { hunger: 24, mood: 30, energy: 24 }, chainHearts: 1 },
@@ -50,7 +50,7 @@ const legacyRecipes: readonly Omit<RecipeDefinition, 'category' | 'demand'>[] = 
   { id: 'fruit_pancake', name: '水果松饼', en: 'Fruit pancakes', glyph: '🥞', method: 'pan', rarity: 'fine', ingredients: ['flour', 'egg', 'apple'], effect: { hunger: 48, mood: 24, energy: 26 }, chainHearts: 2, fruitVariant: true },
   { id: 'milk_cookies', name: '草莓小饼干', en: 'Strawberry cookies', glyph: '🍪', method: 'oven', rarity: 'fine', ingredients: ['flour', 'strawberry_milk'], effect: { hunger: 42, mood: 24, energy: 24 }, chainHearts: 2 },
   { id: 'carrot_omelet', name: '胡萝卜蛋饼', en: 'Carrot omelet', glyph: '🍳', method: 'pan', rarity: 'common', ingredients: ['carrot', 'egg'], effect: { hunger: 34, mood: 10, energy: 20 }, chainHearts: 1, main: true },
-  { id: 'rice_pancake', name: '米香煎饼', en: 'Rice pancakes', glyph: '🫓', method: 'pan', rarity: 'fine', ingredients: ['rice', 'flour', 'egg'], effect: { hunger: 56, mood: 14, energy: 26 }, chainHearts: 2, main: true },
+  { id: 'rice_pancake', name: '米香煎饼', en: 'Rice pancakes', glyph: '🫓', method: 'pan', rarity: 'fine', ingredients: ['dish_plain_rice', 'flour', 'egg'], effect: { hunger: 68, mood: 14, energy: 34 }, chainHearts: 2, main: true },
   { id: 'fruit_pudding', name: '水果蛋奶布丁', en: 'Fruit custard', glyph: '🍮', method: 'oven', rarity: 'rare', ingredients: ['egg', 'ad_milk', 'apple'], effect: { hunger: 54, mood: 36, energy: 30 }, chainHearts: 3, fruitVariant: true },
   { id: 'apple_pie', name: '苹果烤派', en: 'Apple pie', glyph: '🥧', method: 'oven', rarity: 'rare', ingredients: ['apple', 'flour', 'ad_milk'], effect: { hunger: 60, mood: 30, energy: 32 }, chainHearts: 3 },
   { id: 'biscuit_layer_cake', name: '草莓饼干千层', en: 'Strawberry cracker layer cake', glyph: '🍰', method: 'oven', rarity: 'legendary', ingredients: ['emergency_biscuit', 'strawberry_milk', 'egg'], ingredientAmounts: { emergency_biscuit: 10, strawberry_milk: 2 }, effect: { hunger: 160, mood: 60, energy: 64 }, chainHearts: 4 },
@@ -83,10 +83,15 @@ export const getRecipeUnlockReason = (pet: PetState, id: RecipeId) => {
       const f = fish[item as keyof typeof fish];
       if (f && !isWaterOpen(pet, f.water)) return '在小屋开放对应水域后解锁';
       const wild = wildIngredients[item as keyof typeof wildIngredients];
-      if (wild && !completedChapter(pet.adventure, mapRegionForExpedition[wild.region]) && !(wild.region === 'valley' && completedLandmark(pet.adventure, 'valley', 'story'))) return `完成${regionNames[mapRegionForExpedition[wild.region]]}全部地标后解锁（溪谷配方在旧温室开放）`;
+      if (wild && !completedChapter(pet.adventure, mapRegionForExpedition[wild.region])
+        && !(wild.region === 'valley' && completedLandmark(pet.adventure, 'valley', 'story'))
+        && !(wild.region === 'station' && completedLandmark(pet.adventure, 'observatory', 'gather'))) {
+        return wild.region === 'station' ? '完成旧观测站的采集地后解锁' : `完成${regionNames[mapRegionForExpedition[wild.region]]}全部地标后解锁（溪谷配方在旧温室开放）`;
+      }
       if (['cream', 'cheese'].includes(item) && !pet.community.facilities.barn.built) return '开放牛棚与奶制品加工后解锁';
     }
     if (id === 'valley_travel_bento' && (!pet.kitchen.made.chestnut_rice || !pet.kitchen.made.bamboo_mushroom_soup)) return '先做过山栗焖饭与笋菇鲜汤';
+    if (id === 'summit_travel_bento' && !pet.kitchen.made.snow_bean_rice) return '先做过雪原豆蛋盖饭';
   }
   const region = ({ mushroom_rice: 'valley', honey_drink: 'hills', berry_milk: 'forest', kelp_rice: 'coast' } as const)[id as 'mushroom_rice'];
   if (region && !completedChapter(pet.adventure, mapRegionForExpedition[region]) && !(region === 'valley' && completedLandmark(pet.adventure, 'valley', 'story'))) return region === 'valley' ? '完成溪谷／旧温室的全部阶段后记下配方' : `完成${regionNames[mapRegionForExpedition[region]]}全部 8 个地标后记下配方`;

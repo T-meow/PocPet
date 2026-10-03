@@ -1,8 +1,9 @@
 import type { AdventureRegionId } from './adventureTypes';
 import type { ItemId, PetState } from './petTypes';
 import { adventureTreasureIds } from './adventureItems';
-import { getIdleExplorationTargets } from './explorationResources';
-import { getExplorationBudget } from './explorationBudget';
+import { getIdleExplorationTargets, idleExplorationFocusWeight } from './explorationResources';
+import { commonLootPityLimit, getCommonLootChance, getExplorationBudget } from './explorationBudget';
+import { formatProbabilityPercent } from './displayNumbers';
 import { wildIngredients } from './foodCatalog';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { landmarkFirstReward, landmarkTargets } from './landmarkData';
@@ -21,14 +22,14 @@ export const getAdventureMapResources = (pet: PetState, region: AdventureRegionI
   const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === r)!;
   const chanceFinds = budget?.version === 2 || budget?.vouchers.some(v => v.rewardsVersion === 1 && (v.lootUsed ?? 0) < (mode === 'idle' ? 80 : 100) && (!v.lootRegion || v.lootRegion === r));
   if (mode === 'idle') {
-    for (const target of getIdleExplorationTargets(r)) for (const [id, count] of Object.entries(target.idle ?? {})) add(id, `必得：选择「${target.name}」挂机，每小时 ${count} 份`);
-    add(treasure, '挂机每两小时判定；料理影响概率，连续未获得时第 10 次判定保底');
+    for (const target of getIdleExplorationTargets(r)) for (const [id, count] of Object.entries(target.idle ?? {})) add(id, `随机采集：抽中「${target.name}」获得 ${count} 份；设为偏好后，该组抽取权重为其他目标的 ${idleExplorationFocusWeight} 倍`);
+    add(treasure, '挂机基础每 30 分钟判定，运动技能与星辉穹顶可加速；料理影响概率，第 10 次判定保底');
   } else {
     for (const target of landmarkTargets(region)) {
-      if (target === 'materials') { add('community_wood', '沿途采集'); add('community_stone', '沿途采集'); }
+      if (target === 'materials') { add('community_wood', '沿途随机采集，放大镜可定向查找木料与石料'); add('community_stone', '沿途随机采集，放大镜可定向查找木料与石料'); }
       else if (target !== treasure) {
         const food = wildIngredients[target as keyof typeof wildIngredients];
-        add(target, food && food.investigations > 1 ? `食材调查进度满 ${food.investigations} 点可得` : '沿途采集');
+        add(target, food && food.investigations > 1 ? `食材调查进度满 ${food.investigations} 点可得` : '沿途随机采集，放大镜可定向查找');
       }
     }
     const trip = pet.adventure.active;
@@ -48,6 +49,8 @@ export const getAdventureMapResources = (pet: PetState, region: AdventureRegionI
       }
     }
   }
-  if (chanceFinds) for (const id of adventureTreasureIds) add(id, '采集时有概率发现');
+  if (chanceFinds) for (const id of adventureTreasureIds) add(id, budget?.version === 2
+    ? `每次采集有 ${formatProbabilityPercent(getCommonLootChance(pet, mode === 'idle' ? 'hour' : 'manual', r))} 概率发现一种通用宝物，三种等概率；连续未掉落 ${budget.commonLootMisses ?? 0}／${commonLootPityLimit - 1} 次，第 ${commonLootPityLimit} 次保底`
+    : '采集时有概率发现');
   return [...result].map(([id, hints]) => ({ id, hint: [...hints].join('；') }));
 };

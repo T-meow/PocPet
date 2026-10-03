@@ -1,8 +1,11 @@
 import { fish, fishIds } from './communityData';
+import { fishingCatchHearts } from './activityHearts';
+import type { Inventory } from './petTypes';
 import type { FishId, WaterId } from './communityTypes';
 import { hashString } from './utils';
 
 export const fishingIntervalMs = 15 * 60 * 1000;
+export const getFishingHeartReward = (items: Inventory) => fishIds.reduce((sum, id) => sum + (items[id] ?? 0) * fishingCatchHearts, 0);
 export const getFishingClicks = (strong: boolean, net = false) => Math.max(2, (strong ? 3 : 4) - Number(net));
 export const getFishCrownThreshold = (id: FishId) => fish[id].length + 14;
 export const isGoldCrownFish = (id: FishId, size: number) => size > getFishCrownThreshold(id);

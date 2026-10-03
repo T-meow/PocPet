@@ -1,8 +1,9 @@
-import type { ItemRegistry, PetState } from '../../core/petTypes';
+import type { ItemId, ItemRegistry, PetState } from '../../core/petTypes';
 import type { CommunityRoute } from '../../core/communityTypes';
 import type { RecipeId } from '../../core/companionActivityTypes';
 export interface CommunityPanelProps {
   pet: PetState; update: (action: (pet: PetState) => PetState) => void;
+  onToggleItemFavorite: (id: ItemId) => void;
   registry?: ItemRegistry;
   itemIconMap?: Partial<Record<string, string>>;
   onAdventure?: () => void;

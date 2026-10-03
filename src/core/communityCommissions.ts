@@ -1,4 +1,5 @@
 import { recordEarnedCoins } from './achievements';
+import { communityTaskHearts, grantActivityHearts } from './activityHearts';
 import type { CommissionTemplate, CommunityTask, WaterId } from './communityTypes';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, removeInventoryItem } from './items';
@@ -18,6 +19,7 @@ import { getLandmarkReason, isLandmarkId, landmarkNames, mapRegionForExpedition,
 import { explorationTravel } from './explorationTravelData';
 
 export interface CommissionDefinition { name: string; detail: string; coins: number; take?: Inventory; reward?: Inventory; event?: string; region?: RegionId; node?: LandmarkNode; recipe?: RecipeId; water?: WaterId; deliveryItem?: string }
+const commissionCoinMultiplier = 4;
 export const commissionDefinitions = {
   valley_basket: { name: '晚饭前的一篮野菇', detail: '交付溪谷野菇 ×3，可使用库存；在溪边采集地手动采集可备齐。', coins: 55, take: { valley_mushroom: 3 } },
   valley_rice: { name: '邻居想尝尝野菇焖饭', detail: '交付野菇焖饭 ×1，可使用已有料理；读完温室手账后记下配方。', coins: 65, take: { dish_mushroom_rice: 1 } },
@@ -50,6 +52,9 @@ for (const [template, metadata] of Object.entries({
   valley_basket: { region: 'valley', node: 'gather' }, valley_rice: { region: 'valley', node: 'story', recipe: 'mushroom_rice' }, forest_delicacy: { region: 'forest', node: 'gather' }, tea_order: { region: 'station', node: 'gather' },
   soup: { recipe: 'creek_fish_soup' }, fresh_porridge: { recipe: 'herb_porridge' }, fish_pond: { water: 'pond' }, fish_upstream: { water: 'upstream' },
 })) Object.assign(commissionDefinitions[template as CommissionTemplate], metadata);
+for (const definition of Object.values(commissionDefinitions)) definition.coins *= commissionCoinMultiplier;
+// Accepted orders without a saved quote predate the increase and keep their old base reward.
+export const getCommunityTaskRewardCoins = (task: CommunityTask) => task.rewardCoins ?? commissionDefinitions[task.template].coins / commissionCoinMultiplier;
 export const getCommunityDay = (pet: PetState, now = Date.now()) => [pet.community.boardDay, getEffectiveDailyDateKey(pet, now)].sort()[1];
 export const getCommunityTasks = (pet: PetState): CommunityTask[] => [...(pet.community.commission ? [{ ...pet.community.commission, template: 'search' as const }] : []), ...pet.community.tasks];
 const unlocked = (pet: PetState, template: CommissionTemplate) => {
@@ -123,12 +128,13 @@ export const claimCommunityTask = (pet: PetState, id: string): PetState => {
   const task = getCommunityTasks(pet).find(task => task.id === id);
   if (pet.timePause || !task || pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active || !canClaimCommunityTask(pet, task)) return pet;
   const def = commissionDefinitions[task.template];
-  if (clampCoins(pet.coins + (task.rewardCoins ?? def.coins)) !== pet.coins + (task.rewardCoins ?? def.coins)) return { ...pet, recentEvent: '金币已满，委托和交付物品继续保留。' };
+  const rewardCoins = getCommunityTaskRewardCoins(task);
+  if (clampCoins(pet.coins + rewardCoins) !== pet.coins + rewardCoins) return { ...pet, recentEvent: '金币已满，委托和交付物品继续保留。' };
   let inventory = Object.entries(def.take ?? {}).reduce((stock, [id, quantity]) => removeInventoryItem(stock, id, quantity), pet.inventory);
   if (Object.entries(def.reward ?? {}).some(([id, quantity]) => (inventory[id] ?? 0) + quantity > inventoryItemLimit)) return { ...pet, recentEvent: '奖励物资的仓库已满，委托与奖励会继续保留。' };
   inventory = Object.entries(def.reward ?? {}).reduce((stock, [id, quantity]) => addInventoryItem(stock, id, quantity), inventory);
-  const coins = clampCoins(pet.coins + (task.rewardCoins ?? def.coins)) - pet.coins;
-  return recordEarnedCoins({ ...pet, inventory, coins: pet.coins + coins, community: { ...pet.community, commissionsCompleted: pet.community.commissionsCompleted + 1, commission: pet.community.commission?.id === id ? undefined : pet.community.commission, tasks: pet.community.tasks.filter(task => task.id !== id) }, recentEvent: `完成「${def.name}」，收到 ${coins} 金币${def.reward ? '、木料和石料各 1 份' : ''}。` }, coins);
+  const coins = clampCoins(pet.coins + rewardCoins) - pet.coins;
+  return grantActivityHearts(recordEarnedCoins({ ...pet, inventory, coins: pet.coins + coins, community: { ...pet.community, commissionsCompleted: pet.community.commissionsCompleted + 1, commission: pet.community.commission?.id === id ? undefined : pet.community.commission, tasks: pet.community.tasks.filter(task => task.id !== id) }, recentEvent: `完成「${def.name}」，收到 ${coins} 金币、${communityTaskHearts} 颗小心心${def.reward ? '、木料和石料各 1 份' : ''}。` }, coins), communityTaskHearts);
 };
 export const recordCommunityTaskEvent = (pet: PetState, event: string, now: number): PetState => {
   const tasks = pet.community.tasks.map(task => !task.found && now >= task.acceptedAt && commissionDefinitions[task.template].event === event ? { ...task, found: true } : task);

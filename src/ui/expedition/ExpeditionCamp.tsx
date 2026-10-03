@@ -7,6 +7,8 @@ import { getRegionUnlocked, regions } from '../../core/expeditionData';
 import { canSpendCompanionTime } from '../../core/kitchen';
 import type { RegionId } from '../../core/expeditionTypes';
 import type { ExpeditionProps } from './types';
+import { AdventureLandscape } from '../AdventurePresentation';
+import { mapRegionForExpedition } from '../../core/landmarkProgress';
 
 export const ExpeditionCamp = ({ pet, update, region, onMap, onGather, onIdle }: Pick<ExpeditionProps, 'pet' | 'update'> & {
   region: RegionId; onMap: () => void; onGather: () => void; onIdle: () => void;
@@ -21,6 +23,7 @@ export const ExpeditionCamp = ({ pet, update, region, onMap, onGather, onIdle }:
       : !canSpendCompanionTime(pet) ? '伙伴正在休息或忙碌，空闲后再建设。'
         : !enough ? '建材或金币不足，可以先去采集。' : '';
   return <section className="outpost-camp">
+    <AdventureLandscape region={mapRegionForExpedition[region]} node="camp" label={`${place.name} · 营地 Lv.${progress.base}`} />
     <div className="outpost-section-heading"><img className="outpost-location-icon" src={expeditionLandmarkIcons[region].camp} alt="" /><div><small>{place.name} · 营地 {progress.base}/2 级</small><h3>{place.base}</h3></div></div>
     <p>{progress.base >= 2 ? '营地与往返步道已建成，可以安排挂机探索。' : upgrade.benefit}</p>
     <ol className="outpost-camp-steps">{['完成全部地标', '修好休息基地', '修通往返步道'].map((name, i) => <li key={name} data-done={i === 0 ? progress.surveyed : progress.base >= i}><Check size={16} />{name}</li>)}</ol>

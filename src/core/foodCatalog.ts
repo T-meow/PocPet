@@ -9,7 +9,7 @@ export const demandNames: Record<SaleDemand, string> = { basic: '日常商品', 
 export type CropId = 'herb' | 'carrot' | 'berry' | 'greens' | 'tomato' | 'cabbage' | 'potato' | 'corn' | 'wheat' | 'pumpkin' | 'pepper' | 'strawberry' | 'mint' | 'ginger' | 'lotus' | 'sunflower';
 export type NewProduceId = 'potato' | 'sweet_corn' | 'wheat' | 'pumpkin' | 'sweet_pepper' | 'strawberry' | 'mint' | 'ginger' | 'lotus_root' | 'sunflower_kernel';
 export type NewSeedId = 'greens_seed' | 'tomato_seed' | 'cabbage_seed' | 'potato_seed' | 'corn_seed' | 'wheat_seed' | 'pumpkin_seed' | 'pepper_seed' | 'strawberry_seed' | 'mint_seed' | 'ginger_seed' | 'lotus_seed_packet' | 'sunflower_seed';
-export type WildIngredientId = 'bamboo_shoot' | 'wild_onion' | 'wood_ear' | 'sea_salt' | 'lotus_seed' | 'mountain_chestnut' | 'wild_lemon' | 'pine_nut' | 'clam' | 'sea_shrimp' | 'matsutake' | 'mountain_tea';
+export type WildIngredientId = 'bamboo_shoot' | 'wild_onion' | 'wood_ear' | 'sea_salt' | 'lotus_seed' | 'mountain_chestnut' | 'wild_lemon' | 'pine_nut' | 'clam' | 'sea_shrimp' | 'matsutake' | 'mountain_tea' | 'highland_potato' | 'snow_bean' | 'rock_honey';
 export type ProcessedIngredientId = 'cream' | 'cheese' | 'forest_berry_jam' | 'cooking_oil';
 export type ProductionItemId = NewProduceId | NewSeedId | WildIngredientId | ProcessedIngredientId;
 export interface CropDefinition { name: string; seed: NewSeedId | 'creek_herb_seed' | 'carrot_seed' | 'forest_berry_seed'; product: NewProduceId | 'creek_herb' | 'carrot' | 'forest_berry' | 'greens' | 'tomato' | 'cabbage'; hours: number; yield: number; glyph: string; seedPrice: number; region?: RegionId }
@@ -66,11 +66,14 @@ export const wildIngredients: Record<WildIngredientId, IngredientDefinition & { 
   sea_shrimp: { name: '海虾', glyph: '🦐', base: 19, rarity: 'rare', demand: 'specialty', region: 'coast', yield: 3, investigations: 1, use: '海鲜烩饭' },
   matsutake: { name: '松茸', glyph: '🍄', base: 156, rarity: 'epic', demand: 'premium', region: 'forest', yield: 1, investigations: 3, use: '高价值食材，用于奶油煎松茸；累计 3 点研究得 1 份，放大镜每次 +2 点，另得林莓 2 份' },
   mountain_tea: { name: '高山茶叶', glyph: '🍵', base: 144, rarity: 'epic', demand: 'premium', region: 'station', yield: 1, investigations: 3, use: '高价值食材，用于高山香草茶；累计 3 点研究得 1 份，放大镜每次 +2 点，另得观测零件 2 份' },
+  highland_potato: { name: '高山薯', glyph: '🥔', base: 14, rarity: 'fine', demand: 'specialty', region: 'station', yield: 4, investigations: 1, use: '观测站沿途采集；搭配鲜猪肉、野洋葱炖汤，或与奶酪、香菇焗烤' },
+  snow_bean: { name: '雪原豆', glyph: '🫘', base: 16, rarity: 'fine', demand: 'specialty', region: 'station', yield: 3, investigations: 1, use: '观测站沿途采集；搭配白米饭和鸡蛋制作盖饭，或与胡萝卜、香草煮汤' },
+  rock_honey: { name: '岩蜜', glyph: '🍯', base: 22, rarity: 'rare', demand: 'specialty', region: 'station', yield: 3, investigations: 1, use: '观测站沿途采集；搭配鲜奶制作岩蜜暖奶' },
 };
 export const wildIngredientIds = Object.keys(wildIngredients) as WildIngredientId[];
 
 const basicExplorationFoodYields: Partial<Record<string, number>> = { valley_mushroom: 4, creek_herb: 6, hill_honey: 4, forest_berry: 4, coast_kelp: 4 };
-// Ordinary food shares three manual/hourly tiers: 3/2, 4/3 and 6/4.
+// Ordinary food shares three manual/idle-check tiers: 3/2, 4/3 and 6/4.
 // Research food has its own progress reward and must never become an idle target.
 export const getExplorationFoodYield = (id: string, idle = false): number | undefined => {
   const food = Object.prototype.hasOwnProperty.call(wildIngredients, id) ? wildIngredients[id as WildIngredientId] : undefined;

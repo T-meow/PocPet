@@ -19,6 +19,7 @@ export interface ExplorationBudget {
   vouchers: ExplorationVoucher[]; heartDays: { day: string; hours: number; claimed: boolean }[];
   observations: string[]; milestones: number[]; idleCompleted: number; firstTreasure: boolean;
   lootSettledThrough?: number;
+  commonLootMisses?: number;
   version?: 2;
   paySettledThrough?: number;
   compensation?: { coins: number; hearts: number };
@@ -90,7 +91,7 @@ export const advanceExplorationBudget = (pet: PetState, now: number): PetState =
 export const getExplorationBudget = (pet: PetState, now = Date.now()) => advanceExplorationBudget(pet, now).community.expedition.loop;
 export const getExplorationHarvestPay = (pet: PetState, kind: 'manual' | 'hour', region: RegionId) => ({
   coins: Math.floor((kind === 'manual' ? [20, 40, 80] : [16, 32, 64])[getExplorationTier(pet) - 1] * explorationTravel[region].payPercent / 100),
-  hearts: Math.round(getPetStatScale(pet)),
+  hearts: Math.round(5 * getPetStatScale(pet)),
 });
 export const earnExplorationHarvestPay = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId) => {
   const loop = pet.community.expedition.loop;
@@ -144,6 +145,12 @@ export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: 
 const ordinaryGatherIds = new Set(['community_wood', 'community_stone', 'creek_herb', 'valley_mushroom', 'hill_honey', 'forest_berry', 'pine_resin', 'coast_kelp', 'sea_glass', 'observatory_part', ...wildIngredientIds]);
 export const commonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum + adventureTreasureValues[id], 0) / adventureTreasureIds.length;
 export const manualTreasureChance = 5;
+export const commonLootPityLimit = 8;
+export const getCommonLootChance = (pet: PetState, kind: 'manual' | 'hour', region: RegionId) => {
+  const share = kind === 'hour' ? .4 : region === 'valley' ? .5 : 1;
+  const legacyExpected = Math.floor(getExplorationFace(pet) * explorationTravel[region].payPercent / 100) * .25 * share;
+  return Math.min(75, Math.max(kind === 'manual' ? 15 : 12, legacyExpected / commonLootMeanValue * 200));
+};
 // Called once after actual consumption, never from a quote or reservation.
 export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId, now: number, ordinary: Inventory = {}, gatherBonus = 0): { pet: PetState; finds: Inventory } => {
   if (pet.timePause || !Number.isInteger(count) || count <= 0) return { pet, finds: {} };
@@ -167,7 +174,11 @@ export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manua
       expected = voucher.lootQuote * .25 * (next - used) / 100;
       voucher.lootUsed = next;
       }
-      if (getExplorationRoll(hashString(seed), 'common', 'hit') < expected / commonLootMeanValue) {
+      const modern = loop.version === 2;
+      const chance = modern ? getCommonLootChance(pet, kind, region) / 100 : expected / commonLootMeanValue;
+      const commonWon = modern && (loop.commonLootMisses ?? 0) >= commonLootPityLimit - 1 || getExplorationRoll(hashString(seed), 'common', 'hit') < chance;
+      if (modern) loop.commonLootMisses = commonWon ? 0 : (loop.commonLootMisses ?? 0) + 1;
+      if (commonWon) {
         const item = adventureTreasureIds[Math.floor(getExplorationRoll(hashString(seed), 'common', 'kind') * adventureTreasureIds.length)];
         finds[item] = (finds[item] ?? 0) + 1;
       }

@@ -5,6 +5,32 @@
 .community-plot-crop { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .community-plot-crop img { flex-shrink: 0; width: 24px; height: 24px; object-fit: contain; }
 .community-plot-expand { border-style: dashed; justify-content: center; }
+.community-page .community-field-quick { min-width: 0; padding: 14px 16px; border: 1px solid #d7ded2; border-radius: 14px; background: #f7faf3; color: #425c4b; word-wrap: break-word; overflow-wrap: break-word; }
+.community-page .community-field-quick-heading { display: flex; flex-wrap: wrap; align-items: center; }
+.community-page .community-field-quick-heading > strong { margin-right: 14px; font-size: 15px; }
+.community-page .community-field-quick-heading > span { color: #626b61; font-size: 12px; }
+.community-page .community-field-quick-actions { display: flex; flex-wrap: wrap; margin-right: -8px; }
+.community-page .community-field-quick-actions > button { min-width: 0; margin: 8px 8px 0 0; }
+.community-page .community-field-quick-note { margin: 8px 0 0; color: #626b61; font-size: 12px; line-height: 1.7; }
+.community-page .community-field-sowing { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd8c8; }
+.community-page .community-field-seed-choice { display: block; flex: 1 1 220px; min-width: 0; margin: 0 14px 8px 0; }
+.community-page .community-field-seed-choice > span { display: block; margin-bottom: 5px; font-size: 12px; }
+.community-page .community-field-seed-choice > select { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #bfceba; border-radius: 8px; background: #fffdf8; color: #425c4b; font: inherit; font-size: 16px; }
+.community-page .community-field-seed-detail { display: flex; flex: 1 1 200px; align-items: center; min-width: 0; margin-bottom: 8px; font-size: 12px; line-height: 1.7; }
+.community-page .community-field-seed-detail > img { flex-shrink: 0; width: 32px; height: 32px; margin-right: 8px; object-fit: contain; }
+.community-page .community-field-seed-detail > span { min-width: 0; }
+.community-page .community-field-quick-event { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #d4dfca; border-radius: 8px; background: #edf3e7; color: #425c4b; font-size: 12px; line-height: 1.7; word-wrap: break-word; overflow-wrap: break-word; }
+.community-page .community-animal-name-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-width: 0; }
+.community-page .community-animal-name-bar > span { flex: 1 1 180px; min-width: 0; margin: 0 12px 8px 0; }
+.community-page .community-animal-name-bar > button { flex-shrink: 0; margin-bottom: 8px; }
+.community-page .community-animal-name-word { min-width: 0; word-wrap: break-word; overflow-wrap: break-word; }
+.community-page .community-animal-name-form { min-width: 0; }
+.community-page .community-animal-name-form > label { display: block; margin-bottom: 8px; }
+.community-page .community-animal-name-form > input { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #c9d5de; border-radius: 8px; background: #fff; color: #42546b; font: inherit; font-size: 16px; }
+.community-page .community-animal-name-form .community-actions { gap: 0; margin-right: -8px; }
+.community-page .community-animal-name-form .community-actions > button { margin: 8px 8px 0 0; }
+.community-page .community-production-heading > div, .community-page .community-care-summary > div { min-width: 0; }
+.community-page .community-production-heading h3 { word-wrap: break-word; overflow-wrap: break-word; }
 .community-upgrade-task { min-width: 0; margin: 18px 0; padding: 16px; border: 1px solid #d7ded2; border-radius: 16px; background: #f7faf3; overflow-wrap: anywhere; }
 .community-upgrade-task .community-section-heading { flex-wrap: wrap; gap: 8px; }
 .community-upgrade-materials { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 12px 0; }
@@ -15,6 +41,9 @@
 .community-upgrade-materials [data-enough=true] b { color: #357150; }
 .community-upgrade-materials small { font-size: 11px; line-height: 1.5; color: #626b61; }
 @media (max-width: 480px) {
+  .community-page .community-field-quick { padding: 12px; }
+  .community-page .community-field-quick-actions > .primary-button, .community-page .community-field-quick-actions > .secondary-button { flex: 1 1 125px; }
+  .community-page .community-field-seed-choice { flex-basis: 100%; margin-right: 0; }
   .community-plot-selector { gap: 6px; }
   .community-plot-card { min-height: 100px; padding: 8px; font-size: 12px; }
   .community-plot-card[aria-pressed=true] { padding: 7px; }

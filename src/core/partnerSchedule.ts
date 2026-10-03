@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { getAchievementEffects, incrementAchievementPartnerScheduleClaim, recordEarnedCoins } from './achievements';
+import { applyHeartGain, getAchievementEffects, incrementAchievementPartnerScheduleClaim, recordEarnedCoins, recordEarnedHearts } from './achievements';
 import { getBoostCardEffects } from './boostCards';
 import { getClassicTrophyEffects } from './classicTrophies';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
@@ -124,6 +124,7 @@ const sizeSkillXp: Record<PartnerScheduleSize, number> = {
   standard: 21,
   long: 45,
 };
+const sizeHearts: Record<PartnerScheduleSize, number> = { short: 20, standard: 65, long: 140 };
 const legacySizeSkillXp: Record<PartnerScheduleSize, number> = { short: 10, standard: 23, long: 50 };
 const serviceRewardMultiplier = 0.9;
 
@@ -249,6 +250,12 @@ const getNormalizedCoinReward = (rawReward: unknown, level: number, size: Partne
   return Math.max(1, Math.round(workBase * sizeCoinMultipliers[size] * 1.15 * (legacy ? 1 : serviceRewardMultiplier)));
 };
 
+const getNormalizedHeartReward = (rawReward: unknown, level: number, size: PartnerScheduleSize, statScale: unknown) => {
+  if (isNumber(rawReward) && rawReward >= 0) return Math.min(999999, clampCount(rawReward));
+  const scale = isNumber(statScale) && statScale > 0 ? Math.min(100, statScale) : getPetStatScale(level);
+  return Math.round(sizeHearts[size] * scale);
+};
+
 const getNormalizedTrophyRewardMultiplier = (value: unknown) =>
   isNumber(value) && validTrophyRewardMultipliers.has(value) ? value : 1;
 
@@ -309,6 +316,7 @@ const normalizeActive = (value: unknown, level: number, now: number, allowNeighb
     startedAt,
     endsAt,
     coinReward: getNormalizedCoinReward(raw.coinReward, level, definition.size, now, legacyPrepaid),
+    heartReward: getNormalizedHeartReward(raw.heartReward, level, definition.size, raw.statScale),
     skillXp: Math.min(9999, clampCount(isNumber(raw.skillXp) ? raw.skillXp : (legacyPrepaid ? legacySizeSkillXp : sizeSkillXp)[definition.size])),
     trophyRewardMultiplier: getNormalizedTrophyRewardMultiplier(raw.trophyRewardMultiplier),
     grantsMasterCompletion: raw.grantsMasterCompletion === true,
@@ -335,6 +343,7 @@ const normalizeResult = (value: unknown, level: number, now: number, allowNeighb
     completedAt: Math.max(0, Math.min(now, isNumber(raw.completedAt) ? Math.floor(raw.completedAt) : now)),
     startedAt: isNumber(raw.startedAt) ? Math.max(0, Math.min(now, raw.startedAt)) : undefined,
     coinReward: getNormalizedCoinReward(raw.coinReward, level, definition.size, now, legacyRewards),
+    heartReward: getNormalizedHeartReward(raw.heartReward, level, definition.size, raw.statScale),
     skillXp: Math.min(9999, clampCount(isNumber(raw.skillXp) ? raw.skillXp : (legacyRewards ? legacySizeSkillXp : sizeSkillXp)[definition.size])),
     trophyRewardMultiplier: getNormalizedTrophyRewardMultiplier(raw.trophyRewardMultiplier),
     grantsMasterCompletion: raw.grantsMasterCompletion === true,
@@ -490,7 +499,7 @@ const makeScheduleResult = (active: ActivePartnerSchedule, completedAt: number, 
   const ratio = outcome === 'completed' ? 1 : preview.ratio;
   return {
     offerId: active.offerId, templateId: active.templateId, category: active.category, size: active.size,
-    completedAt, startedAt: active.startedAt, coinReward: active.coinReward, skillXp: active.skillXp, trophyRewardMultiplier: active.trophyRewardMultiplier,
+    completedAt, startedAt: active.startedAt, coinReward: active.coinReward, heartReward: active.heartReward, skillXp: active.skillXp, trophyRewardMultiplier: active.trophyRewardMultiplier,
     grantsMasterCompletion: outcome === 'completed' && active.grantsMasterCompletion, neighbor: active.neighbor,
     outcome, progressRatio: ratio, contributionMs: definitionMap.get(active.templateId)!.durationMinutes * minuteMs * ratio,
     energyCost: costsAtRatio(preview.total, ratio).energy, legacyRewards: active.legacyPrepaid,
@@ -598,6 +607,7 @@ export interface PartnerScheduleOfferPreview {
   hungerCost: number;
   moodCost: number;
   coinReward: number;
+  hearts: number;
   skillXp: number;
   trophyRewardMultiplier: number;
   grantsMasterCompletion: boolean;
@@ -636,6 +646,7 @@ export const getPartnerScheduleOfferPreview = (
     hungerCost: costs.hunger,
     moodCost: costs.mood,
     coinReward: fullCoins,
+    hearts: Math.round(sizeHearts[definition.size] * getPetStatScale(pet)),
     skillXp: fullXp,
     trophyRewardMultiplier,
     grantsMasterCompletion: effects.grantsMasterCompletion,
@@ -713,6 +724,7 @@ export const startPartnerSchedule = (
     startedAt: now,
     endsAt: now + preview.durationMs,
     coinReward: preview.storedCoinReward,
+    heartReward: preview.hearts,
     skillXp: preview.storedSkillXp,
     trophyRewardMultiplier: preview.trophyRewardMultiplier,
     grantsMasterCompletion: preview.grantsMasterCompletion,
@@ -790,6 +802,7 @@ export const grantPracticeSkillXp = (pet: PetState, category: PartnerScheduleCat
 
 export interface PartnerScheduleClaimPreview {
   coins: number;
+  hearts: number;
   skillXp: number;
   itemId?: BuiltinItemId;
   itemAmount?: number;
@@ -804,10 +817,12 @@ export const getPartnerScheduleClaimPreview = (
   extraRewardCopies = 0,
   pet?: PetState,
 ): PartnerScheduleClaimPreview => {
+  const fullHearts = result.heartReward ?? Math.round(sizeHearts[result.size] * (result.statScale ?? (pet ? getPetStatScale(pet) : 1)));
   if (result.outcome === 'early') {
     const ratio = Math.max(0, Math.min(1, result.progressRatio ?? 0));
     return {
       coins: Math.floor(Math.round(result.coinReward * result.trophyRewardMultiplier) * 0.8 * ratio),
+      hearts: Math.floor(fullHearts * 0.8 * ratio),
       skillXp: Math.floor(Math.round(result.skillXp * result.trophyRewardMultiplier) * 0.8 * ratio),
     };
   }
@@ -815,11 +830,11 @@ export const getPartnerScheduleClaimPreview = (
   const scaleReward = (value: number) => value > 0 ? Math.max(1, Math.round(value * rewardMultiplier)) : 0;
   const scaleStat = (value: number) => result.statScale ? value * result.statScale : pet ? scalePetStatDelta(pet, value) : value;
   if (choice === 'coins' || result.size === 'short') {
-    return { coins: scaleReward(result.coinReward), skillXp: scaleReward(result.skillXp) };
+    return { coins: scaleReward(result.coinReward), hearts: fullHearts, skillXp: scaleReward(result.skillXp) };
   }
   const baseCoins = result.coinReward * 0.8;
   const baseSkillXp = result.skillXp * 1.5;
-  const base: PartnerScheduleClaimPreview = { coins: scaleReward(baseCoins), skillXp: scaleReward(baseSkillXp) };
+  const base: PartnerScheduleClaimPreview = { coins: scaleReward(baseCoins), hearts: fullHearts, skillXp: scaleReward(baseSkillXp) };
   const amount = result.size === 'long' ? 2 : 1;
   if (result.category === 'study') return { ...base, skillXp: scaleReward(result.skillXp * 2), mood: scaleStat(scaleReward(8 * amount)) };
   if (result.category === 'cooking') return { ...base, itemId: 'bento', itemAmount: scaleReward(amount) };
@@ -860,11 +875,13 @@ export const claimPartnerScheduleResult = (
 ): PetState => {
   const current = advancePet(pet, now);
   const result = current.partnerSchedule.pendingResult;
+  if (current.timePause) return current;
   if (!result) return { ...current, recentEvent: t('pet.partnerSchedule.noResult') };
   const isComplete = result.outcome !== 'early';
   const safeChoice = result.size === 'short' || !isComplete ? 'coins' : choice;
   const extraRewardCopies = getPartnerScheduleExtraRewardCopies(current, result);
   const reward = getPartnerScheduleClaimPreview(result, safeChoice, extraRewardCopies, current);
+  const heartGain = applyHeartGain(current, reward.hearts);
   const rewardCoins = reward.coins;
   const rewardSkillXp = reward.skillXp;
   const currentSkill = current.partnerSchedule.skills[result.category];
@@ -884,15 +901,18 @@ export const claimPartnerScheduleResult = (
     : current.partnerSchedule.completedOfferIds;
   const dailyContributionMs = current.partnerSchedule.dailyContributionMs
     + (result.contributionMs ?? sizeRules[result.size].durationMinutes * minuteMs * (result.progressRatio ?? 1));
-  const rewarded = recordEarnedCoins({
+  const rewarded = recordEarnedHearts(recordEarnedCoins({
     ...current,
     coins: clampCoins(current.coins + rewardCoins),
+    hearts: heartGain.hearts,
+    boostCards: heartGain.boostCards,
     inventory,
     energy: clampPetEnergy(current, current.energy + (reward.energy ?? 0)),
     health: clampPetHealth(current, current.health + (reward.health ?? 0)),
     mood: clampPetStat(current, current.mood + (reward.mood ?? 0)),
     recentEvent: [
       t(isComplete ? `pet.partnerSchedule.claimed.${safeChoice}` : 'pet.partnerSchedule.claimedEarly', { coins: rewardCoins, xp: rewardSkillXp }),
+      `收获 ${heartGain.amount} 颗心心。`,
       result.neighbor
         ? t(`pet.partnerSchedule.neighborClaimed.${neighborName ? 'named' : 'generic'}`, { neighbor: neighborName ?? '' })
         : '',
@@ -911,7 +931,7 @@ export const claimPartnerScheduleResult = (
       pendingResult: undefined,
       skills,
     },
-  }, rewardCoins);
+  }, rewardCoins), heartGain.amount);
   const withAchievement = isComplete ? incrementAchievementPartnerScheduleClaim(rewarded, result.category, result.size, safeChoice) : rewarded;
   const gacha = withAchievement.goldenAppleGacha;
   if (dailyContributionMs < partnerScheduleDailyContributionTargetMs

@@ -52,9 +52,9 @@ export const quoteExpeditionRations = (pet: PetState, region: RegionId, hours: n
   const baseChance = getRationTreasureChance(score, minimum), decorationBonus = minimum ? getDecorationEffects(pet).star_dome : 0;
   return { food, used, purchased, coins, undiscountedCoins, cookingDiscount, count, hunger, score, baseChance, decorationBonus, chance: baseChance + decorationBonus, minimum, maximum, nutrition, reason };
 };
-export const lockRationPlan = (quote: RationQuote, hours: number, tripId: string): RationPlan => ({
+export const lockRationPlan = (quote: RationQuote, hours: number, tripId: string, checks = hours / 2): RationPlan => ({
   version: 3, food: { ...quote.food }, purchased: quote.purchased, coins: quote.coins, hunger: quote.hunger, score: quote.score, chance: quote.chance, baseChance: quote.baseChance, decorationBonus: quote.decorationBonus,
-  discoveries: Array.from({ length: hours / 2 }, (_, index) => ({ roll: hashString(`${tripId}:ration:${index}`) % 1000000 / 10000, settled: false, won: false })),
+  discoveries: Array.from({ length: checks }, (_, index) => ({ roll: hashString(`${tripId}:ration:${index}`) % 1000000 / 10000, settled: false, won: false })),
 });
 
 const record = (v: unknown): Record<string, unknown> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
@@ -68,13 +68,13 @@ const normalizeFood = (raw: unknown, limit = 56): Inventory => {
   }
   return food;
 };
-export const normalizeRationPlan = (raw: unknown, hours: number): RationPlan => {
+export const normalizeRationPlan = (raw: unknown, hours: number, checks = hours / 2): RationPlan => {
   const value = record(raw), s = value.version === 1 || value.version === 2 || value.version === 3 ? value : {}, food = normalizeFood(s.food);
   const purchased = Math.floor(finite(s.purchased, food.trail_mix ?? 0));
   const discoveries = Array.isArray(s.discoveries) ? s.discoveries : [];
   return { version: s.version === 3 ? 3 : s.version === 2 ? 2 : 1, food, purchased, coins: Math.floor(finite(s.coins, purchased * legacyStandardRationPrice)), hunger: finite(s.hunger, 100000), score: finite(s.score, 1000000), chance: finite(s.chance, Number(s.version) >= 2 ? 26 : 15),
     ...(Number(s.version) >= 2 ? { baseChance: finite(s.baseChance, 20), decorationBonus: finite(s.decorationBonus, 6) } : {}),
-    discoveries: Array.from({ length: hours / 2 }, (_, index) => {
+    discoveries: Array.from({ length: checks }, (_, index) => {
       const d = record(discoveries[index]);
       return { roll: typeof d.roll === 'number' && d.roll >= 0 && d.roll < 100 ? d.roll : 100, settled: d.settled === true, won: d.settled === true && d.won === true, ...(s.version === 3 && d.settled === true ? { guaranteed: d.won === true && d.guaranteed === true } : {}) };
     }) };

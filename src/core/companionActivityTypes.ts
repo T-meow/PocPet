@@ -4,7 +4,8 @@ export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'ba
   | 'creek_fish_soup' | 'river_grill' | 'milk_custard' | 'carp_rice' | 'mushroom_rice' | 'honey_drink' | 'berry_milk' | 'kelp_rice' | NewRecipeId;
 export type NewRecipeId = 'mashed_potato' | 'corn_chowder' | 'pumpkin_rice' | 'pepper_pork_bowl' | 'bamboo_mushroom_soup' | 'lotus_pork_soup' | 'chestnut_rice' | 'cream_matsutake' | 'cheese_vegetables' | 'wood_ear_dumplings'
   | 'crispy_wheat_fish' | 'tomato_crucian' | 'lemon_trout' | 'pumpkin_perch_soup' | 'bamboo_grouper' | 'pepper_redtail' | 'herb_catfish' | 'corn_bream_soup' | 'honey_eel_rice' | 'sardine_rice_ball' | 'salt_mackerel' | 'lemon_bream_rice'
-  | 'strawberry_cheese_cup' | 'berry_jam_biscuit' | 'honey_pumpkin_pie' | 'chestnut_milk_cake' | 'mint_lemon_drink' | 'lotus_milk_soup' | 'pine_honey_biscuit' | 'mountain_herb_tea' | 'seafood_rice' | 'valley_travel_bento';
+  | 'strawberry_cheese_cup' | 'berry_jam_biscuit' | 'honey_pumpkin_pie' | 'chestnut_milk_cake' | 'mint_lemon_drink' | 'lotus_milk_soup' | 'pine_honey_biscuit' | 'mountain_herb_tea' | 'seafood_rice' | 'valley_travel_bento'
+  | 'highland_potato_stew' | 'snow_bean_rice' | 'rock_honey_milk' | 'highland_potato_gratin' | 'snow_bean_soup' | 'summit_travel_bento';
 export type MilkChoice = 'farm_milk' | 'ad_milk';
 export type DishId = `dish_${RecipeId}` | 'dish_fruit_pancake_banana' | 'dish_fruit_pudding_banana';
 export type KitchenMaterialId = 'rice' | 'egg' | 'flour' | 'carrot' | 'tomato' | 'greens'

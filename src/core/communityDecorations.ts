@@ -56,5 +56,5 @@ export const buildCommunityDecoration = (pet: PetState, id: CommunityDecorationI
   if (!Number.isFinite(now) || now < pet.lastUpdatedAt) return pet;
   pet = advanceCommunityAnimals(pet, now);
   return { ...pet, inventory: Object.entries(decoration.items).reduce((stock, [item, count]) => removeInventoryItem(stock, item, count), pet.inventory),
-    community: { ...pet.community, decorations: [...pet.community.decorations, id], decorationLevels: { ...pet.community.decorationLevels, [id]: 1 } }, recentEvent: `「${decoration.name}」建好了！永久效果已生效，可在农场「旅途与日常」继续升级。` };
+    community: { ...pet.community, decorations: [...pet.community.decorations, id], decorationLevels: { ...pet.community.decorationLevels, [id]: 1 } }, recentEvent: `「${decoration.name}」建好了！永久效果已生效，可在农场「装饰工坊」继续升级。` };
 };
