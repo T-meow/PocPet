@@ -1,0 +1,78 @@
+.mg-root { box-sizing: border-box; min-height: var(--viewport-height); }
+.mg-root.mg-paused *, .mg-root.mg-paused *:before, .mg-root.mg-paused *:after { animation-play-state: paused; }
+.mg-root .game-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 5px; }
+.mg-root .tab + .tab { margin-left: 0; }
+.mg-root .game-icon { display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #e6ecd9; color: #819270; }
+.mg-root .game-icon svg { width: 25px; height: 25px; }
+.mg-root .game-icon-water { color: #b08d98; background: #f4e5e7; }
+.mg-root .game-icon-fruit { color: #bd916b; background: #faecd7; }
+.mg-root .game-icon-nonogram { color: #9a8baa; background: #eee7f3; }
+.mg-root .hub-controls { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 13px; color: #a19886; font-size: 10px; }
+.mg-root .hub-controls > span { display: flex; align-items: center; }
+.mg-root .hub-controls svg { width: 14px; height: 14px; margin-right: 5px; }
+.mg-root .pause-button { display: flex; align-items: center; background: #eeeee2; border: 1px solid #dedfce; color: #8b9479; font-size: 11px; border-radius: 9px; padding: 6px 10px; }
+.mg-root .game-frame { position: relative; }
+.mg-root .pause-overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 8; background: #f7f4e9; background: rgba(247, 244, 233, .95); }
+.mg-root .pause-overlay .icon { margin: 0 auto 12px; width: 34px; height: 34px; color: #a5aa81; }
+.mg-root .save-notice { background: #f7ecd6; border-radius: 10px; padding: 10px 14px; font-size: 11px; color: #987943; }
+.mg-root .block-tools .tool { flex: 1; max-width: 130px; padding-left: 8px; padding-right: 8px; }
+.mg-root .block-tools .tool + .tool { margin-left: 8px; }
+.mg-root .block-tools .icon { width: 15px; height: 15px; }
+.mg-root .piece:disabled:not(.empty) { opacity: .8; }
+.mg-root .water-win { background: #fbf6e9; background: rgba(255,249,234,.93); }
+.mg-root .fruit-table { border-top: 1px solid #e8e0cf; border-bottom: 1px solid #e8e0cf; padding: 23px 24px 14px; background: #f1ecd9; background-image: var(--table-art); background-size: 100% 100%; }
+.mg-root .fruit-bin { position: relative; margin: auto; width: 100%; max-width: 360px; border: 5px solid #c2c6a8; border-radius: 17px; overflow: hidden; background: #fffaf0; box-shadow: 0 4px 0 #a7a58555, 0 7px 20px #81745615; }
+.mg-root .fruit-canvas-wrap { position: relative; height: 0; padding-bottom: 134.375%; }
+.mg-root .fruit-canvas-wrap canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+.mg-root .fruit-next > span { display: flex; align-items: center; justify-content: center; min-height: 38px; font-size: 11px; color: #ac967d; }
+.mg-root .fruit-next img { width: 29px; height: 29px; margin-right: 5px; }
+.mg-root .fruit-danger { min-height: 19px; text-align: center; font-size: 10px; color: #a5977e; margin: 13px 0 7px; }
+.mg-root .fruit-danger.visible { color: #b67a69; }
+.mg-root .fruit-chain { display: flex; justify-content: center; padding: 15px 17px 0; }
+.mg-root .fruit-chain > span { flex: 1; max-width: 54px; min-width: 0; display: flex; align-items: center; }
+.mg-root .fruit-chain img { width: 80%; max-width: 37px; height: auto; }
+.mg-root .fruit-chain i { color: #c5bca7; font-size: 15px; font-style: normal; padding: 0 1px; }
+.mg-root .nonogram-table { border-top: 1px solid #e8e0cf; border-bottom: 1px solid #e8e0cf; padding: 18px 23px 16px; background: #f5f1df; background-image: var(--table-art); background-size: 100% 100%; }
+.mg-root .paint-tools { display: flex; justify-content: center; margin: 0 auto 15px; }
+.mg-root .paint-tools button { border: 1px solid #ded8c5; border-radius: 9px; padding: 7px 17px; background: #fffaf0; font-size: 11px; color: #a39882; }
+.mg-root .paint-tools button + button { margin-left: 8px; }
+.mg-root .paint-tools button span { margin-right: 6px; }
+.mg-root .paint-tools button.selected { background: #eaf0dc; border-color: #a9b78e; color: #7d9065; box-shadow: inset 0 0 0 1px #a9b78e; }
+.mg-root .nonogram-puzzle { display: grid; grid-template-columns: 55px minmax(0, 1fr); grid-template-rows: 66px auto; max-width: 394px; width: 100%; margin: 0 auto; }
+.mg-root .nonogram-puzzle.size-5 { max-width: 340px; }
+.mg-root .nonogram-corner { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #c2b598; }
+.mg-root .column-clues { display: flex; align-items: stretch; padding-bottom: 5px; }
+.mg-root .clue { display: flex; justify-content: flex-end; align-items: center; flex: 1; min-width: 0; min-height: 0; font-size: 12px; font-weight: 600; color: #877b67; }
+.mg-root .column-clues .clue { flex-direction: column; }
+.mg-root .column-clues .clue span { line-height: 17px; }
+.mg-root .row-clues { display: flex; flex-direction: column; padding-right: 6px; }
+.mg-root .row-clues .clue span { margin-left: 6px; }
+.mg-root .clue.satisfied { color: #afb696; }
+.mg-root .clue.conflict { color: #bd776a; background: #f4dfcd; border-radius: 6px; }
+.mg-root .nonogram-cells { position: relative; height: 0; padding-bottom: 100%; background: #ded9c7; box-shadow: 0 4px 0 #b9b29645; }
+.mg-root .nonogram-grid { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-wrap: wrap; border: 1px solid #bab79e; }
+.mg-root .nonogram-cell { display: flex; flex: none; align-items: center; justify-content: center; border: 1px solid #d8d3bf; border-radius: 2px; background: #fcf9ee; padding: 0; color: #b0a68c; font-size: 19px; touch-action: none; user-select: none; }
+.mg-root .nonogram-cell.painted { background: #a7b995; border-color: #859a74; box-shadow: inset 0 2px 0 #ffffff44; }
+.mg-root .nonogram-cell.divider-right { border-right-width: 2px; border-right-color: #b2ad96; }
+.mg-root .nonogram-cell.divider-bottom { border-bottom-width: 2px; border-bottom-color: #b2ad96; }
+.mg-root .nonogram-cell.hinted { box-shadow: inset 0 0 0 3px #d8ae66; }
+.mg-root .solved .nonogram-cell { border-color: #f3eedf; background: #fffaf0; }
+.mg-root .solved .nonogram-cell.painted { background: var(--puzzle-color); border-color: var(--puzzle-color); border-radius: 3px; }
+.mg-root .nonogram-message { max-width: 430px; margin: 18px auto 0; font-size: 11px; color: #92856a; line-height: 1.9; min-height: 42px; text-align: center; }
+.mg-root .puzzle-picker { font-size: 10px; color: #a3947a; }
+.mg-root .puzzle-picker select { display: inline-block; font: inherit; background: #fffdf7; border: 1px solid #ded8c5; border-radius: 7px; color: #8d806a; min-height: 31px; max-width: 164px; padding: 3px 7px; margin-left: 5px; }
+.mg-root .nonogram-reveal { text-align: center; padding-top: 12px; }
+.mg-root .nonogram-reveal > span { color: #c3a167; font-size: 10px; letter-spacing: 2px; }
+.mg-root .nonogram-reveal h3 { margin: 5px 0; color: #7d906b; font-size: 20px; }
+.mg-root .nonogram-reveal p { font-size: 11px; color: #a2947c; margin: 5px 0 13px; }
+.mg-root .nonogram-reveal .tool { margin: auto; }
+.mg-root .nonogram-example { margin: 0 20px 20px; padding: 12px 15px; border-radius: 10px; border: 1px dashed #e3ddcc; background: #faf7ed; font-size: 11px; color: #a2947e; }
+.mg-root .nonogram-example summary { cursor: pointer; }
+.mg-root .nonogram-example p { margin: 10px 0 0; line-height: 1.9; }
+.mg-root .nonogram-example b { white-space: nowrap; color: #819269; }
+.mg-root.mg-embedded { min-height: 0; background: transparent; }
+.mg-root.mg-embedded main { padding: 12px; }
+@media(min-width:1050px) { .mg-root .game-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mg-root .tab { padding: 13px 8px; } .mg-root .tab-art { width: 30px; height: 34px; margin-right: 8px; } .mg-root .tab strong { font-size: 13px; } .mg-root .tab small { font-size: 9px; } }
+@media(max-width:690px) { .mg-root .nonogram-table { padding: 16px 12px; } .mg-root .puzzle-picker { margin-top: 9px; } .mg-root .nonogram-puzzle { grid-template-columns: 44px minmax(0,1fr); } .mg-root .clue { font-size: 10px; } .mg-root .row-clues .clue span { margin-left: 4px; } .mg-root .block-tools .tool { font-size: 10px; padding-left: 5px; padding-right: 5px; } .mg-root .block-tools .tool + .tool { margin-left: 5px; } .mg-root .block-tools .icon { margin-right: 3px; } }
+@media(max-width:570px) { .mg-root .hub-controls { padding-bottom: 11px; } .mg-root .fruit-table { padding: 18px 15px 13px; } .mg-root .fruit-bin { max-width: 320px; } .mg-root .nonogram-table { padding: 16px 15px; } .mg-root .puzzle-picker { margin: 0; font-size: 9px; } .mg-root .puzzle-picker select { max-width: 127px; margin-left: 4px; } .mg-root .paint-tools button { padding: 7px 15px; } .mg-root .nonogram-puzzle { grid-template-columns: 45px minmax(0,1fr); grid-template-rows: 66px auto; } .mg-root .nonogram-cell { font-size: 16px; } .mg-root .clue { font-size: 11px; } .mg-root .nonogram-message { font-size: 10px; margin-top: 14px; } .mg-root .intro-flower { width: 45px; height: 45px; } }
+@media(max-width:350px) { .mg-root .nonogram-table { padding-left: 9px; padding-right: 9px; } .mg-root .puzzle-picker { font-size: 0; } .mg-root .puzzle-picker select { font-size: 10px; } .mg-root .nonogram-puzzle { grid-template-columns: 41px minmax(0,1fr); } .mg-root .clue { font-size: 10px; } .mg-root .row-clues .clue span { margin-left: 3px; } .mg-root .fruit-table { padding-left: 12px; padding-right: 12px; } }

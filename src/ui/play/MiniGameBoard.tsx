@@ -1,12 +1,12 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { MiniGameSession } from '../../core/companionActivityTypes';
+import type { LegacyMiniGameSession } from '../../core/companionActivityTypes';
 import { activityText as L } from '../../core/kitchenRecipes';
 import { bubbleHoldMs, bubbleSessionMs, canFinishMiniGame, type MiniGameAction } from '../../core/miniGames';
 import { CatchBoard } from './CatchBoard';
 import type { MiniGameFeedback } from './miniGameFeedback';
 import { matchingCardBack, matchingCardFaces } from '../../miniGameAssets';
 
-export const MiniGameBoard = ({ session, portrait, ballImage, style, feedback, onAct }: { session: MiniGameSession; portrait: string; ballImage: string; style: string; feedback?: MiniGameFeedback; onAct: (action: MiniGameAction) => void }) => {
+export const MiniGameBoard = ({ session, portrait, ballImage, style, feedback, onAct }: { session: LegacyMiniGameSession; portrait: string; ballImage: string; style: string; feedback?: MiniGameFeedback; onAct: (action: MiniGameAction) => void }) => {
   const [now, setNow] = useState(Date.now());
   const [hint, setHint] = useState(false);
   useEffect(() => {

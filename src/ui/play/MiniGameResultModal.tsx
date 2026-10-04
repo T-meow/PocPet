@@ -18,7 +18,8 @@ interface Props {
 export const MiniGameResultModal = ({ result, portrait, canReplay, onClose, onBack, onReplay }: Props) => {
   const score = result.game === 'matching' ? L(`${result.score} 次翻牌配对`, `${result.score} pairing attempts`)
     : result.game === 'catch' ? L(`最佳连续接住 ${result.score} 次`, `Best streak: ${result.score} catches`)
-      : L(`一起吹了 ${result.score} 个泡泡`, `${result.score} bubbles together`);
+      : result.game === 'bubbles' ? L(`一起吹了 ${result.score} 个泡泡`, `${result.score} bubbles together`)
+        : result.game === 'water' ? `${result.score} 步完成整理` : `${result.score} 分`;
   const bonus = result.baseHearts === undefined ? 0 : Math.max(0, result.hearts - result.baseHearts);
   const skillCategory = getMiniGameSkillCategory(result.game);
   return <DialogShell className="activity-modal play-reward-modal" backdropClassName="activity-backdrop" labelId="play-reward-title" onClose={onClose}>

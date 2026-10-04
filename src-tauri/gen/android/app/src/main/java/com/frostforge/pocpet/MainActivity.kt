@@ -8,6 +8,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    com.frostforge.pocpet.background.AppPresence.foreground = hasFocus
+    com.frostforge.pocpet.background.MusicService.instance?.visibilityChanged()
+  }
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 

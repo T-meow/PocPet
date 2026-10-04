@@ -15,6 +15,8 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
+    // Native playback reads the same source music as Vite, without network URLs.
+    sourceSets.getByName("main").assets.srcDir("../../../../src/assets/audio/bgm")
     namespace = "com.frostforge.pocpet"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -59,6 +61,8 @@ rust {
 }
 
 dependencies {
+    implementation("androidx.media3:media3-exoplayer:1.6.1")
+    implementation("androidx.media3:media3-session:1.6.1")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")

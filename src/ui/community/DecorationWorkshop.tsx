@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Hammer, Sparkles } from 'lucide-react';
 import { communityDecorationIds, communityDecorations, type CommunityDecorationId } from '../../core/regionalTreasures';
-import { decorationEffects, getDecorationIdleTimeReduction, getDecorationLevel, getDecorationValue } from '../../core/decorationEffects';
+import { decorationEffects, getDecorationLevel } from '../../core/decorationEffects';
 import { getDecorationUpgradeQuote } from '../../core/communityDecorations';
 import { canSpendCompanionTime } from '../../core/kitchen';
 import { getInventoryItem } from '../../core/items';
 import type { ItemId, PetState } from '../../core/petTypes';
 import { DecorationArt } from './TreasureDisplay';
 import { HelpButton } from '../help/HelpButton';
-import { decorationsHelp } from '../help/decorationHelp';
-import { formatInteger } from '../numberFormat';
+import { decorationsHelp, getDecorationEffectText as effectText } from '../help/decorationHelp';
 
-const effectText = (id: CommunityDecorationId, level: number) => `${decorationEffects[id].label} ${formatInteger(getDecorationValue(id, level))}${decorationEffects[id].unit}${id === 'star_dome' ? ` · 挂机判定缩时 ${formatInteger(getDecorationIdleTimeReduction(level))}%` : ''}`;
 const decorationEntries = (pet: PetState) => communityDecorationIds.map(id => {
   const level = getDecorationLevel(pet, id), definition = communityDecorations[id];
   const quote = level > 0 && level < 10 ? getDecorationUpgradeQuote(pet, id) : undefined;

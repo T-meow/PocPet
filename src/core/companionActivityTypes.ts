@@ -1,3 +1,6 @@
+import { isHubGameId, type HubGameId } from '../minigames/catalog';
+import type { MiniGamesSave } from '../minigames/types';
+
 export type CookingMethod = 'mix' | 'pan' | 'blender' | 'oven';
 export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'banana_shake' | 'watermelon_juice' | 'biscuit_cup' | 'egg_rice' | 'carrot_rice' | 'fruit_pancake' | 'milk_cookies' | 'carrot_omelet' | 'rice_pancake' | 'fruit_pudding' | 'apple_pie' | 'tomato_egg_bowl' | 'pork_rice_bowl'
   | 'dumplings_pork_cabbage' | 'dumplings_vegetable' | 'zongzi_braised_pork' | 'zongzi_red_bean' | 'mooncake_mixed_nuts' | 'mooncake_red_bean' | 'herb_porridge'
@@ -21,11 +24,12 @@ export interface KitchenState {
   plating: 'plain' | 'flower' | 'stars';
   lastCraft?: { id: string; dishId: DishId; quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number; skillXp?: number; at: number; milk?: MilkChoice };
 }
-export type MiniGameId = 'matching' | 'catch' | 'bubbles';
+export type LegacyMiniGameId = 'matching' | 'catch' | 'bubbles';
+export type MiniGameId = LegacyMiniGameId | HubGameId;
 export type PlayMode = 'normal' | 'gentle';
 export interface PlayRecord { completed: number; best: number; bestMs: number; }
 export interface PlayBubble { id: number; size: number; shape: 'round' | 'heart' | 'star'; popped: boolean; }
-export interface MiniGameSession {
+interface MiniGameSessionBase {
   id: string;
   game: MiniGameId;
   actorId: string;
@@ -36,6 +40,10 @@ export interface MiniGameSession {
   elapsedMs: number;
   rewardLevel: number;
   baseHearts: number;
+}
+export interface HostedMiniGameSession extends MiniGameSessionBase { game: HubGameId; }
+export interface LegacyMiniGameSession extends MiniGameSessionBase {
+  game: LegacyMiniGameId;
   deck: number[];
   matched: number[];
   flipped: number[];
@@ -51,6 +59,8 @@ export interface MiniGameSession {
   blowingAt: number;
   participationMs: number;
 }
+export type MiniGameSession = LegacyMiniGameSession | HostedMiniGameSession;
+export const isHostedMiniGameSession = (session: MiniGameSession): session is HostedMiniGameSession => isHubGameId(session.game);
 export interface MiniGameResult {
   id: string;
   game: MiniGameId;
@@ -72,6 +82,7 @@ export interface MiniGameState {
   unlocked: MiniGameId[];
   records: Record<string, PlayRecord>;
   active?: MiniGameSession;
+  hub?: MiniGamesSave;
   lastResult?: MiniGameResult;
   style: 'garden' | 'fruit' | 'night';
 }

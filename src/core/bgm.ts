@@ -9,6 +9,7 @@ import adventureA2 from '../assets/audio/bgm/bgm_adventure_a2.mp3';
 import adventureA5 from '../assets/audio/bgm/bgm_adventure_a5.mp3';
 import nightA3 from '../assets/audio/bgm/bgm_night_a3.mp3';
 import nightA4 from '../assets/audio/bgm/bgm_night_a4.mp3';
+import { backgroundCall, getBackgroundCapabilities, type NativePlaybackSnapshot } from '../platform/background';
 
 export type BgmMode = 'room' | 'sleep' | 'shop' | 'community' | 'garden' | 'fishing' | 'adventure' | 'night';
 export type BgmRepeatMode = 'sequence' | 'single';
@@ -43,7 +44,12 @@ const storedVolume = readPreference('pocpet.audio.bgmVolume');
 let volume = storedVolume !== null && storedVolume.trim() !== '' && Number.isFinite(Number(storedVolume))
   ? Math.max(0, Math.min(1, Number(storedVolume))) : 0.6;
 let allowBackground = readPreference('pocpet.audio.musicBackground') === 'true';
-export const supportsMusicBackground = typeof navigator === 'undefined' || !/Android/i.test(navigator.userAgent);
+export const supportsMusicBackground = typeof Audio !== 'undefined';
+let nativeMusic = false;
+let nativeOwner = '';
+let bindingSequence = 0;
+let nativeState: NativePlaybackSnapshot | undefined;
+let nativeQueue: Promise<void> = Promise.resolve();
 let repeatMode: BgmRepeatMode = 'sequence';
 let enabled = true;
 let unlocked = false;
@@ -69,7 +75,7 @@ let meterClock = 0;
 let meterEligible = false;
 const clock = () => performance.now();
 const backgroundAllowed = () => !hidden || active && allowBackground && supportsMusicBackground;
-const canCount = () => Boolean(active && rewardEnabled && enabled && backgroundAllowed() && !userPaused && playing && audio && !audio.paused && !audio.seeking && !audio.muted && audio.volume > 0);
+const canCount = () => Boolean(!nativeMusic && active && rewardEnabled && enabled && backgroundAllowed() && !userPaused && playing && audio && !audio.paused && !audio.seeking && !audio.muted && audio.volume > 0);
 const resetMeter = () => {
   meterPosition = audio?.currentTime ?? 0;
   meterClock = clock();
@@ -102,21 +108,75 @@ export interface BgmPlaybackState {
   error: string;
 }
 const listeners = new Set<() => void>();
-const snapshot = (): BgmPlaybackState => ({ active, playing: playing && Boolean(audio && !audio.paused), paused: userPaused, enabled,
+const snapshot = (): BgmPlaybackState => ({ active, playing: nativeMusic && active ? Boolean(nativeState?.playing) : playing && Boolean(audio && !audio.paused), paused: userPaused, enabled,
   trackId, volume, repeatMode, allowBackground: allowBackground && supportsMusicBackground,
-  hiddenPaused: hidden && !backgroundAllowed(), sessionListeningMs: Math.floor((measuredMs - sessionStartMs) / 1000) * 1000,
+  hiddenPaused: nativeMusic && active ? Boolean(nativeState?.hiddenPaused) : hidden && !backgroundAllowed(), sessionListeningMs: nativeMusic && active ? nativeState?.receipt?.milliseconds ?? 0 : Math.floor((measuredMs - sessionStartMs) / 1000) * 1000,
   measuredListeningMs: Math.floor(measuredMs / 1000) * 1000, error });
 let state = snapshot();
 const publish = () => {
   const next = snapshot();
   if ((Object.keys(next) as (keyof BgmPlaybackState)[]).every(key => next[key] === state[key])) return;
   state = next;
+  updateMediaSession();
   listeners.forEach(listener => listener());
 };
 export const getBgmPlaybackState = () => state;
 export const subscribeBgmPlayback = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 export const getMeasuredListeningMs = () => { samplePlayback(); return measuredMs; };
-export const setMusicRewardEnabled = (value: boolean) => { samplePlayback(); rewardEnabled = value; resetMeter(); publish(); };
+export const setMusicRewardEnabled = (value: boolean) => {
+  if (rewardEnabled === value) return;
+  samplePlayback(); rewardEnabled = value; resetMeter(); publish(); configureNative();
+};
+
+const updateMediaSession = () => {
+  if (nativeMusic || typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try {
+    const session = navigator.mediaSession;
+    session.playbackState = active ? state.playing ? 'playing' : 'paused' : 'none';
+    session.metadata = active && typeof MediaMetadata !== 'undefined'
+      ? new MediaMetadata({ title: bgmTracks.find(track => track.id === trackId)?.title ?? '音乐陪伴', artist: 'PocPet' }) : null;
+    for (const [action, handler] of [['play', beginMusicCompanion], ['pause', pauseMusicCompanion], ['nexttrack', nextMusicTrack], ['stop', endMusicCompanion]] as const) {
+      try { session.setActionHandler(action, active ? handler : null); } catch { /* Some browsers implement only a subset. */ }
+    }
+  } catch { /* Media Session is an optional enhancement. */ }
+};
+const acceptNativeState = (next: NativePlaybackSnapshot) => {
+  nativeState = next;
+  const wasActive = active;
+  active = next.active;
+  userPaused = next.paused;
+  if (active) {
+    if (audio) detachAudio();
+    trackId = allTracks.includes(next.trackId as BgmTrackId) ? next.trackId as BgmTrackId : allTracks[0];
+    volume = next.volume; allowBackground = next.allowBackground; repeatMode = next.repeatMode;
+    error = next.error;
+  } else if (wasActive) { currentScene = undefined; refresh(); }
+  publish();
+};
+const nativeCommand = (op: string, payload: Record<string, unknown> = {}) => {
+  const owner = nativeOwner;
+  const task = nativeQueue.then(async () => {
+    const next = await backgroundCall<NativePlaybackSnapshot>('music', { op, owner, ...payload });
+    if (owner === nativeOwner) acceptNativeState(next);
+  });
+  nativeQueue = task.catch(() => { error = '原生音乐暂时无法使用，请重试播放。'; publish(); });
+  return task;
+};
+const configureNative = () => { if (nativeMusic) void nativeCommand('configure', { enabled, rewardEnabled, volume, allowBackground, repeatMode }); };
+export const usesNativeMusic = () => nativeMusic;
+export const getNativeListeningReceipt = () => nativeState?.receipt;
+export const refreshNativeMusic = () => nativeMusic ? nativeCommand('snapshot') : Promise.resolve();
+export const acknowledgeNativeMusic = (sessionId: string, milliseconds: number) => nativeCommand('acknowledge', { sessionId, milliseconds });
+export const bindMusicOwner = async (owner: string) => {
+  const binding = ++bindingSequence;
+  const capabilities = await getBackgroundCapabilities();
+  if (!capabilities.nativeMusic || binding !== bindingSequence) return;
+  nativeMusic = true; nativeOwner = owner;
+  await nativeCommand('bind');
+  configureNative();
+};
+export const discardNativeMusic = () => nativeMusic ? nativeCommand('discard') : Promise.resolve();
+export const waitForNativeMusic = () => nativeQueue;
 
 const stopFade = () => { if (fadeTimer !== undefined) clearInterval(fadeTimer); fadeTimer = undefined; };
 const pauseAudio = () => {
@@ -233,6 +293,7 @@ const advanceTrack = (skipFailed: boolean) => {
   loadTrack(list[index]);
 };
 const refresh = () => {
+  if (nativeMusic && active) { publish(); return; }
   if (!enabled || !unlocked || !backgroundAllowed() || active && userPaused || error) { pauseAudio(); return; }
   if (!active && (currentScene !== desiredScene || !audio)) {
     currentScene = desiredScene;
@@ -248,7 +309,7 @@ export const syncBgm = (mode: BgmMode) => {
   desiredScene = next;
   refresh();
 };
-export const setBgmEnabled = (value: boolean) => { samplePlayback(); enabled = value; resetMeter(); refresh(); };
+export const setBgmEnabled = (value: boolean) => { samplePlayback(); enabled = value; resetMeter(); configureNative(); refresh(); };
 export const setBgmUnlocked = (value: boolean) => {
   unlocked = value;
   if (value && needsGesture) { error = ''; needsGesture = false; }
@@ -261,15 +322,21 @@ export const setBgmVolume = (value: number) => {
   volume = Math.max(0, Math.min(1, value));
   if (audio) audio.volume = volume;
   writePreference('pocpet.audio.bgmVolume', String(volume));
-  resetMeter(); publish();
+  resetMeter(); publish(); configureNative();
 };
 export const setMusicBackground = (value: boolean) => {
   samplePlayback(); allowBackground = value && supportsMusicBackground;
   writePreference('pocpet.audio.musicBackground', String(allowBackground));
-  resetMeter(); refresh();
+  resetMeter(); configureNative(); refresh();
 };
-export const setBgmRepeatMode = (value: BgmRepeatMode) => { repeatMode = value; publish(); };
+export const setBgmRepeatMode = (value: BgmRepeatMode) => { repeatMode = value; publish(); configureNative(); };
 export const beginMusicCompanion = () => {
+  if (nativeMusic) {
+    const position = audio?.currentTime ?? 0;
+    detachAudio(); active = true; userPaused = false; error = '';
+    void nativeCommand('play', { trackId: trackId ?? allTracks[0], position, enabled, rewardEnabled, volume, repeatMode, allowBackground });
+    publish(); return;
+  }
   samplePlayback();
   if (!active) { active = true; sessionStartMs = measuredMs; }
   userPaused = false; error = ''; failedTracks.clear();
@@ -280,10 +347,12 @@ export const beginMusicCompanion = () => {
 };
 export const pauseMusicCompanion = () => {
   if (!active) return;
+  if (nativeMusic) { userPaused = true; void nativeCommand('pause'); publish(); return; }
   samplePlayback(); userPaused = true; pauseAudio();
 };
 export const nextMusicTrack = () => {
   if (!active) return;
+  if (nativeMusic) { void nativeCommand('next'); return; }
   error = ''; failedTracks.clear();
   // Manual next always advances, including in single-song mode.
   const next = allTracks[(allTracks.indexOf(trackId!) + 1) % allTracks.length];
@@ -291,6 +360,7 @@ export const nextMusicTrack = () => {
 };
 export const endMusicCompanion = () => {
   if (!active) return;
+  if (nativeMusic) { void nativeCommand('stop'); return; }
   samplePlayback(); active = false; userPaused = false; error = ''; failedTracks.clear();
   currentScene = undefined;
   detachAudio();

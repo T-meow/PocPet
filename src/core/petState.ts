@@ -14,7 +14,7 @@ import { defaultCommunityState, normalizeCommunityState } from './communityState
 import { openTutorialGarden } from './communityUpgradeData';
 import { enforceAdventureHealth } from './adventureReturn';
 import { settleExpeditionTime } from './expeditionReturn';
-import { isPetOverfed } from './petStats';
+import { getUpgradeHeartCurveRefund, isPetOverfed } from './petStats';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
@@ -41,6 +41,7 @@ export const helpPageGiftRewardId = 'help_page_gift_v1';
 export const helpPageGiftCoins = 600;
 export const gardenCompensationRewardId = 'garden_compensation_gift_v1';
 export const gardenCompensationCoins = 1500;
+export const upgradeHeartCurveRefundRewardId = 'upgrade_heart_curve_refund_v1';
 const goldenAppleStarterBackfillRewardId = 'golden_apple_starter_backfill_v1';
 const legacySave13BonusRewardId = 'legacy_save_1_3_bonus_v1';
 const legacySave13BonusCoins = 3000;
@@ -167,7 +168,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   hasOpenedHelp: false,
   hasSeenCommonDreamsUnlock: false,
   suppressGoldenAppleUseConfirm: false,
-  claimedRewardIds: [goldenAppleStarterBackfillRewardId, legacySave13BonusRewardId],
+  claimedRewardIds: [goldenAppleStarterBackfillRewardId, legacySave13BonusRewardId, upgradeHeartCurveRefundRewardId],
   birthday: defaultPetBirthday,
   claimedDateRewardKeys: [],
   yearlyStats: defaultYearlyStats(now),
@@ -314,6 +315,8 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   }
 
   const level = clampLevel(isNumber(raw.level) ? raw.level : fallback.level);
+  const upgradeHeartCurveRefund = claimedRewardIds.includes(upgradeHeartCurveRefundRewardId) ? 0 : getUpgradeHeartCurveRefund(level);
+  if (!claimedRewardIds.includes(upgradeHeartCurveRefundRewardId)) claimedRewardIds.push(upgradeHeartCurveRefundRewardId);
   const classicLegacyCoinCurveRefund = getClassicLegacyCoinCurveMigrationRefund(raw.classicEndgame);
   const classicEndgame = normalizeClassicEndgameState(raw.classicEndgame);
   const statCap = getPetStatCap(level);
@@ -472,13 +475,15 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     ageSeconds,
     lastUpdatedAt: isNumber(raw.lastUpdatedAt) ? raw.lastUpdatedAt : now,
     isSleeping: normalizedIsSleeping,
-    recentEvent: classicLegacyCoinCurveRefund > 0
+    recentEvent: upgradeHeartCurveRefund > 0
+      ? `升级需求已调整，已将累计多消耗的 ${upgradeHeartCurveRefund} 颗小心心退回账户。${classicLegacyCoinCurveRefund > 0 ? t('pet.classicEndgame.legacyCurveRefund', { coins: classicLegacyCoinCurveRefund }) : ''}`
+      : classicLegacyCoinCurveRefund > 0
       ? t('pet.classicEndgame.legacyCurveRefund', { coins: classicLegacyCoinCurveRefund })
       : typeof raw.recentEvent === 'string' ? raw.recentEvent : t('pet.default.welcomeBack'),
     recentActivity: isRecentActivity(raw.recentActivity) ? raw.recentActivity : 'idle',
     recentActivityUntil: isNumber(raw.recentActivityUntil) ? raw.recentActivityUntil : 0,
     coins: normalizedCoins,
-    hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts),
+    hearts: clampCount(isNumber(raw.hearts) ? raw.hearts : fallback.hearts) + upgradeHeartCurveRefund,
     musicCompanion: normalizeMusicCompanionState(raw.musicCompanion),
     inventory: normalizedInventory,
     favorites: normalizeFavorites(raw.favorites),

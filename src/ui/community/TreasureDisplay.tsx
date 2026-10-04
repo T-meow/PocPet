@@ -3,7 +3,7 @@ import { Sparkles, X } from 'lucide-react';
 import { decorationIcons } from '../../decorationAssets';
 import { buildCommunityDecoration, getDecorationUpgradeQuote, upgradeCommunityDecoration } from '../../core/communityDecorations';
 import { communityDecorations, communityDecorationIds, regionalTreasures, regionalTreasureIds, type CommunityDecorationId, type RegionalTreasureId } from '../../core/regionalTreasures';
-import { decorationEffects, getDecorationLevel, getDecorationValue } from '../../core/decorationEffects';
+import { decorationEffects, getDecorationLevel } from '../../core/decorationEffects';
 import { adventureTreasureIds } from '../../core/adventureItems';
 import { getInventoryItem } from '../../core/items';
 import { canSpendCompanionTime } from '../../core/kitchen';
@@ -12,10 +12,8 @@ import type { CommunityPanelProps } from './types';
 import type { OutpostRequest } from '../outpostNavigation';
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
-import { getDecorationHelp } from '../help/decorationHelp';
-import { formatInteger } from '../numberFormat';
+import { getDecorationHelp, getDecorationEffectText as effectText } from '../help/decorationHelp';
 
-const effectText = (id: CommunityDecorationId, level: number) => `${decorationEffects[id].label} ${formatInteger(getDecorationValue(id, level))}${decorationEffects[id].unit}`;
 const stage = (level: number) => level >= 10 ? 'complete' : level >= 5 ? 'grown' : 'first';
 const itemName = (item: string) => getInventoryItem(item as ItemId)?.name ?? item;
 export const DecorationSources = ({ treasure, onNavigate }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void }) => {

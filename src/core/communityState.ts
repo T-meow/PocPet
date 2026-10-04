@@ -2,7 +2,7 @@ import type { CommunityState, CommissionTemplate, MarketReceipt } from './commun
 import { commissionTemplates, facilityIds, normalizeAnimalName } from './communityData';
 import { getCommunitySale, marketPricingVersion } from './communityEconomy';
 import { defaultExpeditionState, normalizeExpeditionState } from './expeditionState';
-import { marketMaxVisitMs, marketSlotCount, marketStackLimit } from './communityMarketRules';
+import { marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { cropIds, wildIngredientIds } from './foodCatalog';
 import { durableToolIds, toolDefinitions } from './fieldEquipmentData';
 import { communityDecorationIds, regionalTreasureIds } from './regionalTreasures';
@@ -110,7 +110,8 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
   market.sessionRevenue = n(m.sessionRevenue, market.revenue);
   market.seed = n(m.seed, 0xffffffff);
   if (market.seed && stamp(m.nextVisitAt) && market.open) market.nextVisitAt = n(m.nextVisitAt);
-  if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, marketMaxVisitMs);
+  // Preserve an already scheduled wait, including the previous 20-minute maximum.
+  if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, 20 * 60_000);
   market.reserve = Object.fromEntries(Object.entries(object(m.reserve)).filter(([id]) => getCommunitySale(id)).map(([id, value]) => [id, n(value, 9999)]));
   const listingIds = new Set<number>(), slots = new Set<number>(), capacity = marketSlotCount(market.level);
   market.listings = (Array.isArray(m.listings) ? m.listings : []).slice(0, 12).flatMap((rawListing: unknown) => {

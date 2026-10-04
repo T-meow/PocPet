@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.2.2"
+version = "2.2.3"
 description = "PocPet"
 authors = ["FrostForge Studio"]
 license = "GPL-3.0-or-later"
@@ -30,3 +30,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-
 
 [target.'cfg(windows)'.dependencies]
 tauri-plugin-window-state = "2"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi"] }
+
+[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
+notify-rust = "4"

@@ -6,6 +6,7 @@ import type { Inventory } from './petTypes';
 import { adventureTreasureIds } from './adventureItems';
 import { decorationEffects, getDecorationLevel } from './decorationEffects';
 import { advanceCommunityAnimals } from './communityFarm';
+import { advanceCommunityMarket } from './communityMarket';
 
 export const decorationUpgradeCosts = [
   { coins: 300, common: 1, building: 1 }, { coins: 500, common: 1, building: 1 },
@@ -42,7 +43,7 @@ export const upgradeCommunityDecoration = (pet: PetState, id: CommunityDecoratio
   if (!communityDecorationIds.includes(id) || !Number.isFinite(now) || now < pet.lastUpdatedAt || getDecorationLevel(pet, id) !== expectedLevel) return pet;
   const quote = getDecorationUpgradeQuote(pet, id, selection);
   if (!quote.ready) return { ...pet, recentEvent: quote.reason };
-  pet = advanceCommunityAnimals(pet, now);
+  pet = advanceCommunityMarket(advanceCommunityAnimals(pet, now), now);
   return { ...pet, coins: pet.coins - quote.coins,
     inventory: Object.entries(quote.items).reduce((stock, [item, count]) => removeInventoryItem(stock, item, count), pet.inventory),
     community: { ...pet.community, decorationLevels: { ...pet.community.decorationLevels, [id]: quote.nextLevel } },
@@ -54,7 +55,7 @@ export const buildCommunityDecoration = (pet: PetState, id: CommunityDecorationI
   const decoration = communityDecorations[id];
   if (Object.entries(decoration.items).some(([item, count]) => (pet.inventory[item] ?? 0) < count)) return { ...pet, recentEvent: '装饰材料还未备齐，珍宝也可以保留收藏或换钱。' };
   if (!Number.isFinite(now) || now < pet.lastUpdatedAt) return pet;
-  pet = advanceCommunityAnimals(pet, now);
+  pet = advanceCommunityMarket(advanceCommunityAnimals(pet, now), now);
   return { ...pet, inventory: Object.entries(decoration.items).reduce((stock, [item, count]) => removeInventoryItem(stock, item, count), pet.inventory),
     community: { ...pet.community, decorations: [...pet.community.decorations, id], decorationLevels: { ...pet.community.decorationLevels, [id]: 1 } }, recentEvent: `「${decoration.name}」建好了！永久效果已生效，可在农场「装饰工坊」继续升级。` };
 };

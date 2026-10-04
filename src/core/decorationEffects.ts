@@ -22,6 +22,9 @@ export const getDecorationValue = (id: CommunityDecorationId, level: number) => 
   return Math.round((level <= 5 ? first + (middle - first) * (level - 1) / 4 : middle + (last - middle) * (Math.min(10, level) - 5) / 5) * 10) / 10;
 };
 export const getDecorationEffects = (pet: Pick<PetState, 'community'>) => Object.fromEntries(communityDecorationIds.map(id => [id, getDecorationValue(id, getDecorationLevel(pet, id))])) as Record<CommunityDecorationId, number>;
+const marketTrafficPerLevel: Partial<Record<CommunityDecorationId, number>> = { golden_sign: 5, amber_lantern: 3, creek_fountain: 2 };
+export const getDecorationMarketTrafficBonus = (id: CommunityDecorationId, level: number) =>
+  (marketTrafficPerLevel[id] ?? 0) * Math.max(0, Math.min(10, Math.floor(level)));
 export const getDecorationIdleTimeReduction = (level: number) => {
   if (level <= 0) return 0;
   return Math.round((level <= 5 ? 5 + 5 * (level - 1) / 4 : 10 + 10 * (Math.min(10, level) - 5) / 5) * 10) / 10;

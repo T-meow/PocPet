@@ -6,6 +6,7 @@ import { updatePetSession, type FeedbackMode, type PetSessionState } from './pet
 import { cancelPendingNativeSave, flushNativeSave, subscribeNativeSave } from '../../platform/nativeSave';
 import { prepareTimePause, resumePetTime } from '../../core/timePause';
 import { commitTimePauseAfterBackup, type TimePauseBackupWriter } from './timePauseTransaction';
+import { applyNativeListeningReceipt, type NativeListeningReceipt } from '../../core/musicCompanion';
 
 export type AchievementToast = { kind: 'single'; achievement: AchievementView } | { kind: 'review' };
 
@@ -26,6 +27,7 @@ interface PetSession {
   retryPersistence: () => void;
   adoptCommittedPet: (pet: PetState) => void;
   saveAction: (pet: PetState, mode?: FeedbackMode) => PetState | undefined;
+  saveListeningReceipt: (owner: string, receipt: NativeListeningReceipt) => PetState | undefined;
   timePauseBusy: boolean;
   freezeTime: (backup: TimePauseBackupWriter) => Promise<boolean>;
   resumeTime: () => void;
@@ -85,6 +87,17 @@ export const usePetSession = (
   const setPet = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'quiet'), [applyUpdate]);
   const setPetWithFeedback = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'action'), [applyUpdate]);
   const setPetWithEventFeedback = useCallback<Dispatch<SetStateAction<PetState>>>((action) => applyUpdate(action, 'event'), [applyUpdate]);
+  const saveListeningReceipt = (owner: string, receipt: NativeListeningReceipt) => {
+    if (paused.current || timePauseInProgress.current) return undefined;
+    const current = sessionRef.current;
+    const next = applyNativeListeningReceipt(current.pet, owner, receipt);
+    if (next === current.pet) return current.pet;
+    // This only records audio already heard before a freeze. Frozen gameplay
+    // stays unchanged; the listening time and receipt are persisted together.
+    const saved = persistRef.current(next);
+    if (saved) publish({ ...current, pet: saved });
+    return saved;
+  };
   const deliveredId = useRef(0);
   const onFeedbackRef = useRef(onFeedback);
   onFeedbackRef.current = onFeedback;
@@ -202,5 +215,5 @@ export const usePetSession = (
     return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); window.removeEventListener('pagehide', flush); };
   }, []);
 
-  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet') => applyUpdate(next, mode), timePauseBusy, freezeTime, resumeTime };
+  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet') => applyUpdate(next, mode), saveListeningReceipt, timePauseBusy, freezeTime, resumeTime };
 };

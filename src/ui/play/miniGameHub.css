@@ -1,0 +1,50 @@
+.play-hub-modal { width: calc(100vw - 32px); min-width: 0; }
+.play-hub-modal .activity-heading { min-width: 0; }
+.play-hub-modal .activity-header-actions { flex-shrink: 0; }
+.play-hub-modal .activity-body { min-width: 0; }
+.play-hub-modal .play-hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 12px; }
+.play-hub-modal .play-hub-grid .play-game-card { min-width: 0; display: flex; flex-direction: column; }
+.play-hub-modal .play-hub-grid .game-glyph { height: 64px; margin: 0 0 12px; align-self: flex-start; }
+.play-hub-modal .play-hub-grid .game-glyph img { width: 64px; height: 64px; object-fit: contain; }
+.play-hub-modal .play-hub-grid .game-glyph svg { width: 52px; height: 52px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.play-hub-modal .play-game-card--blocks { color: #69856a; background: #f0f4e7; }
+.play-hub-modal .play-game-card--water { color: #b08d98; background: #fbf0ee; border-color: #e9dcd9; }
+.play-hub-modal .play-game-card--fruit { background: #fff5e5; border-color: #ede0c6; }
+.play-hub-modal .play-game-card--match3 { background: #f5f0e9; border-color: #e8ddce; }
+.play-hub-modal .play-classic-heading { margin-top: 26px; }
+.play-hub-modal .play-hub-grid h3 { color: #53634e; }
+.play-hub-modal .play-hub-grid p { margin: 0 0 12px; }
+.play-hub-modal .play-hub-grid .activity-heart { font-size: 12px; }
+.play-hub-playing { max-width: 1020px; }
+.play-hub-playing .activity-body { padding: 14px; }
+.play-hub-playing .mg-root.mg-embedded main { padding: 0; }
+.play-hub-playing .mg-root .side { width: 210px; margin-left: 18px; }
+.play-hub-playing .mg-root .companion-card { padding: 18px 12px; }
+.hosted-game-reward { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #edf3e5; color: #617a52; font-size: 13px; }
+@media (min-width: 760px) {
+  .play-hub-modal .play-hub-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .play-hub-playing .mg-root .layout { display: block; }
+  .play-hub-playing .mg-root .side { width: auto; margin: 16px 0 0; }
+  .play-hub-playing .mg-root .companion-card { display: flex; align-items: center; padding: 10px 12px; }
+  .play-hub-playing .mg-root .companion-heading,
+  .play-hub-playing .mg-root .companion-caption { display: none; }
+  .play-hub-playing .mg-root .companion-stage { width: 70px; height: 70px; flex-shrink: 0; margin: 0 12px 0 0; }
+  .play-hub-playing .mg-root .pet { width: 70px; height: 70px; top: 0; }
+  .play-hub-playing .mg-root .companion-stage:before,
+  .play-hub-playing .mg-root .pet-star,
+  .play-hub-playing .mg-root .pet-heart { display: none; }
+  .play-hub-playing .mg-root .speech { flex: 1; min-width: 0; }
+}
+@media (max-width: 570px) {
+  .play-hub-modal { width: calc(100vw - 16px); }
+  .play-hub-modal .play-hub-grid { grid-gap: 8px; }
+  .play-hub-modal .play-hub-grid .play-game-card { padding: 13px 10px; }
+  .play-hub-modal .play-hub-grid h3 { font-size: 15px; margin-bottom: 8px; }
+  .play-hub-modal .play-hub-grid .game-glyph { height: 52px; margin-bottom: 8px; }
+  .play-hub-modal .play-hub-grid .game-glyph img { width: 52px; height: 52px; }
+  .play-hub-modal .play-hub-grid .play-game-card > p { font-size: 11px; line-height: 1.65; }
+  .play-hub-modal .play-hub-grid .play-game-card > button { min-height: 40px; padding: 9px 6px; }
+  .play-hub-playing .activity-body { padding: 10px 8px 18px; }
+}

@@ -117,6 +117,145 @@ async function verifySavesAndErrors() {
       return result;
     };
 
+    await check('独立小游戏预览的迁移、进度往返与损坏回退', async () => {
+      const { createMiniGamesSave, normalizeMiniGamesSave, createPreviewHost, previewStorageKey } = await import('../src/minigames/storage.ts');
+      const { possibleMoves, swapMatch3 } = await import('../src/minigames/match3/rules.ts');
+      const legacy = normalizeMiniGamesSave('{"best":780,"sound":true}');
+      assert.equal(legacy.games.blocks.best, 780);
+      assert.equal(legacy.sound, true);
+      const progress = createMiniGamesSave();
+      progress.activeGame = 'fruit'; progress.sound = true;
+      progress.games.blocks.pieces[0].rotation = 1;
+      progress.games.blocks.selected = 0;
+      progress.games.water.bottles[3].push(progress.games.water.bottles[0].pop());
+      progress.games.water.moves = 1;
+      progress.games.fruit.bodies = [{ id: 1, tier: 2, x: 90.125, y: 280.875, vx: 0.25, vy: -0.125, angle: 0.5, angularVelocity: 0.01, landed: true }];
+      progress.games.fruit.nextId = 2; progress.games.fruit.dangerMs = 125.75;
+      progress.games.nonogram.marks[0] = 0; progress.games.nonogram.marks[1] = 1;
+      progress.games.nonogram.history = [Array(25).fill(-1)];
+      progress.games.nonogram.solvedIds = ['cat'];
+      const move = possibleMoves(progress.games.match3.grid)[0];
+      progress.games.match3 = swapMatch3(progress.games.match3, move.from, move.to).state;
+      progress.reportedSessions = [progress.games.blocks.id];
+      const preview = new MemoryStorage(), host = createPreviewHost(preview);
+      preview.setItem(primary, text);
+      host.save(progress);
+      assert.deepEqual(normalizeMiniGamesSave(host.load()), progress);
+      assert.equal(preview.getItem(primary), text, 'preview cannot change the formal pet save');
+      assert.deepEqual([...preview.values.keys()].sort(), [primary, previewStorageKey].sort());
+      const damaged = structuredClone(progress);
+      damaged.games.fruit.bodies[0].x = 'broken';
+      damaged.games.blocks.history = [null, { grid: [] }];
+      const restored = normalizeMiniGamesSave(damaged);
+      assert.equal(restored.games.fruit.bodies.length, 0);
+      assert.deepEqual(restored.games.water, progress.games.water);
+      assert.deepEqual(restored.games.nonogram, progress.games.nonogram);
+      assert.deepEqual(restored.games.match3, progress.games.match3);
+      const older = structuredClone(progress);
+      delete older.games.match3; older.activeGame = 'nonogram';
+      const migrated = normalizeMiniGamesSave(older);
+      assert.equal(migrated.activeGame, 'match3');
+      assert.equal(migrated.games.match3.movesLeft, 40);
+      assert.deepEqual(migrated.games.nonogram, progress.games.nonogram, 'changing the visible game retains the previous puzzle progress');
+      const brokenMatch3 = normalizeMiniGamesSave({ ...progress, games: { ...progress.games, match3: { ...progress.games.match3, grid: [9, -1] } } });
+      assert.equal(brokenMatch3.games.match3.grid.length, 49);
+      assert.equal(brokenMatch3.games.match3.best, progress.games.match3.best);
+      assert.deepEqual(brokenMatch3.games.fruit, progress.games.fruit);
+      assert.equal(restored.games.blocks.pieces[0].rotation, 1);
+      assert.deepEqual(restored.games.blocks.history, []);
+      for (const bad of [null, 'broken JSON', [], false, { schemaVersion: 999 }, { games: { blocks: {}, water: 1, fruit: [], nonogram: 'broken' } }]) {
+        const fallback = normalizeMiniGamesSave(bad);
+        assert.equal(fallback.games.blocks.grid.length, 64);
+        assert.equal(fallback.games.nonogram.marks.length, 25);
+        assert.deepEqual(normalizeMiniGamesSave(JSON.stringify(fallback)), fallback);
+      }
+      preview.failRead = previewStorageKey;
+      assert.throws(() => host.load(), /Injected read failure/);
+      preview.failWrite = previewStorageKey;
+      assert.throws(() => host.save(progress), /Injected write failure/);
+      assert.deepEqual(normalizeMiniGamesSave(host.load()), progress, 'failed writes leave the last good preview intact');
+    });
+
+    await check('正式小游戏入口的进度往返、旧档兼容与结算去重', async () => {
+      const games = await import('../src/core/miniGames.ts');
+      const { saveMiniGameHub, finishMiniGameHub } = await import('../src/core/miniGameHub.ts');
+      const { possibleMoves, swapMatch3 } = await import('../src/minigames/match3/rules.ts');
+      const { advancePet } = await import('../src/core/petLifecycle.ts');
+      const actor = 'official.furo';
+      const ready = normalizePet({ ...pet, level: 10 }, now);
+      assert.equal(ready.miniGames.hub, undefined, 'old saves do not create random progress until a new game is opened');
+      for (const id of ['blocks', 'water', 'fruit', 'match3']) assert.ok(ready.miniGames.unlocked.includes(id));
+      let current = games.startMiniGame(ready, 'blocks', 'gentle', actor, 'hub-blocks', now);
+      assert.equal(current.miniGames.active.game, 'blocks');
+      assert.equal(current.miniGames.active.mode, 'normal');
+      assert.equal(current.miniGames.active.deck, undefined, 'hosted games keep their own state types');
+      const progress = structuredClone(current.miniGames.hub);
+      progress.sound = true;
+      progress.games.blocks.pieces[0].rotation = 1;
+      progress.games.blocks.selected = 0;
+      progress.reportedSessions = ['untrusted-receipt'];
+      current = saveMiniGameHub(current, 'hub-blocks', actor, progress, now);
+      assert.deepEqual(current.miniGames.hub.reportedSessions, []);
+      assert.equal(saveMiniGameHub(current, 'stale-view', actor, progress, now), current);
+      assert.equal(saveMiniGameHub(current, 'hub-blocks', 'other-actor', progress, now), current);
+      current = games.startMiniGame(games.pauseMiniGame(current), 'match3', 'gentle', actor, 'hub-match3', now);
+      assert.equal(current.miniGames.hub.games.blocks.pieces[0].rotation, 1);
+      assert.equal(saveMiniGameHub(current, 'hub-blocks', actor, progress, now), current, 'old unmount callbacks cannot overwrite a different game');
+      let board = current.miniGames.hub.games.match3;
+      const premature = { game: 'match3', sessionId: board.id, outcome: 'complete', score: 999999 };
+      assert.equal(finishMiniGameHub(current, 'hub-match3', actor, premature, now), current, 'callbacks alone cannot award hearts');
+      while (board.movesLeft > 0) {
+        const move = possibleMoves(board.grid)[0];
+        board = swapMatch3(board, move.from, move.to).state;
+      }
+      const snapshot = structuredClone(current.miniGames.hub);
+      snapshot.games.match3 = board;
+      current = saveMiniGameHub(current, 'hub-match3', actor, snapshot, now);
+      assert.equal(advancePet(current, now).miniGames.active.paused, false, 'normal lifecycle updates keep a running game');
+      const restored = parseSaveFileText(createSaveFileText(current, null, now), now).pet;
+      assert.deepEqual(restored.miniGames.hub, current.miniGames.hub);
+      assert.equal(restored.miniGames.active.paused, true, 'save reloads pause every game');
+      assert.equal(games.resumeMiniGame(restored, 'other-actor', now), restored);
+      assert.equal(finishMiniGameHub(restored, 'hub-match3', actor, premature, now), restored, 'paused games cannot settle');
+      current = games.resumeMiniGame(restored, actor, now);
+      const hearts = current.hearts;
+      assert.equal(finishMiniGameHub(current, 'stale-view', actor, premature, now), current);
+      const sleeping = { ...current, isSleeping: true };
+      assert.equal(finishMiniGameHub(sleeping, 'hub-match3', actor, premature, now), sleeping);
+      current = finishMiniGameHub(current, 'hub-match3', actor, premature, now);
+      assert.ok(current.hearts > hearts);
+      assert.equal(current.miniGames.lastResult.score, board.score, 'scores come from saved rules state, not the callback');
+      assert.equal(current.miniGames.records['match3:normal'].completed, 1);
+      assert.equal(current.miniGames.lastResult.pending, false, 'the module keeps its own replay screen');
+      assert.equal(current.miniGames.active.id, 'hub-match3');
+      assert.equal(finishMiniGameHub(current, 'hub-match3', actor, premature, now), current);
+      const savedAgain = parseSaveFileText(createSaveFileText(current, null, now), now).pet;
+      const resumed = games.resumeMiniGame(savedAgain, actor, now);
+      assert.equal(finishMiniGameHub(resumed, 'hub-match3', actor, premature, now), resumed, 'receipts survive exported saves');
+      const manyRounds = structuredClone(savedAgain);
+      manyRounds.miniGames.lastSettledSessionId = 'a-later-round';
+      manyRounds.miniGames.hub.reportedSessions.push(...Array.from({ length: 100 }, (_, index) => `another-game-round-${index}`));
+      const afterManyRounds = games.resumeMiniGame(normalizePet(manyRounds, now), actor, now);
+      assert.equal(afterManyRounds.miniGames.hub.reportedSessions.length, 64);
+      assert.ok(afterManyRounds.miniGames.hub.reportedSessions.includes(board.id));
+      assert.equal(finishMiniGameHub(afterManyRounds, 'hub-match3', actor, premature, now), afterManyRounds, 'completed boards stay settled after playing many rounds of other games');
+      const damaged = structuredClone(current);
+      damaged.miniGames.hub.games.fruit.bodies = 'broken';
+      const recovered = normalizePet(damaged, now);
+      assert.equal(recovered.miniGames.hub.games.fruit.bodies.length, 0);
+      assert.deepEqual(recovered.miniGames.hub.games.match3, board);
+      assert.deepEqual(recovered.miniGames.hub.reportedSessions, [board.id]);
+      let legacy = games.startMiniGame(ready, 'matching', 'gentle', actor, 'legacy-cards', now);
+      const deck = legacy.miniGames.active.deck;
+      for (let face = 0; face < 6; face++) for (const index of deck.map((card, index) => card === face ? index : -1).filter(index => index >= 0)) {
+        legacy = games.actMiniGame(legacy, 'legacy-cards', { type: 'flip', index }, now);
+      }
+      assert.equal(legacy.miniGames.lastResult.pending, true);
+      assert.equal(legacy.miniGames.records['matching:gentle'].completed, 1);
+      assert.equal(legacy.miniGames.active, undefined);
+      assert.equal(legacy.miniGames.hub, undefined, 'legacy games retain their existing storage shape');
+    });
+
     await check('收藏偏好的旧档兼容、规范化与持久化', async () => {
       const { toggleItemFavorite, toggleRecipeFavorite } = await import('../src/core/favorites.ts');
       const legacy = JSON.parse(text);
@@ -1051,11 +1190,66 @@ async function verifySavesAndErrors() {
       assert.equal(redeemAdventureTreasure(repeatedTrip, repeatedTrip.adventure.active.id, repeatedTrip.adventure.active.revision).adventure.active.bag.coin_hoard, 1);
     });
 
+    await check('计时提醒随取消、冻结、成熟和存档恢复保持一致', async () => {
+      const { deriveNotificationPlans, isReminderCompleted, groupDueReminders } = await import('../src/core/notificationPlans.ts');
+      const copy = JSON.parse(JSON.stringify(pet));
+      copy.community.plots[0].crop = { id: 'carrot', plantedAt: now - 1000, readyAt: now + 60000 };
+      copy.pomodoro = { ...copy.pomodoro, isRunning: true, phase: 'focus', phaseStartedAt: now, phaseEndsAt: now + 60000,
+        settings: { focusMinutes: 1, shortBreakMinutes: 1, targetRounds: 2 } };
+      const plans = deriveNotificationPlans(copy);
+      assert.equal(plans.filter(plan => plan.source === 'pomodoro').length, 4, 'schedule every remaining phase without simulating rewards');
+      const crop = plans.find(plan => plan.source === 'crop');
+      assert.equal(isReminderCompleted(copy, crop, now), false);
+      assert.equal(isReminderCompleted(copy, crop, now + 60000), true);
+      const before = JSON.stringify(copy);
+      deriveNotificationPlans(copy);
+      assert.equal(JSON.stringify(copy), before, 'planning cannot mutate gameplay');
+      copy.community.plots[0].crop.readyAt = now + 30000;
+      assert.equal(deriveNotificationPlans(copy).find(plan => plan.source === 'crop').key, crop.key, 'watering reschedules the same growth cycle');
+      copy.community.plots[0].crop = undefined;
+      assert.equal(isReminderCompleted(copy, crop, now + 60000), false, 'clearing a crop cancels its old reminder');
+      copy.timePause = { schemaVersion: 1, pausedAt: now };
+      assert.deepEqual(deriveNotificationPlans(copy), []);
+      assert.equal(isReminderCompleted(copy, crop, now + 60000), false);
+      assert.equal(groupDueReminders([crop, { ...crop, key: 'another-crop' }]).length, 1);
+      const { showSystemNotification, readNotificationPreferences } = await import('../src/platform/notifications.ts');
+      assert.equal(readNotificationPreferences().enabled, false);
+      await assert.rejects(showSystemNotification(crop, pet.saveMetadata.id, () => {}), /尚未授权/);
+      const { refreshBackgroundCapabilities, getBackgroundCapabilities } = await import('../src/platform/background.ts');
+      window.__TAURI_INTERNALS__ = { invoke: async () => { throw new Error('Injected background bridge failure'); } };
+      try {
+        await assert.rejects(showSystemNotification(crop, pet.saveMetadata.id, () => {}), /bridge failure/);
+        await assert.rejects(refreshBackgroundCapabilities(), /bridge failure/);
+        window.__TAURI_INTERNALS__.invoke = async () => ({ platform: 'android', nativeMusic: true, notifications: true, permission: 'denied', exactAlarms: false });
+        assert.equal((await getBackgroundCapabilities()).permission, 'denied', 'a failed capability call must be retryable');
+      } finally { delete window.__TAURI_INTERNALS__; await refreshBackgroundCapabilities(); }
+    });
+
     await check('音乐陪伴存档兼容、累计进度与结算幂等', async () => {
-      const { addMusicListeningTime, claimMusicHearts } = await import('../src/core/musicCompanion.ts');
+      const { addMusicListeningTime, claimMusicHearts, applyNativeListeningReceipt } = await import('../src/core/musicCompanion.ts');
       const oldEnvelope = JSON.parse(text);
       delete oldEnvelope.pet.musicCompanion;
-      assert.deepEqual(parseSaveFileText(JSON.stringify(oldEnvelope), now).pet.musicCompanion, { schemaVersion: 1, pendingListeningMs: 0 });
+      assert.deepEqual(parseSaveFileText(JSON.stringify(oldEnvelope), now).pet.musicCompanion, { schemaVersion: 2, pendingListeningMs: 0 });
+      oldEnvelope.pet.musicCompanion = { schemaVersion: 1, pendingListeningMs: 12345 };
+      assert.deepEqual(parseSaveFileText(JSON.stringify(oldEnvelope), now).pet.musicCompanion, { schemaVersion: 2, pendingListeningMs: 12345 });
+      const owner = `${pet.saveMetadata.id}:official.furo`;
+      const receipt = { owner, sessionId: 'native-session-1', milliseconds: 120000 };
+      const native = applyNativeListeningReceipt(pet, owner, receipt);
+      const nativeReopened = parseSaveFileText(createSaveFileText(native, null, now), now).pet;
+      assert.equal(nativeReopened.musicCompanion.pendingListeningMs, pet.musicCompanion.pendingListeningMs + 120000);
+      assert.equal(applyNativeListeningReceipt(nativeReopened, owner, receipt), nativeReopened, 'receipt replay after a crash cannot pay twice');
+      const nativeClaimed = claimMusicHearts(nativeReopened);
+      assert.equal(applyNativeListeningReceipt(nativeClaimed, owner, receipt), nativeClaimed, 'claiming preserves the native checkpoint');
+      assert.equal(applyNativeListeningReceipt(nativeClaimed, owner, { ...receipt, milliseconds: 119000 }), nativeClaimed, 'out-of-order snapshots do not rewind the checkpoint');
+      assert.equal(applyNativeListeningReceipt(pet, 'another-owner', receipt), pet, 'a different save or actor cannot consume a receipt');
+      assert.equal(applyNativeListeningReceipt(pet, owner, { ...receipt, milliseconds: Infinity }), pet);
+      const progress = applyNativeListeningReceipt(nativeClaimed, owner, { ...receipt, milliseconds: 125000 });
+      assert.equal(progress.musicCompanion.pendingListeningMs - nativeClaimed.musicCompanion.pendingListeningMs, 5000);
+      const frozenReceipt = applyNativeListeningReceipt({ ...pet, timePause: { schemaVersion: 1, pausedAt: now } }, owner, receipt);
+      const frozenReceiptReopened = parseSaveFileText(createSaveFileText(frozenReceipt, null, now), now).pet;
+      assert.equal(frozenReceiptReopened.musicCompanion.pendingListeningMs, pet.musicCompanion.pendingListeningMs + receipt.milliseconds, 'eligible audio heard before freezing remains durable');
+      assert.equal(applyNativeListeningReceipt(frozenReceiptReopened, owner, receipt), frozenReceiptReopened);
+      assert.equal(claimMusicHearts(frozenReceiptReopened), frozenReceiptReopened, 'receipt recovery does not award hearts during a freeze');
       const almostReady = parseSaveFileText(createSaveFileText(addMusicListeningTime(pet, 120_000 - 1), null, now), now).pet;
       assert.equal(claimMusicHearts(almostReady), almostReady);
       assert.equal(claimMusicHearts(addMusicListeningTime(almostReady, 1)).hearts, pet.hearts + 2, 'two minutes across a save boundary earns two hearts');
@@ -1225,6 +1419,28 @@ async function verifySavesAndErrors() {
       }
     });
 
+    await check('升级曲线退款旧档到账、往返幂等与新档排除', async () => {
+      const { upgradeHeartCurveRefundRewardId } = petModule;
+      for (const [level, refund] of [[1, 0], [10, 0], [15, 515], [19, 3165], [20, 4065], [21, 4664], [22, 4956], [50, 4956], [99, 4956]]) {
+        const previous = { ...pet, level, hearts: 123,
+          claimedRewardIds: pet.claimedRewardIds.filter(id => id !== upgradeHeartCurveRefundRewardId) };
+        const migrated = normalizePet(previous, now);
+        assert.equal(migrated.hearts, 123 + refund);
+        assert.equal(migrated.level, level);
+        assert.equal(migrated.achievements.counters.heartEarnedTotal, pet.achievements.counters.heartEarnedTotal, 'refunds do not count as new earnings');
+        assert.equal(migrated.claimedRewardIds.filter(id => id === upgradeHeartCurveRefundRewardId).length, 1);
+        assert.equal(normalizePet(migrated, now).hearts, migrated.hearts);
+        const restored = parseSaveFileText(createSaveFileText(migrated, null, now), now).pet;
+        assert.equal(restored.hearts, migrated.hearts);
+        assert.equal(normalizePet({ ...restored, level: 99 }, now).hearts, migrated.hearts, 'subsequent levels cannot create another refund');
+        const paused = normalizePet({ ...previous, timePause: { schemaVersion: 1, pausedAt: now } }, now);
+        assert.equal(paused.hearts, migrated.hearts, 'balance refunds do not advance a frozen game');
+      }
+      const fresh = createDefaultPet(now);
+      assert.ok(fresh.claimedRewardIds.includes(upgradeHeartCurveRefundRewardId));
+      assert.equal(normalizePet({ ...fresh, level: 99 }, now).hearts, fresh.hearts);
+    });
+
     await check('旧货架改价保留库存和金币、重复恢复不重复迁移', async () => {
       const { getMarketQuote } = await import('../src/core/communityMarket.ts');
       const { marketPricingVersion } = await import('../src/core/communityEconomy.ts');
@@ -1290,6 +1506,25 @@ async function verifySavesAndErrors() {
       assert.equal(invalid.community.market.sessionRevenue, 0);
       const oversized = normalizePet({ ...initial, community: { ...initial.community, market: { ...initial.community.market, sessionRevenue: 900 } } }, now);
       assert.equal(oversized.community.market.sessionRevenue, 500);
+      const stockedShop = decorations => {
+        const state = { ...initial, inventory: { ...initial.inventory, matsutake: 20 }, community: { ...initial.community,
+          decorations, decorationLevels: Object.fromEntries(decorations.map(id => [id, 10])),
+        } };
+        return setCommunityMarketOpen(listCommunityGoods(state, 'matsutake', 20, state.community.market.nextListingId, now), true, now);
+      };
+      const plain = stockedShop([]), decorated = stockedShop(['golden_sign', 'amber_lantern', 'creek_fountain']);
+      assert.equal(decorated.community.market.nextVisitAt - now, (plain.community.market.nextVisitAt - now) / 2);
+      const firstVisitAt = decorated.community.market.nextVisitAt;
+      const expensiveSale = advanceCommunityMarket(reload(decorated, now), firstVisitAt);
+      assert.ok(expensiveSale.community.market.sold > 0, 'a visitor purchases expensive stock without an amount gate');
+      assert.equal(expensiveSale.community.market.sessionRevenue, expensiveSale.community.market.sold * decorated.community.market.listings[0].unitPrice);
+      const endAt = now + 3600000;
+      const split = advanceCommunityMarket(reload(expensiveSale, firstVisitAt), endAt);
+      const lumped = advanceCommunityMarket(reload(decorated, now), endAt);
+      assert.deepEqual(split.community.market, lumped.community.market, 'decorated traffic survives split offline settlement');
+      assert.equal(split.coins, lumped.coins);
+      const oldWait = { ...initial, community: { ...initial.community, market: { ...initial.community.market, remainingVisitMs: 15 * 60000 } } };
+      assert.equal(reload(oldWait, now).community.market.remainingVisitMs, 15 * 60000, 'legacy paused waits remain unchanged on reload');
     });
 
     await check('忙碌果园操作不消耗存档资源，成熟待领果实可恢复', async () => {
@@ -1457,6 +1692,10 @@ async function verifySavesAndErrors() {
       const server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
       try {
         assert.equal(typeof (await server.ssrLoadModule('/src/ui/App.tsx')).App, 'function');
+        const minigames = await server.ssrLoadModule('/src/minigames/index.tsx');
+        assert.equal(typeof minigames.MiniGamesHub, 'function');
+        assert.equal(typeof minigames.mountMiniGames, 'function');
+        assert.deepEqual(minigames.miniGameRegistry.map(game => game.id), ['blocks', 'water', 'fruit', 'match3']);
         await check('BGM 加载失败有界重试与暂停保护', async () => {
           const bgm = await server.ssrLoadModule('/src/core/bgm.ts');
           const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');

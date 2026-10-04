@@ -1,0 +1,6 @@
+.notification-settings { min-width: 0; }
+.notification-settings p { overflow-wrap: break-word; line-height: 1.55; }
+.notification-settings .settings-toggle-row { width: 100%; box-sizing: border-box; }
+.notification-settings .settings-toggle-row > span { min-width: 0; margin-right: 12px; }
+.notification-settings input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; }
+.notification-settings .text-button { margin-left: 8px; }

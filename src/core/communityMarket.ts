@@ -1,18 +1,24 @@
 import { recordEarnedCoins } from './achievements';
 import { getCommunitySale, marketPricingVersion } from './communityEconomy';
-import { getDecorationEffects, getDecorationLevel } from './decorationEffects';
+import { getDecorationEffects, getDecorationLevel, getDecorationMarketTrafficBonus } from './decorationEffects';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
 import { clampCoins } from './petStats';
 import type { PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import type { CommunityMarket, MarketReceipt } from './communityTypes';
-import { createMarketSeed, getMarketBuyoutBonusForLevels, getMarketPurchaseChance, getMarketVisit, marketRandom, marketSlotCount, marketStackLimit } from './communityMarketRules';
+import { createMarketSeed, getMarketBuyoutBonusForLevels, getMarketVisit, marketRandom, marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { getCommunityUpgradeQuote } from './communityUpgradeData';
 
 export const getMarketCapacity = (pet: PetState) => marketSlotCount(pet.community.market.level);
 export const getMarketBuyoutBonus = (pet: Pick<PetState, 'community' | 'partnerSchedule'>) =>
   getMarketBuyoutBonusForLevels(pet.partnerSchedule.skills.cooking.level, getDecorationLevel(pet, 'golden_sign'));
+export const getMarketTrafficBonus = (pet: Pick<PetState, 'community'>) => {
+  const sign = getDecorationMarketTrafficBonus('golden_sign', getDecorationLevel(pet, 'golden_sign'));
+  const lantern = getDecorationMarketTrafficBonus('amber_lantern', getDecorationLevel(pet, 'amber_lantern'));
+  const fountain = getDecorationMarketTrafficBonus('creek_fountain', getDecorationLevel(pet, 'creek_fountain'));
+  return { sign, lantern, fountain, total: sign + lantern + fountain };
+};
 export const getMarketQuote = (pet: PetState, id: string) => {
   const sale = getCommunitySale(id);
   const knowledge = Math.min(10, Math.floor(pet.partnerSchedule.skills.study.level / 2) * 2), building = Math.max(0, pet.community.market.level - 1) * 5;
@@ -52,7 +58,7 @@ const syncMarketClock = (pet: PetState, market: CommunityMarket, coins: number, 
     if (running) return market.seed === seed ? market : { ...market, seed };
     return { ...market, seed, nextVisitAt: undefined, remainingVisitMs: Math.max(0, market.nextVisitAt - now) };
   }
-  const delay = market.remainingVisitMs ?? getMarketVisit(seed, market.visitors).delayMs;
+  const delay = market.remainingVisitMs ?? getMarketVisit(seed, market.visitors, getMarketTrafficBonus(pet).total).delayMs;
   if (!running && market.seed === seed && market.remainingVisitMs === delay) return market;
   return { ...market, seed, lastVisitAt: market.lastVisitAt || anchor,
     nextVisitAt: running ? anchor + delay : undefined, remainingVisitMs: running ? undefined : delay };
@@ -65,20 +71,21 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
   // resumes from now, so today's newly listed stock can never sell yesterday.
   const anchor = !original.seed && original.lastVisitAt > 0 ? original.lastVisitAt : now;
   const buyoutBonus = getMarketBuyoutBonus(pet).total;
+  const trafficBonus = getMarketTrafficBonus(pet).total;
   let market = syncMarketClock(pet, original, pet.coins, now, anchor), coins = pet.coins;
   while (market.nextVisitAt !== undefined && market.nextVisitAt <= now) {
-    const at = market.nextVisitAt, visit = getMarketVisit(market.seed, market.visitors);
+    const at = market.nextVisitAt, visit = getMarketVisit(market.seed, market.visitors, trafficBonus, buyoutBonus);
     let listings = market.listings.map(listing => ({ ...listing })).sort((a, b) => a.slotIndex - b.slotIndex);
     const items: MarketReceipt['items'] = [];
     const basket: { listing: typeof listings[number]; quantity: number; amount: number }[] = [];
-    let basketCoins = 0, basketValue = 0, basketQuantity = 0;
+    let basketCoins = 0, basketQuantity = 0;
     let revenue = 0, premium = 0, sold = 0;
     const select = (listing: typeof listings[number], requested: number) => {
       const quantity = Math.min(listing.quantity, requested, Math.floor(walletRoom(coins + basketCoins) / listing.unitPrice));
       if (quantity <= 0) return;
       const amount = quantity * listing.unitPrice;
       basket.push({ listing, quantity, amount });
-      basketCoins += amount; basketValue += quantity * listing.basePrice; basketQuantity += quantity;
+      basketCoins += amount; basketQuantity += quantity;
     };
     if (visit.customer === 'generous') {
       const shelves = [...listings];
@@ -98,22 +105,19 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
         select(listing, visit.quantity);
       }
     }
-    // One independent draw per basket keeps reload/offline results stable. Base
-    // prices exclude stall bonuses, so upgrades never slow an existing listing.
-    if (marketRandom(market.seed, market.visitors, 32) < getMarketPurchaseChance(basketValue, visit.customer, visit.buyout, buyoutBonus)) {
-      for (const { listing, quantity, amount } of basket) {
-        const item = items.find(item => item.itemId === listing.itemId);
-        if (item) { item.quantity += quantity; item.coins += amount; }
-        else items.push({ itemId: listing.itemId, quantity, coins: amount });
-        listing.quantity -= quantity;
-        revenue += amount; premium += quantity * (listing.unitPrice - listing.basePrice); sold += quantity;
-      }
+    // Visitor frequency and basket sizes control turnover, independent of price.
+    for (const { listing, quantity, amount } of basket) {
+      const item = items.find(item => item.itemId === listing.itemId);
+      if (item) { item.quantity += quantity; item.coins += amount; }
+      else items.push({ itemId: listing.itemId, quantity, coins: amount });
+      listing.quantity -= quantity;
+      revenue += amount; premium += quantity * (listing.unitPrice - listing.basePrice); sold += quantity;
     }
     listings = listings.filter(listing => listing.quantity > 0);
     const visitors = market.visitors + 1;
     const receipt: MarketReceipt = { visit: visitors, customer: visit.customer, buyout: visit.buyout && !listings.length, at, coins: revenue, items };
     coins += revenue;
-    market = { ...market, listings, visitors, lastVisitAt: at, nextVisitAt: at + getMarketVisit(market.seed, visitors).delayMs,
+    market = { ...market, listings, visitors, lastVisitAt: at, nextVisitAt: at + getMarketVisit(market.seed, visitors, trafficBonus).delayMs,
       // This counter also invalidates stale manual-listing quotes after a sale.
       nextListingId: market.nextListingId + (sold ? 1 : 0),
       revenue: market.revenue + revenue, sessionRevenue: market.sessionRevenue + revenue, premium: market.premium + premium, sold: market.sold + sold,
@@ -169,7 +173,7 @@ export const setCommunityMarketOpen = (pet: PetState, open: boolean, now = Date.
   pet = advanceCommunityMarket(pet, now);
   const m = pet.community.market;
   if (!m.level || m.open === open) return pet;
-  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open, sessionRevenue: open ? 0 : m.sessionRevenue }, pet.coins, now) }, recentEvent: open ? '小摊营业中，客人每隔 5–20 分钟随机到访。低价货成交快，高价货需多等一会，慷慨游客仍会带来大单。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
+  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open, sessionRevenue: open ? 0 : m.sessionRevenue }, pet.coins, now) }, recentEvent: open ? '小摊营业中，基础每隔 2–6 分钟来一位客人，装饰可增加客流。客人按挑选数量和挂牌价购买，慷慨游客会带来大单或包场。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
 };
 export const upgradeCommunityMarket = (pet: PetState, expectedLevel: number, now = Date.now()): PetState => {
   if (pet.timePause || !Number.isFinite(now) || now < pet.lastUpdatedAt || now < pet.community.market.lastVisitAt || !canSpendCompanionTime(pet)) return pet;

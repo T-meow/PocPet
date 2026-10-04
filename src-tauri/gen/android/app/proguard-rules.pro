@@ -1,4 +1,5 @@
 # Add project specific ProGuard rules here.
+-keep class com.frostforge.pocpet.background.BackgroundPlugin { *; }
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

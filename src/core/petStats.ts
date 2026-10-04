@@ -20,9 +20,14 @@ export const maxPetLevel = 99;
 
 export const linearUpgradeHeartStartLevel = 20;
 
-export const linearUpgradeHeartBaseCost = 6900;
+export const linearUpgradeHeartBaseCost = 6000;
 
-export const linearUpgradeHeartCostPerLevel = 22;
+export const linearUpgradeHeartCostPerLevel = 320;
+
+export const quadraticUpgradeHeartCostPerLevel = 3;
+
+// Ease the steep late-teen costs into the growing cost of later levels.
+const earlyUpgradeHeartCosts = [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000, 1300, 1660, 2100, 2600, 3200, 3850, 4500, 5100, 5600] as const;
 
 export const baseStatCap = 100;
 
@@ -95,9 +100,20 @@ export const clampPetEnergy = (pet: Parameters<typeof getPetEnergyCap>[0], value
 
 export const getUpgradeHeartCost = (targetLevel: number) => {
   const level = clampLevel(targetLevel);
+  const laterLevels = level - linearUpgradeHeartStartLevel;
   return level < linearUpgradeHeartStartLevel
-    ? level ** 3
-    : linearUpgradeHeartBaseCost + linearUpgradeHeartCostPerLevel * (level - linearUpgradeHeartStartLevel);
+    ? earlyUpgradeHeartCosts[level - 1]
+    : linearUpgradeHeartBaseCost + linearUpgradeHeartCostPerLevel * laterLevels + quadraticUpgradeHeartCostPerLevel * laterLevels ** 2;
+};
+
+export const getUpgradeHeartCurveRefund = (currentLevel: number) => {
+  let refund = 0;
+  for (let level = 2; level <= clampLevel(currentLevel); level++) {
+    const previousCost = level < 20 ? level ** 3 : 6900 + 22 * (level - 20);
+    // Refund discounted completed levels without charging for later increases.
+    refund += Math.max(0, previousCost - getUpgradeHeartCost(level));
+  }
+  return refund;
 };
 
 export const getNextUpgradeHeartCost = (pet: PetState) =>

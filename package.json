@@ -1,6 +1,6 @@
 {
   "name": "pocpet",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
     "build:toy": "tsc --noEmit && vite build --mode toy",
     "check:release": "node scripts/check.mjs --release",
     "preview": "vite preview --host 127.0.0.1",
+    "preview:minigames": "node scripts/build-minigames-preview.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-tauri-release.ps1 && tauri build --no-bundle",
@@ -38,6 +39,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "lunar-typescript": "1.8.6",
+    "matter-js": "^0.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
@@ -46,6 +48,7 @@
   "devDependencies": {
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2.11.3",
+    "@types/matter-js": "^0.20.2",
     "@types/node": "^24.13.3",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",

@@ -1,4 +1,4 @@
-import type { MiniGameState } from '../../core/companionActivityTypes';
+import { isHostedMiniGameSession, type MiniGameState } from '../../core/companionActivityTypes';
 
 export type MiniGameFeedbackEvent = 'start' | 'flip' | 'match' | 'throw' | 'catch' | 'miss' | 'blow' | 'bubble' | 'pop' | 'finish';
 export interface MiniGameFeedback { event: MiniGameFeedbackEvent; serial: number; }
@@ -9,7 +9,9 @@ export const getMiniGameFeedback = (previous: MiniGameState | undefined, next: M
   const active = next.active;
   const before = previous?.active;
   if (!active || active.paused || active.actorId !== actorId) return;
+  if (isHostedMiniGameSession(active)) return;
   if (!before || before.id !== active.id || before.paused) return 'start';
+  if (isHostedMiniGameSession(before)) return;
   if (active.game === 'matching') {
     if (active.matched.length > before.matched.length) return 'match';
     if (active.flipped.some((index) => !before.flipped.includes(index))) return 'flip';

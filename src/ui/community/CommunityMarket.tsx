@@ -4,7 +4,7 @@ import { marketHelp, getMarketItemHelp } from '../help/marketHelp';
 import { Hammer, PackagePlus, Store } from 'lucide-react';
 import type { ItemId } from '../../core/petTypes';
 import { getCommunitySale } from '../../core/communityEconomy';
-import { getMarketBuyoutBonus, getMarketCapacity, getMarketListingOffer, getMarketQuote, listCommunityGoods, setCommunityMarketOpen, unlistCommunityGoods } from '../../core/communityMarket';
+import { getMarketBuyoutBonus, getMarketCapacity, getMarketListingOffer, getMarketQuote, getMarketTrafficBonus, listCommunityGoods, setCommunityMarketOpen, unlistCommunityGoods } from '../../core/communityMarket';
 import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 import { marketStackLimit } from '../../core/communityMarketRules';
 import type { MarketReceipt } from '../../core/communityTypes';
@@ -49,7 +49,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
     return () => document.removeEventListener('visibilitychange', hide);
   }, []);
   const goods = useMemo(() => getInventoryDefinitions(registry ?? createBuiltinItemRegistry(), pet.inventory).filter(item => { const sale = getCommunitySale(item.id); return sale && !sale.exchangeOnly; }), [registry, pet.inventory]);
-  const capacity = getMarketCapacity(pet), buyout = getMarketBuyoutBonus(pet);
+  const capacity = getMarketCapacity(pet), buyout = getMarketBuyoutBonus(pet), traffic = getMarketTrafficBonus(pet);
   const occupied = m.listings.length, room = Math.max(0, capacity - occupied);
   const stock = m.listings.reduce((n, listing) => n + listing.quantity, 0);
   const visitorQuantity = visitor?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
@@ -59,7 +59,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
       <div className="community-production-view"><CommunityMarketArt market={m} iconFor={icon} nameFor={name} visitor={visitor} />
         <div className="community-market-announcement" role="status" aria-live="polite">{visitor && <span data-generous={visitor.customer === 'generous'}><b>{visitor.buyout ? '全部买下！' : customerNames[visitor.customer]}</b>{visitor.buyout ? '慷慨游客包场，货架售空' : `带走 ${visitorQuantity} 份好东西`}<small>+{visitor.coins} 金币</small></span>}</div>
         <div className="community-harvest-sign"><Store size={18} /><span>{occupied ? `货架 ${occupied}/${capacity} 格 · 共 ${stock} 份` : '货架空着，挑一点收获摆上来'}</span></div></div>
-      <footer className="community-production-footer"><div className="community-production-caption"><span>本次摆摊收入 {m.sessionRevenue} 金币</span><span>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 份</span><span>{m.open ? '低价货成交快，高价货慢慢卖，偶尔还有慷慨大单' : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
+      <footer className="community-production-footer"><div className="community-production-caption"><span>本次摆摊收入 {m.sessionRevenue} 金币</span><span>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 份</span><span>{m.open ? `基础 2–6 分钟一位 · 装饰客流 +${traffic.total}% · 偶尔还有慷慨大单` : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
         <button type="button" className="primary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('stock')}><PackagePlus size={20} />手动上架</button>
         <button type="button" className="secondary-button" disabled={!m.level} onClick={() => update(p => setCommunityMarketOpen(p, !m.open))}><Store size={20} />{m.open ? '收摊休息' : '开店营业'}</button>
         <button type="button" className="secondary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('construction')}><Hammer size={20} />建设</button>
@@ -78,6 +78,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
         const listing = m.listings.find(listing => listing.slotIndex === slotIndex);
         return <article key={slotIndex} data-slot={slotIndex}><small>第 {slotIndex + 1} 格</small>{listing ? <><img src={icon(listing.itemId)} alt="" /><strong>{name(listing.itemId)} ×{listing.quantity}</strong><small>{listing.unitPrice} 金币／份{listing.collector ? ' · 收藏品' : ''}</small><button className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, listing.id))}>下架剩余</button></> : <strong>空栏位</strong>}</article>;
       })}</div>
+      <p>客流 +{traffic.total}% · 铭牌 +{traffic.sign}% · 叶影灯 +{traffic.lantern}% · 水景 +{traffic.fountain}%</p>
       <p>包场机会加成 +{buyout.total}% · 烹饪 +{buyout.cooking}% · 鎏金社区铭牌 +{buyout.decoration}%</p>
       <button type="button" className="secondary-button" aria-haspopup="dialog" onClick={() => setPanel('construction')}>货架建设与扩建</button>
       <div className="help-heading"><HelpButton {...marketHelp} /><button className="text-button" onClick={onShop}>去商店补充用品</button></div>

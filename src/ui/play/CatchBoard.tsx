@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react';
-import type { MiniGameSession } from '../../core/companionActivityTypes';
+import type { LegacyMiniGameSession } from '../../core/companionActivityTypes';
 import { activityText as L } from '../../core/kitchenRecipes';
 import { catchFlightMs, getCatchPetX, type MiniGameAction } from '../../core/miniGames';
 import type { MiniGameFeedback } from './miniGameFeedback';
@@ -11,7 +11,7 @@ export const getSwipeThrowTarget = (start: Point, end: Point) => {
 };
 
 export const CatchBoard = ({ session, portrait, ballImage, now, feedback, onAct }: {
-  session: MiniGameSession; portrait: string; ballImage: string; now: number; feedback?: MiniGameFeedback; onAct: (action: MiniGameAction) => void;
+  session: LegacyMiniGameSession; portrait: string; ballImage: string; now: number; feedback?: MiniGameFeedback; onAct: (action: MiniGameAction) => void;
 }) => {
   const scene = useRef<HTMLDivElement>(null);
   const pointer = useRef<{ id: number; start: Point }>();

@@ -16,6 +16,7 @@ export const subscribeNativeSave = (listener: (error: string) => void) => {
   listener(failure);
   return () => { listeners.delete(listener); };
 };
+export const getNativeSaveError = () => failure;
 export const readNativeSaves = async (): Promise<{ files: string[]; warnings: string[] }> => {
   if (!isNativeApp()) return { files: [], warnings: [] };
   const { invoke } = await import('@tauri-apps/api/core');

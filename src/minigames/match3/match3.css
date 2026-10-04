@@ -1,0 +1,51 @@
+.mg-root .game-icon-match3 { color: #a18eac; background: #f0e7ee; }
+.mg-root .match3-table { position: relative; padding: 24px 25px 17px; border-top: 1px solid #e8e1cf; border-bottom: 1px solid #e8e1cf; background: #f3eedc; background-image: var(--table-art); background-size: 100% 100%; }
+.mg-root .match3-board-wrap { position: relative; max-width: 412px; margin: 0 auto; padding: 8px; border: 2px solid #c7c6aa; border-radius: 19px; background: #eeebd8; box-shadow: 0 4px 0 #cfcaad; }
+.mg-root .match3-board { position: relative; height: 0; padding-bottom: 100%; overflow: hidden; border-radius: 11px; background: #d9dbc5; touch-action: none; }
+.mg-root .match3-grid { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.mg-root .match3-cell { position: absolute; display: block; padding: 0; background: transparent; border: 0; border-radius: 9px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mg-root .match3-cell:before { content: ''; position: absolute; top: 3px; right: 3px; bottom: 3px; left: 3px; border-radius: 9px; background: #e9e8d6; }
+.mg-root .match3-token { position: absolute; display: block; width: 100%; height: 100%; left: 0; top: 0; padding: 3px; pointer-events: none; }
+.mg-root .match3-face { position: relative; display: block; width: 100%; height: 100%; border: 1px solid #d2cbb7; border-radius: 10px; background: #fffaf0; box-shadow: 0 2px 0 #bfb599; }
+.mg-root .match3-face img { position: absolute; left: 5%; top: 5%; width: 90%; height: 90%; object-fit: contain; pointer-events: none; }
+.mg-root .match3-cell.selected .match3-face { border: 2px solid #819b68; background: #edf2dc; box-shadow: 0 0 0 2px #b4c69a; }
+.mg-root .match3-cell.hinted .match3-face { border: 2px dashed #bc9857; background: #fff0ca; }
+.mg-root .match3-cell:focus { z-index: 3; outline-offset: -1px; }
+.mg-root .match3-cell.moving { z-index: 2; }
+.mg-root .match3-token.arriving { animation: mg-match3-arrive .27s cubic-bezier(.2,.65,.3,1) both; }
+.mg-root .match3-token.clearing { animation: mg-match3-clear .24s ease-in both; }
+.mg-root .match3-token.shuffled { animation: mg-match3-shuffle .3s ease-out both; }
+.mg-root .match3-points { position: absolute; left: 0; right: 0; top: 34%; z-index: 4; text-align: center; color: #607d50; pointer-events: none; text-shadow: 0 2px 0 #fffdf3, 0 -2px 0 #fffdf3, 2px 0 0 #fffdf3, -2px 0 0 #fffdf3; animation: mg-match3-points .24s ease-out both; }
+.mg-root .match3-points span { display: block; font-size: 14px; font-weight: 700; }
+.mg-root .match3-points strong { display: block; font-size: 33px; line-height: 1.2; }
+.mg-root .match3-message { min-height: 39px; max-width: 420px; margin: 17px auto 0; color: #8a806b; text-align: center; font-size: 11px; line-height: 1.8; }
+.mg-root .match3-collection { display: flex; justify-content: center; color: #ab9c81; font-size: 10px; margin-top: 5px; }
+.mg-root .match3-collection span + span { margin-left: 25px; }
+.mg-root .match3-collection b { font-weight: 600; color: #8e9d77; }
+.mg-root .match3-caption { margin: -5px 15px 18px; text-align: center; font-size: 10px; color: #b0a38d; }
+.mg-root .match3-end { border-radius: 16px; }
+.mg-root .match3-final-score { font-size: 36px; font-weight: 750; color: #859564; margin: 5px 0 12px; }
+.mg-root .match3-final-score small { font-size: 12px; font-weight: 400; }
+@keyframes mg-match3-arrive { from { transform: translate(var(--match3-x), var(--match3-y)); } to { transform: translate(0, 0); } }
+@keyframes mg-match3-clear { 35% { transform: scale(1.08); } to { transform: scale(.2); opacity: 0; } }
+@keyframes mg-match3-shuffle { from { opacity: .25; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes mg-match3-points { from { opacity: .5; transform: translateY(5px); } to { opacity: 1; transform: translateY(-8px); } }
+@media(max-width:570px) {
+  .mg-root .match3-table { padding: 18px 15px 15px; }
+  .mg-root .match3-board-wrap { padding: 6px; border-radius: 15px; }
+  .mg-root .match3-token { padding: 2px; }
+  .mg-root .match3-face { border-radius: 8px; }
+  .mg-root .match3-cell:before { top: 2px; right: 2px; bottom: 2px; left: 2px; border-radius: 8px; }
+  .mg-root .match3-caption { font-size: 9px; }
+}
+@media(max-width:350px) {
+  .mg-root .match3-table { padding-left: 10px; padding-right: 10px; }
+  .mg-root .match3-board-wrap { padding: 5px; }
+  .mg-root .match3-token { padding: 1px; }
+  .mg-root .match3-face { border-radius: 6px; }
+  .mg-root .match3-message { font-size: 10px; }
+  .mg-root .match3-end { padding: 12px; }
+  .mg-root .match3-end .win-card { padding: 17px 12px; }
+  .mg-root .match3-end .win-card h3 { font-size: 18px; }
+  .mg-root .match3-final-score { font-size: 28px; margin: 0 0 6px; }
+}

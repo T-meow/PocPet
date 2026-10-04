@@ -97,7 +97,7 @@ export const HomePageV2 = (props: Props) => {
         <div className="home-quick-grid home-services-grid home-services-grid--music">
           <button className="home-quick play" disabled={playLocked || Boolean(pet.adventure.active)} onClick={onOpenPlay}>
             {playLocked ? <LockKeyhole /> : <Gamepad2 />}<strong>{!playLocked && activeGame ? L('继续游戏', 'Continue game') : L('一起游戏', 'Games together')}</strong>
-            <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : L('翻牌、接球，或吹一会儿泡泡', 'Cards, catch, or a few bubbles')}</small>
+            <small>{playLocked ? L(`Lv.${miniGameUnlockLevel} 解锁`, `Unlocks at Lv.${miniGameUnlockLevel}`) : activeGame ? L(`${gameName(activeGame.game)} · 上次的进度还在`, `${gameName(activeGame.game)} · right where we left off`) : '方块、彩瓶、水果、三消，轻松玩一会儿'}</small>
           </button>
           <button className="home-quick schedule" onClick={onOpenPartnerSchedule}>
             <CalendarDays /><strong>{L('社区工作', 'Community work')}</strong><small>{pet.partnerSchedule.pendingResult ? L('报酬待领取', 'Rewards are ready') : pet.partnerSchedule.active ? L('正在帮忙', 'Lending a hand') : L('快速工作与邻里事务', 'Quick work and local requests')}</small>

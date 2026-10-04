@@ -284,6 +284,7 @@ export {
   linearUpgradeHeartBaseCost,
   linearUpgradeHeartCostPerLevel,
   linearUpgradeHeartStartLevel,
+  quadraticUpgradeHeartCostPerLevel,
   lowCleanlinessSleepConfirmClicks,
   lowCleanlinessSleepMoodPenalty,
   lowCleanlinessSleepWarningThreshold,

@@ -1,5 +1,6 @@
 import { getDailyResetDateKey, getWeekStartDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import type { PetState, TimeGuardState } from './petTypes';
+import { isHostedMiniGameSession } from './companionActivityTypes';
 
 export const timeGuardSchemaVersion = 1 as const;
 export const severeClockRollbackThresholdMs = 36 * 60 * 60 * 1000;
@@ -227,7 +228,12 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
         nextVisitAt: pet.community.market.nextVisitAt === undefined ? undefined : shiftTimestamp(pet.community.market.nextVisitAt, offsetMs),
       } : pet.community.market,
     } : pet.community,
-    miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: preserveSessions ? {
+    miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: isHostedMiniGameSession(pet.miniGames.active) ? {
+      ...pet.miniGames.active,
+      startedAt: preserveSessions ? shiftTimestamp(pet.miniGames.active.startedAt, offsetMs) : pet.miniGames.active.startedAt,
+      lastTickAt: preserveSessions ? shiftTimestamp(pet.miniGames.active.lastTickAt, offsetMs) : 0,
+      paused: preserveSessions ? pet.miniGames.active.paused : true,
+    } : preserveSessions ? {
       ...pet.miniGames.active,
       startedAt: shiftTimestamp(pet.miniGames.active.startedAt, offsetMs),
       lastTickAt: shiftTimestamp(pet.miniGames.active.lastTickAt, offsetMs),

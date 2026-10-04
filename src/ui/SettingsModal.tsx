@@ -23,6 +23,8 @@ import type { Appearance } from './appearance';
 import type { PetState } from '../core/pet';
 import { activityText as L } from '../core/kitchenRecipes';
 import { Palette, Settings, Volume2, VolumeX, Save, Image, Info } from 'lucide-react';
+import { NotificationSettings } from './NotificationSettings';
+import type { SystemNotificationController } from './app/useSystemNotifications';
 
 interface SettingsModalProps {
   pet: PetState;
@@ -31,6 +33,7 @@ interface SettingsModalProps {
   onAppearanceChange: (value: Appearance) => void;
   isAudioEnabled: boolean;
   onAudioToggle: () => void;
+  notificationController: SystemNotificationController;
   onPauseTime?: () => void;
   pauseTimeDisabled?: boolean;
   updateController: ClientUpdateController;
@@ -102,7 +105,7 @@ export type SettingsPage = 'main' | 'mod' | 'save' | 'share' | 'updates' | 'appe
 const birthdayMonths = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export const SettingsModal = ({
-  pet, portrait, appearance, onAppearanceChange, isAudioEnabled, onAudioToggle, onPauseTime, pauseTimeDisabled,
+  pet, portrait, appearance, onAppearanceChange, isAudioEnabled, onAudioToggle, notificationController, onPauseTime, pauseTimeDisabled,
   updateController,
   backupController, onRestoreBackup, onExportBackup, onCopySave,
   onShareSaveFile, isSharingSaveFile,
@@ -278,6 +281,7 @@ export const SettingsModal = ({
                 </span>
               </button>
               <button className="settings-toggle-row" role="switch" aria-checked={isAudioEnabled} onClick={onAudioToggle}><span>{L('声音', 'Sounds')}</span>{isAudioEnabled ? <Volume2 /> : <VolumeX />}</button>
+              <NotificationSettings controller={notificationController} />
               <section className="time-pause-setting"><div><strong>冻结时间</strong><p>暂时无法照顾时，暂停宠物属性、农场、工作与全部计时。先备份存档，再安心离开。</p></div><button type="button" className="secondary-button" disabled={pauseTimeDisabled || !onPauseTime} onClick={onPauseTime}>备份并冻结</button></section>
             </>
           )}

@@ -1,5 +1,8 @@
 mod backup;
 mod updates;
+mod background;
+#[cfg(windows)]
+mod windows_notifications;
 
 #[tauri::command]
 fn get_client_update_target() -> serde_json::Value {
@@ -16,7 +19,12 @@ pub fn run() {
       .build(),
   );
   builder
-    .invoke_handler(tauri::generate_handler![backup::read_backup_files, backup::read_backup_latest, backup::write_backup_files, backup::read_recent_saves, backup::write_recent_save, get_client_update_target, updates::read_client_update_json])
+    .invoke_handler(tauri::generate_handler![backup::read_backup_files, backup::read_backup_latest, backup::write_backup_files, backup::read_recent_saves, backup::write_recent_save, get_client_update_target, updates::read_client_update_json, background::background_command])
+    .plugin(background::init())
+    .on_window_event(|_window, _event| {
+      #[cfg(windows)]
+      if matches!(_event, tauri::WindowEvent::Destroyed) { windows_notifications::shutdown(); }
+    })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_opener::init())
