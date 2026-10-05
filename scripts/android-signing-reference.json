@@ -3,6 +3,13 @@
   "applicationId": "com.frostforge.pocpet",
   "aarch64": "E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285",
   "armv7": "E375653D29A6738BC45B1EF34B6B1B6BD86DDA66C53D751DDEE3683ACECCD285",
+  "production": {
+    "since": "2.2.5",
+    "alias": "android-release",
+    "subject": "FrostForge 工作室",
+    "sha256": "5DF78BFF1A144F9D103ED93531815C7CD92601C5948121D9E9BA494D859347FE",
+    "requiresBackupAndReinstallFromDebug": true
+  },
   "legacy": {
     "release": "v1.5.0",
     "aarch64": "1651B4C4E45A366D89E03D47F91367C2B29088B2B804B7ACF998F77FEE683C9B",

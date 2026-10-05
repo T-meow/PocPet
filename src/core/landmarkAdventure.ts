@@ -9,6 +9,7 @@ import { earnExplorationHarvestPay, getExplorationBudget, recordValleyObservatio
 import { completedChapter, completedLandmark, expeditionRegionForMap, isLandmarkId, parseLandmarkId } from './landmarkProgress';
 import { getLandmarkSteps, landmarkFirstReward } from './landmarkData';
 import { completeValleyQuest, isValleyQuest } from './valleyQuests';
+import { unlockCompletedFishingWaters } from './fishingState';
 import { discoverCommunityFinds } from './community';
 import { recordLandmarkTaskEvent } from './communityCommissions';
 import { wildIngredients } from './foodCatalog';
@@ -35,10 +36,9 @@ export const completeLandmarkStory = (pet: PetState, trip: AdventureTrip, now: n
   if (region === 'valley' && isValleyQuest(quest)) next = completeValleyQuest(next, quest);
   if (completedChapter(next.adventure, region)) {
     const expedition = next.community.expedition;
-    next = { ...next, community: { ...next.community, expedition: { ...expedition, regions: { ...expedition.regions, [r]: { ...expedition.regions[r], surveyed: true, storyAt: now, actorId: trip.actorId, actorName: trip.actorName } } },
-      ...(region === 'forest' || region === 'coast' ? { waterAccess: { ...next.community.waterAccess, [region === 'forest' ? 'forest_pool' : 'coast_pier']: { ...next.community.waterAccess[region === 'forest' ? 'forest_pool' : 'coast_pier'], found: true } } } : {}) } };
+    next = { ...next, community: { ...next.community, expedition: { ...expedition, regions: { ...expedition.regions, [r]: { ...expedition.regions[r], surveyed: true, storyAt: now, actorId: trip.actorId, actorName: trip.actorName } } } } };
   }
-  return { pet: next, first, items: landmarkFirstReward(trip.purpose, trip.rulesVersion < 11).items };
+  return { pet: { ...next, community: unlockCompletedFishingWaters(next.community, next.adventure) }, first, items: landmarkFirstReward(trip.purpose, trip.rulesVersion < 11).items };
 };
 export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, choice: AdventureChoice, index: number, now: number): PetState => {
   if (!isLandmarkId(trip.purpose)) return pet;

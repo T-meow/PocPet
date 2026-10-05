@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ChevronRight, Crown, Fish, Settings2, Utensils, X, Zap } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Crown, Fish, Settings2, ShoppingBag, Utensils, X, Zap } from 'lucide-react';
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
 import { getFishingHelp } from '../help/fishingHelp';
@@ -7,11 +7,12 @@ import { isKitchenMaterial } from '../itemBrowse';
 import { FishingSceneArt, type FishingScenePhase } from './FishingSceneArt';
 import type { CommunityPanelProps } from './types';
 import type { ItemId } from '../../core/petTypes';
-import type { FishId, FishingCatch, WaterId } from '../../core/communityTypes';
+import type { FishId, FishingCatch, FishingPreferences, WaterId } from '../../core/communityTypes';
 import { fish, fishIds, isWaterOpen, waterIds, waters } from '../../core/communityData';
 import { actCommunityFishing, cancelCommunityFishing, claimCommunityFish, getFishingWaitMs, getManualFishingReason, quoteIdleFishing, startCommunityFishing, startIdleFishing } from '../../core/communityFishing';
 import { getFishingLevelEffects } from '../../core/communityUpgradeData';
 import { getFishCrownThreshold, getFishingClicks, getFishingHeartReward } from '../../core/fishingRules';
+import { getFishingPreferences, rememberFishingPreferences } from '../../core/fishingState';
 import { getInventoryItem } from '../../core/items';
 import { isTravelFood, standardRationPrice, type RationSelection } from '../../core/explorationRations';
 import { toolDurabilityLabel } from '../../core/toolDurability';
@@ -27,15 +28,21 @@ const countFish = (catches: readonly FishingCatch[], previous: Partial<Record<Fi
   return counts;
 };
 
-export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClose, onShop, onManage, initialWater = 'pond', itemIconMap }: CommunityPanelProps & {
+export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClose, onShop, onManage, initialWater, itemIconMap }: CommunityPanelProps & {
   portrait: string; actorId: string; actorName: string; onClose: () => void; onManage: () => void; initialWater?: WaterId;
 }) => {
-  const [water, setWater] = useState(initialWater), [bait, setBait] = useState<'fishing_bait' | 'river_bait'>('fishing_bait');
-  const [strong, setStrong] = useState(pet.community.fishing.active?.strongRod ?? !(pet.inventory.fishing_rod ?? 0));
-  const [float, setFloat] = useState(false), [net, setNet] = useState(false);
-  const [mode, setMode] = useState<'manual' | 'idle'>(pet.community.fishing.active?.mode ?? pet.community.fishing.pending?.mode ?? 'manual'), [hours, setHours] = useState(2);
+  const [preferences, setPreferences] = useState<FishingPreferences>(() => {
+    const saved = getFishingPreferences(pet), water = initialWater ?? saved.water;
+    return { ...saved, water: isWaterOpen(pet, water) ? water : 'pond' };
+  });
+  const { water, bait, strongRod: strong, float, net, mode, hours, rations } = preferences;
+  const changePreferences = (changes: Partial<FishingPreferences>) => {
+    const next = { ...preferences, ...changes };
+    setPreferences(next);
+    update(p => rememberFishingPreferences(p, next));
+  };
+  const setRations = (rations: RationSelection) => changePreferences({ rations });
   const [view, setView] = useState<'scene' | 'gear' | 'food'>('scene');
-  const [rations, setRations] = useState<RationSelection>({ food: {}, autoFill: true });
   const [, tick] = useState(0), { active, pending } = pet.community.fishing;
   const [manualHaul, setManualHaul] = useState(() => ({
     lastId: pending?.mode === 'manual' ? pending.id : '',
@@ -56,13 +63,13 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
   const selectedRod = (active?.strongRod ?? strong) ? 'reinforced_rod' : 'fishing_rod';
   const phase: FishingScenePhase = pending ? 'caught' : idle ? 'idle' : manual ? biting ? manual.clicks ? 'reeling' : 'biting' : 'waiting' : 'ready';
   const icon = (id: string) => itemIconMap?.[id] ?? communityItemIcons[id as keyof typeof communityItemIcons];
-  const foodIds = Object.keys(pet.inventory).filter(id => pet.inventory[id] > 0 && isTravelFood(id) && !isKitchenMaterial(getInventoryItem(id as ItemId))).sort((a, b) => (getInventoryItem(a as ItemId)?.name ?? a).localeCompare(getInventoryItem(b as ItemId)?.name ?? b, 'zh-CN'));
-  const changeFood = (id: string, delta: number) => setRations(current => {
-    const food = { ...current.food }, count = (food[id] ?? 0) + delta;
-    if (count < 0 || count > (pet.inventory[id] ?? 0) || delta > 0 && Object.values(food).reduce((n, value) => n + value, 0) >= quote.food.maximum) return current;
+  const foodIds = [...new Set([...Object.keys(pet.inventory), ...Object.keys(rations.food)])].filter(id => ((pet.inventory[id] ?? 0) > 0 || rations.food[id] > 0) && isTravelFood(id) && !isKitchenMaterial(getInventoryItem(id as ItemId))).sort((a, b) => (getInventoryItem(a as ItemId)?.name ?? a).localeCompare(getInventoryItem(b as ItemId)?.name ?? b, 'zh-CN'));
+  const changeFood = (id: string, delta: number) => {
+    const food = { ...rations.food }, count = (food[id] ?? 0) + delta;
+    if (count < 0 || delta > 0 && (count > (pet.inventory[id] ?? 0) || Object.values(food).reduce((n, value) => n + value, 0) >= quote.food.maximum)) return;
     if (count) food[id] = count; else delete food[id];
-    return { ...current, food };
-  });
+    setRations({ ...rations, food });
+  };
   const catches = pending ? fishIds.filter(id => pending.catches.some(c => c.fish === id)).map(id => {
     const all = pending.catches.filter(c => c.fish === id);
     return { fish: id, count: pending.items[id] ?? 0, size: Math.max(...all.map(c => c.size)), crown: all.some(c => c.newCrown), record: all.some(c => c.newRecord) };
@@ -70,7 +77,10 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
   const haulCounts = (active?.mode ?? pending?.mode ?? mode) === 'manual' ? manualHaul.counts : countFish(idle?.catches ?? pending?.catches ?? []);
   const haul = fishIds.filter(id => (haulCounts[id] ?? 0) > 0);
   const haulTotal = haul.reduce((total, id) => total + (haulCounts[id] ?? 0), 0);
-  const start = () => update(p => mode === 'manual' ? startCommunityFishing(p, water, bait, strong, Date.now(), gear) : startIdleFishing(p, water, bait, strong, hours, actorId, actorName, rations));
+  const start = () => update(p => {
+    p = rememberFishingPreferences(p, preferences);
+    return mode === 'manual' ? startCommunityFishing(p, water, bait, strong, Date.now(), gear) : startIdleFishing(p, water, bait, strong, hours, actorId, actorName, rations);
+  });
   const action = pending ? () => update(p => claimCommunityFish(p, pending.id)) : idle ? () => update(p => cancelCommunityFishing(p, idle.id)) : manual ? () => update(p => actCommunityFishing(p, manual.id, manual.revision, 'reel')) : start;
   const button = pending ? `收下鱼获 · ${getFishingHeartReward(pending.items)} 心心` : idle ? '提前返回' : manual ? biting ? `收线 · 还需 ${manual.requiredClicks - manual.clicks} 次` : '等鱼上钩' : mode === 'idle' ? '去钓鱼' : '抛竿';
   const disabled = frozen || (pending ? !canSpendCompanionTime(pet) : idle ? false : manual ? !biting : Boolean(reason));
@@ -81,23 +91,27 @@ export const FishingDialog = ({ pet, update, portrait, actorId, actorName, onClo
     {settingsOpen ? <div key={view} className="fishing-settings">
       <button className="fishing-back" onClick={() => setView('scene')}><ArrowLeft size={18} />回到水边</button>
       {view === 'gear' ? <>
-        <h3>今天去哪里</h3><div className="fishing-choice-grid">{waterIds.map(id => <button key={id} disabled={!isWaterOpen(pet, id)} aria-pressed={water === id} onClick={() => setWater(id)}><Fish size={21} /><strong>{waters[id].name}</strong><small>{isWaterOpen(pet, id) ? `${fishIds.filter(f => fish[f].water === id).length} 种鱼` : '待开放'}</small></button>)}</div>
-        <h3>鱼饵与钓竿</h3><div className="fishing-choice-grid">{(['fishing_bait', 'river_bait'] as const).map(id => <button key={id} disabled={id === 'river_bait' && !pet.community.facilities.upstream.built} aria-pressed={bait === id} onClick={() => setBait(id)}><img src={icon(id)} alt="" /><strong>{getInventoryItem(id)?.name}</strong><small>持有 {pet.inventory[id] ?? 0}</small></button>)}{(['fishing_rod', 'reinforced_rod'] as const).map(id => <button key={id} aria-pressed={strong === (id === 'reinforced_rod')} onClick={() => setStrong(id === 'reinforced_rod')}><img src={icon(id)} alt="" /><strong>{getInventoryItem(id)?.name}</strong><small>{toolDurabilityLabel(pet, id)}</small></button>)}</div>
-        {mode === 'manual' && <><h3>可选附件</h3><div className="fishing-choice-grid"><button aria-pressed={float} onClick={() => setFloat(!float)}><img src={icon('fishing_float')} alt="" /><strong>醒目浮漂</strong><small>等待缩短 2 秒 · {toolDurabilityLabel(pet, 'fishing_float')}</small></button><button aria-pressed={net} onClick={() => setNet(!net)}><img src={icon('landing_net')} alt="" /><strong>轻便抄网</strong><small>收线少点一次 · {toolDurabilityLabel(pet, 'landing_net')}</small></button></div><p className="fishing-note">当前等待约 {Math.round(getFishingWaitMs(pet, float) / 1000)} 秒，收线 {getFishingClicks(strong, net)} 次。</p></>}
+        <p className="fishing-note">选择会自动记住，下次打开或重新进入游戏时沿用；物资不足时补充后即可继续使用。</p>
+        <h3>今天去哪里</h3><div className="fishing-choice-grid">{waterIds.map(id => <button key={id} disabled={!isWaterOpen(pet, id)} aria-pressed={water === id} onClick={() => changePreferences({ water: id })}><Fish size={21} /><strong>{waters[id].name}</strong><small>{isWaterOpen(pet, id) ? `${fishIds.filter(f => fish[f].water === id).length} 种鱼 · 已开放` : waters[id].discovery}</small></button>)}</div>
+        <h3>鱼饵与钓竿</h3><div className="fishing-choice-grid">{(['fishing_bait', 'river_bait'] as const).map(id => <button key={id} disabled={id === 'river_bait' && !pet.community.facilities.upstream.built} aria-pressed={bait === id} onClick={() => changePreferences({ bait: id })}><img src={icon(id)} alt="" /><strong>{getInventoryItem(id)?.name}</strong><small>持有 {pet.inventory[id] ?? 0}</small></button>)}{(['fishing_rod', 'reinforced_rod'] as const).map(id => <button key={id} aria-pressed={strong === (id === 'reinforced_rod')} onClick={() => changePreferences({ strongRod: id === 'reinforced_rod' })}><img src={icon(id)} alt="" /><strong>{getInventoryItem(id)?.name}</strong><small>{toolDurabilityLabel(pet, id)}</small></button>)}</div>
+        {mode === 'manual' && <><h3>可选附件</h3><div className="fishing-choice-grid"><button aria-pressed={float} onClick={() => changePreferences({ float: !float })}><img src={icon('fishing_float')} alt="" /><strong>醒目浮漂</strong><small>等待缩短 2 秒 · {toolDurabilityLabel(pet, 'fishing_float')}</small></button><button aria-pressed={net} onClick={() => changePreferences({ net: !net })}><img src={icon('landing_net')} alt="" /><strong>轻便抄网</strong><small>收线少点一次 · {toolDurabilityLabel(pet, 'landing_net')}</small></button></div><p className="fishing-note">当前等待约 {Math.round(getFishingWaitMs(pet, float) / 1000)} 秒，收线 {getFishingClicks(strong, net)} 次。</p></>}
         <div className="fishing-settings-links"><button onClick={onShop}>补充钓具和鱼饵</button><button onClick={onManage}>小屋建设与水域开放</button></div>
       </> : <>
         <h3>带一点好吃的</h3><p className="fishing-note">{hours} 小时 · {quote.food.reason || '食物已备齐'} · {quote.food.count}/{quote.food.maximum} 份</p>
         <label className="fishing-autofill"><input type="checkbox" checked={rations.autoFill} onChange={e => setRations({ ...rations, autoFill: e.target.checked })} /><span>自动补给 · {standardRationPrice} 金币／份</span></label><p className="fishing-note">自动补足 {quote.food.purchased} 份，共 {quote.food.coins} 金币。</p>
-        <div className="fishing-food-list">{foodIds.map(id => <div key={id}>{icon(id) && <img src={icon(id)} alt="" />}<span><strong>{getInventoryItem(id as ItemId)?.name}</strong><small>饱食 {getInventoryItem(id as ItemId)?.effect.hunger} · 持有 {pet.inventory[id]}</small></span><button aria-label={`少带一份${getInventoryItem(id as ItemId)?.name}`} disabled={!rations.food[id]} onClick={() => changeFood(id, -1)}>−</button><output>{rations.food[id] ?? 0}</output><button aria-label={`多带一份${getInventoryItem(id as ItemId)?.name}`} disabled={(rations.food[id] ?? 0) >= pet.inventory[id] || Object.values(rations.food).reduce((n, v) => n + v, 0) >= quote.food.maximum} onClick={() => changeFood(id, 1)}>＋</button></div>)}</div>
+        <div className="fishing-food-list">{foodIds.map(id => <div key={id}>{icon(id) && <img src={icon(id)} alt="" />}<span><strong>{getInventoryItem(id as ItemId)?.name}</strong><small>饱食 {getInventoryItem(id as ItemId)?.effect.hunger} · 持有 {pet.inventory[id] ?? 0}</small></span><button aria-label={`少带一份${getInventoryItem(id as ItemId)?.name}`} disabled={!rations.food[id]} onClick={() => changeFood(id, -1)}>−</button><output>{rations.food[id] ?? 0}</output><button aria-label={`多带一份${getInventoryItem(id as ItemId)?.name}`} disabled={(rations.food[id] ?? 0) >= (pet.inventory[id] ?? 0) || Object.values(rations.food).reduce((n, v) => n + v, 0) >= quote.food.maximum} onClick={() => changeFood(id, 1)}>＋</button></div>)}</div>
         {!foodIds.length && <p className="fishing-note">仓库还没有适用食物，可以自动补给或去商店补充。</p>}
         <p className="fishing-note">提前返回不退食物和补给费。</p>
         <button className="fishing-text-button" onClick={onShop}>去商店补充食物</button>
       </>}
     </div> : <div key="scene" className="fishing-play">
-      {preparing && <div className="fishing-toolbar"><div className="fishing-mode" role="group" aria-label="钓鱼方式"><button aria-pressed={mode === 'manual'} onClick={() => setMode('manual')}>手动</button><button aria-pressed={mode === 'idle'} onClick={() => setMode('idle')}>挂机</button></div><button className="fishing-text-button" onClick={() => setView('gear')}><Settings2 size={16} />换水域／钓具</button></div>}
+      {preparing && <>
+        <div className="fishing-toolbar"><div className="fishing-mode" role="group" aria-label="钓鱼方式"><button aria-pressed={mode === 'manual'} onClick={() => changePreferences({ mode: 'manual' })}>手动钓鱼</button><button aria-pressed={mode === 'idle'} onClick={() => changePreferences({ mode: 'idle' })}>挂机钓鱼</button></div><button className="fishing-supply-button" onClick={onShop}><ShoppingBag size={18} />补充钓具鱼饵</button></div>
+        <button className="fishing-setup-entry" onClick={() => setView('gear')}><Settings2 size={24} /><span><strong>切换水域 · 配置钓具鱼饵</strong><small>{waters[water].name} · {getInventoryItem(bait)?.name} · {getInventoryItem(strong ? 'reinforced_rod' : 'fishing_rod')?.name}</small><small>{mode === 'manual' ? [float && '醒目浮漂', net && '轻便抄网'].filter(Boolean).join(' · ') || '未选附件' : '附件仅用于手动钓鱼'} · 自动记住配置</small></span><ChevronRight size={20} /></button>
+      </>}
       <div className="fishing-picture"><FishingSceneArt water={selectedWater} portrait={portrait} name={actorName} phase={phase} rodIcon={icon(selectedRod)} reelTick={manual?.clicks} />{pending?.mode === 'manual' && catches[0] && <div className="fishing-catch-hero"><img src={icon(catches[0].fish)} alt={fish[catches[0].fish].name} />{catches[0].crown && <span><Crown size={16} />首次金冠</span>}</div>}</div>
       {pending && <div className="fishing-catch-list">{catches.map(c => <div key={c.fish}>{pending.mode === 'idle' && <img src={icon(c.fish)} alt="" />}<span><strong>{fish[c.fish].name}{pending.mode === 'idle' && ` ×${c.count}`}</strong><small>{c.size} 厘米{!c.count ? ' · 已收好' : ''}</small></span>{c.crown ? <b className="fishing-gold"><Crown size={16} />新金冠</b> : c.record ? <b className="fishing-record">新纪录</b> : c.size > getFishCrownThreshold(c.fish as FishId) ? <Crown className="fishing-gold" size={19} aria-label="金冠尺寸" /> : null}</div>)}{(['fishing_bait', 'river_bait'] as const).map(id => pending.items[id] ? <p key={id} className="fishing-note">退回{getInventoryItem(id)?.name} ×{pending.items[id]}</p> : null)}{pending.rationReturn && <details className="fishing-note"><summary>剩余食物的去向</summary>{rationReturnLines(pending.rationReturn).map(line => <p key={line}>{line}</p>)}</details>}</div>}
-      {preparing && mode === 'idle' && <div className="fishing-idle-setup"><div className="fishing-durations" role="group" aria-label="挂机时长">{[2, 4, 8].map(n => <button aria-pressed={hours === n} key={n} onClick={() => setHours(n)}>{n} 小时</button>)}</div><button className="fishing-food-summary" onClick={() => setView('food')}><Utensils size={18} /><span><strong>准备食物 · {quote.food.count} 份</strong><small>自动补给 {quote.food.coins} 金币</small></span><ChevronRight size={16} /></button><label className="fishing-autofill"><input type="checkbox" checked={rations.autoFill} onChange={e => setRations({ ...rations, autoFill: e.target.checked })} /><span>自动补足食物 · {standardRationPrice} 金币／份</span></label></div>}
+      {preparing && mode === 'idle' && <div className="fishing-idle-setup"><div className="fishing-durations" role="group" aria-label="挂机时长">{([2, 4, 8] as const).map(n => <button aria-pressed={hours === n} key={n} onClick={() => changePreferences({ hours: n })}>{n} 小时</button>)}</div><button className="fishing-food-summary" onClick={() => setView('food')}><Utensils size={18} /><span><strong>准备食物 · {quote.food.count} 份</strong><small>自动补给 {quote.food.coins} 金币</small></span><ChevronRight size={16} /></button><label className="fishing-autofill"><input type="checkbox" checked={rations.autoFill} onChange={e => setRations({ ...rations, autoFill: e.target.checked })} /><span>自动补足食物 · {standardRationPrice} 金币／份</span></label></div>}
       <section className="fishing-haul" aria-label="本次鱼获">
         <div className="fishing-haul-heading"><strong>本次鱼获</strong><small>{haulTotal} 条</small></div>
         {haul.length ? <ul className="fishing-haul-icons">{haul.map(id => <li key={id} title={`${fish[id].name} ×${haulCounts[id]}`}><img src={icon(id)} alt={fish[id].name} /><span>×{haulCounts[id]}</span></li>)}</ul> : <p className="fishing-note">还没有鱼获，钓到后会显示在这里。</p>}

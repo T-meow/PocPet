@@ -21,5 +21,11 @@ export const expandedDishPresentation = Object.fromEntries(expandedRecipes.map(r
 })) as Record<`dish_${NewRecipeId}`, { container: string; rimBottom: string }>;
 type GenericDishId = `dish_${GenericRecipeId}__${string}`;
 const genericDishes = Object.values(genericRecipeVariants).flat();
-export const genericDishIcons = Object.fromEntries(genericDishes.map(recipe => [`dish_${recipe.id}__${recipe.variantKey}`, emojiIcon(recipe.glyph)])) as Record<GenericDishId, string>;
-export const genericDishPresentation = Object.fromEntries(genericDishes.map(recipe => [`dish_${recipe.id}__${recipe.variantKey}`, { container: 'emoji', rimBottom: '0%' }])) as Record<GenericDishId, { container: string; rimBottom: string }>;
+export const genericDishIcons = Object.fromEntries(genericDishes.map(recipe => {
+  const id = `dish_${recipe.id}__${recipe.variantKey}` as GenericDishId;
+  return [id, authoredIcons[id] ?? emojiIcon(recipe.glyph)];
+})) as Record<GenericDishId, string>;
+export const genericDishPresentation = Object.fromEntries(genericDishes.map(recipe => {
+  const id = `dish_${recipe.id}__${recipe.variantKey}` as GenericDishId;
+  return [id, authoredPresentation[id] ?? { container: 'emoji', rimBottom: '0%' }];
+})) as Record<GenericDishId, { container: string; rimBottom: string }>;

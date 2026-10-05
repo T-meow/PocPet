@@ -4,7 +4,7 @@ import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practi
 import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId, MilkChoice } from './companionActivityTypes';
-import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes, registeredRecipes } from './kitchenRecipes';
+import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes } from './kitchenRecipes';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
@@ -33,7 +33,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   next.starterClaimed = value.starterClaimed === true;
   const equipment = Array.isArray(value.equipment) ? value.equipment : [];
   next.equipment = cookingMethods.filter((method) => method.price === 0 || equipment.includes(method.id)).map((method) => method.id);
-  for (const recipe of registeredRecipes) {
+  for (const recipe of recipes) {
     const count = value.made?.[recipe.id];
     if (typeof count === 'number' && Number.isFinite(count) && count > 0) next.made[recipe.id] = Math.floor(count);
     const at = value.firstMadeAt?.[recipe.id];

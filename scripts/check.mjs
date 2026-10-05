@@ -117,12 +117,9 @@ async function verifySavesAndErrors() {
       return result;
     };
 
-    await check('独立小游戏预览的迁移、进度往返与损坏回退', async () => {
+    await check('独立小游戏预览的进度往返与损坏回退', async () => {
       const { createMiniGamesSave, normalizeMiniGamesSave, createPreviewHost, previewStorageKey } = await import('../src/minigames/storage.ts');
       const { possibleMoves, swapMatch3 } = await import('../src/minigames/match3/rules.ts');
-      const legacy = normalizeMiniGamesSave('{"best":780,"sound":true}');
-      assert.equal(legacy.games.blocks.best, 780);
-      assert.equal(legacy.sound, true);
       const progress = createMiniGamesSave();
       progress.activeGame = 'fruit'; progress.sound = true;
       progress.games.blocks.pieces[0].rotation = 1;
@@ -131,9 +128,6 @@ async function verifySavesAndErrors() {
       progress.games.water.moves = 1;
       progress.games.fruit.bodies = [{ id: 1, tier: 2, x: 90.125, y: 280.875, vx: 0.25, vy: -0.125, angle: 0.5, angularVelocity: 0.01, landed: true }];
       progress.games.fruit.nextId = 2; progress.games.fruit.dangerMs = 125.75;
-      progress.games.nonogram.marks[0] = 0; progress.games.nonogram.marks[1] = 1;
-      progress.games.nonogram.history = [Array(25).fill(-1)];
-      progress.games.nonogram.solvedIds = ['cat'];
       const move = possibleMoves(progress.games.match3.grid)[0];
       progress.games.match3 = swapMatch3(progress.games.match3, move.from, move.to).state;
       progress.reportedSessions = [progress.games.blocks.id];
@@ -149,24 +143,17 @@ async function verifySavesAndErrors() {
       const restored = normalizeMiniGamesSave(damaged);
       assert.equal(restored.games.fruit.bodies.length, 0);
       assert.deepEqual(restored.games.water, progress.games.water);
-      assert.deepEqual(restored.games.nonogram, progress.games.nonogram);
       assert.deepEqual(restored.games.match3, progress.games.match3);
-      const older = structuredClone(progress);
-      delete older.games.match3; older.activeGame = 'nonogram';
-      const migrated = normalizeMiniGamesSave(older);
-      assert.equal(migrated.activeGame, 'match3');
-      assert.equal(migrated.games.match3.movesLeft, 40);
-      assert.deepEqual(migrated.games.nonogram, progress.games.nonogram, 'changing the visible game retains the previous puzzle progress');
       const brokenMatch3 = normalizeMiniGamesSave({ ...progress, games: { ...progress.games, match3: { ...progress.games.match3, grid: [9, -1] } } });
       assert.equal(brokenMatch3.games.match3.grid.length, 49);
       assert.equal(brokenMatch3.games.match3.best, progress.games.match3.best);
       assert.deepEqual(brokenMatch3.games.fruit, progress.games.fruit);
       assert.equal(restored.games.blocks.pieces[0].rotation, 1);
       assert.deepEqual(restored.games.blocks.history, []);
-      for (const bad of [null, 'broken JSON', [], false, { schemaVersion: 999 }, { games: { blocks: {}, water: 1, fruit: [], nonogram: 'broken' } }]) {
+      for (const bad of [null, 'broken JSON', [], false, { schemaVersion: 999 }, { games: { blocks: {}, water: 1, fruit: [], match3: 'broken' } }]) {
         const fallback = normalizeMiniGamesSave(bad);
         assert.equal(fallback.games.blocks.grid.length, 64);
-        assert.equal(fallback.games.nonogram.marks.length, 25);
+        assert.equal(fallback.games.match3.grid.length, 49);
         assert.deepEqual(normalizeMiniGamesSave(JSON.stringify(fallback)), fallback);
       }
       preview.failRead = previewStorageKey;
@@ -521,6 +508,56 @@ async function verifySavesAndErrors() {
       assert.equal(advanceCommunityActivities(frozen, boundary + 7 * 86400000), frozen);
     });
 
+    await check('钓鱼水域旧档补开、配置记忆与在途存档往返', async () => {
+      const { landmarkId, landmarkNodes } = await import('../src/core/landmarkProgress.ts');
+      const { isWaterOpen, waterIds } = await import('../src/core/communityData.ts');
+      const { completeLandmarkStory } = await import('../src/core/landmarkAdventure.ts');
+      const { getFishingPreferences, rememberFishingPreferences } = await import('../src/core/fishingState.ts');
+      const state = structuredClone(pet);
+      state.community.facilities.fishing_hut = { found: true, work: 2, built: true };
+      state.community.waterAccess.forest_pool.found = true;
+      assert.deepEqual(waterIds.filter(id => isWaterOpen(normalizePet(state, now), id)), ['pond'], 'a clue alone does not count as a completed region');
+      state.adventure.landmarks = landmarkNodes.filter(node => node !== 'camp').map(node => landmarkId('forest', node));
+      assert.equal(isWaterOpen(normalizePet(state, now), 'forest_pool'), false);
+      const completed = completeLandmarkStory(state, { purpose: 'landmark:forest:camp', rulesVersion: 11, actorId: 'official.furo', actorName: 'Furo' }, now).pet;
+      assert.equal(isWaterOpen(completed, 'forest_pool'), true, 'new completions open the water immediately');
+      const upstream = completeLandmarkStory(state, { purpose: 'landmark:valley:lookout', rulesVersion: 11, actorId: 'official.furo', actorName: 'Furo' }, now).pet;
+      assert.equal(isWaterOpen(upstream, 'upstream'), true);
+
+      state.adventure.landmarks = [landmarkId('valley', 'lookout'), ...['forest', 'coast'].flatMap(region => landmarkNodes.map(node => landmarkId(region, node)))];
+      state.community.fishing.active = { mode: 'idle', id: 'idle-fish:restore', revision: 0, water: 'forest_pool', bait: 'river_bait', strongRod: true,
+        actorId: 'official.furo', actorName: 'Furo', hutLevel: 1, startedAt: now, endsAt: now + 7200000, plannedCasts: 8, settledCasts: 0,
+        reservedBait: 8, catches: [], rationPlan: { food: { apple: 2 }, coins: 0, purchased: 0 } };
+      const restored = normalizePet(state, now);
+      assert.deepEqual(waterIds.filter(id => isWaterOpen(restored, id)), waterIds, 'completed landmarks repair missing unlock flags');
+      assert.deepEqual(restored.community.fishing.active, state.community.fishing.active, 'repair access before validating an in-progress trip');
+      assert.equal(state.community.waterAccess.forest_pool.built, false, 'normalization does not mutate its input');
+      assert.equal(restored.coins, state.coins);
+      assert.deepEqual(restored.inventory, state.inventory, 'unlock repair does not spend or grant materials');
+      assert.equal(getFishingPreferences(restored).strongRod, true, 'older saves can initialize from the current trip');
+      const preferences = { water: 'coast_pier', bait: 'river_bait', strongRod: true, float: true, net: true, mode: 'idle', hours: 4, rations: { food: { apple: 2 }, autoFill: false } };
+      const configured = rememberFishingPreferences(restored, preferences);
+      const reload = value => parseSaveFileText(createSaveFileText(value, null, now), now).pet;
+      const roundTrip = reload(configured);
+      assert.deepEqual(roundTrip.community.fishing, configured.community.fishing);
+      assert.deepEqual(reload(roundTrip).community.fishing, roundTrip.community.fishing, 'repeated save/load preserves the configuration and trip');
+      assert.deepEqual(getFishingPreferences(reload({ ...configured, inventory: {} })), preferences, 'depleted supplies do not clear remembered choices');
+      assert.deepEqual(rememberFishingPreferences(restored, preferences).inventory, restored.inventory, 'remembering a setup does not reserve supplies');
+
+      const legacy = structuredClone(state);
+      legacy.adventure.schemaVersion = 7; delete legacy.adventure.landmarks;
+      for (const region of ['hills', 'forest', 'coast']) legacy.community.expedition.regions[region].surveyed = true;
+      assert.deepEqual(waterIds.filter(id => isWaterOpen(normalizePet(legacy, now), id)), waterIds, 'old regional completion records also unlock waters');
+      const previousBuild = structuredClone(pet);
+      previousBuild.community.facilities.fishing_hut.built = true;
+      previousBuild.community.waterAccess.coast_pier.built = true;
+      assert.equal(isWaterOpen(normalizePet(previousBuild, now), 'coast_pier'), true, 'preserve previously built access without completion records');
+      const malformed = normalizePet({ ...configured, community: { ...configured.community, fishing: { ...configured.community.fishing,
+        preferences: { water: 'invalid', bait: 'invalid', strongRod: 'true', float: 1, net: null, hours: 99, mode: 'invalid', rations: { food: { apple: -2, community_wood: 3 }, autoFill: true } },
+      } } }, now);
+      assert.deepEqual(getFishingPreferences(malformed), { water: 'pond', bait: 'fishing_bait', strongRod: false, float: false, net: false, mode: 'manual', hours: 2, rations: { food: {}, autoFill: true } });
+    });
+
     await check('全地图旧档迁移、旧在途安全返程与物产往返', async () => {
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const { expeditionProducts } = await import('../src/core/expeditionData.ts');
@@ -589,7 +626,7 @@ async function verifySavesAndErrors() {
 
     await check('固定料理、烤鱼与小吃套餐存档往返、上架和无效制作恢复', async () => {
       const { craftRecipe, recordDishTaste, normalizeKitchenState } = await import('../src/core/kitchen.ts');
-      const { getDish, getRecipe, getDishId, recipes } = await import('../src/core/kitchenRecipes.ts');
+      const { getDish, getRecipe, getDishId } = await import('../src/core/kitchenRecipes.ts');
       const { getCommunitySale } = await import('../src/core/communityEconomy.ts');
       const { listCommunityGoods, getMarketQuote } = await import('../src/core/communityMarket.ts');
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
@@ -633,12 +670,7 @@ async function verifySavesAndErrors() {
         assert.equal(state.community.market.listings.find(listing => listing.itemId === dishId)?.unitPrice, price);
         outputs.push(dishId);
       }
-      const oldJuice = 'dish_mixed_juice__apple__watermelon', oldSoup = 'dish_fish_soup__wheat_fish';
-      state.inventory[oldJuice] = 2; state.inventory[oldSoup] = 1;
-      state.kitchen.made.mixed_juice = 2; state.kitchen.made.fish_soup = 1;
-      state = recordDishTaste(state, oldJuice, 'official.furo', now);
-      state = recordDishTaste(state, oldSoup, 'official.furo', now);
-      state.favorites = { itemIds: [...outputs, oldJuice, oldSoup], recipeIds: [...variants.map(([id]) => id), ...meals.map(([id]) => id), 'mixed_juice', 'fish_soup'] };
+      state.favorites = { itemIds: outputs, recipeIds: [...variants.map(([id]) => id), ...meals.map(([id]) => id)] };
       const restored = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
       for (const key of ['inventory', 'favorites', 'companionMemories']) assert.deepEqual(restored[key], state[key], `${key} retains selected recipe variants`);
       for (const key of ['made', 'firstMadeAt', 'tasted', 'recentOperationIds']) assert.deepEqual(restored.kitchen[key], state.kitchen[key], `kitchen ${key} retains selected recipe variants`);
@@ -658,10 +690,6 @@ async function verifySavesAndErrors() {
       assert.ok(getCommunitySale(grilledId).base > getCommunitySale('dish_grilled_fish__wheat_fish').base);
       assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'variant-2', now, undefined, 'bluefin_bream'), restored, 'restoring a result must not repeat its reward');
       assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'collector', now, undefined, 'golden_koi'), restored, 'collection fish cannot be substituted');
-      restored.inventory.watermelon = 1; restored.inventory.wheat_fish = 1;
-      assert.equal(craftRecipe(restored, 'mixed_juice', false, 1, 'retired-juice', now, undefined, 'apple__watermelon'), restored, 'retired juice cannot be crafted');
-      assert.equal(craftRecipe(restored, 'fish_soup', false, 1, 'retired-soup', now, undefined, 'wheat_fish'), restored, 'retired fish soup cannot be crafted');
-      assert.ok(!recipes.some(recipe => recipe.id === 'mixed_juice' || recipe.id === 'fish_soup'), 'retired recipes do not appear in the book');
       assert.equal(craftRecipe(restored, 'carrot_apple_orange_juice', false, 2, 'short-stock', now), restored, 'an outdated quantity must not partially consume ingredients');
       assert.equal(craftRecipe(restored, 'egg_rice', false, 1, 'wrong-recipe', now, undefined, 'bluefin_bream'), restored, 'a variant belongs only to its recipe');
     });

@@ -2,7 +2,8 @@ import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, Compass, Fish, Leaf, MapPin, Sprout, X, Zap } from 'lucide-react';
 import { getAdventureGrowthSources } from '../core/adventureGrowth';
 import { getCommunityTasks, canClaimCommunityTask } from '../core/communityCommissions';
-import { facilityAvailable, fishIds, waterIds, isWaterOpen } from '../core/communityData';
+import { facilityAvailable, fishIds, waterIds, isWaterOpen, waters } from '../core/communityData';
+import { getFishingPreferences, rememberFishingPreferences } from '../core/fishingState';
 import { getGardenReminder } from '../core/garden';
 import { canSpendCompanionTime } from '../core/kitchen';
 import { gardenCompensationRewardId } from '../core/petState';
@@ -69,9 +70,13 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   const c = pet.community, fishing = tab === 'fishing', free = canSpendCompanionTime(pet);
   const setTab = (next: CommunityTab) => { setLocalTab(next); onTabChange?.(next); };
   const changeScene = (next: CommunityTab) => { setTab(next); setPanel(null); };
-  const openPlace = (next: Place) => { setTab(fishingPlaces.includes(next) ? 'fishing' : 'village'); setPanel(next); };
-  const [selectedWater, setSelectedWater] = useState<WaterId>('pond');
-  const visitWater = (water: WaterId = 'pond') => { setSelectedWater(water); openPlace(water === 'upstream' ? 'upstream' : 'pond'); };
+  const [selectedWater, setSelectedWater] = useState<WaterId>();
+  const openPlace = (next: Place) => { setSelectedWater(undefined); setTab(fishingPlaces.includes(next) ? 'fishing' : 'village'); setPanel(next); };
+  const visitWater = (water?: WaterId) => {
+    openPlace(water === 'upstream' ? 'upstream' : 'pond');
+    setSelectedWater(water);
+    if (water && isWaterOpen(pet, water)) update(p => rememberFishingPreferences(p, { ...getFishingPreferences(p), water }));
+  };
   const goKitchen = (recipe?: RecipeId) => { setPanel(null); onKitchen(recipe); };
   const panelProps = { pet, update, onToggleItemFavorite, onExplore, onKitchen: goKitchen, onShop, registry, itemIconMap, onAdventure: onAdventure ? () => { setPanel(null); onAdventure(); } : undefined, onOpenOutpost: onOpenOutpost ? (request: OutpostRequest) => { setPanel(null); onOpenOutpost(request); } : undefined };
   const mapUnlocked = (pet.adventure.completed.tutorial ?? 0) > 0;
@@ -92,6 +97,8 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   const animalStatus = (id: 'coop' | 'barn') => !c.facilities[id].built ? facilityStatus(id) : c.animals[id].stock ? `待收 ${c.animals[id].stock} 份` : c.animals[id].feed ? '正在生产' : '等待饲料';
   const fieldStatus = !c.gardenBuilt ? '踩点结算后免费开放' : mature ? `${matureCount} 块可以收获` : `${c.plots.filter(plot => plot.crop).length}/${c.plots.length} 块生长中`;
   const fishStatus = c.fishing.pending ? '鱼获待收' : c.fishing.active?.mode === 'idle' ? `挂机钓鱼 · ${c.fishing.active.settledCasts}/${c.fishing.active.plannedCasts} 条` : c.fishing.active ? '继续这一竿' : c.facilities.fishing_hut.built ? '准备抛竿' : '先修小屋';
+  const fishAction = !c.facilities.fishing_hut.built ? '开放钓鱼小屋' : c.fishing.pending ? '领取鱼获' : c.fishing.active ? '继续钓鱼' : '开始钓鱼';
+  const openWaters = waterIds.filter(id => isWaterOpen(pet, id));
   const adventure = () => { setPanel(null); onAdventure?.(); };
   const story = mainStoryProgress(pet.adventure), nextLandmark = story.next[0];
   const next = !mapUnlocked ? { title: '和伙伴完成第一次踩点', detail: '走完新手关的 4 个阶段并领取行囊，展开溪谷地图。', label: '去前哨基地', action: adventure }
@@ -122,7 +129,7 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   if (panel === 'field') content = <CommunityField {...panelProps} />;
   else if (panel === 'orchard') content = orchard;
   else if (panel === 'coop' || panel === 'barn') content = c.facilities[panel].built ? <CommunityFarm {...panelProps} only={panel} /> : <CommunityFacilities {...panelProps} only={panel} />;
-  else if (panel === 'hut_manage') content = c.facilities.fishing_hut.built ? <><CommunityFishing {...panelProps} view="management" /><button className="secondary-button" onClick={() => openPlace('upstream')}>查看上游步道</button></> : <CommunityFacilities {...panelProps} only="fishing_hut" />;
+  else if (panel === 'hut_manage') content = c.facilities.fishing_hut.built ? <CommunityFishing {...panelProps} view="management" onFishing={visitWater} /> : <CommunityFacilities {...panelProps} only="fishing_hut" />;
   else if (panel === 'hut' || panel === 'pond' || panel === 'upstream') content = !c.facilities.fishing_hut.built ? <CommunityFacilities {...panelProps} only="fishing_hut" /> : <CommunityFacilities {...panelProps} only="upstream" />;
   else if (panel === 'fishbook') content = <CommunityFishing {...panelProps} view="journal" />;
   else if (panel === 'board') content = <CommunityBoard {...panelProps} actorId={actorId} actorName={actorName} onFishing={visitWater} onFarm={openPlace} />;
@@ -134,10 +141,12 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   return <section className="community-page" ref={communityRef}>
     <header className="community-header"><button className="icon-button" onClick={fishing ? () => changeScene('village') : onBack} aria-label={fishing ? '返回农场' : '返回小窝'}><ArrowLeft /></button><div><small>沿着溪流，慢慢生活</small><h2>{fishing ? '钓鱼小屋' : '溪畔农场'}</h2></div><span className="community-energy" aria-label={`体力 ${Math.floor(pet.energy)}/${getPetEnergyCap(pet)}`}><Zap size={16} />{Math.floor(pet.energy)}/{getPetEnergyCap(pet)}</span></header>
     <div className="community-scene-heading"><div><small>{fishing ? '溪水送来的一点闲暇' : '每一次发现，都在这里生长'}</small><h1>{fishing ? '风很轻，今天钓点什么？' : c.gardenBuilt ? '菜地有了水，日子慢慢热闹。' : '从一条水渠，开始新的日常。'}</h1></div><span className="community-season"><Leaf size={15} />{fishing ? `水域 ${waterIds.filter(id => isWaterOpen(pet, id)).length}/${waterIds.length} 已直通` : `已开放 ${builtCount}/6 处`}</span></div>
-    {!fishing && <DecorationEntry pet={pet} onOpen={() => openPlace('decorations')} />}
     <div className="community-scene-layout"><div className="community-scene-card"><div className="community-place-scene" data-scene={fishing ? 'fishing' : 'farm'}><CommunitySceneArt community={c} fishing={fishing} />{portrait && <img className="community-scene-companion" src={portrait} alt={pet.name} />}{places}<DecorationScene pet={pet} fishing={fishing} onSelect={selectDecoration} /></div>{!fishing && <DecorationCorner pet={pet} onSelect={selectDecoration} />}<footer><MapPin size={15} />点击地点，查看修复、收获和正在发生的事。</footer></div>
       <aside className="community-today"><section className="community-card community-next"><small>接下来，一起做这件事</small><h3>{next.title}</h3><p>{next.detail}</p><button className="primary-button" disabled={next.action === adventure && !onAdventure} onClick={next.action}>{next.label}<ArrowRight size={16} /></button></section><section className="community-card"><h3>今天的小收获</h3><button className="community-status-link" data-tone="mint" onClick={() => openPlace('field')}><Sprout size={16} /><span>菜地<small>{fieldStatus}</small></span>{mature && <Check size={16} />}</button><button className="community-status-link" data-tone="sky" onClick={() => visitWater(c.fishing.active?.water)}><Fish size={16} /><span>水边<small>{fishStatus}</small></span></button><button className="community-status-link" data-tone="lilac" onClick={() => openPlace('board')}><BookOpen size={16} /><span>邻里委托<small>{readyTasks ? `${readyTasks} 单待交付` : `${activeTasks} 单进行中 · 邻里 2 单＋特产 1 单`}</small></span></button><button className="community-status-link" data-tone="gold" onClick={() => openPlace('journey')}><Compass size={16} /><span>旅途与日常<small>{story.completed}/40 个地标</small></span></button></section></aside>
     </div>
+    <section className="community-fishing-entry" aria-label="钓鱼入口"><Fish size={30} /><div><strong>{c.fishing.active || c.fishing.pending ? fishStatus : '去水边钓鱼'}</strong><p>{c.facilities.fishing_hut.built ? `${openWaters.length} 处水域已开放 · 手动与挂机都能钓` : '建好钓鱼小屋，带上伙伴去水边坐坐。'}</p></div><button className="primary-button" onClick={() => c.facilities.fishing_hut.built ? visitWater() : openPlace('hut_manage')}>{fishAction}<ArrowRight size={18} /></button></section>
+    {fishing && c.facilities.fishing_hut.built && <div className="community-water-shortcuts" role="group" aria-label="选择钓鱼水域">{waterIds.map(id => <button key={id} type="button" disabled={!isWaterOpen(pet, id)} onClick={() => visitWater(id)}><Fish size={20} /><strong>{waters[id].name}</strong><small>{isWaterOpen(pet, id) ? '点击前往钓鱼' : waters[id].discovery}</small></button>)}</div>}
+    {!fishing && <DecorationEntry pet={pet} onOpen={() => openPlace('decorations')} />}
     {!free && <p className="community-note">伙伴正在休息或忙碌，可以先看看场景与任务。{c.fishing.active && <button className="text-button" onClick={() => visitWater(c.fishing.active?.water)}>回到当前鱼竿</button>}</p>}
     <p className="community-event" role={panel ? undefined : 'status'}>{pet.recentEvent}</p>
     {fishing && <div className="community-actions"><button className="secondary-button" onClick={() => openPlace('hut_manage')}>小屋建设与水域</button><button className="secondary-button" onClick={() => openPlace('fishbook')}>鱼类手账与金冠</button></div>}

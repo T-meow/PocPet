@@ -44,12 +44,12 @@ export const valleyQuests: Record<ValleyQuestId, ValleyQuest> = {
     ],
   },
   valley_lookout: {
-    node: 'lookout', name: '风声里的上游', summary: '从观景台辨认溪流分岔，为小屋寻找第二处水域。', outcome: '保存上游步道的勘测记录；钓鱼小屋建成后即可修步道。',
+    node: 'lookout', name: '风声里的上游', summary: '从观景台辨认溪流分岔，为小屋寻找第二处水域。', outcome: '溪流上游自动开放；钓鱼小屋建成后即可直接前往。',
     requires: ['valley_crossing'], coins: 30, hearts: 3, items: { community_wood: 1, community_stone: 3 }, facilities: ['upstream'],
     steps: [
       { title: '风声观景台', story: '远处的水面亮成一条细线。沿路标走，便能看清溪流分岔。', choices: [choice('view', '走到稳固的观景台', '标记溪流与社区的方向。', 8, 4)] },
       { title: '水流的两种声音', story: '近处的池塘安静，上游却有清亮的流水声。石阶和岸线都可以慢慢勘测。', choices: [choice('survey', '沿石阶逐段记录', '普通路线，保留全部健康。', 10, 5), choice('listen', '静下心辨认水声', '心情至少 30%；更省体力。', 8, 3, { minMoodRatio: 0.3, mood: 2 })] },
-      { title: '第二个钓点', story: '手账上多出一段清楚的岸线。伙伴在旁边画了一条小鱼：等步道修好，再来这里试试。', choices: [choice('upstream', '收好水域勘测记录', '获得上游建设线索与石料。', 8, 3, { mood: 4 })] },
+      { title: '第二个钓点', story: '手账上多出一段清楚的岸线。伙伴在旁边画了一条小鱼：从钓鱼小屋出发，就能来这里试试。', choices: [choice('upstream', '收好水域勘测记录', '开放溪流上游，获得石料。', 8, 3, { mood: 4 })] },
     ],
   },
   valley_story: {
@@ -102,6 +102,7 @@ export const completeValleyQuest = (pet: PetState, id: ValleyQuestId): PetState 
   if (pet.adventure.valleyCompleted.includes(id)) return pet;
   const facilities = { ...pet.community.facilities };
   for (const facility of valleyQuests[id].facilities ?? []) facilities[facility] = { ...facilities[facility], found: true };
+  if (id === 'valley_lookout' || id === 'valley_camp') facilities.upstream = { found: true, work: 2, built: true };
   return { ...pet, adventure: { ...pet.adventure, landmarks: [...new Set([...pet.adventure.landmarks, legacyPurposeLandmark(id)])], valleyCompleted: [...pet.adventure.valleyCompleted, id] },
     community: { ...pet.community, facilities, ...(id === 'valley_gather' ? { irrigationFound: true, herbDiscovered: true } : {}),
       ...(id === 'valley_camp' ? { expedition: { ...pet.community.expedition, regions: { ...pet.community.expedition.regions, valley: { ...pet.community.expedition.regions.valley, surveyed: true, storyAt: pet.lastUpdatedAt, actorId: pet.adventure.active?.actorId, actorName: pet.adventure.active?.actorName } } } } : {}) } };

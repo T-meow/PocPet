@@ -9,7 +9,7 @@ export const facilities: Record<FacilityId, { name: string; clue: string; jobs: 
   coop: { name: '鸡舍', clue: '旧农舍的饲喂装置', jobs: ['清理鸡舍', '安装饲喂槽'], coins: 240, wood: 5, stone: 2, requires: 'garden', benefit: '每份饲料 6 小时产鸡蛋 ×2，最多存 6 份' },
   barn: { name: '牛棚', clue: '牧道旁的饮水设备', jobs: ['铺好干草垫', '修好饮水槽'], coins: 420, wood: 7, stone: 4, requires: 'coop', benefit: '每份饲料 8 小时产鲜奶 ×2，解锁鲜奶蛋羹' },
   fishing_hut: { name: '钓鱼小屋', clue: '河岸栈桥的修复图纸', jobs: ['清理栈桥', '修补小屋屋顶'], coins: 180, wood: 4, stone: 2, benefit: '开放池塘、鱼类手账与鱼汤配方，附赠普通钓竿 ×1' },
-  upstream: { name: '上游步道', clue: '溪流岔口的水域勘测记录', jobs: ['清开沿岸灌木', '铺设上游石阶'], coins: 300, wood: 3, stone: 5, requires: 'fishing_hut', benefit: '开放溪流上游、鳟鱼与烤鱼配方' },
+  upstream: { name: '上游步道', clue: '溪流岔口的水域勘测记录', jobs: ['清开沿岸灌木', '铺设上游石阶'], coins: 0, wood: 0, stone: 0, requires: 'fishing_hut', benefit: '通关后自动开放溪流上游、鳟鱼与烤鱼配方' },
   stall: { name: '溪畔小摊', clue: '旧集市的摊位图纸', jobs: ['整修木柜', '搭好遮雨棚'], coins: 220, wood: 5, stone: 2, benefit: '开放摆摊，6 格货架、每格最多 20 份；基础每 2–6 分钟一位客人，装饰可增加客流' },
 };
 export const facilityAvailable = (pet: PetState, id: FacilityId) => {
@@ -62,9 +62,9 @@ export const getFacilityBuildReason = (pet: PetState, id: FacilityId) => {
 export const fishIds = Object.keys(fish) as FishId[];
 export const waters = {
   pond: { name: '小屋池塘', discovery: '修好钓鱼小屋', region: 'valley', coins: 0, wood: 0, stone: 0 },
-  upstream: { name: '溪流上游', discovery: '完成溪谷「风声里的上游」，开放钓鱼小屋后交付建材', region: 'hills', coins: 300, wood: 3, stone: 5 },
-  forest_pool: { name: '雾松深潭', discovery: '完成雾松林地全部 8 个地标，记录深潭线索，再建设栈道', region: 'forest', coins: 360, wood: 6, stone: 4 },
-  coast_pier: { name: '海岸栈桥', discovery: '完成潮汐海岸全部 8 个地标，记录栈桥线索，再建设水域', region: 'coast', coins: 420, wood: 8, stone: 5 },
+  upstream: { name: '溪流上游', discovery: '完成溪谷「风声观景台」全部阶段后自动开放', region: 'hills', coins: 0, wood: 0, stone: 0 },
+  forest_pool: { name: '雾松深潭', discovery: '完成雾松林地全部 8 个地标后自动开放', region: 'forest', coins: 0, wood: 0, stone: 0 },
+  coast_pier: { name: '海岸栈桥', discovery: '完成潮汐海岸全部 8 个地标后自动开放', region: 'coast', coins: 0, wood: 0, stone: 0 },
 } as const;
 export const waterIds = Object.keys(waters) as WaterId[];
 export const isWaterOpen = (pet: PetState, water: WaterId) => pet.community.facilities.fishing_hut.built &&
@@ -76,6 +76,6 @@ export const getCommunityPurchaseReason = (pet: PetState, id: string) => {
   if (equipmentReason) return equipmentReason;
   const crop = (Object.keys(communityCrops) as CropId[]).find(key => communityCrops[key].seed === id);
   if (crop) return getCropUnlockReason(pet, crop);
-  return id === 'river_bait' && !pet.community.facilities.upstream.built ? '先修好上游步道'
+  return id === 'river_bait' && !pet.community.facilities.upstream.built ? '先通关溪谷风声观景台，开放溪流上游'
     : id === 'reinforced_rod' && !pet.community.facilities.fishing_hut.built ? '先开放钓鱼小屋' : '';
 };

@@ -29,7 +29,7 @@
 .community-page .community-scene-heading small { color: var(--community-muted); letter-spacing: 1px; font-size: 11px; }
 .community-page .community-scene-heading h1 { margin: 6px 0 0; font-size: clamp(20px, 2.4vw, 28px); font-weight: 600; line-height: 1.4; }
 .community-page .community-season { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 10px; border-radius: 9px; font-size: 11px; color: #3d638b; background: #edf4ff; }
-.community-page .community-scene-layout { display: grid; grid-template-columns: minmax(0, 1fr) 262px; gap: 20px; align-items: start; }
+.community-page .community-scene-layout { display: grid; grid-template-columns: minmax(0, 1fr) 262px; gap: 20px; align-items: start; margin-bottom: 20px; }
 .community-page .community-scene-card { min-width: 0; overflow: hidden; border: 1px solid var(--community-line); border-radius: 18px; background: #fff; }
 .community-page .community-place-scene { position: relative; width: 100%; aspect-ratio: 960 / 630; isolation: isolate; }
 .community-page .community-scene-art { display: block; width: 100%; height: auto; }

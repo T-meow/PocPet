@@ -27,7 +27,7 @@ const preparationReason = (pet: PetState, water: WaterId, bait: Bait) => {
   if (pet.community.fishing.pending) return '先收好上一趟鱼获';
   if (!canSpendCompanionTime(pet) || pet.pomodoro.isRunning) return '伙伴正在休息或忙碌';
   if (!waterIds.includes(water) || !isWaterOpen(pet, water)) return '先开放这片水域';
-  if (!['fishing_bait', 'river_bait'].includes(bait) || bait === 'river_bait' && !pet.community.facilities.upstream.built) return '先修好上游步道，再使用溪流鱼饵';
+  if (!['fishing_bait', 'river_bait'].includes(bait) || bait === 'river_bait' && !pet.community.facilities.upstream.built) return '先通关溪谷风声观景台，再使用溪流鱼饵';
   return '';
 };
 export const getManualFishingReason = (pet: PetState, water: WaterId, bait: Bait, strong: boolean, gear: { float?: boolean; net?: boolean } = {}) => {
@@ -159,12 +159,4 @@ export const claimCommunityFish = (pet: PetState, id: string): PetState => {
   const rest = Object.keys(remaining).length ? { ...pending, items: remaining } : undefined;
   const hearts = getFishingHeartReward(pending.items) - getFishingHeartReward(remaining);
   return grantActivityHearts({ ...withFishing(pet, { pending: rest }), inventory, recentEvent: (rest ? '仓库装不下的鱼获与鱼饵仍在收获篮，腾出空间后继续领取。' : '鱼获已收好，图鉴和金冠永久保留。') + (hearts > 0 ? ` 获得 ${hearts} 颗小心心。` : '') }, hearts);
-};
-
-export const buildWaterBoardwalk = (pet: PetState, water: 'forest_pool' | 'coast_pier'): PetState => {
-  if (water !== 'forest_pool' && water !== 'coast_pier') return pet;
-  const access = pet.community.waterAccess[water], cost = waters[water];
-  if (pet.timePause || !canSpendCompanionTime(pet) || !pet.community.facilities.fishing_hut.built || !pet.community.expedition.regions[cost.region].surveyed || !access.found || access.built || pet.coins < cost.coins || (pet.inventory.community_wood ?? 0) < cost.wood || (pet.inventory.community_stone ?? 0) < cost.stone) return pet;
-  return { ...pet, coins: pet.coins - cost.coins, inventory: removeInventoryItem(removeInventoryItem(pet.inventory, 'community_wood', cost.wood), 'community_stone', cost.stone),
-    community: { ...pet.community, waterAccess: { ...pet.community.waterAccess, [water]: { found: true, built: true } } }, recentEvent: cost.name + '栈道修好了！以后在钓鱼小屋直接选择水域即可垂钓。' };
 };

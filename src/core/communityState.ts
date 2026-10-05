@@ -9,7 +9,8 @@ import { communityDecorationIds, regionalTreasureIds } from './regionalTreasures
 import { specialtyGoods, specialtyRegularMultiplier, specialtyUrgentMultiplier, type SpecialtyItem } from './communitySpecialtyOrders';
 import { getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
-import { normalizeFishingState } from './fishingState';
+import { normalizeFishingState, unlockCompletedFishingWaters } from './fishingState';
+import type { AdventureState } from './adventureTypes';
 import { regionIds, projectIds } from './expeditionData';
 import { getWeekStartDateKey } from './dailyReset';
 import { landmarkNodes } from './landmarkProgress';
@@ -28,10 +29,10 @@ const object = (v: unknown): Record<string, any> => v && typeof v === 'object' &
 const n = (v: unknown, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
 const stamp = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 const taskId = (v: unknown): v is string => typeof v === 'string' && /^[a-z_]+:\d{4}-\d{2}-\d{2}$/.test(v) && commissionTemplates.includes(v.split(':')[0] as CommissionTemplate);
-export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): CommunityState => {
+export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adventure?: AdventureState): CommunityState => {
   const v = raw && typeof raw === 'object' ? raw as Partial<CommunityState> : {};
   const built = v.gardenBuilt === true;
-  const state: CommunityState = { ...defaultCommunityState(), irrigationFound: built || v.irrigationFound === true,
+  let state: CommunityState = { ...defaultCommunityState(), irrigationFound: built || v.irrigationFound === true,
     herbDiscovered: v.herbDiscovered === true, repairStep: built ? 2 : Number.isFinite(v.repairStep) ? Math.max(0, Math.min(2, Math.floor(v.repairStep!))) : 0,
     gardenBuilt: built, firstOrderDelivered: built && v.firstOrderDelivered === true, seedForageDay: day(v.seedForageDay), boardDay: day(v.boardDay),
     acceptedToday: Array.isArray(v.acceptedToday) ? [...new Set(v.acceptedToday.filter(taskId))].slice(0, 2) : [] };
@@ -100,6 +101,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24): Co
     if (name) state.animals[id].name = name;
     if (stamp(a.nextAt) && a.feed > 0 && a.stock + 2 <= capacity.stock) state.animals[id].nextAt = a.nextAt;
   }
+  state = unlockCompletedFishingWaters(state, adventure);
   state.fishing = normalizeFishingState(v.fishing, state);
   const m = object(v.market), market = state.market;
   market.pricingVersion = n(m.pricingVersion, marketPricingVersion);

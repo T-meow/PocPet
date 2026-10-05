@@ -1,5 +1,74 @@
 import type { BuiltinItemId } from './core/petTypes';
-// Approved A-I originals; source and crop records are retained in the local art manifest.
+// Approved originals and crop records are retained in the local art manifest.
+import highland_potato from './assets/icon/item_highland_potato.webp';
+import snow_bean from './assets/icon/item_snow_bean.webp';
+import dish_highland_potato_stew from './assets/icon/item_dish_highland_potato_stew.webp';
+import dish_snow_bean_rice from './assets/icon/item_dish_snow_bean_rice.webp';
+import dish_honey_milk from './assets/icon/item_dish_honey_milk.webp';
+import dish_highland_potato_gratin from './assets/icon/item_dish_highland_potato_gratin.webp';
+import dish_snow_bean_soup from './assets/icon/item_dish_snow_bean_soup.webp';
+import dish_summit_travel_bento from './assets/icon/item_dish_summit_travel_bento.webp';
+import dish_lotus_wood_ear from './assets/icon/item_dish_lotus_wood_ear.webp';
+import dish_lotus_pumpkin_porridge from './assets/icon/item_dish_lotus_pumpkin_porridge.webp';
+import dish_mint_watermelon_cup from './assets/icon/item_dish_mint_watermelon_cup.webp';
+import dish_orange_nut_shake from './assets/icon/item_dish_orange_nut_shake.webp';
+import dish_berry_jam_shake from './assets/icon/item_dish_berry_jam_shake.webp';
+import dish_double_berry_cup from './assets/icon/item_dish_double_berry_cup.webp';
+import dish_lotus_trotter_soup from './assets/icon/item_dish_lotus_trotter_soup.webp';
+import dish_matsutake_clear_soup from './assets/icon/item_dish_matsutake_clear_soup.webp';
+import dish_honey_milk_tea from './assets/icon/item_dish_honey_milk_tea.webp';
+import dish_sunflower_nut_crisp from './assets/icon/item_dish_sunflower_nut_crisp.webp';
+import dish_ginger_carp from './assets/icon/item_dish_ginger_carp.webp';
+import dish_wheat_fish_custard from './assets/icon/item_dish_wheat_fish_custard.webp';
+import dish_pan_seared_perch from './assets/icon/item_dish_pan_seared_perch.webp';
+import dish_grouper_porridge from './assets/icon/item_dish_grouper_porridge.webp';
+import dish_redtail_rice from './assets/icon/item_dish_redtail_rice.webp';
+import dish_catfish_rice from './assets/icon/item_dish_catfish_rice.webp';
+import dish_ginger_bream from './assets/icon/item_dish_ginger_bream.webp';
+import dish_eel_mushroom_soup from './assets/icon/item_dish_eel_mushroom_soup.webp';
+import dish_tomato_sardine from './assets/icon/item_dish_tomato_sardine.webp';
+import dish_mackerel_rice from './assets/icon/item_dish_mackerel_rice.webp';
+import dish_steamed_bluefin from './assets/icon/item_dish_steamed_bluefin.webp';
+import dish_clam_kelp_soup from './assets/icon/item_dish_clam_kelp_soup.webp';
+import dish_shrimp_eggs from './assets/icon/item_dish_shrimp_eggs.webp';
+import dish_apple_orange_juice from './assets/icon/item_dish_apple_orange_juice.webp';
+import dish_strawberry_watermelon_juice from './assets/icon/item_dish_strawberry_watermelon_juice.webp';
+import dish_berry_lemon_juice from './assets/icon/item_dish_berry_lemon_juice.webp';
+import dish_banana_strawberry_juice from './assets/icon/item_dish_banana_strawberry_juice.webp';
+import dish_carrot_apple_orange_juice from './assets/icon/item_dish_carrot_apple_orange_juice.webp';
+import dish_herb_trout_soup from './assets/icon/item_dish_herb_trout_soup.webp';
+import dish_herb_perch_soup from './assets/icon/item_dish_herb_perch_soup.webp';
+import dish_herb_bluefin_soup from './assets/icon/item_dish_herb_bluefin_soup.webp';
+import dish_flatbread from './assets/icon/item_dish_flatbread.webp';
+import dish_tomato_ketchup from './assets/icon/item_dish_tomato_ketchup.webp';
+import dish_french_fries from './assets/icon/item_dish_french_fries.webp';
+import dish_ketchup_fries from './assets/icon/item_dish_ketchup_fries.webp';
+import dish_egg_wrap from './assets/icon/item_dish_egg_wrap.webp';
+import dish_tomato_egg_wrap from './assets/icon/item_dish_tomato_egg_wrap.webp';
+import dish_red_bean_wrap from './assets/icon/item_dish_red_bean_wrap.webp';
+import dish_wrap_fries_set from './assets/icon/item_dish_wrap_fries_set.webp';
+import dish_fish_fries_set from './assets/icon/item_dish_fish_fries_set.webp';
+import dish_corn_fritter from './assets/icon/item_dish_corn_fritter.webp';
+import dish_cheesy_corn_fritter from './assets/icon/item_dish_cheesy_corn_fritter.webp';
+import dish_pumpkin_rice_cake from './assets/icon/item_dish_pumpkin_rice_cake.webp';
+import dish_red_bean_pumpkin_cake from './assets/icon/item_dish_red_bean_pumpkin_cake.webp';
+import dish_potato_cake from './assets/icon/item_dish_potato_cake.webp';
+import dish_garden_vegetable_wrap from './assets/icon/item_dish_garden_vegetable_wrap.webp';
+import dish_berry_jam_wrap from './assets/icon/item_dish_berry_jam_wrap.webp';
+import dish_pan_fried_dumplings from './assets/icon/item_dish_pan_fried_dumplings.webp';
+import dish_grilled_fish__pond_crucian from './assets/icon/item_dish_grilled_fish__pond_crucian.webp';
+import dish_grilled_fish__pond_carp from './assets/icon/item_dish_grilled_fish__pond_carp.webp';
+import dish_grilled_fish__wheat_fish from './assets/icon/item_dish_grilled_fish__wheat_fish.webp';
+import dish_grilled_fish__stream_trout from './assets/icon/item_dish_grilled_fish__stream_trout.webp';
+import dish_grilled_fish__river_perch from './assets/icon/item_dish_grilled_fish__river_perch.webp';
+import dish_grilled_fish__stream_grouper from './assets/icon/item_dish_grilled_fish__stream_grouper.webp';
+import dish_grilled_fish__redtail_barbel from './assets/icon/item_dish_grilled_fish__redtail_barbel.webp';
+import dish_grilled_fish__striped_catfish from './assets/icon/item_dish_grilled_fish__striped_catfish.webp';
+import dish_grilled_fish__moss_bream from './assets/icon/item_dish_grilled_fish__moss_bream.webp';
+import dish_grilled_fish__glass_eel from './assets/icon/item_dish_grilled_fish__glass_eel.webp';
+import dish_grilled_fish__silver_sardine from './assets/icon/item_dish_grilled_fish__silver_sardine.webp';
+import dish_grilled_fish__blue_mackerel from './assets/icon/item_dish_grilled_fish__blue_mackerel.webp';
+import dish_grilled_fish__bluefin_bream from './assets/icon/item_dish_grilled_fish__bluefin_bream.webp';
 import field_watering_can from './assets/icon/item_field_watering_can.webp';
 import harvest_sickle from './assets/icon/item_harvest_sickle.webp';
 import nutrient_compost from './assets/icon/item_nutrient_compost.webp';
@@ -138,14 +207,75 @@ import dish_valley_travel_bento from './assets/icon/item_dish_valley_travel_bent
 export const emojiIcon = (glyph: string) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><text x="64" y="96" text-anchor="middle" font-size="88" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">${glyph}</text></svg>`);
 
 export const newItemIcons = {
-  highland_potato: emojiIcon('🥔'),
-  snow_bean: emojiIcon('🫘'),
-  dish_highland_potato_stew: emojiIcon('🍲'),
-  dish_snow_bean_rice: emojiIcon('🍛'),
-  dish_honey_milk: emojiIcon('🥛'),
-  dish_highland_potato_gratin: emojiIcon('🧀'),
-  dish_snow_bean_soup: emojiIcon('🥣'),
-  dish_summit_travel_bento: emojiIcon('🍱'),
+  highland_potato,
+  snow_bean,
+  dish_highland_potato_stew,
+  dish_snow_bean_rice,
+  dish_honey_milk,
+  dish_highland_potato_gratin,
+  dish_snow_bean_soup,
+  dish_summit_travel_bento,
+  dish_lotus_wood_ear,
+  dish_lotus_pumpkin_porridge,
+  dish_mint_watermelon_cup,
+  dish_orange_nut_shake,
+  dish_berry_jam_shake,
+  dish_double_berry_cup,
+  dish_lotus_trotter_soup,
+  dish_matsutake_clear_soup,
+  dish_honey_milk_tea,
+  dish_sunflower_nut_crisp,
+  dish_ginger_carp,
+  dish_wheat_fish_custard,
+  dish_pan_seared_perch,
+  dish_grouper_porridge,
+  dish_redtail_rice,
+  dish_catfish_rice,
+  dish_ginger_bream,
+  dish_eel_mushroom_soup,
+  dish_tomato_sardine,
+  dish_mackerel_rice,
+  dish_steamed_bluefin,
+  dish_clam_kelp_soup,
+  dish_shrimp_eggs,
+  dish_apple_orange_juice,
+  dish_strawberry_watermelon_juice,
+  dish_berry_lemon_juice,
+  dish_banana_strawberry_juice,
+  dish_carrot_apple_orange_juice,
+  dish_herb_trout_soup,
+  dish_herb_perch_soup,
+  dish_herb_bluefin_soup,
+  dish_flatbread,
+  dish_tomato_ketchup,
+  dish_french_fries,
+  dish_ketchup_fries,
+  dish_egg_wrap,
+  dish_tomato_egg_wrap,
+  dish_red_bean_wrap,
+  dish_wrap_fries_set,
+  dish_fish_fries_set,
+  dish_corn_fritter,
+  dish_cheesy_corn_fritter,
+  dish_pumpkin_rice_cake,
+  dish_red_bean_pumpkin_cake,
+  dish_potato_cake,
+  dish_garden_vegetable_wrap,
+  dish_berry_jam_wrap,
+  dish_pan_fried_dumplings,
+  dish_grilled_fish__pond_crucian,
+  dish_grilled_fish__pond_carp,
+  dish_grilled_fish__wheat_fish,
+  dish_grilled_fish__stream_trout,
+  dish_grilled_fish__river_perch,
+  dish_grilled_fish__stream_grouper,
+  dish_grilled_fish__redtail_barbel,
+  dish_grilled_fish__striped_catfish,
+  dish_grilled_fish__moss_bream,
+  dish_grilled_fish__glass_eel,
+  dish_grilled_fish__silver_sardine,
+  dish_grilled_fish__blue_mackerel,
+  dish_grilled_fish__bluefin_bream,
   field_watering_can,
   harvest_sickle,
   nutrient_compost,

@@ -35,6 +35,10 @@ export interface FishingReceipt {
   rationReturn?: import('./explorationRations').RationReturn;
 }
 export interface FishingJournalEntry { count: number; firstAt: number; largest: number; goldCrown?: boolean }
+export interface FishingPreferences {
+  water: WaterId; bait: 'fishing_bait' | 'river_bait'; strongRod: boolean; float: boolean; net: boolean;
+  mode: 'manual' | 'idle'; hours: 2 | 4 | 8; rations: import('./explorationRations').RationSelection;
+}
 export interface MarketListing { id: number; slotIndex: number; itemId: string; quantity: number; unitPrice: number; basePrice: number; bonus: number; collector: boolean }
 export type MarketCustomer = 'ordinary' | 'foodie' | 'collector' | 'generous';
 export interface MarketReceipt {
@@ -86,7 +90,7 @@ export interface CommunityState {
   specialtyOrders: import('./communitySpecialtyOrders').SpecialtyOrderState;
   facilities: Record<FacilityId, { found: boolean; work: number; built: boolean }>;
   animals: Record<AnimalId, AnimalProduction>;
-  fishing: { casts: number; nextIdleId: number; active?: FishingSession; pending?: FishingReceipt; journal: Partial<Record<FishId, FishingJournalEntry>> };
+  fishing: { casts: number; nextIdleId: number; active?: FishingSession; pending?: FishingReceipt; preferences?: FishingPreferences; journal: Partial<Record<FishId, FishingJournalEntry>> };
   market: CommunityMarket;
 }
 import type { ExpeditionItemId, ExpeditionState } from './expeditionTypes';

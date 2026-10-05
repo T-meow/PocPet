@@ -34,13 +34,16 @@ export const selectTypes = (values) => {
   return Object.keys(packageTypes).filter((type) => selected.has(type));
 };
 
-export const createPlan = (types, version) => {
+export const createPlan = (types, version, androidSigning = 'debug') => {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('package.json 版本必须是 major.minor.patch。');
+  if (!['debug', 'release'].includes(androidSigning)) throw new Error('--android-signing 只能是 debug 或 release。');
   return types.map((type) => {
     const definition = packageTypes[type];
     if (!definition) throw new Error(`未知打包类型：${type}`);
     const artifact = `release/pocket${version}${definition.suffix}`;
-    return { type, ...definition, artifact, commands: [...definition.commands, ...(definition.dist ? [node('scripts/package-web.mjs', definition.dist, artifact)] : [])] };
+    const signing = type.startsWith('android') ? androidSigning : undefined;
+    const label = signing === 'release' ? definition.label.replace('测试签名', '正式签名') : definition.label;
+    return { type, ...definition, label, signing, artifact, commands: [...definition.commands, ...(definition.dist ? [node('scripts/package-web.mjs', definition.dist, artifact)] : [])] };
   });
 };
 
@@ -126,7 +129,7 @@ export const canCreateAndroidSymlink = (createLink = symlinkSync) => {
   }
 };
 
-const preflight = (plan) => {
+const preflight = (plan, androidSigning) => {
   if (process.platform !== 'win32' && plan.some((item) => item.windowsOnly)) throw new Error('当前原生打包脚本需要 Windows；macOS/Linux 请使用对应系统或项目 CI。');
   if (!existsSync(join(root, 'node_modules/typescript/package.json'))) throw new Error('缺少项目依赖，请先执行 npm.cmd ci --registry=https://registry.npmmirror.com/');
   const env = { ...process.env, npm_config_registry: 'https://registry.npmmirror.com/' };
@@ -135,6 +138,13 @@ const preflight = (plan) => {
     const cargoBin = join(env.USERPROFILE || '', '.cargo/bin');
     env[pathKey] = `${cargoBin};${env[pathKey] || ''}`;
     if (plan.some((item) => item.type.startsWith('android'))) {
+      env.POCPET_ANDROID_SIGNING = androidSigning;
+      if (androidSigning === 'release') {
+        for (const name of ['POCPET_ANDROID_KEYSTORE', 'POCPET_ANDROID_KEY_ALIAS', 'POCPET_ANDROID_STORE_PASSWORD', 'POCPET_ANDROID_KEY_PASSWORD']) {
+          if (!env[name]?.trim()) throw new Error(`正式签名缺少 ${name}，不会回退到测试签名。`);
+        }
+        if (!existsSync(env.POCPET_ANDROID_KEYSTORE) || !statSync(env.POCPET_ANDROID_KEYSTORE).isFile()) throw new Error('正式签名 keystore 文件不存在。');
+      }
       const java = [env.JAVA_HOME, join(env.ProgramFiles || 'C:/Program Files', 'Android/Android Studio/jbr')].find((file) => file && existsSync(join(file, 'bin/java.exe')));
       const sdk = [env.ANDROID_HOME, env.ANDROID_SDK_ROOT, env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Android/Sdk')].find((file) => file && existsSync(join(file, 'build-tools')));
       if (!java || !sdk) throw new Error('Android 需要 JDK 和 SDK build-tools；请设置 JAVA_HOME、ANDROID_HOME。');
@@ -172,6 +182,8 @@ const help = () => console.log(`PocPet 统一打包（不提交 Git，不发布�
   npm.cmd run package                             交互选择，支持逗号分隔多选
   npm.cmd run package -- --type toy                仅 B 站 Toy
   npm.cmd run package -- --type windows,android    Windows x64 + Android arm64
+  npm.cmd run package -- --type windows,android --android-signing release
+                                                  Android 使用已配置的正式密钥
   npm.cmd run package -- --type full               同上；不包含 Web 或 32 位
   npm.cmd run package -- --type web                仅普通 Web
   npm.cmd run package -- --type windows-x86,android-armv7
@@ -184,6 +196,7 @@ const help = () => console.log(`PocPet 统一打包（不提交 Git，不发布�
 export const main = async (argv = process.argv.slice(2)) => {
   const { values } = parseArgs({ args: argv, options: {
     type: { type: 'string', multiple: true }, 'dry-run': { type: 'boolean' }, json: { type: 'boolean' },
+    'android-signing': { type: 'string', default: 'debug' },
     'require-clean': { type: 'boolean' }, list: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   } });
   if (values.help) return help();
@@ -200,7 +213,8 @@ export const main = async (argv = process.argv.slice(2)) => {
   }
   const types = selectTypes(requested);
   const { version } = readJson(join(root, 'package.json'));
-  const plan = createPlan(types, version);
+  const androidSigning = values['android-signing'];
+  const plan = createPlan(types, version, androidSigning);
   const updates = versionUpdates(root, version);
   const revision = run('git', ['rev-parse', 'HEAD'], process.env, true);
   const status = run('git', ['status', '--porcelain', '--untracked-files=all'], process.env, true);
@@ -214,7 +228,7 @@ export const main = async (argv = process.argv.slice(2)) => {
   for (const item of plan) console.log(`\n${item.artifact}\n${item.commands.map((command) => `  ${formatCommand(command)}`).join('\n')}`);
   if (values['dry-run']) return;
 
-  const env = preflight(plan);
+  const env = preflight(plan, androidSigning);
   for (const item of updates) writeFileSync(join(root, item.file), item.after);
   runCommand(npm('check:release'), env);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-') + `-${process.pid}`;
@@ -235,7 +249,7 @@ export const main = async (argv = process.argv.slice(2)) => {
       await verifyArchive(item, version, revision);
       const bytes = statSync(file).size;
       if (!bytes) throw new Error(`产物为空：${file}`);
-      const artifact = { type: item.type, file, previous, status: 'verified', bytes, sha256: sha256(file) };
+      const artifact = { type: item.type, file, signing: item.signing, previous, status: 'verified', bytes, sha256: sha256(file) };
       report.artifacts[report.artifacts.length - 1] = artifact;
       writeReport();
       console.log(`\n完成：${file}\n大小：${bytes} 字节\nSHA-256：${artifact.sha256}`);

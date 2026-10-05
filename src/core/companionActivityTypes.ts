@@ -17,7 +17,7 @@ export type NewRecipeId = 'mashed_potato' | 'corn_chowder' | 'pumpkin_rice' | 'p
   | 'herb_trout_soup' | 'herb_perch_soup' | 'herb_bluefin_soup'
   | 'flatbread' | 'tomato_ketchup' | 'french_fries' | 'ketchup_fries' | 'egg_wrap' | 'tomato_egg_wrap' | 'red_bean_wrap' | 'wrap_fries_set' | 'fish_fries_set'
   | 'corn_fritter' | 'cheesy_corn_fritter' | 'pumpkin_rice_cake' | 'red_bean_pumpkin_cake' | 'potato_cake' | 'garden_vegetable_wrap' | 'berry_jam_wrap' | 'pan_fried_dumplings';
-export type GenericRecipeId = 'mixed_juice' | 'fish_soup' | 'grilled_fish';
+export type GenericRecipeId = 'grilled_fish';
 export type MilkChoice = 'farm_milk' | 'ad_milk';
 export type DishId = `dish_${Exclude<RecipeId, GenericRecipeId>}` | `dish_${GenericRecipeId}__${string}` | 'dish_fruit_pancake_banana' | 'dish_fruit_pudding_banana';
 export type KitchenMaterialId = 'rice' | 'egg' | 'flour' | 'carrot' | 'tomato' | 'greens'

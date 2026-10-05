@@ -6,7 +6,7 @@ import { rarityNames } from '../../core/foodCatalog';
 export const RecipeIngredientChoice = ({ pet, recipe, onChange }: {
   pet: PetState; recipe: RecipeDefinition; onChange: (variantKey: string) => void;
 }) => {
-  if (!recipe.variantKey || recipe.retired) return null;
+  if (!recipe.variantKey) return null;
   return <fieldset className="recipe-ingredient-choice">
     <legend>选择料理鱼</legend>
     <p>每份烤鱼消耗所选鱼 1 条。观赏收藏鱼不用于料理，效果和售价随鱼种变化。</p>

@@ -2,11 +2,10 @@ import type { ReactNode } from 'react';
 import type { BlockState } from './blocks/rules';
 import type { WaterState } from './water/rules';
 import type { FruitState } from './fruit/state';
-import type { NonogramState } from './nonogram/rules';
 import type { Match3State } from './match3/rules';
 import type { HubGameId } from './catalog';
 
-export interface GameStates { blocks: BlockState; water: WaterState; fruit: FruitState; nonogram: NonogramState; match3: Match3State; }
+export interface GameStates { blocks: BlockState; water: WaterState; fruit: FruitState; match3: Match3State; }
 export type GameId = keyof GameStates;
 export interface MiniGamesSave { schemaVersion: 1; activeGame: GameId; sound: boolean; games: GameStates; reportedSessions: string[]; }
 export interface GameResult { game: GameId; sessionId: string; outcome: 'complete' | 'over'; score: number; }

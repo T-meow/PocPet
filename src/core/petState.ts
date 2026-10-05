@@ -331,7 +331,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   const yearlyStats = normalizeYearlyStats(raw.yearlyStats, now, currentDailyDateKey);
   const normalizedName = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : fallback.name;
   let adventure = normalizeAdventureState(raw.adventure);
-  const community = openTutorialGarden(normalizeCommunityState(raw.community, getExplorationBagCapacity({ adventure })), adventure);
+  const community = openTutorialGarden(normalizeCommunityState(raw.community, getExplorationBagCapacity({ adventure }), adventure), adventure);
   // Older saves recorded the seven stories separately from regional travel.
   if (adventure.valleyCompleted.includes('valley_camp') && !community.expedition.regions.valley.surveyed) {
     community.expedition.regions.valley = { ...community.expedition.regions.valley, surveyed: true, storyAt: now };

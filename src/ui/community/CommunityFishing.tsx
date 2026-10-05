@@ -1,7 +1,7 @@
 import { Crown } from 'lucide-react';
 import { fishingCatchHearts } from '../../core/activityHearts';
-import { fish, fishIds, waters } from '../../core/communityData';
-import { buildWaterBoardwalk } from '../../core/communityFishing';
+import { fish, fishIds, isWaterOpen, waterIds, waters } from '../../core/communityData';
+import type { WaterId } from '../../core/communityTypes';
 import { rarityNames } from '../../core/foodCatalog';
 import { canSpendCompanionTime } from '../../core/kitchen';
 import { communityItemIcons } from '../../communityAssets';
@@ -14,7 +14,7 @@ import { HelpButton } from '../help/HelpButton';
 import { fishingHelp } from '../help/fishingHelp';
 
 // The operation dialog lives in FishingDialog; this component contains the separate hut pages.
-export const CommunityFishing = ({ pet, update, onAdventure, registry, itemIconMap, view = 'all' }: CommunityPanelProps & { view?: 'all' | 'management' | 'journal' }) => {
+export const CommunityFishing = ({ pet, update, onAdventure, onFishing, registry, itemIconMap, view = 'all' }: CommunityPanelProps & { view?: 'all' | 'management' | 'journal'; onFishing?: (water: WaterId) => void }) => {
   const c = pet.community, f = c.fishing, free = canSpendCompanionTime(pet) && !pet.timePause;
   const level = c.upgrades.fishing_hut, effects = getFishingLevelEffects(level);
   return <>
@@ -22,10 +22,10 @@ export const CommunityFishing = ({ pet, update, onAdventure, registry, itemIconM
     {(view === 'all' || view === 'management') && <section className="community-card">
       <h3>钓鱼小屋 · Lv.{level}</h3><p>手动每竿体力 {effects.energy}、饱食 {effects.hunger}，基础等待 {effects.waitSeconds} 秒。所有已开放水域通用；手动和挂机每条鱼另得 {fishingCatchHearts} 心心，随鱼获领取。</p>
       <CommunityUpgradeTask pet={pet} update={update} id="fishing_hut" registry={registry} itemIconMap={itemIconMap} />
-      <h3>水域与栈道</h3><p>亲自探索发现水域，回小屋修好栈道后永久直通。</p>
-      {(['forest_pool', 'coast_pier'] as const).map(id => {
-        const access = c.waterAccess[id], cost = waters[id];
-        return <article className="community-card" key={id}><b>{cost.name} · {access.built ? '已永久直通' : access.found ? '已发现，待修建' : '尚未发现'}</b><p>{cost.discovery}</p>{access.found && !access.built && <><p>{cost.coins} 金币 · 木料 {cost.wood}（持有 {pet.inventory.community_wood ?? 0}）· 石料 {cost.stone}（持有 {pet.inventory.community_stone ?? 0}）</p><button className="secondary-button" disabled={!free || !c.facilities.fishing_hut.built || !c.expedition.regions[cost.region].surveyed || pet.coins < cost.coins || (pet.inventory.community_wood ?? 0) < cost.wood || (pet.inventory.community_stone ?? 0) < cost.stone} onClick={() => update(p => buildWaterBoardwalk(p, id))}>提交材料，修好栈道</button></>}</article>;
+      <h3>水域开放</h3><p>钓鱼小屋建成后，已通关的对应水域永久直通，无需另交金币或建材。</p>
+      {waterIds.map(id => {
+        const open = isWaterOpen(pet, id), water = waters[id];
+        return <article className="community-card" key={id}><b>{water.name} · {open ? '已永久直通' : '待通关开放'}</b><p>{water.discovery}</p>{open && onFishing && <button className="primary-button" onClick={() => onFishing(id)}>去{water.name}钓鱼</button>}</article>;
       })}
       {onAdventure && <button className="secondary-button" disabled={!free} onClick={onAdventure}>去前哨探索新水域</button>}
     </section>}

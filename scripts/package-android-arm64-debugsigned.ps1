@@ -2,6 +2,8 @@ param(
   [ValidateSet('aarch64', 'armv7')]
   [Alias('Target')]
   [string]$AndroidTarget = 'aarch64',
+  [ValidateSet('debug', 'release')]
+  [string]$Signing = $(if ($env:POCPET_ANDROID_SIGNING) { $env:POCPET_ANDROID_SIGNING } else { 'debug' }),
   [switch]$RebuildRust,
   [switch]$ReuseNative
 )
@@ -124,7 +126,7 @@ function Resolve-Keytool {
   throw 'keytool not found. Install a JDK or set JAVA_HOME.'
 }
 
-function Ensure-DebugKeystore([string]$keytool) {
+function Ensure-DebugKeystore {
   if ($env:GITHUB_ACTIONS -eq 'true') {
     if (-not $env:POCPET_ANDROID_DEBUG_KEYSTORE_BASE64) {
       throw 'CI requires the fixed Android test signing keystore. See docs/打包流程与统一脚本.md.'
@@ -141,6 +143,33 @@ function Ensure-DebugKeystore([string]$keytool) {
   $keystore = Join-Path $androidHome 'debug.keystore'
   if (Test-Path -LiteralPath $keystore) { return $keystore }
   throw 'Existing debug keystore not found. Restore the previously used keystore before building an update.'
+}
+
+function Resolve-AndroidSigning {
+  if ($Signing -eq 'release') {
+    foreach ($name in @('POCPET_ANDROID_KEYSTORE', 'POCPET_ANDROID_KEY_ALIAS', 'POCPET_ANDROID_STORE_PASSWORD', 'POCPET_ANDROID_KEY_PASSWORD')) {
+      if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
+        throw "Release signing requires $name. Debug signing will not be used as a fallback."
+      }
+    }
+    if (-not (Test-Path -LiteralPath $env:POCPET_ANDROID_KEYSTORE -PathType Leaf)) {
+      throw 'Release signing keystore does not exist.'
+    }
+    return @{
+      Keystore = $env:POCPET_ANDROID_KEYSTORE
+      Alias = $env:POCPET_ANDROID_KEY_ALIAS
+      KeytoolPassword = @('-storepass:env', 'POCPET_ANDROID_STORE_PASSWORD')
+      StorePassword = 'env:POCPET_ANDROID_STORE_PASSWORD'
+      KeyPassword = 'env:POCPET_ANDROID_KEY_PASSWORD'
+    }
+  }
+  return @{
+    Keystore = Ensure-DebugKeystore
+    Alias = 'androiddebugkey'
+    KeytoolPassword = @('-storepass', 'android')
+    StorePassword = 'pass:android'
+    KeyPassword = 'pass:android'
+  }
 }
 
 function Get-AndroidReleaseApk([string]$apkDirectoryName, [string]$apkLabel) {
@@ -220,20 +249,24 @@ $sdk = Resolve-AndroidSdk
 $zipalign = Resolve-BuildTool $sdk 'zipalign.exe'
 $apksigner = Resolve-BuildTool $sdk 'apksigner.bat'
 $keytool = Resolve-Keytool
-$debugKeystore = Ensure-DebugKeystore $keytool
-$certificateInfo = & $keytool '-J-Duser.language=en' '-J-Duser.country=US' -list -v -keystore $debugKeystore -storepass android -alias androiddebugkey
-if ($LASTEXITCODE -ne 0) { throw 'Cannot read debug signing certificate.' }
+$signingConfig = Resolve-AndroidSigning
+$keytoolPassword = $signingConfig.KeytoolPassword
+$certificateInfo = & $keytool '-J-Duser.language=en' '-J-Duser.country=US' -list -v -keystore $signingConfig.Keystore @keytoolPassword -alias $signingConfig.Alias
+if ($LASTEXITCODE -ne 0) { throw "Cannot read $Signing signing certificate." }
 $certificateMatch = [regex]::Match(($certificateInfo -join "`n"), 'SHA256:\s*([A-Fa-f0-9:]+)')
 if (-not $certificateMatch.Success) { throw 'Signing certificate SHA-256 fingerprint was not found.' }
 $certificateSha256 = $certificateMatch.Groups[1].Value.Replace(':', '').ToUpperInvariant()
-$signingReference = Get-Content -LiteralPath (Join-Path $root 'scripts/android-signing-reference.json') -Raw | ConvertFrom-Json
-if ($env:GITHUB_ACTIONS -eq 'true' -and $certificateSha256 -ne $signingReference.$AndroidTarget) {
+$signingReference = Get-Content -LiteralPath (Join-Path $root 'scripts/android-signing-reference.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($Signing -eq 'release' -and ($certificateSha256 -ne $signingReference.production.sha256 -or $signingConfig.Alias -ne $signingReference.production.alias)) {
+  throw 'Release signing certificate or alias does not match the production signing baseline. Build blocked.'
+}
+if ($Signing -eq 'debug' -and $env:GITHUB_ACTIONS -eq 'true' -and $certificateSha256 -ne $signingReference.$AndroidTarget) {
   throw "Signing certificate does not match the fixed $($signingReference.release) $label signing baseline. Build blocked."
 }
 if ($env:POCPET_ANDROID_SIGNING_SHA256 -and $certificateSha256 -ne $env:POCPET_ANDROID_SIGNING_SHA256.Replace(':', '').ToUpperInvariant()) {
   throw 'Signing certificate does not match the approved previous APK certificate.'
 }
-Write-Host "Android signing SHA-256: $certificateSha256"
+Write-Host "Android $Signing signing SHA-256: $certificateSha256"
 
 if (-not $ReuseNative -and $env:POCPET_ANDROID_COPY_NATIVE -eq '1') {
   Write-Host "Rebuilding $label with NDK/Cargo; copying native output instead of creating symbolic links..."
@@ -316,11 +349,16 @@ if (Test-Path -LiteralPath "$finalApk.idsig") { Remove-Item -LiteralPath "$final
 & $zipalign -p -f 4 $unsignedApk $alignedApk
 if ($LASTEXITCODE -ne 0) { throw 'zipalign failed.' }
 
-& $apksigner sign --ks $debugKeystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out $finalApk $alignedApk
+& $apksigner sign --ks $signingConfig.Keystore --ks-key-alias $signingConfig.Alias --ks-pass $signingConfig.StorePassword --key-pass $signingConfig.KeyPassword --out $finalApk $alignedApk
 if ($LASTEXITCODE -ne 0) { throw 'apksigner sign failed.' }
 
-& $apksigner verify --verbose $finalApk
+$signatureInfo = & $apksigner verify --verbose --print-certs $finalApk
 if ($LASTEXITCODE -ne 0) { throw 'apksigner verify failed.' }
+Write-Output $signatureInfo
+$apkCertificateMatches = [regex]::Matches(($signatureInfo -join "`n"), 'Signer #\d+ certificate SHA-256 digest:\s*([A-Fa-f0-9:]+)')
+if ($apkCertificateMatches.Count -ne 1 -or $apkCertificateMatches[0].Groups[1].Value.Replace(':', '').ToUpperInvariant() -ne $certificateSha256) {
+  throw 'Final APK signing certificate does not match the selected signing key.'
+}
 & node (Join-Path $root 'scripts/check.mjs') --release --dist (Join-Path $root 'dist') --binary $finalApk --arch $artifactArch
 if ($LASTEXITCODE -ne 0) { throw 'APK content validation failed.' }
 $aapt = Resolve-BuildTool $sdk 'aapt.exe'
@@ -329,8 +367,11 @@ if ($LASTEXITCODE -ne 0) { throw 'APK manifest validation failed.' }
 if ($badging -notmatch "versionCode='$androidVersionCode'" -or $badging -notmatch "versionName='$([regex]::Escape($version))'" -or $badging -notmatch "name='com.frostforge.pocpet'") {
   throw 'APK application id or version does not match release metadata.'
 }
+if ($Signing -eq 'release' -and $badging -match 'application-debuggable') {
+  throw 'Production-signed APK must not be debuggable.'
+}
 
 Remove-Item -LiteralPath $alignedApk -Force
 if (Test-Path -LiteralPath "$finalApk.idsig") { Remove-Item -LiteralPath "$finalApk.idsig" -Force }
-Write-Host "Android $label debug-signed APK:"
+Write-Host "Android $label $Signing-signed APK:"
 Write-Host $finalApk
