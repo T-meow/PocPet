@@ -68,7 +68,11 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const options = getAdventureSteps(rulesVersion, value.region as AdventureDestinationId, purpose);
   const choices: string[] = [];
   for (const choice of Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
-    if (!options[choices.length]?.choices.some(option => option.id === choice)) break;
+    const step = options[choices.length];
+    // Retired gathering choices remain valid history; they cannot be selected again.
+    const retiredMaterials = modern && ['gather:materials', 'tool:materials', 'lens:materials'].includes(choice)
+      && step?.choices.some(option => option.harvest);
+    if (!retiredMaterials && !step?.choices.some(option => option.id === choice)) break;
     choices.push(String(choice));
   }
   const bag = inventory(value.bag, true, capacity);

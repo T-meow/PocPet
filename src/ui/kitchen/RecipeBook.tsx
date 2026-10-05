@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { KitchenState, RecipeId } from '../../core/companionActivityTypes';
+import type { PetState } from '../../core/petTypes';
 import { browseRecipes, type RecipeFilter } from '../../core/kitchenBrowse';
 import { getDishId, recipeCategoryNames, recipeName } from '../../core/kitchenRecipes';
 import { rarityNames, rarityOrder } from '../../core/foodCatalog';
@@ -15,9 +16,9 @@ const sortOptions = [
   { value: 'rarity', label: '稀有度 ↓', title: '稀有度：高到低' },
 ] as const;
 
-export const RecipeBook = ({ kitchen, actorId, icons, selected, onSelect, favoriteIds }: { kitchen: KitchenState; actorId: string; icons: Record<string, string>; selected: RecipeId; onSelect: (id: RecipeId) => void; favoriteIds: readonly RecipeId[] }) => {
+export const RecipeBook = ({ pet, kitchen, actorId, icons, selected, onSelect, favoriteIds }: { pet: PetState; kitchen: KitchenState; actorId: string; icons: Record<string, string>; selected: RecipeId; onSelect: (id: RecipeId, variantKey?: string) => void; favoriteIds: readonly RecipeId[] }) => {
   const [filter, setFilter] = useState<RecipeFilter>({ category: '', rarity: '', sort: 'rarity' });
-  const shown = favoritesFirst(browseRecipes(filter), favoriteIds, recipe => recipe.id);
+  const shown = favoritesFirst(browseRecipes(filter, pet), favoriteIds, recipe => recipe.id);
   return <section className="kitchen-recipe-book"><h3>食谱本 · {shown.length} 道</h3><p className="recipe-progress-legend">🧑‍🍳 做过 · 🍴 当前伙伴吃过 · 灰色表示未达成</p><div className="recipe-filters">
     <label>种类<select value={filter.category} onChange={e => setFilter({ ...filter, category: e.target.value as RecipeFilter['category'] })}><option value="">全部</option>{Object.entries(recipeCategoryNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
     <label>稀有度<select value={filter.rarity} onChange={e => setFilter({ ...filter, rarity: e.target.value as RecipeFilter['rarity'] })}><option value="">全部</option>{rarityOrder.map(id => <option key={id} value={id}>{rarityNames[id]}</option>)}</select></label>
@@ -25,10 +26,11 @@ export const RecipeBook = ({ kitchen, actorId, icons, selected, onSelect, favori
   </div>
   <div className="recipe-grid">{shown.map(recipe => <button
     type="button" className={`recipe-card${selected === recipe.id ? ' selected' : ''}`}
-    key={recipe.id} data-recipe-id={recipe.id} aria-haspopup="dialog" onClick={() => onSelect(recipe.id)}
+    key={recipe.id} data-recipe-id={recipe.id} aria-haspopup="dialog" onClick={() => onSelect(recipe.id, recipe.variantKey)}
   >
     <img src={icons[getDishId(recipe)]} alt="" draggable={false} />
     <strong>{favoriteIds.includes(recipe.id) && <FavoriteMark />}{recipeName(recipe)}</strong>
+    {recipe.variantLabel && <small className="recipe-variant-preview">可选食材 · 当前预览：{recipe.variantLabel}</small>}
     <RecipeProgress kitchen={kitchen} actorId={actorId} recipe={recipe} />
     <RecipeBadges recipe={recipe} />
   </button>)}</div>{!shown.length && <p>没有符合这些条件的料理，调整筛选后再看看。</p>}</section>;

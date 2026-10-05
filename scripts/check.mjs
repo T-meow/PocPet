@@ -587,6 +587,41 @@ async function verifySavesAndErrors() {
       assert.deepEqual(saved.adventure.landmarks, all.adventure.landmarks);
     });
 
+    await check('通用料理选材的存档往返、无效材料与重复提交恢复', async () => {
+      const { craftRecipe, recordDishTaste } = await import('../src/core/kitchen.ts');
+      const { getDish, getRecipe, getDishId } = await import('../src/core/kitchenRecipes.ts');
+      const { getCommunitySale } = await import('../src/core/communityEconomy.ts');
+      let state = createDefaultPet(now);
+      state.kitchen.equipment = ['mix', 'pan', 'blender'];
+      state.community.facilities.fishing_hut.built = true;
+      state.community.waterAccess.coast_pier.built = true;
+      state.inventory = { apple: 3, watermelon: 3, wheat_fish: 3, bluefin_bream: 3, golden_koi: 1 };
+      const variants = [['mixed_juice', 'apple__watermelon'], ['fish_soup', 'wheat_fish'], ['grilled_fish', 'bluefin_bream']];
+      const outputs = [];
+      for (const [index, [recipeId, variantKey]] of variants.entries()) {
+        const recipe = getRecipe(recipeId, variantKey);
+        const dishId = getDishId(recipe);
+        state = craftRecipe(state, recipeId, false, 2, `variant-${index}`, now, undefined, variantKey);
+        assert.equal(state.inventory[dishId], 2, 'the selected ingredients must produce their own item');
+        for (const input of recipe.ingredients) assert.equal(state.inventory[input], 1, 'only the selected ingredients are consumed');
+        state = recordDishTaste(state, dishId, 'official.furo', now);
+        outputs.push(dishId);
+      }
+      state.favorites = { itemIds: outputs, recipeIds: variants.map(([id]) => id) };
+      const restored = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      for (const key of ['inventory', 'favorites', 'companionMemories']) assert.deepEqual(restored[key], state[key], `${key} retains selected recipe variants`);
+      for (const key of ['made', 'firstMadeAt', 'tasted', 'recentOperationIds']) assert.deepEqual(restored.kitchen[key], state.kitchen[key], `kitchen ${key} retains selected recipe variants`);
+      assert.equal(restored.kitchen.lastCraft, undefined, 'compact saves still omit the temporary result panel');
+      const grilledId = outputs[2];
+      assert.equal(getDish(grilledId).recipe.variantKey, 'bluefin_bream');
+      assert.ok(getCommunitySale(grilledId).base > getCommunitySale('dish_grilled_fish__wheat_fish').base);
+      assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'variant-2', now, undefined, 'bluefin_bream'), restored, 'restoring a result must not repeat its reward');
+      assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'collector', now, undefined, 'golden_koi'), restored, 'collection fish cannot be substituted');
+      assert.equal(craftRecipe(restored, 'mixed_juice', false, 1, 'same-fruit', now, undefined, 'apple__apple'), restored, 'mixed juice requires different fruits');
+      assert.equal(craftRecipe(restored, 'mixed_juice', false, 2, 'short-stock', now, undefined, 'apple__watermelon'), restored, 'an outdated quantity must not partially consume ingredients');
+      assert.equal(craftRecipe(restored, 'egg_rice', false, 1, 'wrong-recipe', now, undefined, 'bluefin_bream'), restored, 'a variant belongs only to its recipe');
+    });
+
     await check('挂机地区保底跨存档、提前返回与结算重复恢复', async () => {
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const { regionIds } = await import('../src/core/expeditionData.ts');
@@ -1060,6 +1095,24 @@ async function verifySavesAndErrors() {
       assert.ok(focused.adventure.active.earnedCoins > 0);
       assert.equal(reload(focused).adventure.active.earnedCoins, focused.adventure.active.earnedCoins);
       assert.deepEqual(advanceAdventure(reload(focused), trip.id, 2, lens.id, now, trip.revision).community.toolWear, focused.community.toolWear);
+      for (const retiredId of ['gather:materials', 'tool:materials', 'lens:materials']) {
+        const legacy = structuredClone(restored);
+        legacy.adventure.active.choices.push(retiredId, steps[3].choices[0].id, steps[4].choices[0].id);
+        legacy.adventure.active.stageIds = steps.slice(0, 5).map(step => step.id);
+        legacy.adventure.active.bag = { community_wood: 4, community_stone: 3 };
+        legacy.adventure.active.earnedCoins = 20;
+        legacy.community.expedition.loop.available--;
+        legacy.community.expedition.loop.used++;
+        const saved = reload(legacy);
+        assert.deepEqual(saved.adventure.active.choices, legacy.adventure.active.choices, 'retired material actions remain completed history');
+        assert.deepEqual(saved.adventure.active.bag, legacy.adventure.active.bag, 'previously gathered materials survive import');
+        assert.equal(saved.adventure.active.earnedCoins, 20);
+        const completed = reload(act(fuel(saved), steps[5].choices[0].id));
+        assert.equal(completed.adventure.active.choices.length, 6, 'old trips continue from the saved stage');
+        assert.equal(completed.community.expedition.loop.used, legacy.community.expedition.loop.used, 'restoring history cannot consume another gathering charge');
+        assert.equal(completed.adventure.active.bag.community_wood, 4);
+        assert.equal(completed.adventure.active.bag.community_stone, 3);
+      }
     });
 
     await check('仓库绳索与旧携带绳索的耐久、返还和读档防重', async () => {
@@ -1188,6 +1241,30 @@ async function verifySavesAndErrors() {
       assert.ok(repeatedTrip.adventure.active, repeatedTrip.recentEvent);
       repeatedTrip.adventure.active.bag.coin_hoard = 1;
       assert.equal(redeemAdventureTreasure(repeatedTrip, repeatedTrip.adventure.active.id, repeatedTrip.adventure.active.revision).adventure.active.bag.coin_hoard, 1);
+      const reload = value => parseSaveFileText(createSaveFileText(value, null, now), now).pet;
+      let converted = startAdventure(fuel({ ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 }, landmarks: ['landmark:valley:entrance'] } }), 'valley', 'official.furo', 'Furo', {}, false, now, 'landmark:valley:gather');
+      for (const step of getLandmarkSteps('landmark:valley:gather')) {
+        const trip = converted.adventure.active;
+        converted = reload(advanceAdventure(fuel(converted), trip.id, trip.choices.length, step.choices[0].id, now, trip.revision));
+        assert.equal(advanceAdventure(converted, trip.id, trip.choices.length, step.choices[0].id, now, trip.revision), converted, 'replaying completion cannot duplicate the converted gift');
+      }
+      assert.equal(converted.adventure.active.earnedCoins, 34, 'two wood and one stone become a saved coin allowance');
+      const convertedReceipt = reload(returnFromAdventure(converted, converted.adventure.active.id, now));
+      assert.equal(convertedReceipt.adventure.pending.coins, 54, 'allowance and original first-clear coins are each paid once');
+      assert.equal(convertedReceipt.adventure.pending.items.community_wood ?? 0, 0);
+      assert.equal(convertedReceipt.adventure.pending.items.community_stone ?? 0, 0);
+      const convertedId = convertedReceipt.adventure.pending.id;
+      const collected = reload(claimAdventureResult(convertedReceipt, convertedId));
+      assert.equal(collected.coins, convertedReceipt.coins + 54);
+      assert.equal(claimAdventureResult(collected, convertedId), collected);
+      const legacyCompleted = structuredClone(converted);
+      legacyCompleted.adventure.active.earnedCoins = 0;
+      legacyCompleted.adventure.active.bag.community_wood = 2;
+      legacyCompleted.adventure.active.bag.community_stone = 1;
+      const legacyReceipt = reload(returnFromAdventure(reload(legacyCompleted), legacyCompleted.adventure.active.id, now));
+      assert.equal(legacyReceipt.adventure.pending.coins, 20, 'a previously completed gift must not receive extra compensation');
+      assert.equal(legacyReceipt.adventure.pending.items.community_wood, 2);
+      assert.equal(legacyReceipt.adventure.pending.items.community_stone, 1);
     });
 
     await check('计时提醒随取消、冻结、成熟和存档恢复保持一致', async () => {

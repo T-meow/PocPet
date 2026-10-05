@@ -20,7 +20,7 @@ interface Props {
   backLabel?: string;
 }
 export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onBack, onFeed, backLabel }: Props) => {
-  const recipe = getRecipe(request.recipeId)!;
+  const recipe = getRecipe(request.recipeId, request.variantKey)!;
   const dishId = getDishId(recipe, request.banana);
   const result = pet.kitchen.lastCraft?.id === request.id ? pet.kitchen.lastCraft : undefined;
   const [progress, setProgress] = useState(createCookingProgress);
@@ -29,14 +29,14 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
   const updateRef = useRef(update);
   updateRef.current = update;
   const finishSoundPlayed = useRef(Boolean(result));
-  const reward = getKitchenHeartReward(pet, request.recipeId, request.banana);
+  const reward = getKitchenHeartReward(pet, request.recipeId, request.banana, request.variantKey);
   const skillXp = getKitchenSkillXpReward(pet, request.recipeId);
   const actions = getCookingActions(recipe.method, recipe.technique);
-  const canCook = canCraftRecipe(pet, request.recipeId, request.banana, request.quantity, request.milk);
+  const canCook = canCraftRecipe(pet, request.recipeId, request.banana, request.quantity, request.milk, request.variantKey);
   const back = () => { playSfx('close'); onBack(); };
   const submit = () => {
     setSubmitted(true);
-    updateRef.current((current) => craftRecipe(current, request.recipeId, request.banana, request.quantity, request.id, Date.now(), request.milk));
+    updateRef.current((current) => craftRecipe(current, request.recipeId, request.banana, request.quantity, request.id, Date.now(), request.milk, request.variantKey));
   };
   useEffect(() => {
     if (!progress.readyAt || result) return;

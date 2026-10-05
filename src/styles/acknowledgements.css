@@ -60,7 +60,32 @@
 
 .acknowledgements-hero h2 { margin: 14px 0 8px; color: #51452f; font-size: 26px; }
 .acknowledgements-hero p { margin: 0; color: #786a54; font-size: 13px; line-height: 1.8; }
-.acknowledgements-hero img { width: 100%; height: 144px; object-fit: contain; }
+.acknowledgements-hero > div { min-width: 0; }
+.acknowledgements-hero img { display: block; width: 100%; height: 144px; object-fit: contain; }
+
+.acknowledgements-heart { color: #cb6089; }
+.acknowledgements-heart svg {
+  fill: #f7c3d4;
+  animation: acknowledgements-heartbeat 3.6s ease-in-out infinite;
+}
+
+.acknowledgements-pet {
+  position: relative;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 24px;
+}
+
+.acknowledgements-pet-heart {
+  position: absolute;
+  color: #d66b9b;
+  fill: #f8ccdf;
+  pointer-events: none;
+  animation: acknowledgements-heart-float 4s ease-in-out infinite;
+}
+.acknowledgements-pet-heart--first { top: 14px; right: 10px; }
+.acknowledgements-pet-heart--second { top: 38px; left: 8px; color: #9c79cd; fill: #e3d4f7; animation-delay: -1.3s; }
+.acknowledgements-pet-heart--third { bottom: 14px; right: 16px; animation-delay: -2.6s; }
 
 .acknowledgements-list {
   display: grid;
@@ -78,7 +103,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
   padding: 16px 12px;
   border: 1px solid #eee4d3;
   border-radius: 14px;
@@ -87,9 +111,46 @@
   text-align: center;
 }
 
-.acknowledgements-list svg { flex-shrink: 0; color: #947139; }
-.acknowledgements-list span { max-width: 100%; font-size: 14px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.acknowledgements-list svg { flex-shrink: 0; margin-bottom: 9px; color: #cb6089; fill: #f7c3d4; }
+.acknowledgements-list span { min-width: 0; max-width: 100%; font-size: 14px; font-weight: 600; line-height: 1.6; overflow-wrap: break-word; word-wrap: break-word; overflow-wrap: anywhere; }
 .acknowledgements-note { margin: 0; color: #786a54; font-size: 12px; line-height: 1.8; text-align: center; }
+
+/* 实体底色和边框为回退，双层渐变只装饰边缘，不覆盖文字和宠物。 */
+.acknowledgements-page .acknowledgements-rainbow {
+  border: 2px solid #d9b2e8;
+  background: #fffcf8;
+  box-shadow: 0 4px 14px rgba(192, 126, 170, 0.12);
+}
+
+@supports (background: linear-gradient(90deg, #ed87af, #8b9fed)) {
+  .acknowledgements-page .acknowledgements-rainbow {
+    border-color: transparent;
+    background-image: linear-gradient(#fffcf8, #fffcf8), linear-gradient(115deg, #ed87af, #bd92e3, #82adee, #7dcebc, #efd18d, #ed87af);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    background-size: 100% 100%, 300% 300%;
+    background-position: 0 0, 0% 50%;
+    animation: acknowledgements-rainbow-flow 9s ease-in-out infinite;
+  }
+  .acknowledgements-pet.acknowledgements-rainbow { animation-delay: -3s; }
+  .acknowledgements-list li:nth-child(2n) { animation-delay: -3s; }
+  .acknowledgements-list li:nth-child(3n) { animation-delay: -6s; }
+}
+
+@keyframes acknowledgements-rainbow-flow {
+  0%, 100% { background-position: 0 0, 0% 50%; }
+  50% { background-position: 0 0, 100% 50%; }
+}
+
+@keyframes acknowledgements-heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes acknowledgements-heart-float {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  50% { transform: translateY(-5px) rotate(8deg); }
+}
 
 .acknowledgements-gift {
   margin: 20px 0;
@@ -104,7 +165,7 @@
 .acknowledgements-gift button svg { flex-shrink: 0; }
 
 @media (min-width: 1100px) {
-  .acknowledgements-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .acknowledgements-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
@@ -112,4 +173,10 @@
   .acknowledgements-hero h2 { font-size: 23px; }
   .acknowledgements-hero img { height: 112px; }
   .acknowledgements-list { gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acknowledgements-page .acknowledgements-rainbow,
+  .acknowledgements-heart svg,
+  .acknowledgements-pet-heart { animation: none; }
 }

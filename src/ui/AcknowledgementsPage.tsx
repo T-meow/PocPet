@@ -4,7 +4,7 @@ import { acknowledgementsGiftCoins } from '../core/acknowledgementsGift';
 import { activityText as L } from '../core/kitchenRecipes';
 
 // 按用户提供的顺序展示，昵称保持原样。
-const sponsorNames = ['ManoT95', '银点', '我是苔丝的奶香魔法棒', '影ch-'] as const;
+const sponsorNames = ['ManoT95', '银点', '我是苔丝的奶香魔法棒', '影ch-', 'Woundwort伍德沃特', 'AhegaoSphere'] as const;
 
 export const AcknowledgementsPage = ({ onBack, hasClaimedGift, onClaimGift }: {
   onBack: () => void;
@@ -17,15 +17,20 @@ export const AcknowledgementsPage = ({ onBack, hasClaimedGift, onClaimGift }: {
     </button>
     <header className="acknowledgements-hero">
       <div>
-        <span className="acknowledgements-heart" aria-hidden="true"><Heart size={22} /></span>
+        <span className="acknowledgements-heart acknowledgements-rainbow" aria-hidden="true"><Heart size={22} /></span>
         <h2 id="acknowledgements-title">{L('致谢名单', 'Acknowledgements')}</h2>
         <p>{L('感谢以下伙伴对 PocPet 开发的赞助与支持。', 'Thank you to everyone below for sponsoring and supporting the development of PocPet.')}</p>
       </div>
-      <img src={petActivityImages.happy} alt="" aria-hidden="true" draggable={false} />
+      <div className="acknowledgements-pet acknowledgements-rainbow" aria-hidden="true">
+        <img src={petActivityImages.happy} alt="" draggable={false} />
+        <Heart className="acknowledgements-pet-heart acknowledgements-pet-heart--first" size={18} />
+        <Heart className="acknowledgements-pet-heart acknowledgements-pet-heart--second" size={14} />
+        <Heart className="acknowledgements-pet-heart acknowledgements-pet-heart--third" size={12} />
+      </div>
     </header>
     <ul className="acknowledgements-list" aria-label={L('赞助开发的伙伴', 'Development supporters')}>
       {sponsorNames.map((name) => (
-        <li key={name}>
+        <li key={name} className="acknowledgements-rainbow">
           <Heart size={16} aria-hidden="true" />
           <span>{name}</span>
         </li>

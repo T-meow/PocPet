@@ -42,7 +42,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { actorId: string; a
     const active = tasks.some(value => value.id === task.id);
     const def = commissionDefinitions[task.template], used = accepted.includes(task.id), sameKind = tasks.some(t => t.template === task.template);
     return <CommunityDetailDialog title={def.name} eyebrow={active ? '已接取 · 不过期' : used ? '今日已接过' : '今日候选'} onClose={close}>
-      <div className="community-letter"><img className="community-letter-item" src={icon(art(task).item)} alt="" /><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{getCommunityTaskRewardCoins(task)} 金币 · {communityTaskHearts} 小心心{def.reward ? ' · 木料 ×1 · 石料 ×1' : ''}</p></div>
+      <div className="community-letter"><img className="community-letter-item" src={icon(art(task).item)} alt="" /><p>{def.detail}</p><p className="community-letter-reward"><Coins size={16} />酬谢：{getCommunityTaskRewardCoins(task)} 金币 · {communityTaskHearts} 小心心</p></div>
       <p>地点：{def.region ? regionNames[mapRegionForExpedition[def.region]] + (def.node ? '／' + landmarkNames[mapRegionForExpedition[def.region]][def.node] : '') : def.water ? '钓鱼小屋／对应水域' : '社区'} · {def.event ? '必须记录接取后的行动' : '接受库存'}</p>
       <p>交付数量：{def.deliveryItem ? '行囊便当 ×1（现场扣除）' : def.take ? Object.entries(def.take).map(([id, n]) => (registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id) + ' ×' + n).join('、') : '只记录行动，不扣物品'}</p>
       {active ? <>

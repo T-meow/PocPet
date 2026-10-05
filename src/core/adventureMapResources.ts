@@ -26,8 +26,7 @@ export const getAdventureMapResources = (pet: PetState, region: AdventureRegionI
     add(treasure, '挂机基础每 30 分钟判定，运动技能与星辉穹顶可加速；料理影响概率，第 10 次判定保底');
   } else {
     for (const target of landmarkTargets(region)) {
-      if (target === 'materials') { add('community_wood', '沿途随机采集，放大镜可定向查找木料与石料'); add('community_stone', '沿途随机采集，放大镜可定向查找木料与石料'); }
-      else if (target !== treasure) {
+      if (target !== treasure) {
         const food = wildIngredients[target as keyof typeof wildIngredients];
         add(target, food && food.investigations > 1 ? `食材调查进度满 ${food.investigations} 点可得` : '沿途随机采集，放大镜可定向查找');
       }

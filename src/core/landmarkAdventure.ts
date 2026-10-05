@@ -38,7 +38,7 @@ export const completeLandmarkStory = (pet: PetState, trip: AdventureTrip, now: n
     next = { ...next, community: { ...next.community, expedition: { ...expedition, regions: { ...expedition.regions, [r]: { ...expedition.regions[r], surveyed: true, storyAt: now, actorId: trip.actorId, actorName: trip.actorName } } },
       ...(region === 'forest' || region === 'coast' ? { waterAccess: { ...next.community.waterAccess, [region === 'forest' ? 'forest_pool' : 'coast_pier']: { ...next.community.waterAccess[region === 'forest' ? 'forest_pool' : 'coast_pier'], found: true } } } : {}) } };
   }
-  return { pet: next, first, items: landmarkFirstReward(trip.purpose).items };
+  return { pet: next, first, items: landmarkFirstReward(trip.purpose, trip.rulesVersion < 11).items };
 };
 export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, choice: AdventureChoice, index: number, now: number): PetState => {
   if (!isLandmarkId(trip.purpose)) return pet;
@@ -70,6 +70,9 @@ export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, cho
   const completion = complete ? completeLandmarkStory(next, trip, now) : undefined;
   const first = completion?.first ?? false;
   if (completion) { next = completion.pet; add(completion.items); }
+  // Save the converted gift once at completion. Existing completed trips keep
+  // their original materials and must not receive an additional coin allowance.
+  if (first && trip.rulesVersion >= 11) coins += landmarkFirstReward(purpose).materialCoins;
   if (region === 'valley' && node === 'entrance') {
     const observed = recordValleyObservation(next, `${index}:${choice.observation ?? (choice.id.startsWith('tool:') ? 'b' : 'a')}`, now); next = observed.pet; add(observed.finds);
     const loop = next.community.expedition.loop;

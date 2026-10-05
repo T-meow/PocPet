@@ -9,29 +9,30 @@ import { explorationDifficulty } from './explorationChecks';
 import { expeditionRegionForMap, landmarkNames, parseLandmarkId, type LandmarkId, type LandmarkNode } from './landmarkProgress';
 import { valleyQuests, type ValleyQuestId } from './valleyQuests';
 import { valleyGatherFinds } from './valleyExplorationData';
+import { convertBuildingMaterialRewards } from './communityItems';
 
 // Six authored moments per landmark; later chapters add fieldwork between the discovery and resolution.
 type Script = readonly [string, string, string, string, string, string];
 const scripts: Record<AdventureRegionId, Record<LandmarkNode, Script>> = {
   valley: {
-    entrance: ['溪水指向家的方向', '前哨的屋檐还在身后。溪水分成两道，先把回家的方向画在手册边上。', '路牌背面有一道新刻痕，和河滩上的脚印指向不同方向。分别记下，才能认清入口。', '向阳处长着野菇，背阴处散落着可用的木石。留出小动物通行的空隙，再查看岸边物产。', '浅滩的露石有些湿滑。可以沿岸绕行，也可以固定绳索，从结实的石头旁通过。', '树荫下看得见旧桥和温室屋顶。把近处两条支路标清楚，往后的故事便有了起点。'],
+    entrance: ['溪水指向家的方向', '前哨的屋檐还在身后。溪水分成两道，先把回家的方向画在手册边上。', '路牌背面有一道新刻痕，和河滩上的脚印指向不同方向。分别记下，才能认清入口。', '向阳处长着香草，背阴处藏着几簇野菇。留出小动物通行的空隙，再查看岸边物产。', '浅滩的露石有些湿滑。可以沿岸绕行，也可以固定绳索，从结实的石头旁通过。', '树荫下看得见旧桥和温室屋顶。把近处两条支路标清楚，往后的故事便有了起点。'],
     gather: ['水渠的第一滴水', '石头上刻着一片叶子。旧水渠在这里分成两道，一道通往社区，一道没入草丛。', '拨开渠边的落叶，水位刻痕终于露了出来。先找到堵住水流的地方。', '几株香草仍守着浅浅的水洼。取种时留下根，让来年的这里还能绿起来。', '细砂堵着一个小小出水口。顺着水势清理，避免让泥土埋住刚找到的幼苗。', '旧手册里记着香草暖粥的做法。收好种子与配方，把这一点清香带回已经开放的菜地。'],
     ridge: ['坡道上的旧农舍', '青苔下露着旧石阶，远处是农舍的屋顶。先沿干燥的边缘找到上坡的落脚处。', '歪倒的木牌画着鸡舍与牧道。核对箭头，区分通往谷仓和水桶架的两条路。', '谷仓里还留着能转动的饲喂装置。把结构画下来，比搬走整座木架更有用。', '饮水设备的支架陷在草里。清理周围，读出水槽之间的连接方式。', '两张图纸终于完整。等菜地、鸡舍和牛棚依次开放，这条牧道就会重新热闹起来。'],
     crossing: ['旧桥那边的来信', '水渠与农舍的笔记在桥头接到一起。守望者招手，请你先看岸边的通行木牌。', '信封上的波纹与桥柱上的记号相同。核对水边小屋的位置，也记下邻居托付的事情。', '桥边草丛留着工具包的带扣。查看石缝与香草，完成已接下的寻物和实地采集。', '中间一块桥板晃了晃。沿岸有平缓小径，结实的桥柱也能固定探路绳。', '守望者递来钓鱼小屋的图纸。把物资送到他手中，再把通往栈桥的路记进手账。'],
     lookout: ['风声里的上游', '沿着旧桥后的路标登上观景台，溪流分岔在风里亮成两道银线。', '近处池塘安静，上游却传来清亮水声。用手册把两处水面分别圈出来。', '在稳固石阶边查看水草与岩缝，辨认适合停留的岸线。', '一段旧护栏松了。绕到内侧逐段量出步道位置，不必冒险靠近崖边。', '手账上多出清楚的上游岸线。等钓鱼小屋建成，就能凭这份勘测记录修好第二处水域。'],
     story: ['温室里未完的约定', '细藤遮住旧温室的门。木牌轻轻摇着：请记得给邻居留一点收获。', '拨开门边藤蔓，日光落到一张小木桌上。桌脚刻着社区菜地的标记。', '抽屉中的种子与守园手账放在一起。先分清哪些可以取走，哪些留给温室。', '书页受潮粘在一起。耐心逐页翻开，找回野菇焖饭的配方和小摊图纸。', '守园人写道：遇见需要的人，就一起做顿饭。留下新的一页，让种养与鱼获回到邻里的日常。'],
     encounter: ['石芽与迷路的小客人', '温室旁有一块长着嫩芽的石头，后面藏着一双紧张的小眼睛。', '脚印在树枝堆前打转。蹲下来辨认它来时的路，不急着靠近。', '草丛里有香草，也有小客人留下的落果。只取沿路可用的物产，留出足够空间。', '慢慢挪开树枝，小客人才探出头来。可以安静等待，也可以借食物引它走向宽处。', '它钻进树荫又回头望望。脚印连接着温室休息间，你与伙伴记下最后一段安全的小径。'],
-    camp: ['溪谷第一盏灯', '门上还挂着旧温室的号码。经过这些支路，回家的方向已经很熟悉。', '窗台下压着一张值班表，写着水渠、农舍与旧桥。把走过的地点逐个对上。', '查看屋旁的落枝和石块，挑出能够用于以后建设的材料。', '伙伴擦亮窗，你整理长凳。桌面腾出位置，可以把一路的笔记摊开核对。', '第一盏灯亮起，溪谷八个地标连成完整章节。休息间已找到，回去备好建材便能修成挂机基地。'],
+    camp: ['溪谷第一盏灯', '门上还挂着旧温室的号码。经过这些支路，回家的方向已经很熟悉。', '窗台下压着一张值班表，写着水渠、农舍与旧桥。把走过的地点逐个对上。', '查看屋旁的香草和野菇，记下可以补充旅途食物的位置。', '伙伴擦亮窗，你整理长凳。桌面腾出位置，可以把一路的笔记摊开核对。', '第一盏灯亮起，溪谷八个地标连成完整章节。休息间已找到，回去从商店备好建材便能修成挂机基地。'],
   },
   windmill: {
     entrance: ['追风的第一枚路标', '越过溪谷，山丘路口的布条朝着花田摆动。先确认返回温室的方向。', '路牌的箭头被风转歪了。对照远处风车，找出花田与坡道的位置。', '路旁有蜂蜜香气和散落的小枝。查看物产时，记下蜜蜂返巢的方向。', '一阵侧风卷起手册。压稳书页，把会误导来客的箭头重新辨认清楚。', '花田和风向坡道都已标入地图。沿哪条支路出发，都能重新回到这里。'],
     gather: ['花田里的轮值约定', '香草花田里留下窄窄的采蜜道。守花人示意你从背风的一侧进入。', '蜂群在浅色花簇间停留。观察花期标牌，分清正在生长和可以采收的区域。', '花田边的蜂蜜、野洋葱与山栗各有记录。按需要选择，给下一位来客留下余量。', '倒下的细枝压着采蜜道。沿土埂绕到背面，慢慢把通路整理出来。', '守花人在手册盖下一朵小花。花田的物产与采集规则记清了，下一次可按需重访。'],
     ridge: ['会说话的风向旗', '坡道上的几面旧旗朝不同方向倾斜。风声从山脊与低洼处轮流传来。', '一根旗杆旁刻着早晚风向。将眼前的风与刻痕比对，找出背风通路。', '坡边的果树与石缝有可用物产。先确认脚下的台阶，再查看沿途发现。', '松动的旗绳拍打木柱。站在稳固处整理绳结，让旗面重新展开。', '新记录标出了安全上坡时机。把它和花田记录并在一起，就能判断木栈桥的风势。'],
-    crossing: ['风车栈桥的两端', '花田和坡道的记录在栈桥入口汇合。桥下的风吹得叶片簌簌作响。', '木板边缘有守桥人的轮值记号。核对受力位置，也看看是否有邻居遗落的物件。', '桥头存放着可用的小木料。取用前清点，并查看附近草丛里的物产。', '中间的横杆轻轻晃动。沿内侧慢行，或利用可靠的绳索扶点通过。', '把记录交到桥那边的小桌上。通往瞭望台与老风车的两条路都能辨认了。'],
+    crossing: ['风车栈桥的两端', '花田和坡道的记录在栈桥入口汇合。桥下的风吹得叶片簌簌作响。', '木板边缘有守桥人的轮值记号。核对受力位置，也看看是否有邻居遗落的物件。', '桥头草丛长着野洋葱，附近还有散落的山栗。查看物产时留出通行的小路。', '中间的横杆轻轻晃动。沿内侧慢行，或利用可靠的绳索扶点通过。', '把记录交到桥那边的小桌上。通往瞭望台与老风车的两条路都能辨认了。'],
     lookout: ['金色瞭望台的双路图', '站在护栏内，远处一边是深绿松林，一边是明亮海面。', '铜盘上的两道刻线分别对准林地和海岸。先用风车塔顶校准方位。', '瞭望台边有被风吹来的种实和浅露矿脉。记下当地物产的位置。', '铜盘积着尘土，读数有些模糊。细看刻度，分辨并行的两条山路。', '两条道路画得清清楚楚。等山丘整章完成，森林与海岸都将成为下一站。'],
     story: ['让老风车再转一圈', '老风车的叶轮停在半空，屋里仍有细微的齿轮响声。', '维修册上画着叶轮、轴承与制动杆。先把每个部件认清，别急着推动。', '在安全停机处整理散落材料，辨认卡住叶轮的树枝。', '清开枝条后，沿着维修册检查联动。伙伴在门边报风向，你确认制动杆的位置。', '叶轮再次转动，屋内留下蜂蜜暖饮的记录。把风车恢复的消息带去营地，完成本章最后的交接。'],
     encounter: ['风团送回来的丝带', '一团蓬松的草絮沿坡滚来，里面缠着一条带有营地标记的丝带。', '风团绕着石头打转。观察阵风间歇，找到丝带不会继续飘走的位置。', '沿途收拢掉落的物产，给花田留出通风的空隙。', '伙伴挡住一阵侧风，你从草絮里慢慢解开丝带，没有伤到藏在里面的小虫。', '丝带指向避风小营地。把瞭望台与风车的记录带过去，山丘旅程就能连成完整一页。'],
-    camp: ['山丘的两封启程信', '避风小营地的门朝着山丘背面，风声在屋外柔和了许多。', '营地桌上留着两只信封，一只画树叶，一只画贝壳。', '查看储物棚旁的建材与物产，准备以后的基地建设。', '把花田、风旗、栈桥和风车记录按顺序排好，补全两封信里的路线。', '山丘八个地标全部记入手账。森林与海岸同时开放，这处营地也具备了修复条件。'],
+    camp: ['山丘的两封启程信', '避风小营地的门朝着山丘背面，风声在屋外柔和了许多。', '营地桌上留着两只信封，一只画树叶，一只画贝壳。', '查看储物棚旁的当地物产，为下一段旅途准备食物。', '把花田、风旗、栈桥和风车记录按顺序排好，补全两封信里的路线。', '山丘八个地标全部记入手账。森林与海岸同时开放，这处营地也具备了修复条件。'],
   },
   forest: {
     entrance: ['雾里仍然清楚的路', '松林入口漂着薄雾，树干上有从山丘延续下来的叶形路标。', '苔藓遮住半块木牌。确认树叶记号和回程方向，再走入林间。', '入口附近落着松果和林莓。辨认可采的物产，留意小动物活动的痕迹。', '雾气让两条路显得相似。把林莓丛与足迹小径的特征分别记下。', '入口坐标已确认。即使雾变浓，也可以沿着刚记录的树干刻痕返回。'],
@@ -47,11 +48,11 @@ const scripts: Record<AdventureRegionId, Record<LandmarkNode, Script>> = {
     entrance: ['潮线以内的脚印', '沙滩入口的木牌标着涨潮刻度，海风带来旧船屋方向的铃声。', '比较干湿两条潮线，先确认不会被海水截断的回程路。', '海岸边留着海藻与盐晶，观察可以采集的浅滩位置。', '沙上两串脚印分别通往潮池和贝壳坡道。把两条路记清，避免跟着浪花走远。', '入口的潮时与路标已记下。下次重访仍要先看水位，再往深处出发。'],
     gather: ['潮池留下的小小世界', '退潮后的浅池闪着光，石缝里有缓慢摆动的海藻。', '先看潮池出口，让小鱼与虾有返回大海的路。', '海藻、蛤蜊、海虾和盐晶各有取用的位置。选好目标，只采需要的一份。', '一块碎木堵着水口。站在干燥石面上清理，让浅池重新与外海连通。', '潮池物产与安全停留位置都记清了。浪花回来之前，沿原路带着发现离开。'],
     ridge: ['贝壳坡道的回声', '贝壳坡道上的白色碎片随风轻响，脚下沙粒比海滩更松软。', '坡旁旧木桩画着浪线。比较高低刻度，找出涨潮时仍能通过的路。', '在稳固坡脚查看海玻璃与贝壳附近的物产，不扰动整片沙坡。', '落沙遮住了一个台阶。沿内侧缓慢清理，辨认可以承重的位置。', '通往旧栈桥的高处路径已确认。把潮池记录一起带去，才能完整判断往返时机。'],
-    crossing: ['旧栈桥的潮时留言', '潮池与坡道的记录在旧栈桥汇合，桥柱上的标线还很清楚。', '守桥人留下的留言写着安全潮时。查看系绳点，也寻找邻居遗失的物件。', '桥头漂来的木料与海藻可以整理利用，先确认水位再取用。', '几块旧桥板之间有缝隙。沿稳固内侧慢行，或固定绳索后通过。', '听浪观景台与潮汐洞穴的路已标清。将送达物交好，再带着潮时记录向前。'],
+    crossing: ['旧栈桥的潮时留言', '潮池与坡道的记录在旧栈桥汇合，桥柱上的标线还很清楚。', '守桥人留下的留言写着安全潮时。查看系绳点，也寻找邻居遗失的物件。', '桥头潮水留下的海玻璃与海藻可以整理利用，先确认水位再取用。', '几块旧桥板之间有缝隙。沿稳固内侧慢行，或固定绳索后通过。', '听浪观景台与潮汐洞穴的路已标清。将送达物交好，再带着潮时记录向前。'],
     lookout: ['听浪台上的三颗星', '观景台能听见不同方向的浪声，石栏上刻着三颗排列整齐的星。', '对照山丘方位图，先找出星刻与山顶穹顶之间的方向。', '沿台旁安全岩面查看矿脉和潮水带来的物产。', '一颗星被盐壳遮住。慢慢清理刻面，等海雾散开再读出完整图形。', '三颗星的方位已经确认。这是拼合洞穴漂流信与山顶路线的重要一页。'],
     story: ['潮汐洞穴里的来信', '退潮露出洞口，石壁内侧挂着一只没有被海水淹没的信筒。', '先标记安全水位和出口，再查看信筒上的穹顶图案。', '洞口附近可整理海玻璃与海岸物产，深处的湿滑石面暂时留在远处观察。', '信纸卷得很紧。摊在干燥平石上，借观景台的三颗星找出星图朝向。', '来信画着山顶穹顶与旧船屋。把星图带去船屋，与整片海岸的记录一起保存。'],
     encounter: ['贝壳里的小小求助', '一只小客人拖着贝壳停在浅沟边，涨潮的声音从远处传来。', '看清它想去的方向，再在干燥沙面上留下可以跟随的标记。', '沿沟边查看当地物产，把挡路的漂流枝轻轻移开。', '小客人不敢越过水痕。等浪退去，沿缓坡给它留出一条连续的路。', '它回到旧船屋旁的安全岸线。跟着这串小脚印，最后一处落脚点也找到了。'],
-    camp: ['旧船屋的星图交接', '旧船屋的窗朝向山顶，墙上留着一块用于拼图的木板。', '把入口潮线、栈桥潮时与观景台星刻依次摆好。', '清点船屋旁的木料和海岸物产，给以后修复留出位置。', '将漂流信中的星图与三颗星对齐，标出海岸码头的永久通路。', '海岸八个地标全部完成，海岸料理与码头线索已登记。林地方位记录齐备后，便可向观测站出发。'],
+    camp: ['旧船屋的星图交接', '旧船屋的窗朝向山顶，墙上留着一块用于拼图的木板。', '把入口潮线、栈桥潮时与观景台星刻依次摆好。', '清点船屋旁的海玻璃和海岸物产，给以后修复留出位置。', '将漂流信中的星图与三颗星对齐，标出海岸码头的永久通路。', '海岸八个地标全部完成，海岸料理与码头线索已登记。林地方位记录齐备后，便可向观测站出发。'],
   },
   observatory: {
     entrance: ['两份记录指向山顶', '林地方位和海岸星图在山顶入口对上了。旧观测站的穹顶就在雾后。', '先核对山脊路标与回程绳柱，确认两份记录使用的是同一个方向。', '入口附近有旧零件和高山植物，查看时保留完整的观测标记。', '山顶风让纸页不停翻动。把路线分成碎片采集地和符号坡道两段记录。', '入口坐标已确认。接下来要分别找回仪器部件与符号含义，再走向连桥。'],
@@ -73,16 +74,16 @@ export interface LandmarkStep { id: string; title: string; story: string; choice
 export const landmarkSummary = (id: LandmarkId) => { const { region, node } = parseLandmarkId(id); return { name: scripts[region][node][0], summary: scripts[region][node][1], outcome: scripts[region][node][5] }; };
 export const landmarkTargets = (region: AdventureRegionId) => {
   const r = expeditionRegionForMap[region], def = regions[r];
-  return [...new Set([def.product, def.alternative, ...(r === 'forest' ? ['forest_berry_seed'] : []), ...(r === 'valley' ? ['creek_herb'] : []), 'materials', ...wildIngredientIds.filter(id => wildIngredients[id].region === r), ...regionalTreasureIds.filter(id => regionalTreasures[id].region === r)])];
+  return [...new Set([def.product, def.alternative, ...(r === 'forest' ? ['forest_berry_seed'] : []), ...(r === 'valley' ? ['creek_herb'] : []), ...wildIngredientIds.filter(id => wildIngredients[id].region === r), ...regionalTreasureIds.filter(id => regionalTreasures[id].region === r)])];
 };
-export const landmarkTargetName = (id: string) => id === 'materials' ? '木料与石料' : id === 'creek_herb' ? '溪谷香草' : expeditionProducts[id as keyof typeof expeditionProducts]?.name ?? id;
+export const landmarkTargetName = (id: string) => id === 'creek_herb' ? '溪谷香草' : expeditionProducts[id as keyof typeof expeditionProducts]?.name ?? id;
 const gatheringChoices = (region: AdventureRegionId, base: { hunger: number; energy: number }, modern = false): AdventureChoice[] => landmarkTargets(region).flatMap(target => {
   const r = expeditionRegionForMap[region], treasure = regionalTreasures[target as keyof typeof regionalTreasures], food = wildIngredients[target as keyof typeof wildIngredients];
   const research = treasure ? { kind: 'treasure' as const, id: target, points: 1 } : food && food.investigations > 1 ? { kind: 'food' as const, id: target, points: 1 } : undefined;
   const foodYield = modern ? getExplorationFoodYield(target) : undefined;
-  const finds: Inventory = research ? { [regions[r].product]: 1 } : target === 'materials' ? { community_wood: 4, community_stone: 3 } : target === 'forest_berry_seed' ? { forest_berry_seed: 2, pine_resin: 1 }
+  const finds: Inventory = research ? { [regions[r].product]: 1 } : target === 'forest_berry_seed' ? { forest_berry_seed: 2, pine_resin: 1 }
     : foodYield !== undefined ? { [target]: foodYield } : r === 'valley' && ['valley_mushroom', 'bamboo_shoot', 'lotus_seed', 'creek_herb'].includes(target) ? valleyGatherFinds(target as 'valley_mushroom') : { [target]: food?.yield ?? 2 };
-  const researchCost = research ? { hunger: Math.ceil(base.hunger * 1.2), energy: Math.ceil(base.energy * 1.2) } : base;
+  const researchCost = research ? { hunger: base.hunger, energy: Math.ceil(base.energy * 1.2) } : base;
   const name = landmarkTargetName(target), action: AdventureChoice = { ...researchCost, id: `gather:${target}`, label: `${research ? '稳妥调查' : '采集'}${name}`, detail: research ? `每次调查进度 +1，累计 ${treasure?.investigations ?? food!.investigations} 点取得${name}。消耗 1 次采集机会。` : '消耗 1 次采集机会，按行动前清单获得物资。', harvest: 1, finds, research, check: { mode: 'safe' } };
   const tool = treasure ? 'prospector_pick' as const : research ? 'survey_lens' as const : 'harvest_sickle' as const;
   if (modern) action.check = { ...action.check!, skill: research ? 'study' : 'garden' };
@@ -107,7 +108,7 @@ export const getLandmarkSteps = (id: LandmarkId, version = 11): LandmarkStep[] =
     const choices = [safe, alternative];
     if (version >= 11) safe.check = { ...safe.check!, skill: moment.skill };
     const canGather = moment.event === 'gather' || moment.key === 'record' && (version >= 11 || r === 'valley')
-      || version >= 11 && moment.event === 'fieldwork' && moment.skill === 'garden';
+      || version >= 11 && moment.event === 'fieldwork';
     if (canGather) choices.push(...gatheringChoices(region, base, version >= 11));
     if (moment.event === 'obstacle') choices.push({ ...alternative, id: 'rope:obstacle', label: '固定探路绳，借助绳索通过', detail: '直接使用仓库中的探路绳，耐久 −1。', tool: true, check: { ...alternative.check!, tool: 'trail_rope' }, observation: 'b' });
     return { id: `${id}:${moment.key}`, title: moment.title, story: moment.story + (canGather && moment.event !== 'gather' ? ' 附近还有一处当地物产，可以采集后继续，也可以直接离开。' : ''), choices, event: moment.event };
@@ -115,8 +116,10 @@ export const getLandmarkSteps = (id: LandmarkId, version = 11): LandmarkStep[] =
 };
 export const landmarkCosts = (id: LandmarkId) => explorationTravel[expeditionRegionForMap[parseLandmarkId(id).region]];
 export const getLandmarkGatherCount = (id: LandmarkId) => getLandmarkSteps(id).filter(step => step.choices.some(choice => choice.harvest)).length;
-export const landmarkFirstReward = (id: LandmarkId) => {
+export const landmarkFirstReward = (id: LandmarkId, legacy = false) => {
   const { region, node } = parseLandmarkId(id);
   const quest = region === 'valley' && node !== 'entrance' ? valleyQuests[`valley_${node}` as ValleyQuestId] : undefined;
-  return quest ? { coins: quest.coins, hearts: quest.hearts, items: quest.items } : region !== 'valley' && node === 'camp' ? { coins: 20, hearts: 4, items: {} } : { coins: 0, hearts: 0, items: {} };
+  const reward = quest ? { coins: quest.coins, hearts: quest.hearts, items: quest.items } : region !== 'valley' && node === 'camp' ? { coins: 20, hearts: 4, items: {} } : { coins: 0, hearts: 0, items: {} };
+  const converted = legacy ? { coins: 0, items: reward.items } : convertBuildingMaterialRewards(reward.items);
+  return { ...reward, coins: reward.coins + converted.coins, items: converted.items, materialCoins: converted.coins };
 };

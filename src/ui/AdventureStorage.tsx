@@ -40,7 +40,7 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
   const shopping = panel === 'shop' || panel === 'supplies';
   const stock: Inventory = panel === 'bag' ? trip?.bag ?? {}
     : panel === 'loot' ? trip?.loot ?? {} : panel === 'shop' ? trip?.shopStock ?? {} : pet.inventory;
-  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : [...adventureItems, ...fieldEquipmentItems.filter(item => item.tags?.includes('expedition_tool') || item.id === 'harvest_sickle'), ...communityShopItems.filter(item => item.kind === 'care')].map(item => item.id)).map(id => [id, 1])) : stock)
+  const definitions = getInventoryDefinitions(registry, shopping ? Object.fromEntries((panel === 'shop' ? Object.keys(createAdventureShopStock(trip?.rulesVersion)) : [...adventureItems, ...fieldEquipmentItems.filter(item => item.tags?.includes('expedition_tool') || item.id === 'harvest_sickle'), ...communityShopItems.filter(item => item.kind === 'care' || item.id === 'community_wood' || item.id === 'community_stone')].map(item => item.id)).map(id => [id, 1])) : stock)
     .filter(item => panel !== 'delivery' || isAdventureSupply(item.id));
   const titles = { pack: L('出发整备', 'Pack for the trip'), bag: L('旅行背包', 'Travel bag'), loot: L('待拾取物资', 'Pending finds'), shop: L('伙伴的随身补给', 'Neighbor supplies'), delivery: L('请伙伴从仓库送货', 'Delivery from home'), supplies: L('基地补给', 'Outpost supplies') };
   const canRecover = (id: ItemId, quantity: number) => {

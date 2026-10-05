@@ -16,13 +16,13 @@ import { getDecorationHelp, getDecorationEffectText as effectText } from '../hel
 
 const stage = (level: number) => level >= 10 ? 'complete' : level >= 5 ? 'grown' : 'first';
 const itemName = (item: string) => getInventoryItem(item as ItemId)?.name ?? item;
-export const DecorationSources = ({ treasure, onNavigate }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void }) => {
+export const DecorationSources = ({ treasure, onNavigate, onShop }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void; onShop: () => void }) => {
   const region = treasure ? regionalTreasures[treasure].region : 'valley';
-  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region, node: 'gather', target: treasure })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'idle', region })}>安排当地挂机</button><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region: 'valley', target: 'materials' })}>去溪谷收集建材</button></div></section>;
+  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region, node: 'gather', target: treasure })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'idle', region })}>安排当地挂机</button><button className="secondary-button" onClick={onShop}>去商店购买建材</button></div></section>;
 };
 export const DecorationArt = ({ id, level }: { id: CommunityDecorationId; level: number }) => <span className="decoration-art" data-stage={stage(level)} data-owned={level > 0}><img src={decorationIcons[id]} alt="" />{level >= 5 && <span className="decoration-art-trim" aria-hidden="true">{level >= 10 ? '✦' : '◇'}</span>}</span>;
 
-export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost }: Pick<CommunityPanelProps, 'pet' | 'update' | 'onOpenOutpost'> & { id: CommunityDecorationId; onClose: () => void }) => {
+export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost, onShop }: Pick<CommunityPanelProps, 'pet' | 'update' | 'onOpenOutpost' | 'onShop'> & { id: CommunityDecorationId; onClose: () => void }) => {
   const level = getDecorationLevel(pet, id), definition = communityDecorations[id];
   const [selection, setSelection] = useState<{ level: number; items: Inventory }>();
   const quote = getDecorationUpgradeQuote(pet, id, selection?.level === level ? selection.items : undefined), full = level === 10;
@@ -40,7 +40,7 @@ export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost }: Pi
         {level > 0 && <fieldset><legend>通用探索物品 · 已选 {selectedCount}/{quote.commonCount} 件</legend>{adventureTreasureIds.map(item => <label key={item}><span>{itemName(item)}<small>库存 {pet.inventory[item] ?? 0}</small></span><input type="number" min={0} max={Math.min(quote.commonCount, pet.inventory[item] ?? 0)} aria-label={`升级消耗${itemName(item)}`} value={quote.common[item] ?? 0} onChange={event => setSelection({ level, items: { ...quote.common, [item]: Math.max(0, Math.min(quote.commonCount, pet.inventory[item] ?? 0, Math.floor(Number(event.target.value)) || 0)) } })} /></label>)}{selectedCount !== quote.commonCount && <p className="decoration-shortage">{selectedCount < quote.commonCount ? `还需选择 ${quote.commonCount - selectedCount} 件` : `请减少 ${selectedCount - quote.commonCount} 件`}</p>}</fieldset>}
         <p className="decoration-deduction">本次提交：{level ? `${quote.coins} 金币；` : ''}{Object.entries(items).map(([item, n]) => `${itemName(item)} ×${n}`).join('、')}。实物提交后消耗。</p>
       </section>}
-      {!full && onOpenOutpost && <DecorationSources treasure={treasure} onNavigate={onOpenOutpost} />}
+      {!full && onOpenOutpost && <DecorationSources treasure={treasure} onNavigate={onOpenOutpost} onShop={onShop} />}
       {full && <p className="decoration-complete">这件装饰已经完成。它会一直陪伴农场的日常。</p>}
     </div>
     <footer className="decoration-action-bar"><div role="status">{full ? 'Lv.10 · 已满级' : reason || '材料齐备，提交后立即完成'}</div><button className="primary-button" disabled={full || Boolean(reason)} onClick={() => update(p => level ? upgradeCommunityDecoration(p, id, level, quote.common) : buildCommunityDecoration(p, id))}>{full ? '已达到最高等级' : level ? `升级至 Lv.${level + 1}` : '制作并陈列'}</button></footer>

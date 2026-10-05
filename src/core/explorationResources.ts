@@ -17,7 +17,6 @@ export const getExplorationResources = (region: RegionId): ExplorationResource[]
       const manual = choice.finds ?? {};
       // Edible lotus_seed is food; only actual crop seeds are manual-only.
       const idle = choice.research || Object.values(communityCrops).some(crop => crop.seed === id) ? undefined
-        : id === 'materials' ? { community_wood: 3, community_stone: 2 }
         : { [id]: getExplorationFoodYield(id, true) ?? 2 };
       return { id, name: landmarkTargetName(id), manual, ...(idle ? { idle } : {}), ...(choice.research ? { research: choice.research } : {}) };
     });

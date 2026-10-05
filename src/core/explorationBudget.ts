@@ -142,7 +142,7 @@ export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: 
   }
   return { pet: setBudget(pet, loop), coins, hearts };
 };
-const ordinaryGatherIds = new Set(['community_wood', 'community_stone', 'creek_herb', 'valley_mushroom', 'hill_honey', 'forest_berry', 'pine_resin', 'coast_kelp', 'sea_glass', 'observatory_part', ...wildIngredientIds]);
+const ordinaryGatherIds = new Set(['creek_herb', 'valley_mushroom', 'hill_honey', 'forest_berry', 'pine_resin', 'coast_kelp', 'sea_glass', 'observatory_part', ...wildIngredientIds]);
 export const commonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum + adventureTreasureValues[id], 0) / adventureTreasureIds.length;
 export const manualTreasureChance = 5;
 export const commonLootPityLimit = 8;

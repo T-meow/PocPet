@@ -10,10 +10,10 @@ import { animalNameMaxLength, ranchCompostCycleCount } from '../../core/communit
 export const getRecipeHelp = (pet: PetState, recipe: RecipeDefinition, banana: boolean, milk: MilkChoice): HelpContent => {
   const dishId = getDishId(recipe, banana), quote = getMarketQuote(pet, dishId);
   const cost = getRecipePricingCost(recipe, banana, milk);
-  const saleNote = getCuisineSaleNote(dishId), reward = getKitchenHeartReward(pet, recipe.id, banana);
+  const saleNote = getCuisineSaleNote(dishId), reward = getKitchenHeartReward(pet, recipe.id, banana, recipe.variantKey);
   return {
     title: '制作料理',
-    overview: <><p>备齐食材和厨具，选择份数后一起制作。成品收入背包，可以喂给伙伴、交单或摆摊。</p><p>可替换的奶类成品效果相同，每批只消耗所选奶类，材料数量以清单为准。</p>{saleNote && <p>{saleNote}</p>}<p>每次完成制作获得 1 点料理经验，首做额外 5 点；批量制作计一次。</p></>,
+    overview: <><p>备齐食材和厨具，选择份数后一起制作。成品收入背包，可以喂给伙伴、交单或摆摊。</p><p>可替换的奶类成品效果相同，每批只消耗所选奶类，材料数量以清单为准。</p>{recipe.variantKey && <p>这道菜可选择配料。不同配料的成品分开存放，效果、心心和售价以当前选择为准；换配料不重复获得首做经验。</p>}{saleNote && <p>{saleNote}</p>}<p>每次完成制作获得 1 点料理经验，首做额外 5 点；批量制作计一次。</p></>,
     details: <><p>当前配料每份计价成本 {Math.round(cost)} 金币{quote && ' · 基础售价 ' + quote.base + ' · 当前摆摊 ' + quote.price + ' 金币'}。</p><p>材料按商店原价和基础售价的较高者计价，前置料理保留制作收益，每道工序再加 25%。种养等待、钓鱼和采集难度已计入原料售价。两种奶共用成品价格，统一按较高成本定价。</p><p>每份本步基础心心 {reward.baseHearts} · 料理 Lv.{reward.skillLevel} 加成 +{reward.skillHearts}。整条制作链的心心预算提高 25% 并向上取整，再叠加料理技能加成；升级料理只发与前序料理的差额。</p></>,
   };
 };

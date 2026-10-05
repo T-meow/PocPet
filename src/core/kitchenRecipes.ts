@@ -5,6 +5,7 @@ import type { CookingMethod, DishId, KitchenMaterialId, RecipeId, MilkChoice } f
 import { expandedRecipes } from './kitchenExpansion';
 import { wildIngredients, type FoodRarity, type SaleDemand } from './foodCatalog';
 import { fish, isWaterOpen } from './communityData';
+import { genericRecipes, genericRecipeVariants, isGenericRecipeId } from './kitchenGenericRecipes';
 
 export const activityText = (zh: string, en: string) => getLanguage() === 'en-US' ? en : zh;
 export interface RecipeDefinition {
@@ -12,6 +13,7 @@ export interface RecipeDefinition {
   ingredients: BuiltinItemId[]; ingredientAmounts?: Partial<Record<BuiltinItemId, number>>;
   effect: ItemEffect; chainHearts: number; main?: boolean; fruitVariant?: boolean; technique?: 'simmer';
   category: 'main' | 'side' | 'soup' | 'dessert' | 'drink'; rarity: FoodRarity; demand: SaleDemand;
+  variantKey?: string; variantLabel?: string;
 }
 export const recipeCategoryNames: Record<RecipeDefinition['category'], string> = { main: '主食', side: '菜肴', soup: '汤羹', dessert: '甜品', drink: '饮品' };
 export const kitchenMaterials: readonly { id: KitchenMaterialId; name: string; en: string; price: number; glyph: string; edibleEffect?: ItemEffect }[] = [
@@ -68,7 +70,7 @@ export const recipes: readonly RecipeDefinition[] = [...legacyRecipes.map((r): R
     : ['creek_fish_soup', 'milk_custard', 'herb_porridge'].includes(r.id) ? 'soup'
       : ['river_grill', 'carrot_omelet', 'fruit_salad'].includes(r.id) ? 'side' : r.main ? 'main' : 'dessert';
   return { ...r, category, demand: r.rarity === 'epic' || r.rarity === 'legendary' ? 'premium' : r.rarity === 'rare' ? 'specialty' : 'basic' };
-}), ...expandedRecipes];
+}), ...expandedRecipes, ...genericRecipes];
 export const cookingMethods: readonly { id: CookingMethod; name: string; en: string; glyph: string; price: number; requiredRecipes: number }[] = [
   { id: 'mix', name: '拌制', en: 'Mixing', glyph: '🥣', price: 0, requiredRecipes: 0 },
   { id: 'pan', name: '平底锅', en: 'Pan', glyph: '🍳', price: 0, requiredRecipes: 0 },
@@ -76,7 +78,16 @@ export const cookingMethods: readonly { id: CookingMethod; name: string; en: str
   { id: 'oven', name: '小烤箱', en: 'Oven', glyph: '♨️', price: 240, requiredRecipes: 5 },
 ];
 export const recipeName = (recipe: RecipeDefinition) => activityText(recipe.name, recipe.en);
-export const getRecipeUnlockReason = (pet: PetState, id: RecipeId) => {
+export const getRecipeUnlockReason = (pet: PetState, id: RecipeId, variantKey?: string) => {
+  const selected = getRecipe(id, variantKey);
+  if (!selected) return '请选择有效的食材组合';
+  if (isGenericRecipeId(id)) {
+    for (const item of selected.ingredients) {
+      const f = fish[item as keyof typeof fish];
+      if (f && !isWaterOpen(pet, f.water)) return '在小屋开放对应水域后解锁';
+    }
+    return '';
+  }
   const expanded = expandedRecipes.find(r => r.id === id);
   if (expanded) {
     for (const item of expanded.ingredients) {
@@ -104,17 +115,20 @@ export const getRecipeUnlockReason = (pet: PetState, id: RecipeId) => {
   if (id === 'milk_custard' && !pet.community.facilities.barn.built) return '开放牛棚后解锁';
   return '';
 };
-export const getRecipe = (id: string) => recipes.find((recipe) => recipe.id === id);
-export const getDishId = (recipe: RecipeDefinition, banana = false): DishId => `dish_${recipe.id}${recipe.fruitVariant && banana ? '_banana' : ''}` as DishId;
+export const getRecipe = (id: string, variantKey?: string): RecipeDefinition | undefined => isGenericRecipeId(id)
+  ? variantKey === undefined ? genericRecipeVariants[id][0] : genericRecipeVariants[id].find(recipe => recipe.variantKey === variantKey)
+  : variantKey === undefined ? recipes.find(recipe => recipe.id === id) : undefined;
+export const getRecipeVariants = (recipe: RecipeDefinition): readonly RecipeDefinition[] => isGenericRecipeId(recipe.id) ? genericRecipeVariants[recipe.id] : [recipe];
+export const getDishId = (recipe: RecipeDefinition, banana = false): DishId => `dish_${recipe.id}${recipe.variantKey ? `__${recipe.variantKey}` : recipe.fruitVariant && banana ? '_banana' : ''}` as DishId;
 export const hasRecipeMilkChoice = (recipe: RecipeDefinition) => recipe.ingredients.some(id => id === 'farm_milk' || id === 'ad_milk');
 export const getRecipeIngredients = (recipe: RecipeDefinition, banana = false, milk?: MilkChoice) => recipe.ingredients.map((id) => milk && (id === 'farm_milk' || id === 'ad_milk') ? milk : recipe.fruitVariant && banana && id === 'apple' ? 'banana' as const : id);
 export const getRecipeIngredientEntries = (recipe: RecipeDefinition, banana = false, milk?: MilkChoice) => getRecipeIngredients(recipe, banana, milk).map((id, index) => ({ id, quantity: recipe.ingredientAmounts?.[recipe.ingredients[index]] ?? 1 }));
-export const allDishes = recipes.flatMap((recipe) => [false, ...(recipe.fruitVariant ? [true] : [])].map((banana) => ({ recipe, banana, id: getDishId(recipe, banana) })));
+export const allDishes = recipes.flatMap(base => getRecipeVariants(base).flatMap(recipe => [false, ...(recipe.fruitVariant ? [true] : [])].map(banana => ({ recipe, banana, id: getDishId(recipe, banana) }))));
 export const getDish = (id: string) => allDishes.find((dish) => dish.id === id);
 export const getRecipeEffect = (recipe: RecipeDefinition, banana = false): ItemEffect => recipe.fruitVariant && banana
   ? { ...recipe.effect, hunger: (recipe.effect.hunger ?? 0) + 2, mood: (recipe.effect.mood ?? 0) - 2, energy: (recipe.effect.energy ?? 0) + 2 }
   : recipe.effect;
 export const dishName = (id: string) => {
   const dish = getDish(id);
-  return dish ? recipeName(dish.recipe) + (dish.recipe.fruitVariant ? activityText(dish.banana ? ' · 香蕉' : ' · 苹果', dish.banana ? ' · Banana' : ' · Apple') : '') : id;
+  return dish ? recipeName(dish.recipe) + (dish.recipe.variantLabel ? ` · ${dish.recipe.variantLabel}` : dish.recipe.fruitVariant ? activityText(dish.banana ? ' · 香蕉' : ' · 苹果', dish.banana ? ' · Banana' : ' · Apple') : '') : id;
 };

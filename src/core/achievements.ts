@@ -6,7 +6,7 @@ import { addInventoryItem, getInventoryItem, shopItems } from './items';
 import { clampCoins, clampCount } from './petStats';
 import type { AchievementCounters, AchievementId, AchievementState, CareActionKey, GardenTreeId, ItemId, PartnerScheduleCategory, PartnerScheduleRewardChoice, PartnerScheduleSize, PetState, YearlyCareActionKey, YearlyStats } from './petTypes';
 import { isNumber } from './utils';
-import { recipes } from './kitchenRecipes';
+import { recipes, getDish } from './kitchenRecipes';
 import { inventoryItemLimit } from './saveMetadata';
 
 export type AchievementCategory = 'care' | 'daily' | 'garden' | 'shop' | 'inventory' | 'pomodoro' | 'growth' | 'date' | 'schedule' | 'hidden' | 'kitchen' | 'play' | 'fishing';
@@ -496,7 +496,7 @@ const achievementDefinitionConfigs: readonly Omit<AchievementDefinition, 'title'
   { id: 'kitchen_eight', category: 'kitchen', rarity: 'rare', target: 8, progress: (pet) => recipes.filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length, reward: { coins: 200, hearts: 20 } },
   { id: 'kitchen_thirty', category: 'kitchen', rarity: 'normal', target: 30, progress: (pet) => Object.values(pet.kitchen.made).reduce((sum, amount) => sum + (amount ?? 0), 0), reward: { coins: 200, hearts: 10 } },
   { id: 'kitchen_methods', category: 'kitchen', rarity: 'normal', target: 4, progress: (pet) => new Set(recipes.filter((recipe) => pet.kitchen.made[recipe.id]).map((recipe) => recipe.method)).size, reward: { coins: 150, hearts: 10 } },
-  { id: 'kitchen_tastes', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => new Set(Object.values(pet.kitchen.tasted).flatMap((tastes) => Object.keys(tastes).map((id) => id.replace(/_banana$/, '')))).size, reward: { coins: 100, hearts: 10 } },
+  { id: 'kitchen_tastes', category: 'kitchen', rarity: 'normal', target: 3, progress: (pet) => new Set(Object.values(pet.kitchen.tasted).flatMap((tastes) => Object.keys(tastes).map((id) => getDish(id)?.recipe.id ?? id))).size, reward: { coins: 100, hearts: 10 } },
   ...(['matching', 'catch', 'bubbles'] as const).map((game): Omit<AchievementDefinition, 'title' | 'description'> => ({ id: `play_${game}`, category: 'play', rarity: 'normal', target: 1, progress: (pet) => (pet.miniGames.records[`${game}:normal`]?.completed ?? 0) + (pet.miniGames.records[`${game}:gentle`]?.completed ?? 0), reward: { coins: 30, hearts: 5 } })),
   {
     id: 'hidden_full_catalogue',

@@ -19,7 +19,7 @@ export const CommunityUpgradeDialog = ({ onClose, ...props }: UpgradeProps & { o
 export const CommunityUpgradeTask = ({ pet, update, id, registry, itemIconMap }: UpgradeProps) => {
   const quote = getCommunityUpgradeQuote(pet, id), { task } = quote;
   if (!task) return <p className="community-note">已完成全部扩建 · Lv.{quote.level}</p>;
-  const source = (item: string) => item === 'community_wood' || item === 'community_stone' ? '商店购买／溪谷建材采集'
+  const source = (item: string) => item === 'community_wood' || item === 'community_stone' ? '仅在商店购买'
     : item in regionalTreasures ? `${upgradeRegionNames[regionalTreasures[item as RegionalTreasureId].region]} · 宝石勘探`
       : `${upgradeRegionNames[task.region]} · ${item === 'bamboo_shoot' || item === 'wild_onion' ? '食材调查' : '定向采集'}`;
   return <section className="community-upgrade-task" aria-label={task.name}>

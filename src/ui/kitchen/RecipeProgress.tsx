@@ -1,5 +1,5 @@
 import type { KitchenState } from '../../core/companionActivityTypes';
-import { getDishId, type RecipeDefinition } from '../../core/kitchenRecipes';
+import { getDishId, getRecipeVariants, type RecipeDefinition } from '../../core/kitchenRecipes';
 
 export const RecipeProgress = ({ kitchen, actorId, recipe, banana }: {
   kitchen: KitchenState; actorId: string; recipe: RecipeDefinition; banana?: boolean;
@@ -7,7 +7,7 @@ export const RecipeProgress = ({ kitchen, actorId, recipe, banana }: {
   const made = (kitchen.made[recipe.id] ?? 0) > 0;
   const tasted = kitchen.tasted[actorId] ?? {};
   const eaten = banana === undefined
-    ? tasted[getDishId(recipe)] !== undefined || Boolean(recipe.fruitVariant && tasted[getDishId(recipe, true)] !== undefined)
+    ? getRecipeVariants(recipe).some(variant => tasted[getDishId(variant)] !== undefined || Boolean(variant.fruitVariant && tasted[getDishId(variant, true)] !== undefined))
     : tasted[getDishId(recipe, banana)] !== undefined;
   return <span className="recipe-progress">
     <span className={made ? 'achieved' : 'unachieved'} role="img" aria-label={made ? '做过' : '还没做过'} title={made ? '做过' : '还没做过'}>🧑‍🍳</span>

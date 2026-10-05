@@ -13,8 +13,8 @@ const kitchenFirstRecipeXp = 5;
 const kitchenHeartBaseMultiplier = 1.25;
 export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
   ? 0 : practiceSkillXp + (pet.kitchen.made[recipeId] ? 0 : kitchenFirstRecipeXp);
-export const getKitchenHeartReward = (pet: PetState, recipeId: RecipeId, banana = false) => {
-  const recipe = getRecipe(recipeId);
+export const getKitchenHeartReward = (pet: PetState, recipeId: RecipeId, banana = false, variantKey?: string) => {
+  const recipe = getRecipe(recipeId, variantKey);
   const skillLevel = Math.max(1, Math.min(partnerScheduleMaxSkillLevel, Math.floor(pet.partnerSchedule.skills.cooking.level)));
   const skillBonusPercent = (skillLevel - 1) * 10;
   const baseBudget = (hearts: number) => Math.ceil(hearts * kitchenHeartBaseMultiplier);
@@ -66,26 +66,26 @@ export const claimKitchenStarter = (pet: PetState): PetState => {
   const inventory = ['apple', 'orange', 'rice', 'egg'].reduce((stock, id) => addInventoryItem(stock, id as 'apple' | 'orange' | 'rice' | 'egg', 1), pet.inventory);
   return { ...pet, inventory, kitchen: { ...pet.kitchen, starterClaimed: true } };
 };
-export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false, milk?: MilkChoice) => {
+export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false, milk?: MilkChoice, variantKey?: string) => {
   if (milk !== undefined && milk !== 'farm_milk' && milk !== 'ad_milk') return 0;
-  if (getRecipeUnlockReason(pet, recipeId)) return 0;
-  const recipe = getRecipe(recipeId);
+  if (getRecipeUnlockReason(pet, recipeId, variantKey)) return 0;
+  const recipe = getRecipe(recipeId, variantKey);
   if (!recipe) return 0;
   return Math.max(0, Math.min(99, 9999 - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana, milk).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
 };
-export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, milk?: MilkChoice) => {
-  const recipe = getRecipe(recipeId);
-  return Boolean(recipe && !pet.timePause && canSpendCompanionTime(pet) && pet.kitchen.equipment.includes(recipe.method) && Number.isInteger(quantity) && quantity >= 1 && quantity <= getCraftLimit(pet, recipeId, banana, milk));
+export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, milk?: MilkChoice, variantKey?: string) => {
+  const recipe = getRecipe(recipeId, variantKey);
+  return Boolean(recipe && !pet.timePause && canSpendCompanionTime(pet) && pet.kitchen.equipment.includes(recipe.method) && Number.isInteger(quantity) && quantity >= 1 && quantity <= getCraftLimit(pet, recipeId, banana, milk, variantKey));
 };
-export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, operationId: string, now = Date.now(), milk?: MilkChoice): PetState => {
-  const recipe = getRecipe(recipeId);
-  if (!recipe || !operationId || pet.kitchen.recentOperationIds.includes(operationId) || !canCraftRecipe(pet, recipeId, banana, quantity, milk)) return pet;
+export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, operationId: string, now = Date.now(), milk?: MilkChoice, variantKey?: string): PetState => {
+  const recipe = getRecipe(recipeId, variantKey);
+  if (!recipe || !operationId || pet.kitchen.recentOperationIds.includes(operationId) || !canCraftRecipe(pet, recipeId, banana, quantity, milk, variantKey)) return pet;
   const dishId = getDishId(recipe, banana);
   const first = !pet.kitchen.made[recipeId];
   let next: PetState = { ...pet, lastInteractionAt: now, kitchen: { ...pet.kitchen, made: { ...pet.kitchen.made, [recipeId]: (pet.kitchen.made[recipeId] ?? 0) + quantity }, firstMadeAt: first ? { ...pet.kitchen.firstMadeAt, [recipeId]: now } : pet.kitchen.firstMadeAt, recentOperationIds: [...pet.kitchen.recentOperationIds, operationId].slice(-32) } };
   next.inventory = getRecipeIngredientEntries(recipe, banana, milk).reduce((stock, ingredient) => removeInventoryItem(stock, ingredient.id, ingredient.quantity * quantity), pet.inventory);
   next.inventory = addInventoryItem(next.inventory, dishId, quantity);
-  const reward = getKitchenHeartReward(pet, recipeId, banana);
+  const reward = getKitchenHeartReward(pet, recipeId, banana, variantKey);
   const skillXp = getKitchenSkillXpReward(pet, recipeId);
   const nextHearts = clampCount(next.hearts + reward.heartsPerServing * quantity);
   const hearts = nextHearts - next.hearts;

@@ -2,7 +2,7 @@ import type { CookingMethod, RecipeId, MilkChoice } from '../../core/companionAc
 import type { SfxId } from '../../core/audio';
 import { activityText as L } from '../../core/kitchenRecipes';
 
-export interface KitchenCraftRequest { id: string; recipeId: RecipeId; banana: boolean; quantity: number; milk?: MilkChoice; }
+export interface KitchenCraftRequest { id: string; recipeId: RecipeId; banana: boolean; quantity: number; milk?: MilkChoice; variantKey?: string; }
 export type CookingAction = 'add' | 'stir' | 'flip' | 'blend' | 'bake' | 'simmer' | 'serve';
 export interface CookingProgress { step: number; readyAt: number; action?: CookingAction; }
 export const createCookingProgress = (): CookingProgress => ({ step: 0, readyAt: 0 });

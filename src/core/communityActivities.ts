@@ -2,9 +2,8 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import { getWeekStartDateKey } from './dailyReset';
 import { projectIds } from './expeditionData';
 import { communityProjects, projectThemes, type ProjectTheme } from './communityProjectData';
-import { getRecipeUnlockReason } from './kitchenRecipes';
+import { getDish, getRecipeUnlockReason } from './kitchenRecipes';
 import { completedChapter, completedLandmark } from './landmarkProgress';
-import type { RecipeId } from './companionActivityTypes';
 import type { CommunityActivityBoard } from './communityTypes';
 import type { ProjectId } from './expeditionTypes';
 import type { PetState } from './petTypes';
@@ -23,7 +22,8 @@ export const getProjectThemeReason = (pet: PetState, id: ProjectId, theme: Proje
   if (id === 'observatory' && (!completedChapter(pet.adventure, 'observatory') || pet.community.expedition.regions.station.base < 1)) return '先完成观测站八个地标，并建好一级休息基地';
   const menu = communityProjects[id].meals[theme === 'journey' ? 1 : 0];
   for (const item of Object.keys(menu)) {
-    const reason = getRecipeUnlockReason(pet, item.slice(5) as RecipeId);
+    const dish = getDish(item);
+    const reason = dish ? getRecipeUnlockReason(pet, dish.recipe.id, dish.recipe.variantKey) : '';
     if (reason) return reason;
   }
   return '';

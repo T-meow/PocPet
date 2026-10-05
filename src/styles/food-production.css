@@ -34,6 +34,11 @@
 .recipe-milk-choice { min-width: 0; border: 1px solid #c9c4ae; border-radius: 1rem; padding: .8rem; margin-block: .8rem; }
 .recipe-milk-choice .activity-choice { flex-wrap: wrap; }
 .recipe-milk-choice button[aria-pressed="true"] { outline: 2px solid #72977b; outline-offset: 2px; }
+.recipe-ingredient-choice { min-width: 0; max-width: 100%; margin: 12px 0; padding: 12px; border: 1px solid #c9c4ae; border-radius: 12px; }
+.recipe-ingredient-choice p { margin: 0 0 10px; font-size: 13px; line-height: 1.6; }
+.recipe-ingredient-choice label { display: block; min-width: 0; font-size: 14px; }
+.recipe-ingredient-choice select { display: block; box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; min-height: 44px; margin-top: 6px; padding: 8px; border: 1px solid #b8bba5; border-radius: 8px; color: inherit; background: #fffaf0; font-size: 14px; }
+.recipe-variant-preview { max-width: 100%; color: #697565; line-height: 1.5; word-wrap: break-word; }
 .food-processing { display: grid; gap: .8rem; }
 .food-processing .recipe-grid { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); }
 .food-processing p, .recipe-milk-choice p { line-height: 1.6; }

@@ -1,7 +1,7 @@
 import type { DishId, KitchenMaterialId } from './core/companionActivityTypes';
 import { herbPorridgeIcon, communityDishIcons } from './communityAssets';
 import { expeditionDishIcons } from './expeditionAssets';
-import { expandedDishIcons } from './foodProductionAssets';
+import { expandedDishIcons, expandedDishPresentation, genericDishIcons, genericDishPresentation } from './foodProductionAssets';
 import { newDishPresentation } from './newDishPresentation';
 import rice from './assets/icon/item_rice.webp';
 import egg from './assets/icon/item_egg.webp';
@@ -42,6 +42,7 @@ import dishMooncakeMixedNuts from './assets/icon/item_dish_mooncake_mixed_nuts.w
 import dishMooncakeRedBean from './assets/icon/item_dish_mooncake_red_bean.webp';
 
 export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
+  ...genericDishIcons,
   ...expandedDishIcons,
   ...expeditionDishIcons,
   ...communityDishIcons,
@@ -87,6 +88,8 @@ export const kitchenItemIcons: Record<DishId | KitchenMaterialId, string> = {
 
 // Bottom offsets come from the approved food-and-plate silhouette in its 256 px master.
 export const dishPresentation: Record<DishId, { container: string; rimBottom: string }> = {
+  ...expandedDishPresentation,
+  ...genericDishPresentation,
   ...newDishPresentation,
   dish_plain_rice: { container: 'fixed_plate', rimBottom: '26.20%' },
   dish_fruit_salad: { container: 'fixed_plate', rimBottom: '25.65%' },

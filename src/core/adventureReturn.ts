@@ -19,9 +19,9 @@ export const getAdventureRewardPreview = (pet: PetState, now = pet.lastUpdatedAt
   const first = Boolean(complete && trip && !trip.purpose && !(pet.adventure.completed[trip.region] ?? 0));
   const legacy = trip?.rulesVersion === 1;
   if (trip && isLandmarkId(trip.purpose)) {
-    const firstReward = complete && trip.firstCompletion ? landmarkFirstReward(trip.purpose) : { coins: 0, hearts: 0 };
+    const firstReward = complete && trip.firstCompletion ? landmarkFirstReward(trip.purpose, trip.rulesVersion < 11) : { coins: 0, hearts: 0, materialCoins: 0 };
     const earned = trip.rulesVersion >= 11 ? { coins: trip.earnedCoins ?? 0, hearts: trip.earnedHearts ?? 0 } : complete ? earnExplorationPay(pet, 'manual', now, expeditionRegionForMap[parseLandmarkId(trip.purpose).region]) : { coins: 0, hearts: 0 };
-    return { steps, complete, first: complete && trip.firstCompletion === true, coins: firstReward.coins + earned.coins, hearts: firstReward.hearts + earned.hearts };
+    return { steps, complete, first: complete && trip.firstCompletion === true, coins: firstReward.coins - firstReward.materialCoins + earned.coins, hearts: firstReward.hearts + earned.hearts };
   }
   if (isValleyQuest(trip?.purpose)) {
     const quest = valleyQuests[trip.purpose];
