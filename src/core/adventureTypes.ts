@@ -39,6 +39,7 @@ export interface AdventureTrip {
   firstCompletion?: boolean;
   earnedCoins?: number;
   earnedHearts?: number;
+  campaign?: import('./explorationCampaignState').CampaignTripContext;
 }
 
 export interface AdventureResult {
@@ -62,10 +63,13 @@ export interface AdventureResult {
   salvageTool?: boolean;
   lastCheck?: import('./explorationChecks').ExplorationCheckResult;
   rulesVersion?: AdventureRulesVersion;
+  campaignVisit?: import('./explorationCampaignData').CampaignVisitId;
+  campaignTotal?: number;
 }
 
 export interface AdventureState {
-  schemaVersion: 8;
+  schemaVersion: 9;
+  campaign: import('./explorationCampaignState').ExplorationCampaignState;
   landmarks: import('./landmarkProgress').LandmarkId[];
   backpackLevel: number;
   valleyCompleted: import('./valleyQuests').ValleyQuestId[];

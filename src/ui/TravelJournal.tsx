@@ -42,7 +42,7 @@ export const getTravelRecords = (pet: PetState): TravelRecord[] => {
     const pending = pet.adventure.pending?.id === entry.id;
     records.set(entry.id, { id: entry.id, at: entry.endedAt, title: `${entry.actorName} · ${adventureJourneyName(entry.region, entry.purpose)}`,
       status: entry.returnReason === 'health' ? '安全返程' : entry.complete ? '完成探查' : '提前返回',
-      detail: `${entry.steps}/${getAdventureStepCount(entry.region, entry.purpose)} 阶段${entry.first ? ' · 首次完成' : ''}`,
+      detail: `${entry.campaignVisit ? '聚餐准备 · ' : ''}${entry.steps}/${entry.campaignTotal ?? getAdventureStepCount(entry.region, entry.purpose)} 阶段${entry.first ? ' · 首次完成' : ''}`,
       coins: entry.coins, hearts: entry.hearts, items: entry.items, lastCheck: entry.lastCheck, ...(pending ? { pending: 'adventure' as const } : {}),
     });
   }

@@ -587,16 +587,21 @@ async function verifySavesAndErrors() {
       assert.deepEqual(saved.adventure.landmarks, all.adventure.landmarks);
     });
 
-    await check('通用料理选材的存档往返、无效材料与重复提交恢复', async () => {
-      const { craftRecipe, recordDishTaste } = await import('../src/core/kitchen.ts');
-      const { getDish, getRecipe, getDishId } = await import('../src/core/kitchenRecipes.ts');
+    await check('固定料理、烤鱼与小吃套餐存档往返、上架和无效制作恢复', async () => {
+      const { craftRecipe, recordDishTaste, normalizeKitchenState } = await import('../src/core/kitchen.ts');
+      const { getDish, getRecipe, getDishId, recipes } = await import('../src/core/kitchenRecipes.ts');
       const { getCommunitySale } = await import('../src/core/communityEconomy.ts');
+      const { listCommunityGoods, getMarketQuote } = await import('../src/core/communityMarket.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       let state = createDefaultPet(now);
       state.kitchen.equipment = ['mix', 'pan', 'blender'];
       state.community.facilities.fishing_hut.built = true;
+      state.community.facilities.upstream.built = true;
       state.community.waterAccess.coast_pier.built = true;
-      state.inventory = { apple: 3, watermelon: 3, wheat_fish: 3, bluefin_bream: 3, golden_koi: 1 };
-      const variants = [['mixed_juice', 'apple__watermelon'], ['fish_soup', 'wheat_fish'], ['grilled_fish', 'bluefin_bream']];
+      state.community.herbDiscovered = true;
+      state.adventure.landmarks = mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node)));
+      state.inventory = { carrot: 3, apple: 3, orange: 3, stream_trout: 3, creek_herb: 3, wild_onion: 3, bluefin_bream: 3, golden_koi: 1, hill_honey: 3, farm_milk: 3 };
+      const variants = [['carrot_apple_orange_juice', undefined], ['herb_trout_soup', undefined], ['grilled_fish', 'bluefin_bream'], ['honey_milk', undefined]];
       const outputs = [];
       for (const [index, [recipeId, variantKey]] of variants.entries()) {
         const recipe = getRecipe(recipeId, variantKey);
@@ -607,18 +612,57 @@ async function verifySavesAndErrors() {
         state = recordDishTaste(state, dishId, 'official.furo', now);
         outputs.push(dishId);
       }
-      state.favorites = { itemIds: outputs, recipeIds: variants.map(([id]) => id) };
+      state.inventory = { ...state.inventory, flour: 5, egg: 3, carrot: 3, tomato: 5, potato: 5, cooking_oil: 5, wheat_fish: 3 };
+      const snackSteps = [['flatbread', 2], ['carrot_omelet', 2], ['egg_wrap', 2], ['tomato_ketchup', 4], ['french_fries', 4], ['ketchup_fries', 4], ['wrap_fries_set', 2], ['crispy_wheat_fish', 2], ['fish_fries_set', 2]];
+      for (const [recipeId, quantity] of snackSteps) {
+        state = craftRecipe(state, recipeId, false, quantity, `snack-${recipeId}`, now);
+        assert.equal(state.inventory[getDishId(getRecipe(recipeId))], quantity, 'multi-step snacks consume prepared dishes and produce the requested batch');
+      }
+      for (const id of ['flour', 'egg', 'carrot', 'tomato', 'potato', 'cooking_oil', 'wheat_fish']) assert.equal(state.inventory[id], 1, 'snack chains deduct only the required ingredients');
+      for (const id of ['dish_flatbread', 'dish_carrot_omelet', 'dish_egg_wrap', 'dish_tomato_ketchup', 'dish_french_fries', 'dish_ketchup_fries', 'dish_crispy_wheat_fish', 'dish_carrot_apple_orange_juice']) assert.equal(state.inventory[id] ?? 0, 0, 'assembled meals must consume their prepared components');
+      state.community.facilities.stall.built = true;
+      state.community.market.level = 1;
+      const meals = [['wrap_fries_set', 182, 218], ['fish_fries_set', 209, 250]];
+      for (const [recipeId, base, price] of meals) {
+        const dishId = getDishId(getRecipe(recipeId));
+        assert.equal(getCommunitySale(dishId).base, base, 'fixed assembly profit must not compound the component prices');
+        assert.equal(getMarketQuote(state, dishId).price, price);
+        state = recordDishTaste(state, dishId, 'official.furo', now);
+        state = listCommunityGoods(state, dishId, 1, state.community.market.nextListingId, now);
+        assert.equal(state.inventory[dishId], 1, 'listing removes only the offered serving');
+        assert.equal(state.community.market.listings.find(listing => listing.itemId === dishId)?.unitPrice, price);
+        outputs.push(dishId);
+      }
+      const oldJuice = 'dish_mixed_juice__apple__watermelon', oldSoup = 'dish_fish_soup__wheat_fish';
+      state.inventory[oldJuice] = 2; state.inventory[oldSoup] = 1;
+      state.kitchen.made.mixed_juice = 2; state.kitchen.made.fish_soup = 1;
+      state = recordDishTaste(state, oldJuice, 'official.furo', now);
+      state = recordDishTaste(state, oldSoup, 'official.furo', now);
+      state.favorites = { itemIds: [...outputs, oldJuice, oldSoup], recipeIds: [...variants.map(([id]) => id), ...meals.map(([id]) => id), 'mixed_juice', 'fish_soup'] };
       const restored = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
       for (const key of ['inventory', 'favorites', 'companionMemories']) assert.deepEqual(restored[key], state[key], `${key} retains selected recipe variants`);
       for (const key of ['made', 'firstMadeAt', 'tasted', 'recentOperationIds']) assert.deepEqual(restored.kitchen[key], state.kitchen[key], `kitchen ${key} retains selected recipe variants`);
+      assert.deepEqual(restored.community.market.listings, state.community.market.listings, 'prepared meals retain quantities and fixed shelf prices across reloads');
       assert.equal(restored.kitchen.lastCraft, undefined, 'compact saves still omit the temporary result panel');
+      restored.inventory.dish_egg_wrap = 1; restored.inventory.dish_ketchup_fries = 1;
+      assert.equal(craftRecipe(restored, 'wrap_fries_set', false, 1, 'snack-wrap_fries_set', now), restored, 'saved assembly operations cannot repeat even after restocking');
+      assert.equal(craftRecipe(restored, 'wrap_fries_set', false, 2, 'short-snacks', now), restored, 'insufficient prepared components must not be partially consumed');
+      const roundingState = structuredClone(restored);
+      roundingState.partnerSchedule.skills.cooking.level = 3;
+      const rounded = craftRecipe(roundingState, 'wrap_fries_set', false, 1, 'rounded-snacks', now);
+      assert.equal(rounded.kitchen.lastCraft.skillHearts, -1, 'rounded component rewards are reconciled at final assembly');
+      assert.equal(rounded.kitchen.lastCraft.hearts, 0, 'rounding never subtracts earned hearts');
+      assert.deepEqual(normalizeKitchenState(rounded.kitchen).lastCraft, rounded.kitchen.lastCraft, 'valid rounding adjustments survive kitchen recovery');
       const grilledId = outputs[2];
       assert.equal(getDish(grilledId).recipe.variantKey, 'bluefin_bream');
       assert.ok(getCommunitySale(grilledId).base > getCommunitySale('dish_grilled_fish__wheat_fish').base);
       assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'variant-2', now, undefined, 'bluefin_bream'), restored, 'restoring a result must not repeat its reward');
       assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'collector', now, undefined, 'golden_koi'), restored, 'collection fish cannot be substituted');
-      assert.equal(craftRecipe(restored, 'mixed_juice', false, 1, 'same-fruit', now, undefined, 'apple__apple'), restored, 'mixed juice requires different fruits');
-      assert.equal(craftRecipe(restored, 'mixed_juice', false, 2, 'short-stock', now, undefined, 'apple__watermelon'), restored, 'an outdated quantity must not partially consume ingredients');
+      restored.inventory.watermelon = 1; restored.inventory.wheat_fish = 1;
+      assert.equal(craftRecipe(restored, 'mixed_juice', false, 1, 'retired-juice', now, undefined, 'apple__watermelon'), restored, 'retired juice cannot be crafted');
+      assert.equal(craftRecipe(restored, 'fish_soup', false, 1, 'retired-soup', now, undefined, 'wheat_fish'), restored, 'retired fish soup cannot be crafted');
+      assert.ok(!recipes.some(recipe => recipe.id === 'mixed_juice' || recipe.id === 'fish_soup'), 'retired recipes do not appear in the book');
+      assert.equal(craftRecipe(restored, 'carrot_apple_orange_juice', false, 2, 'short-stock', now), restored, 'an outdated quantity must not partially consume ingredients');
       assert.equal(craftRecipe(restored, 'egg_rice', false, 1, 'wrong-recipe', now, undefined, 'bluefin_bream'), restored, 'a variant belongs only to its recipe');
     });
 
@@ -1265,6 +1309,131 @@ async function verifySavesAndErrors() {
       assert.equal(legacyReceipt.adventure.pending.coins, 20, 'a previously completed gift must not receive extra compensation');
       assert.equal(legacyReceipt.adventure.pending.items.community_wood, 2);
       assert.equal(legacyReceipt.adventure.pending.items.community_stone, 1);
+    });
+
+    await check('聚餐任务旧档兼容、交付续程与一次性奖励往返防重', async () => {
+      const { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureRewardPreview } = await import('../src/core/adventure.ts');
+      const { startExplorationCampaign, advanceCampaignVisit, claimCampaignTask } = await import('../src/core/explorationCampaign.ts');
+      const { campaignTasks, campaignVisitIds, campaignVisits } = await import('../src/core/explorationCampaignData.ts');
+      const { campaignDestination, getCampaignSupplies, getCampaignDelivery, campaignVisitStep, campaignVisitComplete, campaignText } = await import('../src/core/explorationCampaignState.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const { getNeighborIdentities } = await import('../src/core/neighbors.ts');
+      const fuel = p => ({ ...p, hunger: getPetStatCap(p), energy: getPetEnergyCap(p), health: getPetStatCap(p), mood: getPetStatCap(p) });
+      const reload = p => parseSaveFileText(createSaveFileText(p, null, now), now).pet;
+      const landmarks = mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node)));
+      const old = { ...pet, inventory: { ...pet.inventory, bento: 3, dish_herb_porridge: 2, community_wood: 3, hill_honey: 3, forest_berry: 3, sea_glass: 2, observatory_part: 2 }, adventure: { ...pet.adventure, schemaVersion: 8, campaign: undefined, completed: { tutorial: 1 }, landmarks } };
+      const full = fuel(reload(old));
+      assert.deepEqual(full.adventure.campaign.tasks, {}, 'existing map completion cannot complete new tasks');
+      assert.equal(full.hearts, pet.hearts);
+      assert.deepEqual(full.adventure.landmarks, landmarks);
+      const candidates = getNeighborIdentities([{ manifest: { id: 'fixture.picnic', name: 'DeepSeek', defaultPetName: '小肥鱼$&' } }], 'official.furo');
+      assert.equal(candidates[0].name, '小肥鱼$&');
+      let state = startExplorationCampaign(full, candidates, 'official.furo', now);
+      assert.equal(campaignText('{neighbor}来了', state.adventure.campaign, 'valley'), '小肥鱼$&来了');
+      assert.deepEqual(state.adventure.campaign.tasks, {});
+      const contact = structuredClone(state.adventure.campaign.contacts.valley);
+      const boost = structuredClone(state.boostCards), hearts = state.hearts, apples = state.inventory.golden_apple ?? 0;
+      const collection = structuredClone(state.community.expedition.collection);
+      const loopUsed = state.community.expedition.loop?.used ?? 0;
+      const supplies = (p, id) => getCampaignSupplies(p, id).reduce((bag, need) => {
+        const chosen = id === 'station_dinner' ? { bento: 1, dish_herb_porridge: 1 } : getCampaignDelivery(need, p.inventory);
+        for (const [item, n] of Object.entries(chosen)) bag[item] = (bag[item] ?? 0) + n;
+        return bag;
+      }, {});
+      const depart = (p, id) => startAdventure(fuel(p), campaignVisits[id].region, 'official.furo', 'Furo', supplies(p, id), false, now, campaignDestination(id), undefined, [], id);
+      const returnAndCollect = p => {
+        const returned = reload(returnFromAdventure(p, p.adventure.active.id, now));
+        assert.equal(returned.adventure.pending.first, false);
+        assert.equal(returned.adventure.pending.hearts, 0);
+        assert.equal(returned.adventure.pending.coins, 0);
+        const receiptId = returned.adventure.pending.id;
+        const collected = reload(claimAdventureResult(returned, receiptId));
+        assert.equal(claimAdventureResult(collected, receiptId), collected);
+        return collected;
+      };
+      // Each restored trip continues its saved choices; the final dinner resumes after delivery.
+      for (const id of campaignVisitIds) {
+        state = reload(depart(state, id));
+        assert.equal(state.adventure.active.campaign.mode, 'visit', id);
+        assert.equal(advanceAdventure(state, state.adventure.active.id, 0, 'story', now, state.adventure.active.revision), state);
+        while (!campaignVisitComplete(state.adventure.campaign, id)) {
+          const index = campaignVisitStep(state.adventure.campaign, id), step = campaignVisits[id].steps[index], trip = state.adventure.active;
+          const chosen = id === 'forest_basket' && index === 1 ? 'detour' : step.options[0].id;
+          const delivery = step.delivery ? getCampaignDelivery(step.delivery, trip.bag) : {};
+          if (step.delivery) {
+            const invalid = advanceCampaignVisit(state, trip.id, trip.revision, index, chosen, { ...delivery, apple: 1 }, [], now);
+            assert.deepEqual(invalid.adventure, state.adventure, 'an invalid delivery does not spend progress or supplies');
+          }
+          const neighbors = [{ modId: 'fixture.new-neighbor', name: '阿栗' }];
+          state = advanceCampaignVisit(fuel(state), trip.id, trip.revision, index, chosen, delivery, neighbors, now);
+          assert.equal(campaignVisitStep(state.adventure.campaign, id), index + 1);
+          const snapshot = structuredClone(state.adventure.campaign);
+          state = reload(state);
+          assert.deepEqual(state.adventure.campaign, snapshot);
+          assert.equal(advanceCampaignVisit(state, trip.id, trip.revision, index, chosen, delivery, neighbors, now), state, 'retries after reloading cannot deliver twice');
+          if (id === 'valley_bridge' && index === 1 || id === 'station_dinner' && index === 0) {
+            const remaining = getCampaignSupplies(state, id);
+            state = returnAndCollect(state);
+            state = reload(depart(state, id));
+            assert.equal(state.adventure.active.campaign.startStep, index + 1);
+            assert.deepEqual(getCampaignSupplies(state, id), remaining);
+            assert.deepEqual(state.adventure.campaign, snapshot);
+          }
+        }
+        state = returnAndCollect(state);
+      }
+      assert.deepEqual(state.adventure.campaign.contacts.valley, contact, 'uninstalled or renamed Mods retain their original contact name');
+      assert.equal(state.adventure.campaign.contacts.windmill.name, '阿栗', 'later chapters use the installed neighbors available when unlocked');
+      assert.equal(state.adventure.campaign.contacts.forest.reference.kind, 'generic', 'already used neighbors are not silently reassigned');
+      assert.equal(state.adventure.campaign.visits.forest_basket[1], 'detour');
+      assert.deepEqual(state.adventure.campaign.tasks[28].delivery, { bento: 1, dish_herb_porridge: 1 });
+      assert.equal(Object.keys(state.adventure.campaign.tasks).length, 30);
+      assert.equal(state.adventure.journal.length, 8, 'full campaign history is independent of the last eight travel receipts');
+      assert.deepEqual(state.adventure.landmarks, landmarks);
+      assert.equal(state.community.expedition.loop?.used ?? 0, loopUsed);
+      assert.deepEqual(state.community.expedition.collection, collection);
+      assert.deepEqual(state.community.expedition.projects, full.community.expedition.projects, 'weekly activities keep their separate completion and rewards');
+      assert.equal(state.hearts, hearts);
+      const blocked = { ...state, inventory: { ...state.inventory, golden_apple: inventoryItemLimit } };
+      assert.equal(claimCampaignTask(blocked, 1, now), blocked, 'a full warehouse keeps the entire reward unclaimed');
+      for (const task of campaignTasks) {
+        state = reload(claimCampaignTask(state, task.id, now));
+        assert.equal(claimCampaignTask(state, task.id, now), state, 'claimed rewards cannot be duplicated after restoring');
+      }
+      assert.equal(state.hearts - hearts, 30000);
+      assert.equal(state.inventory.golden_apple - apples, 125);
+      assert.deepEqual(state.boostCards, boost, 'fixed task rewards do not consume boost cards');
+      assert.equal(Object.values(state.adventure.campaign.tasks).filter(record => record.claimedAt).length, 30);
+
+      const existingTrip = startAdventure(full, 'valley', 'official.furo', 'Furo', {}, false, now, 'landmark:valley:crossing');
+      const upgradedTrip = reload(startExplorationCampaign(existingTrip, candidates, 'official.furo', now));
+      assert.equal(upgradedTrip.adventure.active.campaign, undefined, 'starting a campaign does not inject events into an old trip');
+      assert.equal(upgradedTrip.adventure.active.id, existingTrip.adventure.active.id);
+      const existingReceipt = returnFromAdventure(existingTrip, existingTrip.adventure.active.id, now);
+      assert.deepEqual(reload(startExplorationCampaign(existingReceipt, candidates, 'official.furo', now)).adventure.pending, reload(existingReceipt).adventure.pending);
+
+      let newcomer = startExplorationCampaign(fuel({ ...full, adventure: { ...full.adventure, landmarks: ['entrance', 'gather', 'ridge'].map(node => landmarkId('valley', node)) } }), candidates, 'official.furo', now);
+      newcomer = reload(depart(newcomer, 'valley_bridge'));
+      assert.equal(newcomer.adventure.active.campaign.mode, 'embedded');
+      const initialTrip = newcomer.adventure.active;
+      assert.deepEqual(advanceCampaignVisit(newcomer, initialTrip.id, initialTrip.revision, 0, 'continue', {}, candidates, now).adventure, newcomer.adventure, 'campaign events wait for the landmark story');
+      for (const step of getLandmarkSteps('landmark:valley:crossing')) {
+        const trip = newcomer.adventure.active;
+        const choice = step.choices.find(c => !c.harvest && !c.item && !c.tool && !c.check?.tool && !c.check?.risky);
+        newcomer = reload(advanceAdventure(fuel(newcomer), trip.id, trip.choices.length, choice.id, now, trip.revision));
+      }
+      assert.equal(newcomer.adventure.active.firstCompletion, true);
+      assert.deepEqual(newcomer.adventure.campaign.tasks, {});
+      const earned = getAdventureRewardPreview(newcomer), nextTrip = newcomer.adventure.active;
+      newcomer = reload(advanceCampaignVisit(fuel(newcomer), nextTrip.id, nextTrip.revision, 0, 'continue', {}, candidates, now));
+      assert.ok(newcomer.adventure.campaign.tasks[1]);
+      assert.deepEqual(getAdventureRewardPreview(newcomer), earned, 'embedded preparation keeps the normal first-clear reward unchanged');
+      const returned = reload(returnFromAdventure(newcomer, nextTrip.id, now));
+      assert.equal(returned.adventure.pending.campaignVisit, undefined);
+      assert.equal(returned.adventure.pending.first, true);
     });
 
     await check('计时提醒随取消、冻结、成熟和存档恢复保持一致', async () => {

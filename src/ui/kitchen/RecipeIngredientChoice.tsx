@@ -6,10 +6,10 @@ import { rarityNames } from '../../core/foodCatalog';
 export const RecipeIngredientChoice = ({ pet, recipe, onChange }: {
   pet: PetState; recipe: RecipeDefinition; onChange: (variantKey: string) => void;
 }) => {
-  if (!recipe.variantKey) return null;
+  if (!recipe.variantKey || recipe.retired) return null;
   return <fieldset className="recipe-ingredient-choice">
-    <legend>{recipe.id === 'mixed_juice' ? '选择两种水果' : '选择料理鱼'}</legend>
-    <p>{recipe.id === 'mixed_juice' ? '每份消耗两种不同水果，各 1 份。' : '每份消耗所选鱼 1 条。观赏收藏鱼不用于料理。'}效果和售价随选材变化。</p>
+    <legend>选择料理鱼</legend>
+    <p>每份烤鱼消耗所选鱼 1 条。观赏收藏鱼不用于料理，效果和售价随鱼种变化。</p>
     <label>本次配料
       <select value={recipe.variantKey} onChange={event => onChange(event.target.value)}>
         {getRecipeVariants(recipe).map(variant => {

@@ -1,4 +1,4 @@
-import { ArrowRight, Backpack, BookOpen, Compass, Gift, Map, ShoppingBag, Tent } from 'lucide-react';
+import { ArrowRight, Backpack, BookOpen, ClipboardList, Compass, Gift, Map, ShoppingBag, Tent } from 'lucide-react';
 import type { PetState } from '../core/petTypes';
 import { regionIds, regions } from '../core/expeditionData';
 import { completedLandmark, landmarkId, landmarkNames, landmarkNodes, mainStoryProgress, mapRegionForExpedition, nextLandmarks, regionNames } from '../core/landmarkProgress';
@@ -10,9 +10,10 @@ import { AdventureHall, type AdventureCompanion } from './AdventureCompanions';
 import { AdventureCompanionStatus, AdventureLandscape } from './AdventurePresentation';
 import type { OutpostRequest } from './outpostNavigation';
 
-export const AdventureHome = ({ pet, actor, roster, primaryLabel, onPrimary, onMap, onGrowth, onJournal, onSupplies, onStarter, onOutpost }: {
+export const AdventureHome = ({ pet, actor, roster, primaryLabel, onPrimary, onMap, onGrowth, onJournal, onTasks, onSupplies, onStarter, onOutpost }: {
   pet: PetState; actor: AdventureCompanion; roster: readonly AdventureCompanion[]; primaryLabel: string;
   onPrimary: () => void; onMap: () => void; onGrowth: () => void; onJournal: () => void; onSupplies: () => void; onStarter: () => void; onOutpost: (request: OutpostRequest) => void;
+  onTasks: () => void;
 }) => {
   const story = mainStoryProgress(pet.adventure), next = nextLandmarks(pet.adventure)[0];
   const unlocked = isAdventureMapUnlocked(pet.adventure);
@@ -33,6 +34,7 @@ export const AdventureHome = ({ pet, actor, roster, primaryLabel, onPrimary, onM
   return <div className="exploration-home-layout">
     <div className="exploration-home-main">
       <AdventureHall actor={actor} roster={roster} day={getEffectiveDailyDateKey(pet)} traveling={traveling} />
+      <button className="exploration-starter campaign-home-entry" onClick={onTasks}><ClipboardList size={24} /><span><strong>去山上吃顿饭</strong><small>{pet.adventure.campaign.tasks[30] ? '聚餐结束了，翻翻一起准备的那些事' : Object.values(pet.adventure.campaign.tasks).some(record => record && !record.claimedAt) ? '有办妥的事，去收下伙伴的心意' : pet.adventure.campaign.startedAt ? `聚餐准备 ${Object.keys(pet.adventure.campaign.tasks).length} / 30 · 看看接下来做什么` : '邻居们想聚餐，来一起准备吧'}</small></span><ArrowRight size={20} /></button>
       <nav className="exploration-home-links" aria-label="前哨快捷入口">{links.map(({icon:Icon,title,note,action}) => <button key={title} onClick={action}><span className="exploration-shortcut-icon"><Icon size={26} /></span><span><strong>{title}</strong><small>{note}</small></span><ArrowRight size={17} /></button>)}</nav>
       {(!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed) && <button className="exploration-starter" onClick={onStarter}><Gift size={22} /><span><strong>领取入门补给</strong><small>备好第一趟旅途的料理 ×4</small></span><ArrowRight size={20} /></button>}
       {regionIds.filter(id => pet.community.expedition.regions[id].surveyed).map(id => <section className="exploration-camp-prompt" key={id}><span><Tent size={19} /><strong>{regions[id].name} · 地标 8/8</strong></span><button onClick={() => onOutpost({view:pet.community.expedition.regions[id].base ? 'idle' : 'camp',region:id})}>{pet.community.expedition.regions[id].base ? '安排挂机采集' : '修复营地，开启挂机'}<ArrowRight size={16} /></button></section>)}

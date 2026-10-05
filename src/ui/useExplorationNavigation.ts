@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AdventureMapSelection } from './AdventureMap';
 import { hasDialogBackLayer } from './dialogNavigation';
+import type { CampaignVisitId } from '../core/explorationCampaignData';
 export interface ExplorationNavigation {
-  screen: 'home' | 'map' | 'prepare' | 'journey' | 'receipt' | 'growth' | 'journal';
+  screen: 'home' | 'map' | 'prepare' | 'journey' | 'receipt' | 'growth' | 'journal' | 'tasks';
   selection?: AdventureMapSelection | 'tutorial';
   mode: 'manual' | 'idle';
   target?: string;
+  campaignVisit?: CampaignVisitId;
+  taskTab?: 'current' | 'completed';
 }
 export const useExplorationNavigation = (initial: ExplorationNavigation, leave: () => void, available: { journey: boolean; receipt: boolean }) => {
   const [navigation, setNavigation] = useState(initial);

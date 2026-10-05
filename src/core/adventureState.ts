@@ -12,6 +12,8 @@ import { explorationBackpackCapacities, normalizeBackpackLevel } from './explora
 import { normalizeExplorationCheckResult, normalizeExplorationCheckState } from './explorationChecks';
 import { isLandmarkId, parseLandmarkId } from './landmarkProgress';
 import { getLandmarkSteps, landmarkTargets } from './landmarkData';
+import { defaultExplorationCampaign, normalizeCampaignTripContext, normalizeExplorationCampaign } from './explorationCampaignState';
+import { campaignVisits, isCampaignVisitId } from './explorationCampaignData';
 
 const object = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw as Record<string, unknown> } : {};
 const count = (raw: unknown, max = Number.MAX_SAFE_INTEGER) => typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(max, Math.floor(raw))) : 0;
@@ -36,7 +38,7 @@ export const getAdventureItemPurchaseCapacity = (pet: PetState, id: string) => {
     + (id === 'trail_rope' ? Number(Boolean(expedition.active?.tool)) + Number(Boolean(expedition.pending?.tool)) : 0);
   return Math.max(0, inventoryItemLimit - (pet.inventory[id] ?? 0) - reserved);
 };
-export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 8, landmarks: [], backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
+export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 9, campaign: defaultExplorationCampaign(), landmarks: [], backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
 export const isAdventureMapUnlocked = (state: AdventureState) => (state.completed.tutorial ?? 0) > 0;
 const dayKey = (raw: unknown) => typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
 const route = (raw: unknown) => isLandmarkId(raw) ? raw : typeof raw === 'string' && ['irrigation', 'seeds', 'commission', ...facilityIds, ...valleyQuestIds].includes(raw) ? raw as CommunityRoute : undefined;
@@ -66,8 +68,9 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9, 10, 11].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
   const rulesVersion = value.rulesVersion === 11 && (modern || tutorial) ? 11 : modern ? 10 : legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
   const options = getAdventureSteps(rulesVersion, value.region as AdventureDestinationId, purpose);
+  const campaign = rulesVersion >= 11 ? normalizeCampaignTripContext(value.campaign, purpose) : undefined;
   const choices: string[] = [];
-  for (const choice of Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
+  for (const choice of campaign?.mode !== 'visit' && Array.isArray(value.choices) ? value.choices.slice(0, options.length) : []) {
     const step = options[choices.length];
     // Retired gathering choices remain valid history; they cannot be selected again.
     const retiredMaterials = modern && ['gather:materials', 'tool:materials', 'lens:materials'].includes(choice)
@@ -89,12 +92,12 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const savedStock = object(value.shopStock);
   const shopStock = Object.fromEntries(Object.entries(initialStock).map(([id, amount]): [string, number] => [id, legacy ? value.bought === true ? 0 : amount : count(savedStock[id], amount)]).filter(([, amount]) => amount > 0));
   return { id: text(value.id), region: value.region as AdventureDestinationId, actorId: text(value.actorId), actorName: text(value.actorName, 32), startedAt: count(value.startedAt), choices,
-    rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true,
+    rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true, ...(campaign ? { campaign } : {}),
     ...(modern && isLandmarkId(purpose) ? { nodeId: parseLandmarkId(purpose).node, ...(typeof value.target === 'string' && landmarkTargets(parseLandmarkId(purpose).region).includes(value.target) ? { target: value.target } : {}), stageIds: getLandmarkSteps(purpose).slice(0, choices.length).map(step => step.id), firstCompletion: value.firstCompletion === true } : {}),
     ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
     ...(rulesVersion >= 11 ? { earnedCoins: count(value.earnedCoins, 30000), earnedHearts: count(value.earnedHearts, 10000) } : {}),
     ...(value.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: typeof value.gatherBonus === 'number' && Number.isFinite(value.gatherBonus) ? Math.max(0, Math.min(35, value.gatherBonus)) : 0 } : {}),
-    energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length), rested: value.rested === true,
+    energySpent: count(value.energySpent, 10000), healthLost: typeof value.healthLost === 'number' && Number.isFinite(value.healthLost) ? Math.max(0, Math.min(10000, value.healthLost)) : 0, paidActions: value.paidActions === undefined && rulesVersion < 8 ? choices.length : count(value.paidActions, choices.length + (campaign ? campaignVisits[campaign.visitId].steps.length : 0)), rested: value.rested === true,
     neighborId: !tutorial && typeof value.neighborId === 'string' && /^[a-z0-9][a-z0-9._-]{1,127}$/.test(value.neighborId) && value.neighborId !== value.actorId ? value.neighborId : undefined,
     shopStock, purchases: legacy ? value.bought === true ? 1 : 0 : count(value.purchases),
     transportedCount: legacy ? value.transported === true ? 1 : 0 : count(value.transportedCount, rulesVersion === 1 ? 1 : adventureTransportLimit),
@@ -108,11 +111,15 @@ const normalizeResult = (raw: unknown): AdventureResult | undefined => {
   if (!text(value.id) || !(adventureDestinationIds as readonly unknown[]).includes(value.region)) return undefined;
   const purpose = route(value.purpose);
   const region = value.region as AdventureDestinationId;
-  const steps = count(value.steps, getAdventureStepCount(region, purpose));
-  const complete = value.complete === true && steps === getAdventureStepCount(region, purpose);
+  const campaignVisit = isCampaignVisitId(value.campaignVisit) && campaignVisits[value.campaignVisit].region === region && purpose === `landmark:${region}:${campaignVisits[value.campaignVisit].node}` ? value.campaignVisit : undefined;
+  const campaignTotal = campaignVisit ? Math.max(1, count(value.campaignTotal, campaignVisits[campaignVisit].steps.length)) : undefined;
+  const total = campaignTotal ?? getAdventureStepCount(region, purpose);
+  const steps = count(value.steps, total);
+  const complete = value.complete === true && steps === total;
   return { id: text(value.id), region, actorId: text(value.actorId), actorName: text(value.actorName, 32), endedAt: count(value.endedAt), steps, complete,
+    ...(campaignVisit ? { campaignVisit, campaignTotal } : {}),
     ...(value.rulesVersion === 11 ? { rulesVersion: 11 as const } : isLandmarkId(purpose) ? { rulesVersion: 10 as const } : {}),
-    purpose, first: complete && value.first === true, hearts: purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.hearts, 10000), coins: purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true, ...(value.coinsRemaining !== undefined ? { coinsRemaining: count(value.coinsRemaining, count(value.coins, 10000)) } : {}),
+    purpose, first: !campaignVisit && complete && value.first === true, hearts: campaignVisit || purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.hearts, 10000), coins: campaignVisit || purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true, ...(value.coinsRemaining !== undefined ? { coinsRemaining: campaignVisit ? 0 : count(value.coinsRemaining, count(value.coins, 10000)) } : {}),
     ...(normalizeExplorationCheckResult(value.lastCheck) ? { lastCheck: normalizeExplorationCheckResult(value.lastCheck) } : {}),
     ...(value.returnReason === 'health' ? { returnReason: 'health' as const, ...(value.salvage && value.rewardsClaimed !== true ? { salvage: inventory(value.salvage), salvageTool: value.salvageTool === true } : {}) } : {}),
     ...(complete ? { completedDay: dayKey(value.completedDay) ?? getDailyResetDateKey(count(value.endedAt)) } : {}) };
@@ -128,11 +135,11 @@ export const normalizeAdventureState = (raw: unknown): AdventureState => {
     return latest ? [[region, latest]] : [];
   }));
   return {
-    schemaVersion: 8, landmarks: Array.isArray(value.landmarks) ? [...new Set(value.landmarks.filter(isLandmarkId))] : [], backpackLevel: normalizeBackpackLevel(value.backpackLevel), valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
+    schemaVersion: 9, campaign: normalizeExplorationCampaign(value.campaign), landmarks: Array.isArray(value.landmarks) ? [...new Set(value.landmarks.filter(isLandmarkId))] : [], backpackLevel: normalizeBackpackLevel(value.backpackLevel), valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
     completed: Object.fromEntries(adventureDestinationIds.filter(id => count(completed[id]) > 0).map(id => [id, count(completed[id])])),
     discoveries: Array.isArray(value.discoveries) ? [...new Set(value.discoveries.filter((id): id is string => typeof id === 'string' && /^(valley:[0-5]|tutorial:[0-3])$/.test(id)))].slice(0, adventureStepCount + adventureTutorialStepCount) : [],
     lastCompletedDay,
-    active: pending ? undefined : normalizeTrip(value.active, ![2, 3, 4, 5, 6, 7, 8].includes(Number(value.schemaVersion)), explorationBackpackCapacities[normalizeBackpackLevel(value.backpackLevel)]), pending,
+    active: pending ? undefined : normalizeTrip(value.active, ![2, 3, 4, 5, 6, 7, 8, 9].includes(Number(value.schemaVersion)), explorationBackpackCapacities[normalizeBackpackLevel(value.backpackLevel)]), pending,
     journal,
   };
 };

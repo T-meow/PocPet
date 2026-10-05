@@ -15,6 +15,7 @@ import { ItemStorageModal } from '../ItemStorageModal';
 import { createItemBrowseState } from '../itemBrowse';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
 import { CommunityMarketArt } from './CommunityMarketArt';
+import { DishValueBadge } from '../DishValueBadge';
 import type { CommunityPanelProps } from './types';
 
 const customerNames = { ordinary: '邻里客人', foodie: '美食客人', collector: '收藏客人', generous: '慷慨游客', legacy: '成交记录' };
@@ -76,7 +77,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
     {panel === 'manage' && <CommunityDetailDialog title="管理货架" eyebrow={`货架 ${occupied}/${capacity} 格 · 空栏位 ${room} 个 · 每格最多 ${marketStackLimit} 份`} onClose={() => setPanel('stock')}>
       <div className="community-market-stock">{Array.from({ length: capacity }, (_, slotIndex) => {
         const listing = m.listings.find(listing => listing.slotIndex === slotIndex);
-        return <article key={slotIndex} data-slot={slotIndex}><small>第 {slotIndex + 1} 格</small>{listing ? <><img src={icon(listing.itemId)} alt="" /><strong>{name(listing.itemId)} ×{listing.quantity}</strong><small>{listing.unitPrice} 金币／份{listing.collector ? ' · 收藏品' : ''}</small><button className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, listing.id))}>下架剩余</button></> : <strong>空栏位</strong>}</article>;
+        return <article key={slotIndex} data-slot={slotIndex}><small>第 {slotIndex + 1} 格</small>{listing ? <><img src={icon(listing.itemId)} alt="" /><strong>{name(listing.itemId)} ×{listing.quantity}</strong><DishValueBadge itemId={listing.itemId} /><small>{listing.unitPrice} 金币／份{listing.collector ? ' · 收藏品' : ''}</small><button className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, listing.id))}>下架剩余</button></> : <strong>空栏位</strong>}</article>;
       })}</div>
       <p>客流 +{traffic.total}% · 铭牌 +{traffic.sign}% · 叶影灯 +{traffic.lantern}% · 水景 +{traffic.fountain}%</p>
       <p>包场机会加成 +{buyout.total}% · 烹饪 +{buyout.cooking}% · 鎏金社区铭牌 +{buyout.decoration}%</p>

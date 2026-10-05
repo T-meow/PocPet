@@ -336,7 +336,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   if (adventure.valleyCompleted.includes('valley_camp') && !community.expedition.regions.valley.surveyed) {
     community.expedition.regions.valley = { ...community.expedition.regions.valley, surveyed: true, storyAt: now };
   }
-  adventure = migrateLandmarks(adventure, { community }, (raw.adventure as { schemaVersion?: number } | undefined)?.schemaVersion !== 8);
+  adventure = migrateLandmarks(adventure, { community }, ((raw.adventure as { schemaVersion?: number } | undefined)?.schemaVersion ?? 0) < 8);
   const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
   const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
   const hunger = Math.max(0, isNumber(raw.hunger) ? raw.hunger : fallback.hunger);

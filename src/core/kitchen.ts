@@ -4,7 +4,7 @@ import { addSkillXp, formatPracticeSkillXp, partnerScheduleMaxSkillLevel, practi
 import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId, MilkChoice } from './companionActivityTypes';
-import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes } from './kitchenRecipes';
+import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes, registeredRecipes } from './kitchenRecipes';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
@@ -33,7 +33,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   next.starterClaimed = value.starterClaimed === true;
   const equipment = Array.isArray(value.equipment) ? value.equipment : [];
   next.equipment = cookingMethods.filter((method) => method.price === 0 || equipment.includes(method.id)).map((method) => method.id);
-  for (const recipe of recipes) {
+  for (const recipe of registeredRecipes) {
     const count = value.made?.[recipe.id];
     if (typeof count === 'number' && Number.isFinite(count) && count > 0) next.made[recipe.id] = Math.floor(count);
     const at = value.firstMadeAt?.[recipe.id];
@@ -52,7 +52,9 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
     next.lastCraft = { id: result.id.slice(0, 128), dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
     if (result.milk === 'farm_milk' || result.milk === 'ad_milk') next.lastCraft.milk = result.milk;
     if (typeof result.skillXp === 'number' && Number.isInteger(result.skillXp) && result.skillXp >= 0 && result.skillXp <= practiceSkillXp + kitchenFirstRecipeXp) next.lastCraft.skillXp = result.skillXp;
-    if (typeof result.baseHearts === 'number' && Number.isFinite(result.baseHearts) && result.baseHearts >= 0 && typeof result.skillHearts === 'number' && Number.isFinite(result.skillHearts) && result.skillHearts >= 0 && typeof result.skillLevel === 'number' && Number.isInteger(result.skillLevel) && result.skillLevel >= 1 && result.skillLevel <= partnerScheduleMaxSkillLevel) {
+    // Subtracting rounded rewards for several prepared dishes can yield a small
+    // negative skill adjustment while the final crafting reward stays nonnegative.
+    if (typeof result.baseHearts === 'number' && Number.isFinite(result.baseHearts) && result.baseHearts >= 0 && typeof result.skillHearts === 'number' && Number.isFinite(result.skillHearts) && result.baseHearts + result.skillHearts >= 0 && typeof result.skillLevel === 'number' && Number.isInteger(result.skillLevel) && result.skillLevel >= 1 && result.skillLevel <= partnerScheduleMaxSkillLevel) {
       Object.assign(next.lastCraft, { baseHearts: result.baseHearts, skillHearts: result.skillHearts, skillLevel: result.skillLevel });
     }
   }

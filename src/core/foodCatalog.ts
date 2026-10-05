@@ -9,7 +9,7 @@ export const demandNames: Record<SaleDemand, string> = { basic: '日常商品', 
 export type CropId = 'herb' | 'carrot' | 'berry' | 'greens' | 'tomato' | 'cabbage' | 'potato' | 'corn' | 'wheat' | 'pumpkin' | 'pepper' | 'strawberry' | 'mint' | 'ginger' | 'lotus' | 'sunflower';
 export type NewProduceId = 'potato' | 'sweet_corn' | 'wheat' | 'pumpkin' | 'sweet_pepper' | 'strawberry' | 'mint' | 'ginger' | 'lotus_root' | 'sunflower_kernel';
 export type NewSeedId = 'greens_seed' | 'tomato_seed' | 'cabbage_seed' | 'potato_seed' | 'corn_seed' | 'wheat_seed' | 'pumpkin_seed' | 'pepper_seed' | 'strawberry_seed' | 'mint_seed' | 'ginger_seed' | 'lotus_seed_packet' | 'sunflower_seed';
-export type WildIngredientId = 'bamboo_shoot' | 'wild_onion' | 'wood_ear' | 'sea_salt' | 'lotus_seed' | 'mountain_chestnut' | 'wild_lemon' | 'pine_nut' | 'clam' | 'sea_shrimp' | 'matsutake' | 'mountain_tea' | 'highland_potato' | 'snow_bean' | 'rock_honey';
+export type WildIngredientId = 'bamboo_shoot' | 'wild_onion' | 'wood_ear' | 'sea_salt' | 'lotus_seed' | 'mountain_chestnut' | 'wild_lemon' | 'pine_nut' | 'clam' | 'sea_shrimp' | 'matsutake' | 'mountain_tea' | 'highland_potato' | 'snow_bean';
 export type ProcessedIngredientId = 'cream' | 'cheese' | 'forest_berry_jam' | 'cooking_oil';
 export type ProductionItemId = NewProduceId | NewSeedId | WildIngredientId | ProcessedIngredientId;
 export interface CropDefinition { name: string; seed: NewSeedId | 'creek_herb_seed' | 'carrot_seed' | 'forest_berry_seed'; product: NewProduceId | 'creek_herb' | 'carrot' | 'forest_berry' | 'greens' | 'tomato' | 'cabbage'; hours: number; yield: number; glyph: string; seedPrice: number; region?: RegionId }
@@ -39,24 +39,24 @@ export const getCropUnlockReason = (pet: PetState, id: CropId) => {
 export interface IngredientDefinition { name: string; glyph: string; base: number; rarity: FoodRarity; demand: SaleDemand; use: string }
 export const productionIngredients: Record<NewProduceId | ProcessedIngredientId, IngredientDefinition> = {
   wheat: { name: '小麦', glyph: '🌾', base: 3, rarity: 'common', demand: 'basic', use: '加工台：1 份小麦磨出 2 份面粉，免费加工' },
-  potato: { name: '土豆', glyph: '🥔', base: 6, rarity: 'common', demand: 'basic', use: '种植收获；土豆泥、焗蔬菜' },
-  sweet_corn: { name: '甜玉米', glyph: '🌽', base: 7, rarity: 'common', demand: 'basic', use: '种植收获；浓汤、鱼汤' },
-  pumpkin: { name: '南瓜', glyph: '🎃', base: 9, rarity: 'fine', demand: 'basic', use: '种植收获；炖饭、浓汤、派' },
-  sweet_pepper: { name: '甜椒', glyph: '🫑', base: 7, rarity: 'fine', demand: 'basic', use: '种植收获；盖饭和烤鱼' },
+  potato: { name: '土豆', glyph: '🥔', base: 6, rarity: 'common', demand: 'basic', use: '种植收获；薯条、土豆泥、焗蔬菜；土豆泥可继续做香煎土豆饼' },
+  sweet_corn: { name: '甜玉米', glyph: '🌽', base: 7, rarity: 'common', demand: 'basic', use: '种植收获；浓汤、鱼汤、玉米烙；玉米烙可加奶酪焗烤' },
+  pumpkin: { name: '南瓜', glyph: '🎃', base: 9, rarity: 'fine', demand: 'basic', use: '种植收获；炖饭、浓汤、派、南瓜糯米饼；糯米饼可继续做豆沙南瓜饼' },
+  sweet_pepper: { name: '甜椒', glyph: '🫑', base: 7, rarity: 'fine', demand: 'basic', use: '种植收获；盖饭、烤鱼和田园蔬菜卷' },
   strawberry: { name: '草莓', glyph: '🍓', base: 8, rarity: 'fine', demand: 'basic', use: '种植收获；草莓牛奶和甜品' },
   mint: { name: '薄荷', glyph: '🌱', base: 4, rarity: 'common', demand: 'basic', use: '种植收获；薄荷柠檬饮、薄荷西瓜杯' },
   ginger: { name: '生姜', glyph: '🫚', base: 7, rarity: 'fine', demand: 'basic', use: '种植收获；鱼煲和暖汤' },
   lotus_root: { name: '莲藕', glyph: '🪷', base: 10, rarity: 'fine', demand: 'basic', use: '种植收获；莲藕暖肉汤、木耳莲藕小炒、莲藕猪蹄汤' },
   sunflower_kernel: { name: '葵花籽', glyph: '🌻', base: 7, rarity: 'fine', demand: 'basic', use: '种植收获；2 份加工食用油 1 份，也可做葵香坚果脆饼' },
   cream: { name: '奶油', glyph: '🧈', base: 14, rarity: 'fine', demand: 'basic', use: '加工台：鲜奶 1 份制作奶油 1 份；汤羹、土豆泥' },
-  cheese: { name: '奶酪', glyph: '🧀', base: 21, rarity: 'fine', demand: 'basic', use: '加工台：鲜奶 2 份制作奶酪 1 份；甜品和焗菜' },
-  forest_berry_jam: { name: '林莓果酱', glyph: '🫙', base: 25, rarity: 'fine', demand: 'specialty', use: '加工台：林莓 2 份；果酱饼、果酱奶昔' },
-  cooking_oil: { name: '食用油', glyph: '🫗', base: 15, rarity: 'common', demand: 'basic', use: '加工台：葵花籽 2 份；香煎料理' },
+  cheese: { name: '奶酪', glyph: '🧀', base: 21, rarity: 'fine', demand: 'basic', use: '加工台：鲜奶 2 份制作奶酪 1 份；甜品、焗菜和奶酪玉米烙' },
+  forest_berry_jam: { name: '林莓果酱', glyph: '🫙', base: 25, rarity: 'fine', demand: 'specialty', use: '加工台：林莓 2 份；果酱饼、果酱奶昔和林莓果酱卷' },
+  cooking_oil: { name: '食用油', glyph: '🫗', base: 15, rarity: 'common', demand: 'basic', use: '加工台：葵花籽 2 份；香煎料理、薯条和香煎饺子' },
 };
 export const wildIngredients: Record<WildIngredientId, IngredientDefinition & { region: RegionId; yield: number; investigations: number }> = {
   bamboo_shoot: { name: '嫩笋', glyph: '🎋', base: 6, rarity: 'common', demand: 'basic', region: 'valley', yield: 6, investigations: 1, use: '笋菇鲜汤、清蒸鱼；开垦第 2 块菜地交付 4 份' },
   wild_onion: { name: '野洋葱', glyph: '🧅', base: 6, rarity: 'common', demand: 'basic', region: 'hills', yield: 6, investigations: 1, use: '南瓜炖饭、葱姜鲤鱼、赤尾鱼焖饭；开垦第 3 块菜地交付 4 份' },
-  wood_ear: { name: '林地木耳', glyph: '🍄', base: 7, rarity: 'common', demand: 'basic', region: 'forest', yield: 6, investigations: 1, use: '木耳白菜素饺、木耳莲藕小炒' },
+  wood_ear: { name: '林地木耳', glyph: '🍄', base: 7, rarity: 'common', demand: 'basic', region: 'forest', yield: 6, investigations: 1, use: '木耳白菜素饺、木耳莲藕小炒、田园蔬菜卷' },
   sea_salt: { name: '海盐', glyph: '🧂', base: 6, rarity: 'common', demand: 'basic', region: 'coast', yield: 6, investigations: 1, use: '盐烤青花鲭鱼、青花鲭鱼饭' },
   lotus_seed: { name: '莲子', glyph: '🪷', base: 15, rarity: 'fine', demand: 'specialty', region: 'valley', yield: 3, investigations: 1, use: '莲子鲜奶羹、莲子南瓜粥' },
   mountain_chestnut: { name: '山栗', glyph: '🌰', base: 16, rarity: 'fine', demand: 'specialty', region: 'hills', yield: 3, investigations: 1, use: '焖饭、鲜奶糕' },
@@ -65,10 +65,9 @@ export const wildIngredients: Record<WildIngredientId, IngredientDefinition & { 
   clam: { name: '蛤蜊', glyph: '🐚', base: 17, rarity: 'fine', demand: 'specialty', region: 'coast', yield: 3, investigations: 1, use: '海鲜烩饭、蛤蜊海藻汤' },
   sea_shrimp: { name: '海虾', glyph: '🦐', base: 19, rarity: 'rare', demand: 'specialty', region: 'coast', yield: 3, investigations: 1, use: '海鲜烩饭、海虾滑蛋' },
   matsutake: { name: '松茸', glyph: '🍄', base: 156, rarity: 'epic', demand: 'premium', region: 'forest', yield: 1, investigations: 3, use: '高价值食材，用于奶油煎松茸、松茸清汤；累计 3 点研究得 1 份，放大镜每次 +2 点，另得林莓 2 份' },
-  mountain_tea: { name: '高山茶叶', glyph: '🍵', base: 144, rarity: 'epic', demand: 'premium', region: 'station', yield: 1, investigations: 3, use: '高价值食材，用于高山香草茶、岩蜜高山奶茶；累计 3 点研究得 1 份，放大镜每次 +2 点，另得观测零件 2 份' },
+  mountain_tea: { name: '高山茶叶', glyph: '🍵', base: 144, rarity: 'epic', demand: 'premium', region: 'station', yield: 1, investigations: 3, use: '高价值食材，用于高山香草茶、蜂蜜高山奶茶；累计 3 点研究得 1 份，放大镜每次 +2 点，另得观测零件 2 份' },
   highland_potato: { name: '高山薯', glyph: '🥔', base: 14, rarity: 'fine', demand: 'specialty', region: 'station', yield: 4, investigations: 1, use: '观测站沿途采集；搭配鲜猪肉、野洋葱炖汤，或与奶酪、香菇焗烤' },
   snow_bean: { name: '雪原豆', glyph: '🫘', base: 16, rarity: 'fine', demand: 'specialty', region: 'station', yield: 3, investigations: 1, use: '观测站沿途采集；搭配白米饭和鸡蛋制作盖饭，或与胡萝卜、香草煮汤' },
-  rock_honey: { name: '岩蜜', glyph: '🍯', base: 22, rarity: 'rare', demand: 'specialty', region: 'station', yield: 3, investigations: 1, use: '观测站沿途采集；搭配鲜奶制作岩蜜暖奶，也可加入高山茶叶调制奶茶' },
 };
 export const wildIngredientIds = Object.keys(wildIngredients) as WildIngredientId[];
 

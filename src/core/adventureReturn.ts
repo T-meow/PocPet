@@ -9,11 +9,16 @@ import { isValleyQuest, valleyQuests } from './valleyQuests';
 import { earnExplorationPay, recordLegacyEntrancePay } from './explorationBudget';
 import { isLandmarkId, parseLandmarkId, expeditionRegionForMap } from './landmarkProgress';
 import { landmarkFirstReward } from './landmarkData';
+import { adventureTripProgress } from './explorationCampaignState';
 
 export const adventureHealthRules = { departure: 0.4, warning: 0.35, retreat: 0.2, lowMood: 0.3 } as const;
 export const needsAdventureHealthReturn = (pet: PetState) => Boolean(pet.adventure.active) && getPetStatRatio(pet, 'health') < adventureHealthRules.retreat;
 export const getAdventureRewardPreview = (pet: PetState, now = pet.lastUpdatedAt) => {
   const trip = pet.adventure.active;
+  if (trip?.campaign?.mode === 'visit') {
+    const { steps, total } = adventureTripProgress(pet, trip);
+    return { steps, complete: steps === total, first: false, coins: 0, hearts: 0 };
+  }
   const steps = trip?.choices.length ?? 0;
   const complete = Boolean(trip && steps === getAdventureStepCount(trip.region, trip.purpose));
   const first = Boolean(complete && trip && !trip.purpose && !(pet.adventure.completed[trip.region] ?? 0));
@@ -49,6 +54,7 @@ export const finishAdventure = (pet: PetState, now: number, forced = false): Pet
   const salvage = forced && trip.rulesVersion < 11 && getAdventureBagCount(trip.loot) ? { ...trip.bag } : undefined;
   if (salvage) for (const [id, n] of Object.entries(trip.loot)) salvage[id] = (salvage[id] ?? 0) + n;
   const pending: AdventureResult = { ...reward, rulesVersion: trip.rulesVersion, id: trip.id, region: trip.region, purpose: trip.purpose, actorId: trip.actorId, actorName: trip.actorName, endedAt: now,
+    ...(trip.campaign?.mode === 'visit' ? { campaignVisit: trip.campaign.visitId, campaignTotal: adventureTripProgress(pet, trip).total } : {}),
     items: salvage ? {} : items, rewardsClaimed: false,
     ...(trip.checkState?.last ? { lastCheck: trip.checkState.last } : {}),
     ...(forced ? { returnReason: 'health' as const } : {}), ...(salvage ? { salvage, salvageTool: trip.tool } : {}),

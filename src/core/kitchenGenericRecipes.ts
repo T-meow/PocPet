@@ -4,9 +4,9 @@ import type { RecipeDefinition } from './kitchenRecipes';
 import type { BuiltinItemId } from './petTypes';
 import { fish, fishIds } from './communityData';
 
-// Each combination has a stable inventory ID, so ingredients never lose their
-// own effect or selling price when a cooked item is saved or stacked.
-export const juiceFruits = [
+// Retired juice and soup variants only register existing inventory, prices and
+// tasting memories. They are not offered in the recipe book or craftable.
+const juiceFruits = [
   { id: 'apple', name: '苹果', hunger: 4, energy: 6, mood: 8, regional: false },
   { id: 'orange', name: '橘子', hunger: 2, energy: 7, mood: 8, regional: false },
   { id: 'banana', name: '香蕉', hunger: 6, energy: 10, mood: 6, regional: false },
@@ -17,7 +17,7 @@ export const juiceFruits = [
 ] as const;
 
 const juiceVariants: RecipeDefinition[] = juiceFruits.flatMap((first, index) => juiceFruits.slice(index + 1).map((second): RecipeDefinition => ({
-  id: 'mixed_juice', name: '混合果汁', en: '混合果汁', glyph: '🥤', method: 'blender', category: 'drink',
+  id: 'mixed_juice', name: '混合果汁', en: '混合果汁', glyph: '🥤', method: 'blender', category: 'drink', retired: true,
   variantKey: [first.id, second.id].sort().join('__'), variantLabel: `${first.name}＋${second.name}`,
   ingredients: [first.id, second.id], rarity: first.regional || second.regional ? 'fine' : 'common', demand: 'basic',
   effect: { hunger: 4 + first.hunger + second.hunger, energy: 8 + first.energy + second.energy, mood: 10 + first.mood + second.mood },
@@ -38,6 +38,7 @@ const fishVariants = (soup: boolean): RecipeDefinition[] => cookingFishIds.map((
   const definition = fish[id];
   return {
     id: soup ? 'fish_soup' : 'grilled_fish', name: soup ? '家常鱼汤' : '烤鱼', en: soup ? '家常鱼汤' : '烤鱼',
+    ...(soup ? { retired: true } : {}),
     glyph: soup ? '🍲' : '🐟', method: 'pan', category: soup ? 'soup' : 'side',
     ...(soup ? { technique: 'simmer' as const } : {}),
     variantKey: id, variantLabel: definition.name, ingredients: [id as BuiltinItemId],
@@ -51,4 +52,5 @@ export const genericRecipeVariants: Record<GenericRecipeId, readonly RecipeDefin
   mixed_juice: juiceVariants, fish_soup: fishVariants(true), grilled_fish: fishVariants(false),
 };
 export const isGenericRecipeId = (id: string): id is GenericRecipeId => Object.prototype.hasOwnProperty.call(genericRecipeVariants, id);
-export const genericRecipes = Object.values(genericRecipeVariants).map(variants => variants[0]);
+export const genericRecipes = [genericRecipeVariants.grilled_fish[0]];
+export const retiredRecipes = [genericRecipeVariants.mixed_juice[0], genericRecipeVariants.fish_soup[0]];

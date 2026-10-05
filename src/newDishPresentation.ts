@@ -5,7 +5,7 @@ import type { DishId } from './core/companionActivityTypes';
 export const newDishPresentation = {
   dish_highland_potato_stew: { container: 'emoji', rimBottom: '0%' },
   dish_snow_bean_rice: { container: 'emoji', rimBottom: '0%' },
-  dish_rock_honey_milk: { container: 'emoji', rimBottom: '0%' },
+  dish_honey_milk: { container: 'emoji', rimBottom: '0%' },
   dish_highland_potato_gratin: { container: 'emoji', rimBottom: '0%' },
   dish_snow_bean_soup: { container: 'emoji', rimBottom: '0%' },
   dish_summit_travel_bento: { container: 'emoji', rimBottom: '0%' },

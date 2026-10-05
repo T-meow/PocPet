@@ -64,8 +64,8 @@ export const getRecipePricingCost = (recipe: RecipeDefinition, banana = false, m
   const cost = (choice: MilkChoice) => getRecipeIngredientEntries(recipe, banana, choice).reduce((sum, entry) => sum + getIngredientValuation(entry.id) * entry.quantity, 0);
   return milk ? cost(milk) : Math.max(cost('farm_milk'), cost('ad_milk'));
 };
-const craftedSale = (materialCost: number, demand: SaleDemand): CommunitySale => {
-  const base = Math.ceil(materialCost * 1.25);
+const craftedSale = (materialCost: number, demand: SaleDemand, fixedProcessingProfit?: number): CommunitySale => {
+  const base = Math.ceil(fixedProcessingProfit === undefined ? materialCost * 1.25 : materialCost + fixedProcessingProfit);
   return { base, collector: false, exchangeOnly: false, demand, craft: { materialCost, processingProfit: base - materialCost } };
 };
 const sales = new Map<string, CommunitySale>();
@@ -73,7 +73,7 @@ export const getCommunitySale = (id: string): CommunitySale | undefined => {
   if (sales.has(id)) return sales.get(id);
   const dish = getDish(id), process = processingRecipes.find(recipe => recipe.output === id);
   let sale: CommunitySale | undefined;
-  if (dish) sale = craftedSale(getRecipePricingCost(dish.recipe, dish.banana), dish.recipe.demand);
+  if (dish) sale = craftedSale(getRecipePricingCost(dish.recipe, dish.banana), dish.recipe.demand, dish.recipe.fixedProcessingProfit);
   else if (process && rawSale(id)) {
     const cost = (process.fee + Object.entries(process.inputs).reduce((sum, [item, count]) => sum + getIngredientValuation(item as BuiltinItemId) * count, 0)) / process.quantity;
     sale = craftedSale(cost, rawSale(id)!.demand);
@@ -84,9 +84,30 @@ export const getCommunitySale = (id: string): CommunitySale | undefined => {
   if (sale) sales.set(id, sale);
   return sale;
 };
+const dishChainCosts = new Map<string, number>();
+/** Expand prepared dishes; processed ingredients keep their own replacement value. */
+export const getDishChainCost = (id: string): number | undefined => {
+  const cached = dishChainCosts.get(id);
+  if (cached !== undefined) return cached;
+  const dish = getDish(id);
+  if (!dish) return undefined;
+  const cost = (milk: MilkChoice) => getRecipeIngredientEntries(dish.recipe, dish.banana, milk)
+    .reduce((sum, input) => sum + (getDishChainCost(input.id) ?? getIngredientValuation(input.id)) * input.quantity, 0);
+  const chainCost = Math.max(cost('farm_milk'), cost('ad_milk'));
+  dishChainCosts.set(id, chainCost);
+  return chainCost;
+};
+export const highProfitDishPercent = 50;
+export const isHighProfitDish = (id: string): boolean => {
+  const cost = getDishChainCost(id);
+  if (cost === undefined || cost <= 0) return false;
+  const sale = getCommunitySale(id);
+  return Boolean(sale && (sale.base - cost) * 100 > cost * highProfitDishPercent);
+};
 export const getCuisineSaleNote = (id: string): string => {
   const craft = getCommunitySale(id)?.craft;
   if (!craft) return '';
   const format = (value: number) => Math.round(value);
-  return `每份计价成本 ${format(craft.materialCost)} · 本步制作收益 +${format(craft.processingProfit)}（按成本加 25% 后向上取整，已计入基础售价）`;
+  const fixed = getDish(id)?.recipe.fixedProcessingProfit !== undefined;
+  return `每份计价成本 ${format(craft.materialCost)} · 本步${fixed ? '固定' : ''}制作收益 +${format(craft.processingProfit)}（${fixed ? '材料计价加本步固定收益，前序收益不再按比例加价' : '按成本加 25% 后向上取整'}，已计入基础售价）`;
 };

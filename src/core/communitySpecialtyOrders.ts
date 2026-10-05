@@ -12,7 +12,7 @@ export const specialtyGoods = {
   valley_mushroom: { name: '溪谷野菇', quantity: 12, base: 10, region: 'valley' },
   bamboo_shoot: { name: '嫩笋', quantity: 16, base: 6, region: 'valley' },
   lotus_seed: { name: '莲子', quantity: 8, base: 15, region: 'valley' },
-  hill_honey: { name: '花丘蜂蜜', quantity: 8, base: 14, region: 'hills' },
+  hill_honey: { name: '蜂蜜', quantity: 8, base: 14, region: 'hills' },
   forest_berry: { name: '雾松林莓', quantity: 8, base: 12, region: 'forest' },
   coast_kelp: { name: '潮池海藻', quantity: 8, base: 12, region: 'coast' },
   observatory_part: { name: '观测零件', quantity: 8, base: 18, region: 'station' },

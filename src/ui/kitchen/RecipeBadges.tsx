@@ -1,7 +1,8 @@
 import { Apple, Droplets, HeartPulse, Smile, Zap } from 'lucide-react';
 import { rarityNames } from '../../core/foodCatalog';
-import { getRecipeEffect, recipeCategoryNames, type RecipeDefinition } from '../../core/kitchenRecipes';
+import { getDishId, getRecipeEffect, recipeCategoryNames, type RecipeDefinition } from '../../core/kitchenRecipes';
 import { getItemEffectBadges } from '../itemEffectBadges';
+import { DishValueBadge } from '../DishValueBadge';
 
 const effectIcons = { hunger: Apple, mood: Smile, cleanliness: Droplets, energy: Zap, health: HeartPulse };
 
@@ -9,6 +10,7 @@ export const RecipeBadges = ({ recipe, banana = false }: { recipe: RecipeDefinit
   <span className="recipe-badge-row">
     <span className="storage-tile-tag recipe-category-tag">{recipeCategoryNames[recipe.category]}</span>
     <span className="storage-tile-tag recipe-rarity-tag" data-rarity={recipe.rarity}>{rarityNames[recipe.rarity]}</span>
+    <DishValueBadge itemId={getDishId(recipe, banana)} />
   </span>
   <span className="recipe-badge-row" role="group" aria-label="每份基础属性">
     {getItemEffectBadges(getRecipeEffect(recipe, banana)).map(badge => {

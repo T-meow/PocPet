@@ -1,5 +1,5 @@
 import type { RecipeId } from './companionActivityTypes';
-import { recipes } from './kitchenRecipes';
+import { registeredRecipes } from './kitchenRecipes';
 import type { ItemId, PetState } from './petTypes';
 
 export interface FavoritesState {
@@ -18,7 +18,7 @@ export const normalizeFavorites = (value: unknown): FavoritesState => {
   return {
     // Inventory can contain temporarily unavailable Mod items; keep their IDs.
     itemIds: readIds(raw.itemIds) as ItemId[],
-    recipeIds: readIds(raw.recipeIds).filter((id): id is RecipeId => recipes.some(recipe => recipe.id === id)),
+    recipeIds: readIds(raw.recipeIds).filter((id): id is RecipeId => registeredRecipes.some(recipe => recipe.id === id)),
   };
 };
 

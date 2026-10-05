@@ -140,10 +140,9 @@ export const emojiIcon = (glyph: string) => 'data:image/svg+xml;charset=utf-8,' 
 export const newItemIcons = {
   highland_potato: emojiIcon('🥔'),
   snow_bean: emojiIcon('🫘'),
-  rock_honey: emojiIcon('🍯'),
   dish_highland_potato_stew: emojiIcon('🍲'),
   dish_snow_bean_rice: emojiIcon('🍛'),
-  dish_rock_honey_milk: emojiIcon('🥛'),
+  dish_honey_milk: emojiIcon('🥛'),
   dish_highland_potato_gratin: emojiIcon('🧀'),
   dish_snow_bean_soup: emojiIcon('🥣'),
   dish_summit_travel_bento: emojiIcon('🍱'),

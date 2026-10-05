@@ -8,11 +8,15 @@ export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'ba
 export type NewRecipeId = 'mashed_potato' | 'corn_chowder' | 'pumpkin_rice' | 'pepper_pork_bowl' | 'bamboo_mushroom_soup' | 'lotus_pork_soup' | 'chestnut_rice' | 'cream_matsutake' | 'cheese_vegetables' | 'wood_ear_dumplings'
   | 'crispy_wheat_fish' | 'tomato_crucian' | 'lemon_trout' | 'pumpkin_perch_soup' | 'bamboo_grouper' | 'pepper_redtail' | 'herb_catfish' | 'corn_bream_soup' | 'honey_eel_rice' | 'sardine_rice_ball' | 'salt_mackerel' | 'lemon_bream_rice'
   | 'strawberry_cheese_cup' | 'berry_jam_biscuit' | 'honey_pumpkin_pie' | 'chestnut_milk_cake' | 'mint_lemon_drink' | 'lotus_milk_soup' | 'pine_honey_biscuit' | 'mountain_herb_tea' | 'seafood_rice' | 'valley_travel_bento'
-  | 'highland_potato_stew' | 'snow_bean_rice' | 'rock_honey_milk' | 'highland_potato_gratin' | 'snow_bean_soup' | 'summit_travel_bento'
+  | 'highland_potato_stew' | 'snow_bean_rice' | 'honey_milk' | 'highland_potato_gratin' | 'snow_bean_soup' | 'summit_travel_bento'
   | 'lotus_wood_ear' | 'lotus_pumpkin_porridge' | 'mint_watermelon_cup' | 'orange_nut_shake' | 'berry_jam_shake' | 'double_berry_cup'
-  | 'lotus_trotter_soup' | 'matsutake_clear_soup' | 'rock_honey_milk_tea' | 'sunflower_nut_crisp'
+  | 'lotus_trotter_soup' | 'matsutake_clear_soup' | 'honey_milk_tea' | 'sunflower_nut_crisp'
   | 'ginger_carp' | 'wheat_fish_custard' | 'pan_seared_perch' | 'grouper_porridge' | 'redtail_rice' | 'catfish_rice'
-  | 'ginger_bream' | 'eel_mushroom_soup' | 'tomato_sardine' | 'mackerel_rice' | 'steamed_bluefin' | 'clam_kelp_soup' | 'shrimp_eggs';
+  | 'ginger_bream' | 'eel_mushroom_soup' | 'tomato_sardine' | 'mackerel_rice' | 'steamed_bluefin' | 'clam_kelp_soup' | 'shrimp_eggs'
+  | 'apple_orange_juice' | 'strawberry_watermelon_juice' | 'berry_lemon_juice' | 'banana_strawberry_juice' | 'carrot_apple_orange_juice'
+  | 'herb_trout_soup' | 'herb_perch_soup' | 'herb_bluefin_soup'
+  | 'flatbread' | 'tomato_ketchup' | 'french_fries' | 'ketchup_fries' | 'egg_wrap' | 'tomato_egg_wrap' | 'red_bean_wrap' | 'wrap_fries_set' | 'fish_fries_set'
+  | 'corn_fritter' | 'cheesy_corn_fritter' | 'pumpkin_rice_cake' | 'red_bean_pumpkin_cake' | 'potato_cake' | 'garden_vegetable_wrap' | 'berry_jam_wrap' | 'pan_fried_dumplings';
 export type GenericRecipeId = 'mixed_juice' | 'fish_soup' | 'grilled_fish';
 export type MilkChoice = 'farm_milk' | 'ad_milk';
 export type DishId = `dish_${Exclude<RecipeId, GenericRecipeId>}` | `dish_${GenericRecipeId}__${string}` | 'dish_fruit_pancake_banana' | 'dish_fruit_pudding_banana';

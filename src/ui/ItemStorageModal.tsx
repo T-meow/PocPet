@@ -20,6 +20,7 @@ import { filterBrowseItems, getItemBrowseCategories, getItemBrowseLimit, getItem
 import { useExplorationWideLayout } from './useExplorationWideLayout';
 import { favoritesFirst } from '../core/favorites';
 import { FavoriteButton, FavoriteMark } from './Favorite';
+import { DishValueBadge } from './DishValueBadge';
 
 const effectIcons = { hunger: Apple, mood: Smile, cleanliness: Droplets, energy: Zap, health: HeartPulse };
 
@@ -93,6 +94,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
   const detail = item && <section className="storage-detail" data-tone={getItemBrowseTone(item)}>
     <div className="storage-detail-copy">
       <div className="storage-detail-hero"><div className="storage-detail-art"><img src={iconFor(item)} alt="" draggable={false} /></div><div><h3>{item.displayName}</h3><span className="storage-category-label">{isKitchenIngredient(item) ? L('厨房食材', 'Cooking ingredient') : categories.find((category) => category.id === item.kind)?.label}</span><div><FavoriteButton active={pet.favorites.itemIds.includes(item.id)} name={item.displayName} onToggle={() => onToggleItemFavorite(item.id)} /></div></div></div>
+      <DishValueBadge itemId={item.id} />
       <p className="storage-detail-description">{item.displaySummary}</p>
       {durableToolIds.includes(item.id as DurableToolId) && <p className="storage-ingredient-note">耐久 · {toolDurabilityLabel(pet, item.id as DurableToolId, item.id === 'trail_rope' && Boolean(context && (pet.adventure.active?.tool || pet.community.expedition.active?.tool)))}</p>}
       {mode === 'shop' && effects.length > 0 && <><p className="storage-effects-title">{L('每份效果', 'Base effects per item')}</p><div className="storage-effects">{effects.map((effect) => <span key={effect.key}>{effect.label}</span>)}</div></>}
@@ -131,7 +133,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
             </span>
             <span className="storage-tile-count" title={L(`持有 ${owned} 件`, `${owned} owned`)}>{context?.countLabel ?? (mode === 'shop' ? L('有 ', 'Have ') : '×')}{formatCompactNumber(owned)}</span>
             {info?.mark && <span className="storage-tile-mark">{info.mark}</span>}
-            <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{pet.favorites.itemIds.includes(entry.id) && <FavoriteMark />}{entry.displayName}</strong>{info && <span className="storage-tile-price">{info.price}</span>}
+            <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{pet.favorites.itemIds.includes(entry.id) && <FavoriteMark />}{entry.displayName}</strong><DishValueBadge itemId={entry.id} />{info && <span className="storage-tile-price">{info.price}</span>}
           </button>;
         })}</div>{!visible.length && <div className="storage-empty"><PackageOpen size={32} /><p>{t('ui.inventory.emptyCategory')}</p>{mode === 'bag' && onSwitch && <button className="storage-primary" onClick={() => onSwitch && perform(onSwitch)}>{context?.switchLabel ?? t('ui.inventory.openCategoryShop')}</button>}</div>}</div>
         <footer className="storage-catalogue-footer"><span>{L(`${visible.length} 种物品`, `${visible.length} items`)}</span>{footer}</footer>
