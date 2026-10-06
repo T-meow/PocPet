@@ -58,8 +58,15 @@ export interface CommunityActivityBoard {
   previousProject?: import('./expeditionTypes').ProjectId;
   invitationId?: string;
 }
+export interface FarmNeighborHelp {
+  hiredDay: string;
+  expiresDay: string;
+  sequence: number;
+  neighbor: import('./petTypes').NeighborReference;
+}
 export interface CommunityState {
-  schemaVersion: 14;
+  schemaVersion: 15;
+  farmNeighbor?: FarmNeighborHelp;
   activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;
   expedition: ExpeditionState;

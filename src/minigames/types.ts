@@ -15,8 +15,11 @@ export interface MiniGameHost {
   load?: () => unknown;
   save?: (snapshot: MiniGamesSave) => void;
   onResult?: (result: GameResult) => void;
+  onFinish?: (snapshot: MiniGamesSave) => void;
+  renderActions?: (snapshot: MiniGamesSave, finish: () => void) => ReactNode;
+  audio?: { enabled: boolean; play: (sound: FeedbackSound) => void };
 }
-export type FeedbackSound = 'place' | 'clear' | 'pour' | 'win';
+export type FeedbackSound = 'tap' | 'place' | 'clear' | 'pour' | 'win';
 export interface CommonGameProps {
   active: boolean;
   paused: boolean;

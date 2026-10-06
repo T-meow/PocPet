@@ -158,6 +158,7 @@ export {
   getClassicGoalProgress,
   getDreamProjectSupplySupplement,
   getDreamStageEligibility,
+  getDreamStageReward,
   hasClassicEndgameUnlockNotice,
   investClassicLegacy,
   investDreamProject,

@@ -70,6 +70,8 @@ const stageRewards: readonly { hearts: number; itemId?: ItemId; itemAmount?: num
   { hearts: 12, itemId: 'harvest_nutrient', itemAmount: 1 },
 ];
 
+export const getDreamStageReward = (stage: number) => stageRewards[stage - 1];
+
 const dreamSupplyStage = 3;
 const getDreamSupplyRewardId = (category: PartnerScheduleCategory) => `dream_fertilizer_balance_v1:${category}`;
 const canFitDreamStageReward = (pet: Pick<PetState, 'inventory'>, stageIndex: number) => {

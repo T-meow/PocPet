@@ -1,378 +1,296 @@
-.classic-endgame-page {
-  display: grid;
-  width: min(1180px, calc(100% - 32px));
-  gap: 16px;
-  margin: 0 auto;
-  padding: 16px 0 calc(34px + var(--safe-bottom));
+/* Dreams use a compact overview and one scoped dialog with a single content scroller. */
+.app-shell.ui-v2-app.app-shell--dreams {
+  width: 100%; max-width: none; padding: 0;
+  padding-top: var(--safe-top, 0px); padding-bottom: var(--safe-bottom, 0px);
+  background: #f8f9f4;
 }
-
-.classic-endgame-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 12px;
-  padding: 10px 0 14px;
-  border-bottom: 1px solid var(--line);
+.app-shell--dreams > .v2-top-bar { display: none; }
+.dreams-page, .dreams-dialog {
+  --dream-ink: #30443e; --dream-muted: #788575; --dream-green: #52745c;
+  color: #30443e; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
 }
-
-.classic-endgame-header > div:nth-child(2) { min-width: 0; }
-.classic-endgame-header h1 { margin: 0; font-size: 1.7rem; }
-
-.classic-endgame-apples {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 11px;
-  border: 1px solid rgba(166, 110, 22, 0.25);
-  border-radius: 8px;
-  color: #8a4f08;
-  background: #fff5d8;
+.ui-v2-app .dreams-page {
+  display: block; width: 100%; max-width: 760px; margin: 0 auto; padding: 20px 24px 28px;
 }
-
-.classic-endgame-overview {
-  display: grid;
-  gap: 8px;
-  padding: 14px 0;
+.dreams-page *, .dreams-dialog * { box-sizing: border-box; }
+.dreams-page button, .dreams-dialog button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+.dreams-page button:focus, .dreams-dialog button:focus { outline: 2px solid #7d9e71; outline-offset: 3px; }
+.dreams-page img, .dreams-dialog img { display: block; object-fit: contain; }
+.dreams-page svg, .dreams-dialog svg { flex: none; }
+.dreams-page h1, .dreams-page h2, .dreams-dialog h2, .dreams-dialog h3 { margin: 0; line-height: 1.5; }
+.dreams-page button, .dreams-dialog button { cursor: pointer; }
+.dreams-page button:disabled, .dreams-dialog button:disabled { cursor: default; }
+.dreams-page-header { display: flex; align-items: center; min-width: 0; padding: 0 0 14px; }
+.dreams-page-header h1 { flex: 1; min-width: 0; margin: 0 10px; font-size: 22px; font-weight: 750; }
+.dreams-page .dreams-icon, .dreams-dialog .dreams-icon {
+  display: inline-flex; position: relative; align-items: center; justify-content: center;
+  flex: none; width: 40px; height: 40px; padding: 0; border: 1px solid #e6e9e0;
+  border-radius: 12px; background: #fff; color: #526b56; box-shadow: none;
 }
-
-.classic-endgame-overview__metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.dreams-wallet { display: flex; align-items: center; flex-wrap: wrap; margin: -3px 0 12px; }
+.dreams-wallet > span { display: flex; align-items: center; min-width: 0; padding: 3px 0; color: #7b8676; font-size: 12px; }
+.dreams-wallet > span + span { margin-left: auto; padding-left: 16px; }
+.dreams-wallet img { width: 22px; height: 22px; margin-right: 5px; }
+.dreams-wallet strong { margin-left: 8px; font-size: 15px; color: #48513f; font-variant-numeric: tabular-nums; word-break: break-all; }
+.dreams-overview {
+  position: relative; display: block; width: 100%; overflow: hidden; padding: 20px;
+  border: 0; border-radius: 20px; background: #52745c; color: #f9fff4; text-align: left;
 }
-
-.classic-endgame-overview__metric {
-  display: grid;
-  gap: 7px;
+.dreams-overview:before { content: ""; position: absolute; right: -35px; top: -65px; width: 200px; height: 200px; border: 1px solid rgba(255,255,255,.09); border-radius: 50%; }
+.dreams-overview > img { position: absolute; width: 110px; height: 110px; right: 15px; top: 9px; transform: rotate(5deg); }
+.dreams-overview-stars { position: absolute; right: 115px; top: 24px; color: #ead291; transform: rotate(-12deg); }
+.dreams-overview-content { position: relative; display: block; padding-right: 100px; }
+.dreams-overview-content small { display: block; font-size: 11px; letter-spacing: 1px; color: #d5e4cf; }
+.dreams-overview-content strong { display: block; margin: 7px 0; font-size: 22px; line-height: 1.45; font-weight: 700; }
+.dreams-overview-content > span { display: block; font-size: 12px; line-height: 1.7; color: #e4eddf; }
+.dreams-overview-bottom { position: relative; display: flex; align-items: center; margin-top: 15px; font-size: 11px; }
+.dreams-overview-meter { display: flex; flex: 1; min-width: 0; margin-right: 12px; }
+.dreams-overview-meter i { display: block; flex: 1; min-width: 0; height: 5px; border-radius: 2px; background: rgba(255,255,255,.15); }
+.dreams-overview-meter i + i { margin-left: 3px; }
+.dreams-overview-meter .is-done { background: #ead59d; }
+.dreams-overview-bottom > svg { margin-left: 4px; }
+.dreams-section-heading { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 11px; }
+.dreams-section-heading h2 { font-size: 16px; }
+.dreams-section-heading > span { margin-left: 12px; color: #7f8c76; font-size: 11px; text-align: right; }
+.dreams-section-heading > .is-ready { color: #538269; }
+.dreams-section-heading > .is-ready:before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 5px 2px 0; border-radius: 50%; background: #76a280; }
+.dreams-grid { display: flex; flex-wrap: wrap; margin: -5px; }
+.dreams-card-wrap { display: flex; width: 50%; min-width: 0; padding: 5px; }
+.dreams-tone-study { --dream-accent: #547d9b; --dream-tint: #c5d8e3; --dream-wash: #edf3f6; }
+.dreams-tone-cooking { --dream-accent: #987044; --dream-tint: #e9d0b3; --dream-wash: #f9f0e4; }
+.dreams-tone-garden { --dream-accent: #638456; --dream-tint: #c3d6b6; --dream-wash: #eef3e6; }
+.dreams-tone-exercise { --dream-accent: #91739e; --dream-tint: #dfcee7; --dream-wash: #f4eef7; }
+.dreams-card {
+  display: flex; flex-direction: column; width: 100%; min-width: 0; padding: 15px;
+  text-align: left; overflow: hidden; border: 1px solid #e3e7dc; border-radius: 17px;
+  color: #30443e; background: #fff; box-shadow: none;
 }
+.dreams-card.is-ready { border-color: #91b29a; box-shadow: 0 0 0 1px rgba(145,178,154,.2); }
+.dreams-card-art { position: relative; display: block; width: 100%; height: 96px; margin-bottom: 10px; border-radius: 11px; background: var(--dream-wash); }
+.dreams-card-art:before { content: ""; position: absolute; left: 50%; top: 9px; width: 77px; height: 77px; margin-left: -38px; border-radius: 50%; background: rgba(255,255,255,.55); }
+.dreams-card-art img { position: absolute; left: 50%; margin-left: -50px; top: -7px; width: 100px; height: 106px; }
+.dreams-card-art > span { position: absolute; top: 9px; left: 9px; width: 12px; font-size: 10px; line-height: 1.6; color: var(--dream-accent); }
+.dreams-card-art > svg { position: absolute; top: 20px; right: 18px; color: var(--dream-accent); opacity: .55; }
+.dreams-card-title { display: block; margin-bottom: 5px; font-size: 18px; line-height: 1.5; font-weight: 750; }
+.dreams-card-stage { display: block; font-size: 12px; line-height: 1.65; color: #7c8976; word-wrap: break-word; }
+.dreams-stage-dots { display: flex; width: 100%; margin: 11px 0 9px; }
+.dreams-stage-dots i { display: block; flex: 1; min-width: 0; height: 4px; border-radius: 2px; background: #edf0e9; }
+.dreams-stage-dots i + i { margin-left: 4px; }
+.dreams-stage-dots .is-done { background: var(--dream-accent); }
+.dreams-stage-dots .is-current { background: var(--dream-tint); }
+.dreams-card-status { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: auto; font-size: 12px; line-height: 1.7; color: var(--dream-accent); }
+.dreams-card-status > span { display: flex; align-items: center; min-width: 0; word-wrap: break-word; }
+.dreams-card-status > span svg { margin-right: 4px; }
+.dreams-card-status > svg { margin-left: 3px; }
+.dreams-card.is-locked .dreams-card-art img { opacity: .45; }
+.dreams-card.is-locked .dreams-card-status { color: #7d8974; }
+.dreams-collection { display: block; width: 100%; padding: 13px 15px; margin-top: 15px; text-align: left; border: 1px solid #e7e3d7; border-radius: 17px; background: #f8f4e9; color: #58614a; }
+.dreams-collection-heading, .dreams-shelf { display: flex; justify-content: space-between; align-items: center; min-width: 0; }
+.dreams-collection-heading strong { font-size: 14px; font-weight: 650; }
+.dreams-collection-heading > span { display: inline-flex; align-items: center; font-size: 12px; color: #8f8063; }
+.dreams-collection-heading svg { margin-left: 5px; }
+.dreams-shelf { margin-top: 6px; }
+.dreams-shelf-cups { display: flex; flex: none; align-items: flex-end; }
+.dreams-shelf-cups img { width: 46px; height: 46px; margin-right: 4px; }
+.dreams-shelf-cups img.is-locked { filter: grayscale(1); opacity: .3; }
+.dreams-shelf > small { max-width: 115px; min-width: 0; margin-left: 10px; color: #918163; font-size: 11px; line-height: 1.8; text-align: right; }
+.dreams-utility { display: flex; align-items: center; width: 100%; padding: 15px 1px 13px; border: 0; border-bottom: 1px solid #e4e9df; text-align: left; color: #52654a; background: transparent; }
+.dreams-utility-icon { display: flex; flex: none; align-items: center; justify-content: center; width: 34px; height: 34px; margin-right: 10px; border-radius: 10px; background: #ecefe3; color: #7e9479; }
+.dreams-utility-icon img { width: 29px; height: 29px; }
+.dreams-utility > span:nth-child(2) { flex: 1; min-width: 0; }
+.dreams-utility strong { display: block; font-size: 13px; font-weight: 600; }
+.dreams-utility small { display: block; margin-top: 4px; font-size: 11px; line-height: 1.7; color: #7f8a74; }
+.dreams-utility > svg { margin-left: 8px; color: #899a7c; }
+.dreams-utility--legacy { margin-top: 14px; padding: 13px; border: 1px solid #e0d8ea; border-radius: 14px; background: #efebf5; }
+.dreams-utility--legacy .dreams-utility-icon { background: #e0d5ee; color: #847097; }
+.dreams-whisper { margin: 18px 0 0; color: #8b967f; font-size: 11px; line-height: 1.8; text-align: center; letter-spacing: 1px; }
+.dreams-locked-note { display: flex; align-items: flex-start; padding: 12px 13px; margin: 14px 0; border: 1px dashed #ced9c4; border-radius: 13px; background: #f4f6ee; color: #738269; font-size: 12px; line-height: 1.8; }
+.dreams-locked-note > svg { margin: 3px 8px 0 0; }
 
-.classic-endgame-overview__metric > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--text-muted);
-  font-weight: 800;
+/* Explicit viewport and flex sizing override the generic and exploration dialogs. */
+.ui-v2-app .modal-backdrop.dreams-backdrop {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  display: flex; align-items: center; justify-content: center; width: 100%; height: var(--viewport-height);
+  overflow: hidden; padding: 24px 16px 16px;
+  padding: calc(24px + var(--safe-top, 0px)) 16px calc(16px + var(--safe-bottom, 0px));
+  background: rgba(37,58,50,.5);
 }
-
-.classic-endgame-overview p { margin: 0; color: var(--text-muted); font-size: 0.84rem; }
-.classic-endgame-overview__complete { color: var(--accent-green) !important; font-weight: 900; }
-.classic-endgame-overview__bar,
-.classic-dream__bar { height: 8px; overflow: hidden; border-radius: 4px; background: #e5ebef; }
-.classic-endgame-overview__bar i,
-.classic-dream__bar i { display: block; height: 100%; border-radius: inherit; background: #3b8c63; transition: width 180ms ease; }
-
-.classic-dream-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.ui-v2-app .dialog-shell.dreams-dialog {
+  display: flex; flex-direction: column; width: 100%; max-width: 480px; height: 740px;
+  max-height: 100%; min-height: 0; min-width: 0; padding: 0; overflow: hidden;
+  border: 1px solid #e0e6d8; border-radius: 25px; background: #fafbf6;
+  box-shadow: 0 20px 70px rgba(29,48,34,.2); color: #30443e;
 }
-
-.classic-dream-lock {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-sizing: border-box;
-  padding: 16px 14px;
-  border: 1px dashed rgba(77, 94, 104, 0.28);
-  border-radius: 8px;
-  color: var(--text-muted);
-  background: #f7f9fa;
+.dreams-dialog .exploration-sheet-view { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.dreams-dialog-grip { flex: none; width: 32px; height: 4px; margin: 10px auto 0; border-radius: 3px; background: #d8dfd2; }
+.dreams-dialog .dreams-dialog-header { display: flex; align-items: center; flex: none; min-width: 0; padding: 12px 18px 13px; border: 0; gap: 0; }
+.dreams-dialog-header > svg { color: #6c8b66; margin-right: 10px; }
+.dreams-dialog .dreams-dialog-header h2 { flex: 1; min-width: 0; margin: 0 8px 0 0; font-size: 20px; font-weight: 750; word-wrap: break-word; }
+.dreams-dialog-header > .dreams-icon:first-child { margin-right: 8px; }
+.dreams-dialog .dreams-dialog-header .dreams-icon { width: 40px; height: 40px; border: 0; background: #edf0e7; border-radius: 50%; }
+.dreams-dialog-body { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 18px 22px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+.dreams-dialog .dreams-dialog-footer { display: block; flex: none; padding: 12px 18px 17px; border-top: 1px solid #e8ece1; background: #fff; gap: 0; }
+.dreams-dialog .dreams-primary, .dreams-dialog .dreams-secondary, .dreams-supplement .dreams-primary {
+  display: flex; justify-content: center; align-items: center; width: 100%; min-height: 46px;
+  padding: 12px 14px; border: 1px solid #557b60; border-radius: 13px;
+  font-size: 14px; line-height: 1.5; font-weight: 650; white-space: normal; word-wrap: break-word;
+  background: #557b60; color: #fff; box-shadow: none;
 }
-
-.classic-dream-lock svg { flex: 0 0 auto; }
-.classic-dream-lock p { min-width: 0; margin: 0; font-weight: 800; line-height: 1.5; overflow-wrap: anywhere; }
-
-.classic-dream {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 8px 22px rgba(35, 58, 83, 0.08);
-}
-
-.classic-dream > header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.classic-dream__icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 8px;
-  color: #245b96;
-  background: var(--surface-blue);
-}
-
-.classic-dream h2,
-.classic-legacy h2 { margin: 0; font-size: 1.05rem; }
-.classic-dream small { color: var(--accent-gold); font-size: 0.68rem; font-weight: 900; }
-.classic-dream > p,
-.classic-legacy > p { margin: 0; color: var(--text-muted); font-size: 0.82rem; line-height: 1.45; }
-
-.classic-dream__requirements {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.classic-dream__requirements span,
-.classic-legacy__requirements span {
-  min-width: 0;
-  padding: 6px 8px;
-  border-radius: 6px;
-  color: var(--danger);
-  background: #fff0f0;
-  font-size: 0.72rem;
-  font-weight: 800;
-  overflow-wrap: anywhere;
-}
-
-.classic-dream__requirements span[data-met="true"] {
-  color: #2b7551;
-  background: #eaf7ef;
-}
-
-.classic-dream__funding { display: grid; gap: 6px; }
-.classic-dream__funding > div:first-child { display: flex; justify-content: space-between; gap: 8px; color: var(--text-muted); font-size: 0.76rem; font-weight: 800; }
-.classic-dream__next {
-  display: grid;
-  gap: 7px;
-  padding: 10px 0 0;
-  border-top: 1px solid var(--line);
-}
-.classic-dream__next > strong { font-size: 0.78rem; }
-.classic-dream__next > div { display: flex; flex-wrap: wrap; gap: 5px; }
-.classic-dream__next span {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  font-weight: 750;
-}
-.classic-dream__next > div span {
-  padding: 4px 6px;
-  border-radius: 4px;
-  background: #eef2f4;
-}
-.classic-dream__next p { margin: 0; color: var(--text-muted); font-size: 0.76rem; line-height: 1.4; }
-.classic-dream__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-.classic-dream__actions button { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
-
-.classic-dream--complete {
-  min-height: 220px;
-  place-items: center;
-  align-content: center;
-  text-align: center;
-  color: var(--accent-green);
-  background: #edf8f2;
-}
-
-.classic-dream--complete p { max-width: 34ch; }
-
-.classic-legacy {
-  position: relative;
-  display: grid;
-  width: min(720px, 100%);
-  gap: 14px;
-  margin: 8px auto 0;
-  padding: 20px;
-  border: 1px solid rgba(166, 110, 22, 0.25);
-  border-radius: 8px;
-  background: #fffaf0;
-  box-shadow: 0 10px 28px rgba(35, 58, 83, 0.1);
-  isolation: isolate;
-}
-
-.classic-legacy__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.classic-legacy__heading span { color: var(--accent-gold); font-size: 0.7rem; font-weight: 900; text-transform: uppercase; }
-.classic-legacy__heading > strong { color: #8a4f08; font-size: 1.35rem; }
-.classic-legacy__requirements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.classic-legacy__requirements span { color: var(--text); background: #ffffff; border: 1px solid var(--line); }
-
-.classic-legacy--common .classic-legacy__heading span,
-.classic-legacy--common .classic-legacy__heading > strong { color: #68758a; }
-.classic-legacy--uncommon .classic-legacy__heading span,
-.classic-legacy--uncommon .classic-legacy__heading > strong { color: #25714b; }
-.classic-legacy--rare .classic-legacy__heading span,
-.classic-legacy--rare .classic-legacy__heading > strong { color: #5753a8; }
-.classic-legacy--legendary .classic-legacy__heading span,
-.classic-legacy--legendary .classic-legacy__heading > strong { color: #8a4f08; }
-.classic-legacy--jackpot .classic-legacy__heading span,
-.classic-legacy--jackpot .classic-legacy__heading > strong { color: #b72959; }
-
-.classic-trophy-cabinet {
-  display: grid;
-  gap: 14px;
-  padding: 22px 0 4px;
-  border-top: 1px solid var(--line);
-  background: #f7e5ca url('../assets/trophies/cabinet.webp') center/100% 100% no-repeat;
-}
-
-.classic-trophy-cabinet__header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.classic-trophy-cabinet__header > div { display: grid; gap: 3px; }
-.classic-trophy-cabinet__header { padding: 10px; border-radius: 12px; background: #fffaf0e8; }
-.classic-trophy-cabinet__header h2 { margin: 0; font-size: 1.15rem; }
-.classic-trophy-cabinet__header p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
-.classic-trophy-cabinet__header > strong { flex: 0 0 auto; color: #286451; font-size: 1.2rem; }
-
-.classic-trophy-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.classic-trophy {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fffaf0ed;
-}
-
-.classic-trophy__icon {
-  position: relative;
-  display: grid;
-  width: 96px;
-  height: 96px;
-  place-items: center;
-  border-radius: 6px;
-  color: #75808a;
-  background: url('../assets/trophies/shelf.webp') center bottom/100% 13px no-repeat;
-}
-.classic-trophy__icon img { width: 96px; height: 96px; object-fit: contain; pointer-events: none; }
-.classic-trophy__lock { position: absolute; right: 3px; bottom: 4px; box-sizing: content-box; padding: 5px; border-radius: 50%; color: #fffaf0; background: #786c62; }
-.classic-trophy.is-locked .classic-trophy__icon img { filter: brightness(0) opacity(.3); }
-.classic-trophy.is-unlocked .classic-trophy__icon img { filter: drop-shadow(0 0 5px #efd3a766); }
-
-.classic-trophy > div { display: grid; gap: 3px; min-width: 0; }
-.classic-trophy h3 { margin: 0; font-size: 0.82rem; overflow-wrap: anywhere; }
-.classic-trophy p { margin: 0; color: var(--text-muted); font-size: 0.7rem; line-height: 1.4; }
-.classic-trophy small { color: #7b858e; font-size: 0.64rem; line-height: 1.35; }
-.classic-trophy.is-locked { border-style: dashed; }
-.classic-trophy.is-unlocked { border-color: color-mix(in srgb, currentColor 30%, var(--line)); }
-.classic-trophy.is-unlocked small { color: #28734f; font-weight: 800; }
-.classic-trophy--bronze.is-unlocked { border-color: #c89b7b; }
-.classic-trophy--silver.is-unlocked { border-color: #a9b6c5; }
-.classic-trophy--gold.is-unlocked { border-color: #dec076; }
-.classic-trophy--diamond { border-color: #9acbd1; background: #f1fbfced; }
-.classic-trophy--diamond h3 { font-size: 0.9rem; }
-
-.classic-apple-exchange {
-  display: grid;
-  gap: 12px;
-  padding: 20px 0 4px;
-  border-top: 1px solid var(--line);
-}
-
-.classic-apple-exchange__header {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.classic-apple-exchange__icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 7px;
-  color: #187787;
-  background: #d6f2f5;
-}
-
-.classic-apple-exchange.is-locked .classic-apple-exchange__icon { color: #75808a; background: #edf0f2; }
-.classic-apple-exchange__header > div { display: grid; gap: 3px; min-width: 0; }
-.classic-apple-exchange__header h2 { margin: 0; font-size: 1.15rem; }
-.classic-apple-exchange__header p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
-.classic-apple-exchange__header > strong {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid #9acbd1;
-  border-radius: 8px;
-  color: #187787;
-  background: #f1fbfc;
-  white-space: nowrap;
-}
-
-.classic-apple-exchange__summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.classic-apple-exchange__summary span {
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  font-weight: 800;
-  overflow-wrap: anywhere;
-}
-
-.classic-apple-exchange__actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.classic-apple-exchange__actions button { width: 100%; min-width: 0; }
-
-@media (max-width: 960px) {
-  .classic-trophy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 760px) {
-  .classic-endgame-page { width: min(100% - 20px, 680px); }
-  .classic-dream-grid { grid-template-columns: minmax(0, 1fr); }
-  .classic-apple-exchange__header { grid-template-columns: 42px minmax(0, 1fr); }
-  .classic-apple-exchange__header > strong { grid-column: 2; justify-self: start; }
-}
+.dreams-dialog .dreams-secondary { color: #607558; border-color: #d8e1d0; background: #fff; font-weight: 500; }
+.dreams-primary > svg, .dreams-secondary > svg { margin-right: 7px; }
+.dreams-dialog .dreams-primary:disabled { background: #e9ede3; color: #7f8b75; border-color: #e2e7dc; opacity: 1; }
+.dreams-footer-caption { margin: 0 0 9px; color: #7f8b76; font-size: 11px; line-height: 1.7; text-align: center; word-wrap: break-word; }
+.dreams-tabs { display: flex; min-width: 0; padding: 4px; margin: 0 0 16px; border-radius: 11px; background: #ecefe5; }
+.dreams-dialog-tabs { flex: none; margin: 0 18px 15px; }
+.dreams-tabs button { flex: 1; min-width: 0; min-height: 40px; padding: 8px 4px; border: 0; border-radius: 8px; font-size: 12px; line-height: 1.7; background: transparent; color: #728166; white-space: normal; }
+.dreams-tabs button[aria-pressed="true"] { background: #fff; color: #44604c; font-weight: 650; box-shadow: 0 2px 5px rgba(59,82,51,.04); }
+.dreams-stage-hero { position: relative; min-height: 104px; padding: 16px 91px 16px 14px; margin-bottom: 19px; border-radius: 14px; background: var(--dream-wash); }
+.dreams-stage-hero > small { font-size: 11px; letter-spacing: 1px; color: var(--dream-accent); }
+.dreams-stage-hero h3 { font-size: 22px; margin: 5px 0 7px; color: var(--dream-accent); }
+.dreams-stage-hero p { margin: 0; color: #7a8c70; font-size: 11px; line-height: 1.8; }
+.dreams-stage-hero img { position: absolute; right: 6px; bottom: 5px; width: 80px; height: 95px; }
+.dreams-dialog h3.dreams-section-label { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin: 0 0 9px; font-weight: 650; }
+.dreams-section-label small { margin-left: 10px; color: #8b997e; font-weight: 400; font-size: 11px; text-align: right; }
+.dreams-requirements { padding: 0 12px; margin-bottom: 18px; border: 1px solid #e6eade; border-radius: 14px; background: #fff; }
+.dreams-requirement { display: flex; align-items: center; min-width: 0; padding: 13px 0; font-size: 12px; }
+.dreams-requirement + .dreams-requirement { border-top: 1px solid #eff1e9; }
+.dreams-requirement > svg:first-child { margin-right: 9px; color: #96a28a; }
+.dreams-requirement > span:nth-child(2) { flex: 1; min-width: 0; margin-right: 7px; color: #6f7e65; }
+.dreams-requirement > strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: #687c5b; word-break: break-all; }
+.dreams-requirement strong small { color: #919e86; font-size: 11px; }
+.dreams-requirement > svg:last-child { margin-left: 8px; color: #6d9673; }
+.dreams-requirement.is-missing > strong { color: #a57b42; }
+.dreams-requirement > .dreams-missing { display: flex; flex: none; align-items: center; justify-content: center; width: 15px; height: 15px; margin-left: 8px; border: 1px solid #dec8a6; border-radius: 50%; color: #a57b42; font-size: 10px; }
+.dreams-funding { padding: 14px; margin-bottom: 17px; border: 1px solid #e6eade; border-radius: 14px; background: #fff; }
+.dreams-funding > div:first-child { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 12px; line-height: 1.8; color: #7b8a70; }
+.dreams-funding > div:first-child > strong { margin-left: auto; padding-left: 8px; font-size: 16px; color: #546a4d; font-weight: 650; word-break: break-all; }
+.dreams-funding > div:first-child > strong small { font-weight: 400; font-size: 12px; color: #869579; }
+.dreams-bar { height: 6px; margin: 11px 0; overflow: hidden; border-radius: 3px; background: #edf0e6; }
+.dreams-bar i { display: block; height: 100%; border-radius: 3px; background: #83a27b; transition: width .2s; }
+.dreams-investments { display: flex; min-width: 0; margin: 13px -3px 0; }
+.dreams-investments > button { flex: 1; min-width: 0; min-height: 44px; margin: 0 3px; padding: 9px 3px; border: 1px solid #e1e7d8; border-radius: 9px; background: #fafbf7; font-size: 11px; line-height: 1.6; color: #7e8b70; }
+.dreams-investments > button strong { display: block; font-size: 13px; font-weight: 650; color: #667955; margin-top: 5px; word-break: break-all; }
+.dreams-investments > .is-selected { background: #edf4e9; border-color: #9caf8e; color: #567949; }
+.dreams-investments > .is-selected strong { color: #487047; }
+.dreams-investments > button:disabled { opacity: .5; }
+.dreams-funding-note { display: flex; align-items: center; margin: 9px 0 0; color: #728765; font-size: 11px; line-height: 1.8; }
+.dreams-funding-note svg { margin-right: 5px; }
+.dreams-reward { display: flex; align-items: center; flex-wrap: wrap; margin: 13px 0 0; font-size: 11px; line-height: 1.8; color: #7b886e; }
+.dreams-reward > svg { margin-right: 6px; }
+.dreams-reward > span { display: flex; align-items: center; margin-right: 10px; }
+.dreams-reward > span svg { margin-right: 4px; color: #b88685; }
+.dreams-reward img { width: 25px; height: 25px; margin-right: 4px; }
+.dreams-reward-trophy { display: flex; align-items: center; margin: 14px 0 0; padding: 11px 12px; border: 1px solid #ece3ce; border-radius: 12px; background: #f6f1e5; color: #8f7848; font-size: 12px; line-height: 1.7; }
+.dreams-reward-trophy svg { margin-right: 7px; }
+.dreams-copy, .dreams-hint { margin: 0 0 16px; font-size: 13px; line-height: 1.9; color: #7b8b70; }
+.dreams-hint { font-size: 11px; margin-top: 13px; }
+.dreams-centered { text-align: center; }
+.dreams-feedback, .dreams-warning { padding: 11px 12px; margin: 0 0 14px; border-radius: 10px; background: #edf2e7; color: #627b54; font-size: 12px; line-height: 1.8; }
+.dreams-warning { margin-top: 12px; background: #f8efe0; color: #946d38; }
+.dreams-center { text-align: center; }
+.dreams-center > img { width: 112px; height: 112px; margin: 14px auto 17px; }
+.dreams-center > h3 { font-size: 21px; color: #697f5c; margin-bottom: 12px; }
+.dreams-center > p { margin: 0 0 22px; color: #7e8e72; font-size: 13px; line-height: 1.9; }
+.dreams-route { list-style: none; margin: 0; padding: 0; }
+.dreams-route > li { position: relative; padding: 0 0 23px 35px; }
+.dreams-route > li:before { content: ""; position: absolute; left: 11px; top: 26px; bottom: 0; width: 1px; background: #dce3d4; }
+.dreams-route > li:last-child:before { display: none; }
+.dreams-route-number { position: absolute; left: 0; top: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid #dfe5d5; border-radius: 50%; background: #eff1e8; color: #7d8f6d; font-size: 11px; }
+.dreams-route .is-done .dreams-route-number { background: #719068; border-color: #719068; color: #fff; }
+.dreams-route .is-current .dreams-route-number { background: #edf3e6; border-color: #849d74; box-shadow: 0 0 0 3px #edf3e5; }
+.dreams-route h3 { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; font-size: 14px; line-height: 24px; color: #637652; }
+.dreams-route h3 small { margin-left: 8px; font-size: 11px; font-weight: 400; color: #819271; }
+.dreams-route p { margin: 5px 0; font-size: 12px; color: #7d8b70; line-height: 1.8; }
+.dreams-route-costs { display: flex; flex-wrap: wrap; margin-top: 7px; }
+.dreams-route-costs span { margin: 0 5px 4px 0; padding: 3px 6px; border-radius: 5px; background: #f0f2e9; color: #788a68; font-size: 11px; }
+.dreams-route .dreams-reward { margin-top: 5px; }
+.dreams-trophy { display: flex; align-items: center; min-width: 0; padding: 12px; margin-bottom: 9px; border: 1px solid #e6e8dc; border-radius: 13px; background: #fff; }
+.dreams-trophy > img { flex: none; width: 66px; height: 66px; margin-right: 13px; }
+.dreams-trophy > div { flex: 1; min-width: 0; }
+.dreams-trophy h3 { font-size: 14px; color: #657052; font-weight: 650; margin-bottom: 6px; }
+.dreams-trophy p { margin: 0; font-size: 11px; line-height: 1.85; color: #7b8b6c; }
+.dreams-trophy small { display: flex; align-items: center; margin-top: 5px; color: #648954; font-size: 11px; line-height: 1.6; }
+.dreams-trophy small svg { margin-right: 4px; }
+.dreams-trophy.is-locked img { filter: grayscale(.65); opacity: .45; }
+.dreams-trophy.is-locked small { color: #859178; }
+.dreams-trophy--diamond { background: #edf3f0; border-color: #dce6df; }
+.dreams-summary { display: flex; margin: 18px -5px; }
+.dreams-summary > div { flex: 1; min-width: 0; margin: 0 5px; padding: 17px 10px; border-radius: 12px; background: #eff3e9; text-align: center; }
+.dreams-summary strong { display: block; font-size: 26px; color: #68865c; }
+.dreams-summary strong small { font-size: 13px; }
+.dreams-summary span { display: block; margin-top: 7px; color: #7d926e; font-size: 11px; }
+.dreams-supplement { padding: 14px; margin-top: 14px; border: 1px solid #e4e9da; border-radius: 13px; background: #fff; }
+.dreams-supplement > div { display: flex; align-items: center; margin-bottom: 12px; }
+.dreams-supplement img { flex: none; width: 53px; height: 53px; margin-right: 13px; }
+.dreams-supplement h3 { font-size: 14px; }
+.dreams-supplement p { font-size: 12px; line-height: 1.8; color: #7f8e70; margin: 6px 0 0; }
+.dreams-exchange-rate { display: flex; align-items: center; justify-content: center; padding: 19px 12px; margin: 20px 0; border-radius: 14px; background: #f5f0e3; color: #a18959; font-size: 18px; }
+.dreams-exchange-rate img { width: 37px; height: 37px; margin-right: 7px; }
+.dreams-exchange-rate > svg { margin: 0 12px; }
+.dreams-exchange-rate > svg:nth-last-child(2) { color: #bb8c87; margin-right: 7px; }
+.dreams-stepper { display: flex; align-items: center; justify-content: center; margin: 25px 0 10px; }
+.dreams-stepper button { display: flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: #ecf1e4; color: #758969; }
+.dreams-stepper button:disabled { opacity: .4; }
+.dreams-stepper output { min-width: 94px; padding: 0 12px; text-align: center; font-size: 27px; color: #5e7756; word-break: break-all; }
+.dreams-confirmation { padding: 25px 0; text-align: center; font-size: 14px; line-height: 1.9; color: #7e8a71; }
+.dreams-confirmation > svg { display: block; width: 68px; height: 68px; padding: 17px; margin: 5px auto 24px; border-radius: 50%; background: #f3edda; color: #b4a06c; }
+.dreams-confirmation p { margin: 0 0 20px; }
+.dreams-confirm-actions { display: flex; }
+.dreams-confirm-actions > button:first-child { width: 35%; margin-right: 10px; }
+.dreams-confirm-actions > button:last-child { flex: 1; min-width: 0; }
+.dreams-legacy--uncommon h3 { color: #588154; }
+.dreams-legacy--rare h3 { color: #827099; }
+.dreams-legacy--legendary h3 { color: #a08039; }
+.dreams-legacy--jackpot h3 { color: #b1687e; }
 
 @media (max-width: 600px) {
-  .classic-trophy-grid { grid-template-columns: minmax(0, 1fr); }
+  .ui-v2-app .dreams-page { max-width: 460px; padding: 16px 16px 24px; }
+  .dreams-page-header h1 { font-size: 20px; }
+  .dreams-page-header { padding-bottom: 11px; }
+  .dreams-overview { padding: 17px 16px 14px; }
+  .dreams-overview-content { padding-right: 72px; }
+  .dreams-overview-content strong { font-size: 19px; }
+  .dreams-overview > img { width: 89px; height: 89px; right: 6px; top: 8px; }
+  .dreams-overview-stars { right: 84px; top: 20px; }
+  .dreams-overview-content small { font-size: 10px; }
+  .dreams-overview-content > span { font-size: 11px; }
+  .dreams-card { padding: 12px 12px 10px; }
+  .dreams-card-art { height: 65px; margin-bottom: 8px; }
+  .dreams-card-art:before { top: 7px; width: 53px; height: 53px; margin-left: -26px; }
+  .dreams-card-art img { width: 74px; height: 78px; top: -6px; margin-left: -37px; }
+  .dreams-card-art > span { left: 7px; top: 7px; font-size: 9px; }
+  .dreams-card-art > svg { right: 14px; top: 17px; }
+  .dreams-card-title { font-size: 16px; }
+  .dreams-card-stage, .dreams-card-status { font-size: 11px; }
+  .dreams-collection { padding: 12px 13px; }
+  .dreams-shelf-cups img { width: 40px; height: 40px; margin-right: 3px; }
+  .dreams-shelf > small { max-width: 100px; font-size: 10px; }
+  .ui-v2-app .modal-backdrop.dreams-backdrop { align-items: flex-end; padding: 0; padding-top: calc(32px + var(--safe-top, 0px)); }
+  .ui-v2-app .dialog-shell.dreams-dialog { max-width: 100%; height: 100%; border: 0; border-radius: 25px 25px 0 0; }
+  .dreams-dialog .dreams-dialog-footer { padding-bottom: calc(17px + var(--safe-bottom, 0px)); }
 }
-
-@media (max-width: 430px) {
-  .classic-endgame-header { grid-template-columns: auto minmax(0, 1fr); }
-  .classic-endgame-apples { grid-column: 2; justify-self: start; }
-  .classic-dream { padding: 13px; }
-  .classic-dream__requirements,
-  .classic-legacy__requirements,
-  .classic-dream__actions { grid-template-columns: minmax(0, 1fr); }
-  .classic-endgame-overview__metrics,
-  .classic-apple-exchange__summary,
-  .classic-apple-exchange__actions { grid-template-columns: minmax(0, 1fr); }
-  .classic-trophy-cabinet__header { align-items: start; }
+@media (max-width: 359px) {
+  .ui-v2-app .dreams-page { padding-left: 12px; padding-right: 12px; }
+  .dreams-wallet strong { font-size: 13px; }
+  .dreams-wallet > span { font-size: 11px; }
+  .dreams-wallet > span + span { padding-left: 10px; }
+  .dreams-card { padding: 10px; }
+  .dreams-card-title { font-size: 15px; }
+  .dreams-card-stage, .dreams-card-status { font-size: 10px; }
+  .dreams-overview-content strong { font-size: 17px; }
+  .dreams-shelf-cups img { width: 34px; height: 37px; }
+  .dreams-shelf > small { max-width: 88px; }
+  .dreams-dialog-body { padding-left: 13px; padding-right: 13px; }
+  .dreams-stage-hero { padding-right: 76px; }
+  .dreams-stage-hero img { width: 68px; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .classic-endgame-overview__bar i,
-  .classic-dream__bar i { transition: none; }
+@media (max-height: 540px) {
+  .ui-v2-app .modal-backdrop.dreams-backdrop { padding-top: var(--safe-top, 0px); padding-bottom: var(--safe-bottom, 0px); }
+  .ui-v2-app .dialog-shell.dreams-dialog { height: 100%; border-radius: 12px; }
+  .dreams-dialog-grip { display: none; }
+  .dreams-dialog .dreams-dialog-header { padding-top: 6px; padding-bottom: 6px; }
+  .dreams-dialog .dreams-dialog-footer { padding-top: 8px; padding-bottom: 8px; }
+  .dreams-dialog-tabs { margin-bottom: 9px; }
 }
+@media (max-width: 290px) { .dreams-card-wrap { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .dreams-bar i { transition: none; } }

@@ -14,8 +14,9 @@ import type { AdventureState } from './adventureTypes';
 import { regionIds, projectIds } from './expeditionData';
 import { getWeekStartDateKey } from './dailyReset';
 import { landmarkNodes } from './landmarkProgress';
+import { normalizeFarmNeighborHelp } from './farmNeighborState';
 
-export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 14, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
+export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 15, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
   plots: [{ id: 1 }], upgrades: { garden: 1, coop: 1, barn: 1, fishing_hut: 1 },
   toolWear: {}, treasureResearch: {}, decorations: [], decorationLevels: {}, commissionsCompleted: 0, specialtyOrders: { acceptedDay: '', completed: 0 },
   discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false }, ranchCompostCycles: 0,
@@ -36,6 +37,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
     herbDiscovered: v.herbDiscovered === true, repairStep: built ? 2 : Number.isFinite(v.repairStep) ? Math.max(0, Math.min(2, Math.floor(v.repairStep!))) : 0,
     gardenBuilt: built, firstOrderDelivered: built && v.firstOrderDelivered === true, seedForageDay: day(v.seedForageDay), boardDay: day(v.boardDay),
     acceptedToday: Array.isArray(v.acceptedToday) ? [...new Set(v.acceptedToday.filter(taskId))].slice(0, 2) : [] };
+  state.farmNeighbor = normalizeFarmNeighborHelp(v.farmNeighbor);
   state.expedition = normalizeExpeditionState(v.expedition, backpackCapacity);
   const activity = object(v.activityBoard), week = day(activity.week), sequence = n(activity.sequence);
   if (week && Number.isFinite(Date.parse(week)) && getWeekStartDateKey(week) === week) {

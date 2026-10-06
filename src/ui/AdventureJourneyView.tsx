@@ -65,7 +65,7 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
   const card = (choice: AdventureStageChoice) => {
     const reason = getAdventureChoiceReason(pet, choice), tool = choice.check?.tool;
     const guaranteed = getAdventureChoicePreview(pet, choice)?.chance === 100;
-    return <article className={`exploration-choice-card${tool ? ' exploration-choice-card--tool' : ''}`} key={choice.id}>
+    return <article className={`exploration-choice-card exploration-choice-card--${tool ? 'tool' : guaranteed ? 'safe' : 'check'}`} key={choice.id}>
       <button className="exploration-choice-action" disabled={busy || Boolean(reason)} onClick={() => act(choice)}>
         <span className="exploration-choice-heading">{tool ? <Wrench size={20} aria-hidden="true" /> : <Compass size={20} aria-hidden="true" />}<strong>{choice.label}</strong>{guaranteed && <span className="exploration-choice-guarantee"><ShieldCheck size={14} aria-hidden="true" />稳妥完成</span>}</span>
         <span className="exploration-choice-description">{tool && trip.rulesVersion >= 11 ? toolDescriptions[tool] ?? choice.detail : choice.detail}</span>

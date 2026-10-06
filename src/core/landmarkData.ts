@@ -91,7 +91,7 @@ const gatheringChoices = (region: AdventureRegionId, base: { hunger: number; ene
   if (modern && !research) tools.push({ ...action, id: `lens:${target}`, label: `定向查找${name}`, detail: '保证找到所选食材、材料或种子，获得基础产量；采集 −1、放大镜耐久 −1。', check: { mode: 'story', skill: 'study', tool: 'survey_lens' } });
   return [action, ...tools];
 });
-export const getLandmarkSteps = (id: LandmarkId, version = 11): LandmarkStep[] => {
+export const getLandmarkSteps = (id: LandmarkId, version = 12): LandmarkStep[] => {
   const { region, node } = parseLandmarkId(id), script = scripts[region][node], r = expeditionRegionForMap[region];
   const moments: { key: string; title: string; story: string; event: LandmarkStep['event']; skill: PartnerScheduleCategory }[] = [
     { key: 'arrival', title: `抵达${landmarkNames[region][node]}`, story: script[1], event: 'arrival', skill: 'study' },
@@ -103,10 +103,17 @@ export const getLandmarkSteps = (id: LandmarkId, version = 11): LandmarkStep[] =
     { key: 'finish', title: script[0], story: script[5], event: 'finish', skill: 'study' },
   ];
   return moments.map((moment, index) => {
-    const base = getRegionActionCost(r, index), safe: AdventureChoice = { ...base, id: `safe:${moment.key}`, label: moment.event === 'finish' ? '完成记录，收好本次发现' : `仔细${moment.event === 'arrival' ? '辨认入口与回程方向' : moment.event === 'obstacle' ? '沿稳固通路处理问题' : moment.event === 'gather' ? '观察物产，保留采集机会' : '核对并记录'}`, detail: '稳妥完成本阶段，不需要工具或随机成功。', check: { mode: moment.event === 'finish' ? 'story' : 'safe' }, observation: 'a' };
+    const base = getRegionActionCost(r, index, version), safe: AdventureChoice = { ...base, id: `safe:${moment.key}`, label: moment.event === 'finish' ? '完成记录，收好本次发现' : `仔细${moment.event === 'arrival' ? '辨认入口与回程方向' : moment.event === 'obstacle' ? '沿稳固通路处理问题' : moment.event === 'gather' ? '观察物产，保留采集机会' : '核对并记录'}`, detail: '稳妥完成本阶段，不需要工具或随机成功。', check: { mode: moment.event === 'finish' ? 'story' : 'safe' }, observation: 'a' };
     const alternative: AdventureChoice = { ...base, id: `observe:${moment.key}`, label: moment.event === 'finish' ? '和伙伴复述经历后完成记录' : moment.event === 'obstacle' ? '看准落脚点，尝试近处通路' : '换个角度仔细调查', detail: '按显示的技能与消耗判定；结果不会阻断故事推进。', check: moment.event === 'finish' ? { mode: 'story' } : { mode: 'check', skill: moment.skill, difficulty: explorationDifficulty[r][moment.event === 'obstacle' ? 1 : 0], risky: moment.event === 'obstacle', ...(moment.event === 'arrival' ? { prepare: 'focus' as const } : {}) }, observation: 'b' };
     const choices = [safe, alternative];
     if (version >= 11) safe.check = { ...safe.check!, skill: moment.skill };
+    if (version >= 12 && moment.event === 'finish') {
+      alternative.label = '和伙伴分享旅途心得';
+      alternative.detail = '学习经验 +1（满级后不再获得），心情最多 +5；额外花费 5 基础体力，享受学习技能减耗。';
+      alternative.energy += 5;
+      alternative.mood = 5;
+      alternative.check = { mode: 'story', skill: 'study', practice: true };
+    }
     const canGather = moment.event === 'gather' || moment.key === 'record' && (version >= 11 || r === 'valley')
       || version >= 11 && moment.event === 'fieldwork';
     if (canGather) choices.push(...gatheringChoices(region, base, version >= 11));

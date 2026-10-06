@@ -91,13 +91,6 @@
 .exploration-hall-dialogue small { margin-left: 20px; color: #788472; }
 .exploration-hall-dialogue p { margin: 9px 0 0; font-size: 14px; }
 .exploration-hall-dialogue > .exploration-tag { align-self: flex-start; flex: none; margin-left: 12px; }
-.exploration-app .exploration-home-links { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); grid-column-gap: 16px; grid-row-gap: 12px; }
-.exploration-app .exploration-home-links > button { display: flex; align-items: center; min-width: 0; min-height: 90px; padding: 14px; gap: 0; border: 1px solid #dde2d1; border-radius: 22px; background: #fffcf4; color: #293f36; }
-.exploration-shortcut-icon { display: flex; justify-content: center; align-items: center; width: 46px; height: 46px; margin-right: 13px; flex: none; border-radius: 14px; background: #eaf0de; color: #748b61; }
-.exploration-home-links > button > span:nth-child(2) { flex: 1; min-width: 0; }
-.exploration-home-links strong { display: block; font-size: 17px; }
-.exploration-home-links small { display: block; margin-top: 5px; font-size: 11px; color: #939f85; }
-.exploration-home-links > button > svg { margin-left: 6px; color: #a1ac91; }
 .exploration-starter { display: flex; align-items: center; width: 100%; border: 1px solid #e4d9b9; border-radius: 17px; padding: 17px 22px; background: #f5ecd7; color: #8b754b; }
 .exploration-starter > span { flex: 1; text-align: left; margin-left: 16px; }
 .exploration-starter small { display: block; margin-top: 4px; }
@@ -150,6 +143,18 @@
 .exploration-departure-actions > button { width: 100%; margin-top: 10px; }
 .exploration-departure-actions > .primary-button { min-height: 61px; font-size: 22px; }
 .exploration-departure-actions > .primary-button > span { flex: 1; }
+.exploration-home-utilities { display: flex; margin-top: 10px; }
+.exploration-home-utilities > button { display: inline-flex; align-items: center; justify-content: center; flex: 1; min-width: 0; min-height: 42px; padding: 8px; border: 1px solid #c5d0b8; border-radius: 10px; background: #eef2e4; color: #56724e; font-size: 13px; line-height: 1.5; }
+.exploration-home-utilities > button + button { margin-left: 9px; }
+.exploration-home-utilities svg { flex: none; margin-right: 6px; }
+.exploration-companion-stat-line { display: flex; align-items: center; min-width: 0; overflow-x: auto; padding: 10px 0; border-top: 1px solid #e0e5d4; border-bottom: 1px solid #e0e5d4; -webkit-overflow-scrolling: touch; }
+.exploration-stat-summary { display: inline-flex; align-items: center; justify-content: center; flex: 1 0 auto; padding: 0 5px; color: #668157; white-space: nowrap; }
+.exploration-stat-summary + .exploration-stat-summary { border-left: 1px solid #d8dfcc; }
+.exploration-stat-summary > svg { flex: none; margin-right: 4px; }
+.exploration-stat-summary > strong { color: #334c3e; font-size: 13px; font-variant-numeric: tabular-nums; }
+.exploration-stat-summary small { color: #7e8972; font-size: 10px; font-weight: 400; }
+.exploration-stat-summary--hunger > svg { color: #b2824f; }
+.exploration-stat-summary--health > svg { color: #b7737b; }
 .exploration-camp-prompt > span, .exploration-camp-prompt button { display: inline-flex; align-items: center; }
 .exploration-camp-prompt svg { margin: 0 8px; }
 .exploration-main .adventure-map-regions { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); grid-column-gap: 12px; margin-bottom: 14px; overflow-x: auto; }
@@ -332,12 +337,21 @@
 .exploration-app .exploration-current-event p { font-size: 17px; line-height: 1.9; }
 .exploration-journey .adventure-choices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-column-gap: 20px; grid-row-gap: 20px; }
 .exploration-journey .exploration-choice-card + .exploration-choice-card { margin-top: 0; }
-.exploration-journey .exploration-choice-action, .exploration-journey .exploration-lens-card { height: 100%; padding: 23px; border: 1px solid #dde2d1; border-radius: 22px; background: #fffcf4; }
-.exploration-journey .exploration-choice-card--tool .exploration-choice-action, .exploration-journey .exploration-lens-card { background: #f0f3e7; border-color: #d3ddc4; }
+.exploration-journey .exploration-choice-action, .exploration-journey .exploration-lens-card { height: 100%; padding: 21px; border: 2px solid #92aa7c; border-left-width: 5px; border-left-color: #69894f; border-radius: 18px; background: #eff5e6; box-shadow: 0 3px 0 #d5dfc9; }
+.exploration-journey .exploration-choice-card--check .exploration-choice-action { background: #edf4fb; border-color: #94b0cc; border-left-color: #587fa6; box-shadow: 0 3px 0 #d0dce9; }
+.exploration-journey .exploration-choice-card--tool .exploration-choice-action, .exploration-journey .exploration-lens-card { background: #fcf2df; border-color: #c6ad7e; border-left-color: #a98240; box-shadow: 0 3px 0 #e8dabb; }
+.exploration-journey .exploration-choice-card--check .exploration-choice-heading { color: #315d82; }
+.exploration-journey .exploration-choice-card--tool .exploration-choice-heading { color: #836128; }
+.exploration-journey .exploration-choice-action:disabled { background: #eeeFE8; border-color: #c4cabd; box-shadow: none; color: #737b6c; }
+.exploration-journey .exploration-choice-action:focus { outline: 3px solid #416d91; outline-offset: 3px; }
+.exploration-journey .exploration-choice-action:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 0 0 1px #6a8057; }
+@media (hover: hover) {
+  .exploration-journey .exploration-choice-action:not(:disabled):hover { box-shadow: 0 0 0 2px #b5c7a5, 0 4px 0 #d5dfc9; }
+}
 .exploration-journey .exploration-choice-heading > strong, .exploration-journey .exploration-choice-heading > h4 { font-size: 19px; }
 .exploration-journey .exploration-choice-description { color: #788472; line-height: 1.8; }
 .exploration-journey .exploration-check-details { margin-top: 18px; padding-top: 15px; border-top: 1px solid #e4e8d8; font-size: 13px; }
-.exploration-choice-guarantee { background: #e5edd8; color: #72895f; }
+.exploration-choice-guarantee { border: 1px solid #9bb783; background: #ddeccd; color: #466735; }
 .exploration-lens-targets > button { margin: 4px; color: #667c5a; background: #fffcf4; border-color: #d3ddc4; }
 .exploration-lens-targets > button[aria-pressed="true"], .exploration-lens-submit { background: #345e4e; border-color: #345e4e; color: #fff8e3; }
 .exploration-journey-aside > .exploration-section-heading { margin-bottom: 23px; }

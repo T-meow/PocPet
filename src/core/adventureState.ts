@@ -62,11 +62,11 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const value = object(raw);
   if (value.region === 'hills') value.region = 'windmill';
   if (value.region === 'station') value.region = 'observatory';
-  const modern = [10, 11].includes(Number(value.rulesVersion)) && isLandmarkId(value.purpose) && parseLandmarkId(value.purpose).region === value.region;
+  const modern = [10, 11, 12].includes(Number(value.rulesVersion)) && isLandmarkId(value.purpose) && parseLandmarkId(value.purpose).region === value.region;
   if (!text(value.id) || (!modern && value.region !== 'valley' && value.region !== 'tutorial') || !text(value.actorId)) return undefined;
   const tutorial = value.region === 'tutorial';
-  const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9, 10, 11].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
-  const rulesVersion = value.rulesVersion === 11 && (modern || tutorial) ? 11 : modern ? 10 : legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
+  const purpose = !legacy && !tutorial && [5, 6, 7, 8, 9, 10, 11, 12].includes(Number(value.rulesVersion)) ? route(value.purpose) : undefined;
+  const rulesVersion = (value.rulesVersion === 11 || value.rulesVersion === 12) && (modern || tutorial) ? value.rulesVersion : modern ? 10 : legacy && !tutorial ? 1 : !tutorial && value.rulesVersion === 9 ? 9 : value.rulesVersion === 8 ? 8 : value.rulesVersion === 7 ? 7 : value.rulesVersion === 6 ? 6 : value.rulesVersion === 5 ? 5 : tutorial ? 4 : value.rulesVersion === 1 ? 1 : value.rulesVersion === 4 ? 4 : value.rulesVersion === 3 ? 3 : 2;
   const options = getAdventureSteps(rulesVersion, value.region as AdventureDestinationId, purpose);
   const campaign = rulesVersion >= 11 ? normalizeCampaignTripContext(value.campaign, purpose) : undefined;
   const choices: string[] = [];
@@ -93,7 +93,7 @@ const normalizeTrip = (raw: unknown, legacy: boolean, capacity: number): Adventu
   const shopStock = Object.fromEntries(Object.entries(initialStock).map(([id, amount]): [string, number] => [id, legacy ? value.bought === true ? 0 : amount : count(savedStock[id], amount)]).filter(([, amount]) => amount > 0));
   return { id: text(value.id), region: value.region as AdventureDestinationId, actorId: text(value.actorId), actorName: text(value.actorName, 32), startedAt: count(value.startedAt), choices,
     rulesVersion, purpose, revision: count(value.revision), bag, loot, tool: value.tool === true, ...(campaign ? { campaign } : {}),
-    ...(modern && isLandmarkId(purpose) ? { nodeId: parseLandmarkId(purpose).node, ...(typeof value.target === 'string' && landmarkTargets(parseLandmarkId(purpose).region).includes(value.target) ? { target: value.target } : {}), stageIds: getLandmarkSteps(purpose).slice(0, choices.length).map(step => step.id), firstCompletion: value.firstCompletion === true } : {}),
+    ...(modern && isLandmarkId(purpose) ? { nodeId: parseLandmarkId(purpose).node, ...(typeof value.target === 'string' && landmarkTargets(parseLandmarkId(purpose).region).includes(value.target) ? { target: value.target } : {}), stageIds: getLandmarkSteps(purpose, rulesVersion).slice(0, choices.length).map(step => step.id), firstCompletion: value.firstCompletion === true } : {}),
     ...(rulesVersion >= 9 ? { checkState: normalizeExplorationCheckState(value.checkState, text(value.id)) } : {}),
     ...(rulesVersion >= 11 ? { earnedCoins: count(value.earnedCoins, 30000), earnedHearts: count(value.earnedHearts, 10000) } : {}),
     ...(value.rewardsVersion === 1 ? { rewardsVersion: 1, gatherBonus: typeof value.gatherBonus === 'number' && Number.isFinite(value.gatherBonus) ? Math.max(0, Math.min(35, value.gatherBonus)) : 0 } : {}),
@@ -118,7 +118,7 @@ const normalizeResult = (raw: unknown): AdventureResult | undefined => {
   const complete = value.complete === true && steps === total;
   return { id: text(value.id), region, actorId: text(value.actorId), actorName: text(value.actorName, 32), endedAt: count(value.endedAt), steps, complete,
     ...(campaignVisit ? { campaignVisit, campaignTotal } : {}),
-    ...(value.rulesVersion === 11 ? { rulesVersion: 11 as const } : isLandmarkId(purpose) ? { rulesVersion: 10 as const } : {}),
+    ...(value.rulesVersion === 11 || value.rulesVersion === 12 ? { rulesVersion: value.rulesVersion } : isLandmarkId(purpose) ? { rulesVersion: 10 as const } : {}),
     purpose, first: !campaignVisit && complete && value.first === true, hearts: campaignVisit || purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.hearts, 10000), coins: campaignVisit || purpose && !isValleyQuest(purpose) && !isLandmarkId(purpose) ? 0 : count(value.coins, 10000), items: inventory(value.items), rewardsClaimed: value.rewardsClaimed === true, ...(value.coinsRemaining !== undefined ? { coinsRemaining: campaignVisit ? 0 : count(value.coinsRemaining, count(value.coins, 10000)) } : {}),
     ...(normalizeExplorationCheckResult(value.lastCheck) ? { lastCheck: normalizeExplorationCheckResult(value.lastCheck) } : {}),
     ...(value.returnReason === 'health' ? { returnReason: 'health' as const, ...(value.salvage && value.rewardsClaimed !== true ? { salvage: inventory(value.salvage), salvageTool: value.salvageTool === true } : {}) } : {}),

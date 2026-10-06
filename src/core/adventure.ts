@@ -64,11 +64,11 @@ export const getAdventureStartReason = (pet: PetState, region?: AdventureDestina
   if (getPetStatRatio(pet, 'health') < adventureHealthRules.departure) return '健康不足，请先护理再出发。';
   const visitId = campaignVisit ?? campaignVisitAt(pet, purpose);
   if (visitId && pet.adventure.landmarks.includes(campaignDestination(visitId))) {
-    return previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false, rulesVersion: 11 }, campaignCheckAction(visitId, campaignVisitStep(pet.adventure.campaign, visitId)), 'picnic:departure', expeditionRegionForMap[region as import('./adventureTypes').AdventureRegionId]).reason;
+    return previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false, rulesVersion: 12 }, campaignCheckAction(visitId, campaignVisitStep(pet.adventure.campaign, visitId)), 'picnic:departure', expeditionRegionForMap[region as import('./adventureTypes').AdventureRegionId]).reason;
   }
-  const firstChoices = getAdventureSteps(11, region, purpose)[0].choices;
+  const firstChoices = getAdventureSteps(12, region, purpose)[0].choices;
   const first = firstChoices.find(c => c.check?.mode === 'safe') ?? firstChoices[0];
-  const preview = first.check ? previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false, rulesVersion: 11 }, { ...first, research: undefined, title: first.label, check: first.check }, '0', region && region !== 'tutorial' ? expeditionRegionForMap[region] : 'valley') : undefined;
+  const preview = first.check ? previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false, rulesVersion: 12 }, { ...first, research: undefined, title: first.label, check: first.check }, '0', region && region !== 'tutorial' ? expeditionRegionForMap[region] : 'valley') : undefined;
   const energy = preview?.energy[1] ?? first.energy, hunger = preview?.hunger[1] ?? first.hunger;
   return pet.energy < energy || pet.hunger < hunger ? `出发至少需要 ${hunger} 饱食度、${energy} 体力，请先补充状态。` : '';
 };
@@ -102,7 +102,7 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   const visitId = campaignVisit ?? campaignVisitAt(pet, purpose);
   const campaign = visitId ? { visitId, mode: pet.adventure.landmarks.includes(campaignDestination(visitId)) ? 'visit' as const : 'embedded' as const, startStep: campaignVisitStep(pet.adventure.campaign, visitId) } : undefined;
   return { ...pet, inventory, lastInteractionAt: now,
-    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, ...(campaign ? { campaign } : {}), rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 11, ...(isLandmarkId(purpose) ? { checkState: createExplorationCheckState(id), ...(target ? { target } : {}), nodeId: parseLandmarkId(purpose).node, stageIds: [], firstCompletion: false } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: neighborId ? createAdventureShopStock() : {}, purchases: 0, transportedCount: 0 } },
+    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, ...(campaign ? { campaign } : {}), rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 12, ...(isLandmarkId(purpose) ? { checkState: createExplorationCheckState(id), ...(target ? { target } : {}), nodeId: parseLandmarkId(purpose).node, stageIds: [], firstCompletion: false } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: neighborId ? createAdventureShopStock() : {}, purchases: 0, transportedCount: 0 } },
     recentEvent: campaign?.mode === 'visit' ? '这段路已经熟了，直接去和伙伴碰头吧。' : region === 'tutorial' ? '从前哨门口开始 4 阶段新手踩点。' : '已开始手动地标探索。每次选择都会保存，途中可以补给或安全返程。' };
 };
 
@@ -114,7 +114,7 @@ export const getAdventureChoicePreview = (pet: PetState, choice: AdventureChoice
   const trip = pet.adventure.active;
   if (!trip || trip.rulesVersion < 9 || !choice.check) return undefined;
   const modern = isLandmarkId(trip.purpose) ? parseLandmarkId(trip.purpose) : undefined;
-  const preview = previewExplorationAction(pet, trip, getAdventureCheckAction(pet, choice, now), modern ? getLandmarkSteps(trip.purpose as import('./landmarkProgress').LandmarkId)[trip.choices.length]?.id ?? 'complete' : String(trip.choices.length), modern ? expeditionRegionForMap[modern.region] : 'valley');
+  const preview = previewExplorationAction(pet, trip, getAdventureCheckAction(pet, choice, now), modern ? getLandmarkSteps(trip.purpose as import('./landmarkProgress').LandmarkId, trip.rulesVersion)[trip.choices.length]?.id ?? 'complete' : String(trip.choices.length), modern ? expeditionRegionForMap[modern.region] : 'valley');
   return { ...preview, reason: getAdventureChoicePrerequisiteReason(pet, choice, now) || preview.reason };
 };
 const getAdventureChoicePrerequisiteReason = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt) => {

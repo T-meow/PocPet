@@ -400,6 +400,64 @@
   filter: drop-shadow(0 7px 4px #5b654c16);
 }
 
+.home-room-decorations {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 42px;
+  height: 90px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.home-room-decoration {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  width: 64px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #536245;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.home-room-decoration--market { left: 0; }
+.home-room-decoration--fishing { right: 0; }
+.home-room-decoration:focus { outline: 3px solid #779b83; outline-offset: 3px; }
+
+.home-room-decoration .decoration-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 60px;
+  margin: 0 auto;
+}
+
+.home-room-decoration-label {
+  display: block;
+  margin-top: 6px;
+  padding: 2px 0;
+  border-radius: 6px;
+  background: #fffdf3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.home-v2 .home-room .pet-scene.room-v2--decorated .pet {
+  max-width: calc(100% - 160px);
+}
+
+.home-v2 .home-room .room-v2--decorated .pet img {
+  object-position: center bottom;
+}
+
 .room-season-decor {
   position: absolute;
   inset: 0;

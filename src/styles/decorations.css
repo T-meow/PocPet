@@ -9,10 +9,6 @@
 .decoration-art[data-stage="complete"] .decoration-art-trim { color: #8970b0; }
 .decoration-scene-object { position: absolute; left: var(--decoration-x); top: var(--decoration-y); transform: translate(-50%, -50%); z-index: 2; padding: 0; border: 0; background: transparent; cursor: pointer; min-width: 44px; min-height: 44px; }
 .decoration-scene-object .decoration-art { width: clamp(34px, 5vw, 58px); height: clamp(38px, 5.5vw, 62px); border-bottom-width: 3px; border-radius: 12px; }
-.decoration-corner { padding: 16px; border-top: 1px solid #e2e9e3; background: #fafbf7; }
-.decoration-corner > small { color: #748178; }
-.decoration-corner > div { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
-.decoration-corner button { display: grid; justify-items: center; gap: 6px; max-width: 100px; min-width: 64px; min-height: 44px; border: 0; background: transparent; color: #334c41; font-size: 12px; cursor: pointer; }
 .modal-backdrop.decoration-backdrop, .ui-v2-app .modal-backdrop.decoration-backdrop { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 24px; }
 .decoration-dialog.dialog-shell, .ui-v2-app .decoration-dialog.dialog-shell { display: flex; flex-direction: column; width: 100%; max-width: 760px; height: 90vh; height: calc(var(--viewport-height, 100vh) * .9); height: min(860px, calc(var(--viewport-height, 100vh) * .9)); max-height: 100%; padding: 0; border-radius: 26px; background: #fff; color: #334c41; overflow: hidden; }
 .decoration-dialog.dialog-shell > header { position: static; display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 22px 24px; border-bottom: 1px solid #e5eae5; }

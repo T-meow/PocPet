@@ -1,29 +1,21 @@
 import { useState } from 'react';
-import { Apple, ArrowLeft, BookOpen, ChefHat, Footprints, Lock, Sprout, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Gift, Lock, Sparkles } from 'lucide-react';
 import {
-  classicEndgameUnlockLevel,
-  classicEndgameUnlockSkillLevel,
-  dreamProjectCategories,
-  dreamStageDefinitions,
-  dreamTotalCoinCost,
-  getClassicLegacyAppleCost,
-  getClassicLegacyLevelCoinCost,
-  getClassicGoalProgress,
-  getDreamProjectSupplySupplement,
-  getDreamStageEligibility,
-  isClassicEndgameComplete,
-  isClassicEndgameUnlocked,
-  type GachaRewardRarity,
-  type PartnerScheduleCategory,
-  type PetState,
+  classicEndgameUnlockLevel, classicEndgameUnlockSkillLevel, classicGoldenAppleHeartExchangeRate, dreamProjectCategories, dreamStageDefinitions,
+  getClassicGoalProgress, getDreamProjectSupplySupplement, getDreamStageEligibility,
+  isClassicEndgameComplete, isClassicEndgameUnlocked, type PartnerScheduleCategory, type PetState,
 } from '../core/pet';
+import { currencyIcon } from '../assets';
 import { t } from '../i18n';
-import { ConfirmDialog } from './ConfirmDialog';
+import { DialogScope } from './DialogShell';
+import { ClaimNotice } from './ClaimNotice';
 import { ClassicGoldenAppleExchange } from './ClassicGoldenAppleExchange';
-import { ClassicTrophyCabinet } from './ClassicTrophyCabinet';
-import { formatCompactNumber } from './numberFormat';
+import { ClassicTrophyCabinet, DreamTrophyShelf } from './ClassicTrophyCabinet';
+import { DreamProjectDialog } from './dreams/DreamProjectDialog';
+import { DreamLegacyDialog, DreamOverviewDialog, DreamSupplementDialog } from './dreams/DreamUtilityDialogs';
+import { DreamDialog, dreamCategoryLabel, dreamNumber, dreamStageName, dreamText, dreamTitle, type DreamArtwork } from './dreams/DreamShared';
 
-interface CommonDreamsPageProps {
+interface CommonDreamsPageProps extends DreamArtwork {
   pet: PetState;
   onBack: () => void;
   onInvestProject: (category: PartnerScheduleCategory, coins: number) => void;
@@ -34,282 +26,76 @@ interface CommonDreamsPageProps {
   onExchangeGoldenApples: (apples: number) => void;
 }
 
-type PendingInvestment = { kind: 'project'; category: PartnerScheduleCategory; coins: number } | { kind: 'legacy'; coins: number };
+type DreamPanel = { kind: 'project'; category: PartnerScheduleCategory } | { kind: 'overview' | 'trophies' | 'supplement' | 'exchange' | 'legacy' };
 
-const projectIcons: Record<PartnerScheduleCategory, LucideIcon> = {
-  study: BookOpen,
-  cooking: ChefHat,
-  garden: Sprout,
-  exercise: Footprints,
-};
-
-const getInvestmentAmounts = (cost: number, invested: number, coins: number) => {
-  const remaining = Math.max(0, cost - invested);
-  return [
-    { key: 'ten', amount: Math.min(remaining, coins, Math.max(1, Math.floor(cost * 0.1))) },
-    { key: 'quarter', amount: Math.min(remaining, coins, Math.max(1, Math.floor(cost * 0.25))) },
-    { key: 'fill', amount: Math.min(remaining, coins) },
-  ] as const;
-};
-
-const getLegacyCardRarity = (level: number): GachaRewardRarity => {
-  if (level >= 12) return 'jackpot';
-  if (level >= 9) return 'legendary';
-  if (level >= 6) return 'rare';
-  if (level >= 3) return 'uncommon';
-  return 'common';
-};
-
-export const CommonDreamsPage = ({
-  pet,
-  onBack,
-  onInvestProject,
-  onCompleteProjectStage,
-  onClaimProjectSupplement,
-  onInvestLegacy,
-  onCompleteLegacy,
-  onExchangeGoldenApples,
-}: CommonDreamsPageProps) => {
-  const [pendingInvestment, setPendingInvestment] = useState<PendingInvestment | null>(null);
+export const CommonDreamsPage = ({ pet, portrait, projectImages, itemIconMap, onBack, onInvestProject, onCompleteProjectStage, onClaimProjectSupplement, onInvestLegacy, onCompleteLegacy, onExchangeGoldenApples }: CommonDreamsPageProps) => {
+  const [panel, setPanel] = useState<DreamPanel | null>(null);
   const unlocked = isClassicEndgameUnlocked(pet);
-  const hasReachedDreamLevel = pet.level >= classicEndgameUnlockLevel;
   const complete = isClassicEndgameComplete(pet);
-  const goalProgress = getClassicGoalProgress(pet);
+  const goal = getClassicGoalProgress(pet);
   const goldenApples = pet.inventory.golden_apple ?? 0;
-  const supplySupplements = dreamProjectCategories
-    .map((category) => ({ category, ...getDreamProjectSupplySupplement(pet, category) }))
-    .filter((supplement) => supplement.amount > 0);
-
-  const requestInvestment = (pending: PendingInvestment) => {
-    if (!unlocked || pending.coins <= 0) return;
-    if (pending.coins >= 10000) setPendingInvestment(pending);
-    else if (pending.kind === 'legacy') onInvestLegacy(pending.coins);
-    else onInvestProject(pending.category, pending.coins);
+  const closePanel = () => setPanel(null);
+  const hasSupplement = dreamProjectCategories.some(category => getDreamProjectSupplySupplement(pet, category).amount > 0);
+  const projects = dreamProjectCategories.map(category => {
+    const eligibility = getDreamStageEligibility(pet, category);
+    return { category, eligibility, progress: pet.classicEndgame.projects[category], ready: unlocked && !eligibility.complete && eligibility.requirementsMet && eligibility.coinsMet && eligibility.applesMet && Boolean(eligibility.rewardFits) };
+  });
+  const readyCount = projects.filter(project => project.ready).length;
+  const projectCaption = ({ eligibility, progress, ready }: typeof projects[number]) => {
+    const definition = eligibility.definition;
+    if (!definition) return <><Check size={12} />{t('ui.classicEndgame.projectComplete')}</>;
+    if (!unlocked) return <><Lock size={12} />{dreamText('locked')}</>;
+    if (ready) return <><Gift size={13} />{dreamText('ready')}</>;
+    if (!eligibility.rewardFits) return dreamText('inventoryFull');
+    if (eligibility.masterCount < definition.masterCount) return dreamText('mastersMissing', { count: definition.masterCount - eligibility.masterCount });
+    if (eligibility.skillLevel < definition.skillLevel) return dreamText('skillProgress', { current: eligibility.skillLevel, target: definition.skillLevel });
+    if (eligibility.scheduleCount < definition.scheduleCount) return dreamText('workProgress', { current: eligibility.scheduleCount, target: definition.scheduleCount });
+    if (!eligibility.coinsMet) return dreamText('coinsMissing', { coins: dreamNumber(definition.coinCost - progress.currentStageCoins) });
+    return dreamText('applesMissing', { count: definition.appleCost - goldenApples });
   };
 
-  const confirmInvestment = () => {
-    if (!unlocked || !pendingInvestment) return;
-    if (pendingInvestment.kind === 'legacy') onInvestLegacy(pendingInvestment.coins);
-    else onInvestProject(pendingInvestment.category, pendingInvestment.coins);
-    setPendingInvestment(null);
-  };
-
-  const renderInvestmentButtons = (
-    cost: number,
-    invested: number,
-    kind: 'legacy' | 'project',
-    category?: PartnerScheduleCategory,
-  ) => getInvestmentAmounts(cost, invested, pet.coins).map((choice) => (
-    <button
-      type="button"
-      key={choice.key}
-      className={choice.key === 'fill' ? 'primary-button' : 'secondary-button'}
-      disabled={!unlocked || choice.amount <= 0}
-      onClick={() => requestInvestment(kind === 'legacy'
-        ? { kind, coins: choice.amount }
-        : { kind, category: category as PartnerScheduleCategory, coins: choice.amount })}
-    >
-      {t(`ui.classicEndgame.invest.${choice.key}`, { coins: formatCompactNumber(choice.amount) })}
+  return <section className="classic-endgame-page dreams-page" aria-labelledby="classic-endgame-title">
+    <header className="dreams-page-header">
+      <button type="button" className="dreams-icon" onClick={onBack} aria-label={t('ui.classicEndgame.back')}><ArrowLeft size={21} /></button>
+      <h1 id="classic-endgame-title">{t('ui.classicEndgame.title')}</h1>
+      <button type="button" className="dreams-icon" onClick={() => setPanel({ kind: 'supplement' })} aria-label={t('ui.classicEndgame.supplySupplementTitle')}><Gift size={20} /><ClaimNotice show={hasSupplement} /></button>
+    </header>
+    <div className="dreams-wallet"><span><img src={currencyIcon} alt="" />{dreamText('coins')}<strong>{dreamNumber(pet.coins)}</strong></span><span><img src={itemIconMap.golden_apple} alt="" />{dreamText('apples')}<strong>{dreamNumber(goldenApples)}</strong></span></div>
+    <button type="button" className="dreams-overview" onClick={() => setPanel({ kind: 'overview' })} aria-label={`${dreamText('viewProgress')} · ${dreamText('stagesTogether', { current: goal.completedStages, total: goal.totalStages })}`}>
+      <img src={portrait} alt="" draggable={false} /><Sparkles className="dreams-overview-stars" size={18} aria-hidden="true" />
+      <span className="dreams-overview-content"><small>{dreamText('kicker')}</small><strong>{dreamText(complete ? 'finishedHeadline' : 'headline')}</strong><span>{dreamText('stagesTogether', { current: goal.completedStages, total: goal.totalStages })}</span></span>
+      <span className="dreams-overview-bottom"><span className="dreams-overview-meter" aria-hidden="true">{Array.from({ length: goal.totalStages }, (_, index) => <i key={index} className={index < goal.completedStages ? 'is-done' : ''} />)}</span><span>{Math.round(goal.completedStages / goal.totalStages * 100)}%</span><ChevronRight size={14} /></span>
     </button>
-  ));
+    {!unlocked && !complete && <p className="dreams-locked-note"><Lock size={17} /><span>{pet.level < classicEndgameUnlockLevel
+      ? t('ui.classicEndgame.levelLocked', { level: pet.level, targetLevel: classicEndgameUnlockLevel })
+      : t('ui.classicEndgame.lockedProgress', { skill: Math.min(...dreamProjectCategories.map(category => pet.partnerSchedule.skills[category].level)), targetSkill: classicEndgameUnlockSkillLevel })}</span></p>}
+    <div className="dreams-section-heading"><h2>{dreamText('fourDreams')}</h2><span className={readyCount ? 'is-ready' : ''}>{readyCount ? dreamText('readyCount', { count: readyCount }) : dreamText('takeTime')}</span></div>
+    <div className="dreams-grid">{projects.map(project => {
+      const { category, eligibility, progress, ready } = project;
+      return <div className="dreams-card-wrap" key={category}><button type="button" className={`dreams-card dreams-tone-${category}${ready ? ' is-ready' : ''}${!unlocked && !complete ? ' is-locked' : ''}`}
+        onClick={() => setPanel({ kind: 'project', category })} aria-label={dreamText('viewDream', { project: dreamTitle(category), current: progress.completedStages, total: dreamStageDefinitions.length })}>
+        <span className="dreams-card-art"><span>{dreamCategoryLabel(category)}</span><img src={projectImages[category]} alt="" draggable={false} /><Sparkles size={13} aria-hidden="true" /></span>
+        <strong className="dreams-card-title">{dreamTitle(category)}</strong>
+        <span className="dreams-card-stage">{eligibility.definition ? t('ui.classicEndgame.stageNamed', { stage: eligibility.definition.stage, name: dreamStageName(category, eligibility.definition.stage) }) : dreamText('allStagesComplete')}</span>
+        <span className="dreams-stage-dots" aria-hidden="true">{dreamStageDefinitions.map(stage => <i key={stage.stage} className={stage.stage <= progress.completedStages ? 'is-done' : stage.stage === eligibility.definition?.stage ? 'is-current' : ''} />)}</span>
+        <span className="dreams-card-status"><span>{projectCaption(project)}</span><ChevronRight size={14} /></span>
+      </button></div>;
+    })}</div>
+    {complete && <button type="button" className="dreams-utility dreams-utility--legacy" onClick={() => setPanel({ kind: 'legacy' })}><span className="dreams-utility-icon"><Sparkles size={20} /></span><span><strong>{t('ui.classicEndgame.legacyKicker')} · Lv.{pet.classicEndgame.legacyLevel}</strong><small>{dreamText('legacyCopy')}</small></span><ChevronRight size={17} /></button>}
+    <button type="button" className="dreams-collection" onClick={() => setPanel({ kind: 'trophies' })} aria-label={`${t('ui.classicEndgame.trophies.title')} ${goal.unlockedTrophies} / ${goal.totalTrophies}`}>
+      <span className="dreams-collection-heading"><strong>{dreamText('collection')}</strong><span>{goal.unlockedTrophies} / {goal.totalTrophies}<ChevronRight size={14} /></span></span>
+      <span className="dreams-shelf"><DreamTrophyShelf pet={pet} /><small>{goal.diamondUnlocked ? t('ui.classicEndgame.trophies.names.diamond') : dreamText('collectionCopy')}</small></span>
+    </button>
+    <button type="button" className="dreams-utility" onClick={() => setPanel({ kind: 'exchange' })}><span className="dreams-utility-icon"><img src={itemIconMap.golden_apple} alt="" /></span><span><strong>{t('ui.classicEndgame.exchange.title')}</strong><small>{goal.diamondUnlocked ? dreamText('exchangeShort', { hearts: classicGoldenAppleHeartExchangeRate }) : t('ui.classicEndgame.exchange.locked')}</small></span>{goal.diamondUnlocked ? <ChevronRight size={17} /> : <Lock size={15} />}</button>
+    <p className="dreams-whisper">{dreamText('whisper')}</p>
 
-  return (
-    <section className="classic-endgame-page" aria-labelledby="classic-endgame-title">
-      <header className="classic-endgame-header">
-        <button type="button" className="icon-button" onClick={onBack} aria-label={t('ui.classicEndgame.back')} title={t('ui.classicEndgame.back')}>
-          <ArrowLeft size={22} aria-hidden="true" />
-        </button>
-        <div>
-          <h1 id="classic-endgame-title">{t('ui.classicEndgame.title')}</h1>
-        </div>
-        <div className="classic-endgame-apples" title={t('ui.classicEndgame.appleMaterialHint')}>
-          <Apple size={20} aria-hidden="true" />
-          <strong>{formatCompactNumber(goldenApples)}</strong>
-        </div>
-      </header>
-
-      <div className="classic-endgame-overview">
-        <div className="classic-endgame-overview__metrics">
-          <div className="classic-endgame-overview__metric">
-            <div>
-              <span>{t('ui.classicEndgame.stageProgress')}</span>
-              <strong>{goalProgress.completedStages}/{goalProgress.totalStages}</strong>
-            </div>
-            <div className="classic-endgame-overview__bar" aria-hidden="true">
-              <i style={{ width: `${goalProgress.completedStages / goalProgress.totalStages * 100}%` }} />
-            </div>
-          </div>
-          <div className="classic-endgame-overview__metric">
-            <div>
-              <span>{t('ui.classicEndgame.fundingProgress')}</span>
-              <strong>{formatCompactNumber(goalProgress.investedCoins)} / {formatCompactNumber(dreamTotalCoinCost)}</strong>
-            </div>
-            <div className="classic-endgame-overview__bar" aria-hidden="true">
-              <i style={{ width: `${goalProgress.investedCoins / goalProgress.totalCoins * 100}%` }} />
-            </div>
-          </div>
-        </div>
-        {hasReachedDreamLevel && !unlocked && !complete && (
-          <p>{t('ui.classicEndgame.lockedProgress', {
-            skill: Math.min(...dreamProjectCategories.map((category) => pet.partnerSchedule.skills[category].level)),
-            targetSkill: classicEndgameUnlockSkillLevel,
-          })}</p>
-        )}
-        {complete && <p className="classic-endgame-overview__complete">{t('ui.classicEndgame.finalComplete')}</p>}
-      </div>
-
-      {supplySupplements.length > 0 && (
-        <div className="classic-endgame-overview" role="region" aria-label={t('ui.classicEndgame.supplySupplementTitle')}>
-          <strong>{t('ui.classicEndgame.supplySupplementTitle')}</strong>
-          <p>{t('ui.classicEndgame.supplySupplementHint')}</p>
-          <div className="classic-dream__actions">
-            {supplySupplements.map((supplement) => (
-              <button type="button" className="secondary-button" key={supplement.category}
-                disabled={!supplement.canClaim} onClick={() => onClaimProjectSupplement(supplement.category)}>
-                {t('ui.classicEndgame.claimSupplySupplement', {
-                  project: t(`ui.classicEndgame.projects.${supplement.category}.title`), amount: supplement.amount,
-                })}
-              </button>
-            ))}
-          </div>
-          {supplySupplements.some((supplement) => !supplement.canClaim) && <p role="status">{t('pet.classicEndgame.rewardInventoryFull')}</p>}
-        </div>
-      )}
-
-      {!complete ? (
-        !hasReachedDreamLevel ? (
-          <div className="classic-dream-lock" role="status">
-            <Lock size={20} aria-hidden="true" />
-            <p>{t('ui.classicEndgame.levelLocked', {
-              level: pet.level,
-              targetLevel: classicEndgameUnlockLevel,
-            })}</p>
-          </div>
-        ) : (
-          <div className="classic-dream-grid">
-            {dreamProjectCategories.map((category) => {
-              const progress = pet.classicEndgame.projects[category];
-              const eligibility = getDreamStageEligibility(pet, category);
-              const Icon = projectIcons[category];
-              if (eligibility.complete || !eligibility.definition) {
-                return (
-                  <article className="classic-dream classic-dream--complete" key={category}>
-                    <Icon size={24} aria-hidden="true" />
-                    <h2>{t(`ui.classicEndgame.projects.${category}.title`)}</h2>
-                    <p>{t(`ui.classicEndgame.projects.${category}.result`)}</p>
-                    <strong>{t('ui.classicEndgame.projectComplete')}</strong>
-                  </article>
-                );
-              }
-              const definition = eligibility.definition;
-              const nextDefinition = dreamStageDefinitions[definition.stage];
-              const percent = definition.coinCost > 0 ? progress.currentStageCoins / definition.coinCost * 100 : 100;
-              const canComplete = eligibility.requirementsMet && eligibility.coinsMet && eligibility.applesMet && eligibility.rewardFits;
-              return (
-                <article className="classic-dream" key={category}>
-                <header>
-                  <span className="classic-dream__icon"><Icon size={22} aria-hidden="true" /></span>
-                  <div>
-                    <small>{t('ui.classicEndgame.stageNamed', {
-                      stage: definition.stage,
-                      name: t(`ui.classicEndgame.projects.${category}.stages.${definition.stage}`),
-                    })}</small>
-                    <h2>{t(`ui.classicEndgame.projects.${category}.title`)}</h2>
-                  </div>
-                </header>
-                <p>{t(`ui.classicEndgame.projects.${category}.summary`)}</p>
-                <ol className="dream-stage-trail">{dreamStageDefinitions.map((stage) => <li key={stage.stage} data-complete={stage.stage < definition.stage} aria-current={stage.stage === definition.stage ? 'step' : undefined}><span>{stage.stage < definition.stage ? '✓' : stage.stage}</span><small>{t(`ui.classicEndgame.projects.${category}.stages.${stage.stage}`)}</small></li>)}</ol>
-                <div className="classic-dream__requirements">
-                  <span data-met={eligibility.skillLevel >= definition.skillLevel}>{t('ui.classicEndgame.requirementSkill', { current: eligibility.skillLevel, target: definition.skillLevel })}</span>
-                  <span data-met={eligibility.scheduleCount >= definition.scheduleCount}>{t('ui.classicEndgame.requirementSchedule', { current: eligibility.scheduleCount, target: definition.scheduleCount })}</span>
-                  {definition.masterCount > 0 && <span data-met={eligibility.masterCount >= definition.masterCount}>{t('ui.classicEndgame.requirementMaster', { current: eligibility.masterCount, target: definition.masterCount })}</span>}
-                  {definition.appleCost > 0 && <span data-met={eligibility.applesMet}>{t('ui.classicEndgame.requirementApples', { current: goldenApples, target: definition.appleCost })}</span>}
-                </div>
-                <div className="classic-dream__funding">
-                  <div><span>{t('ui.classicEndgame.funding')}</span><strong>{formatCompactNumber(progress.currentStageCoins)} / {formatCompactNumber(definition.coinCost)}</strong></div>
-                  <div className="classic-dream__bar" aria-hidden="true"><i style={{ width: `${Math.min(100, percent)}%` }} /></div>
-                </div>
-                <div className="classic-dream__next">
-                  {nextDefinition ? (
-                    <>
-                      <strong>{t('ui.classicEndgame.nextStage', {
-                        stage: nextDefinition.stage,
-                        name: t(`ui.classicEndgame.projects.${category}.stages.${nextDefinition.stage}`),
-                      })}</strong>
-                      <div>
-                        <span>{t('ui.classicEndgame.nextRequirementCoins', { target: formatCompactNumber(nextDefinition.coinCost) })}</span>
-                        <span>{t('ui.classicEndgame.nextRequirementSkill', { target: nextDefinition.skillLevel })}</span>
-                        <span>{t('ui.classicEndgame.nextRequirementSchedule', { target: nextDefinition.scheduleCount })}</span>
-                        <span>{t('ui.classicEndgame.nextRequirementMaster', { target: nextDefinition.masterCount })}</span>
-                        <span>{t('ui.classicEndgame.nextRequirementApples', { target: nextDefinition.appleCost })}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <strong>{t('ui.classicEndgame.finalStagePreview')}</strong>
-                      <p>{t(`ui.classicEndgame.projects.${category}.result`)}</p>
-                      <span>{t('ui.classicEndgame.goldTrophyPreview', {
-                        trophy: t(`ui.classicEndgame.trophies.names.${category}.gold`),
-                      })}</span>
-                    </>
-                  )}
-                </div>
-                {!eligibility.rewardFits && <p role="status">{t('pet.classicEndgame.rewardInventoryFull')}</p>}
-                <div className="classic-dream__actions">
-                  {renderInvestmentButtons(definition.coinCost, progress.currentStageCoins, 'project', category)}
-                  <button type="button" className="primary-button" disabled={!unlocked || !canComplete} onClick={() => onCompleteProjectStage(category)}>
-                    {t('ui.classicEndgame.completeStage')}
-                  </button>
-                </div>
-                </article>
-              );
-            })}
-          </div>
-        )
-      ) : (() => {
-        const targetLevel = pet.classicEndgame.legacyLevel + 1;
-        const coinCost = getClassicLegacyLevelCoinCost(targetLevel);
-        const appleCost = getClassicLegacyAppleCost(targetLevel);
-        const canCompleteLegacy = pet.classicEndgame.legacyCoinsInvested >= coinCost && goldenApples >= appleCost;
-        const legacyRarity = getLegacyCardRarity(pet.classicEndgame.legacyLevel);
-        return (
-          <section className={`classic-legacy classic-legacy--${legacyRarity}`} aria-labelledby="classic-legacy-title">
-            <div className="classic-legacy__heading">
-              <div>
-                <span>{t('ui.classicEndgame.legacyKicker')}</span>
-                <h2 id="classic-legacy-title">{t('ui.classicEndgame.legacyTitle', { level: targetLevel })}</h2>
-              </div>
-              <strong>Lv.{pet.classicEndgame.legacyLevel}</strong>
-            </div>
-            <p>{t('ui.classicEndgame.legacySummary')}</p>
-            <div className="classic-legacy__requirements">
-              <span>{t('ui.classicEndgame.legacyCoins', { current: formatCompactNumber(pet.classicEndgame.legacyCoinsInvested), target: formatCompactNumber(coinCost) })}</span>
-              <span>{t('ui.classicEndgame.requirementApples', { current: goldenApples, target: appleCost })}</span>
-            </div>
-            <div className="classic-dream__bar" aria-hidden="true"><i style={{ width: `${Math.min(100, pet.classicEndgame.legacyCoinsInvested / coinCost * 100)}%` }} /></div>
-            <div className="classic-dream__actions">
-              {renderInvestmentButtons(coinCost, pet.classicEndgame.legacyCoinsInvested, 'legacy')}
-              <button type="button" className="primary-button" disabled={!canCompleteLegacy} onClick={onCompleteLegacy}>
-                {t('ui.classicEndgame.completeLegacy', { level: targetLevel })}
-              </button>
-            </div>
-          </section>
-        );
-      })()}
-
-      <ClassicTrophyCabinet pet={pet} />
-      <ClassicGoldenAppleExchange pet={pet} onExchange={onExchangeGoldenApples} />
-
-      {pendingInvestment && (
-        <ConfirmDialog
-          title={t('ui.classicEndgame.confirm.title')}
-          message={t('ui.classicEndgame.confirm.message', { coins: formatCompactNumber(pendingInvestment.coins) })}
-          cancelLabel={t('ui.classicEndgame.confirm.cancel')}
-          confirmLabel={t('ui.classicEndgame.confirm.confirm')}
-          onCancel={() => setPendingInvestment(null)}
-          onConfirm={confirmInvestment}
-        />
-      )}
-    </section>
-  );
+    <DialogScope>
+      {panel?.kind === 'project' && <DreamProjectDialog key={panel.category} pet={pet} category={panel.category} portrait={portrait} projectImages={projectImages} itemIconMap={itemIconMap} onClose={closePanel} onInvest={onInvestProject} onComplete={onCompleteProjectStage} />}
+      {panel?.kind === 'overview' && <DreamOverviewDialog pet={pet} portrait={portrait} onClose={closePanel} />}
+      {panel?.kind === 'supplement' && <DreamSupplementDialog pet={pet} fertilizerImage={itemIconMap.normal_fertilizer} onClose={closePanel} onClaim={onClaimProjectSupplement} />}
+      {panel?.kind === 'legacy' && <DreamLegacyDialog pet={pet} onClose={closePanel} onInvest={onInvestLegacy} onComplete={onCompleteLegacy} />}
+      {panel?.kind === 'exchange' && <ClassicGoldenAppleExchange pet={pet} appleImage={itemIconMap.golden_apple} onExchange={onExchangeGoldenApples} onClose={closePanel} />}
+      {panel?.kind === 'trophies' && <DreamDialog title={t('ui.classicEndgame.trophies.title')} labelId="dream-trophies-title" onClose={closePanel} footer={<button type="button" className="dreams-secondary" onClick={closePanel}>{dreamText('backToDreams')}</button>}><ClassicTrophyCabinet pet={pet} /></DreamDialog>}
+    </DialogScope>
+  </section>;
 };

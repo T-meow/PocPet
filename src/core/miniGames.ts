@@ -10,7 +10,7 @@ import { grantPracticeSkillXp, partnerScheduleMaxSkillLevel, practiceSkillXp } f
 import type { PetState, Inventory } from './petTypes';
 import type { MiniGameId, MiniGameSession, MiniGameState, PlayMode } from './companionActivityTypes';
 import { isHostedMiniGameSession } from './companionActivityTypes';
-import { isHubGameId, miniGameCatalog } from '../minigames/catalog';
+import { isHubGameId, miniGameCatalog, type HubGameId } from '../minigames/catalog';
 import { normalizeMiniGamesSave } from '../minigames/storage';
 
 export const miniGameDefinitions = [
@@ -29,6 +29,11 @@ export const getMiniGameBaseHearts = (level: number, game: MiniGameId = 'matchin
   const hearts = Math.round(5 + 145 * ((rewardLevel - miniGameUnlockLevel) / 96) ** 1.65);
   return hearts * (game === 'catch' ? 3 : 1);
 };
+export type ScoreMiniGameId = Exclude<HubGameId, 'water'>;
+export const miniGameScoreUnit = 1000;
+export const isScoreMiniGame = (game: MiniGameId): game is ScoreMiniGameId => game === 'blocks' || game === 'fruit' || game === 'match3';
+export const getMiniGameScoreHearts = (baseHearts: number, score: number) => Number.isFinite(baseHearts) && Number.isFinite(score)
+  ? Math.floor(Math.max(0, baseHearts) * Math.max(0, Math.floor(score)) / miniGameScoreUnit) : 0;
 export const catchFlightMs = 450;
 export const bubbleHoldMs = 1500;
 export const bubbleSessionMs = 6000;
@@ -130,20 +135,23 @@ export const resumeMiniGame = (pet: PetState, actorId: string, now: number): Pet
 };
 export const abandonMiniGame = (pet: PetState): PetState => ({ ...pet, miniGames: { ...pet.miniGames, active: undefined } });
 export const canFinishMiniGame = (session: MiniGameSession) => session.game === 'matching' ? session.matched.length === 12 : session.game === 'catch' ? session.rounds === 10 : session.game === 'bubbles' && session.bubbles.length >= 3 && session.participationMs >= bubbleSessionMs && session.elapsedMs >= bubbleSessionMs;
-// Callers validate their own game's terminal state before using the shared reward path.
+// Callers validate the terminal state or an explicit request to end a scored round.
 export const settleMiniGame = (pet: PetState, now: number, score: number, resultId: string, keepPlaying = false): PetState => {
   const active = pet.miniGames.active;
   if (!active || active.paused || pet.miniGames.lastSettledSessionId === resultId) return pet;
   const key = `${active.game}:${active.mode}`;
   const previous = pet.miniGames.records[key] ?? { completed: 0, best: 0, bestMs: 0 };
   const best = previous.completed === 0 ? score : active.game === 'matching' || active.game === 'water' ? Math.min(previous.best, score) : Math.max(previous.best, score);
-  const gain = applyHeartGain(pet, active.baseHearts);
-  const mood = clampPetStat(pet, pet.mood + scalePetStatDelta(pet, 4));
+  const baseHearts = isScoreMiniGame(active.game) ? getMiniGameScoreHearts(active.baseHearts, score) : active.baseHearts;
+  const gain = applyHeartGain(pet, baseHearts);
+  const mood = baseHearts > 0 ? clampPetStat(pet, pet.mood + scalePetStatDelta(pet, 4)) : pet.mood;
   const skillCategory = getMiniGameSkillCategory(active.game);
   const skillXp = skillCategory && pet.partnerSchedule.skills[skillCategory].level < partnerScheduleMaxSkillLevel ? practiceSkillXp : undefined;
   let next: PetState = { ...pet, hearts: gain.hearts, boostCards: gain.boostCards, mood, lastInteractionAt: now, recentActivity: 'happy', recentActivityUntil: now + 3000,
     recentEvent: activityText(`一起玩了${gameName(active.game)}，收获 ${gain.amount} 颗心心。`, `Played ${gameName(active.game)} together and earned ${gain.amount} hearts.`),
-    miniGames: { ...pet.miniGames, active: keepPlaying ? active : undefined, lastSettledSessionId: resultId, lastResult: { id: resultId, game: active.game, actorId: active.actorId, mode: active.mode, hearts: gain.amount, baseHearts: active.baseHearts, rewardLevel: active.rewardLevel, mood: Math.max(0, mood - pet.mood), skillXp, score, elapsedMs: active.elapsedMs, at: now, pending: !keepPlaying }, records: { ...pet.miniGames.records, [key]: { completed: previous.completed + 1, best, bestMs: previous.bestMs ? Math.min(previous.bestMs, active.elapsedMs) : active.elapsedMs } } } };
+    miniGames: { ...pet.miniGames, active: keepPlaying ? active : undefined, lastSettledSessionId: resultId, lastResult: { id: resultId, game: active.game, actorId: active.actorId, mode: active.mode, hearts: gain.amount, baseHearts, rewardLevel: active.rewardLevel, mood: Math.max(0, mood - pet.mood), skillXp, score, elapsedMs: active.elapsedMs, at: now, pending: !keepPlaying }, records: { ...pet.miniGames.records, [key]: { completed: previous.completed + 1, best, bestMs: previous.bestMs ? Math.min(previous.bestMs, active.elapsedMs) : active.elapsedMs } } } };
+  // Tiny/empty scored rounds cannot repeatedly award mood or daily play rewards.
+  if (baseHearts <= 0) return next;
   if (active.game === 'catch') {
     const priorMemory = pet.companionMemories.entries.some((entry) => entry.actorId === active.actorId && entry.kind === 'catch_record');
     if (priorMemory) next = rememberTogether(next, active.actorId, 'practice_photo', 'together', now);

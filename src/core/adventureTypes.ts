@@ -5,7 +5,7 @@ export type AdventureRegionId = 'valley' | 'windmill' | 'forest' | 'coast' | 'ob
 export type AdventureDestinationId = AdventureRegionId | 'tutorial';
 export type AdventureTreasureId = 'coin_hoard' | 'valley_amber' | 'ancient_gold_bar';
 export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | 'map_handbook' | AdventureTreasureId;
-export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 export interface AdventureTrip {
   id: string;

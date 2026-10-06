@@ -7,8 +7,8 @@ export const decorationEffects = {
   creek_fountain: { label: '作物生长时间缩短', unit: '%', values: [5, 10, 20], treasure: 'creek_aquamarine', place: '菜地水渠旁' },
   sun_weather_vane: { label: '牧场生产周期缩短', unit: '%', values: [5, 10, 20], treasure: 'hill_sunstone', place: '牧场屋顶' },
   emerald_pendant: { label: '普通采集额外一份概率', unit: '%', values: [10, 20, 35], treasure: 'forest_emerald', place: '旅途小路的树上' },
-  pearl_lamp: { label: '咬钩等待时间缩短', unit: '%', values: [10, 20, 30], treasure: 'tidal_pearl', place: '钓鱼码头' },
-  star_dome: { label: '挂机珍宝概率增加', unit: '个百分点', values: [1, 3, 6], treasure: 'star_sapphire', place: '旅途角' },
+  pearl_lamp: { label: '咬钩等待时间缩短', unit: '%', values: [10, 20, 30], treasure: 'tidal_pearl', place: '首页小窝与钓鱼码头' },
+  star_dome: { label: '挂机珍宝概率增加', unit: '个百分点', values: [1, 3, 6], treasure: 'star_sapphire', place: '首页小窝' },
 } as const satisfies Record<CommunityDecorationId, { label: string; unit: string; values: readonly number[]; treasure: RegionalTreasureId; place: string }>;
 
 export const getDecorationLevel = (pet: Pick<PetState, 'community'>, id: CommunityDecorationId) => {

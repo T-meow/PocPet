@@ -7,7 +7,6 @@
 @import "./achievements.css";
 @import "./partner-schedule.css";
 @import "./gacha.css";
-@import "./classic-endgame.css";
 @import "./role-picker.css";
 @import "./toy.css";
 @import "./backups.css";
@@ -26,3 +25,4 @@
 @import "./exploration-ui.css";
 @import "./favorites.css";
 @import "./notifications.css";
+@import "./classic-endgame.css";

@@ -165,7 +165,7 @@ async function verifySavesAndErrors() {
 
     await check('正式小游戏入口的进度往返、旧档兼容与结算去重', async () => {
       const games = await import('../src/core/miniGames.ts');
-      const { saveMiniGameHub, finishMiniGameHub } = await import('../src/core/miniGameHub.ts');
+      const { saveMiniGameHub, finishMiniGameHub, endMiniGameHub } = await import('../src/core/miniGameHub.ts');
       const { possibleMoves, swapMatch3 } = await import('../src/minigames/match3/rules.ts');
       const { advancePet } = await import('../src/core/petLifecycle.ts');
       const actor = 'official.furo';
@@ -212,6 +212,7 @@ async function verifySavesAndErrors() {
       current = finishMiniGameHub(current, 'hub-match3', actor, premature, now);
       assert.ok(current.hearts > hearts);
       assert.equal(current.miniGames.lastResult.score, board.score, 'scores come from saved rules state, not the callback');
+      assert.equal(current.miniGames.lastResult.baseHearts, Math.floor(games.getMiniGameBaseHearts(10, 'match3') * board.score / 1000));
       assert.equal(current.miniGames.records['match3:normal'].completed, 1);
       assert.equal(current.miniGames.lastResult.pending, false, 'the module keeps its own replay screen');
       assert.equal(current.miniGames.active.id, 'hub-match3');
@@ -232,6 +233,45 @@ async function verifySavesAndErrors() {
       assert.equal(recovered.miniGames.hub.games.fruit.bodies.length, 0);
       assert.deepEqual(recovered.miniGames.hub.games.match3, board);
       assert.deepEqual(recovered.miniGames.hub.reportedSessions, [board.id]);
+
+      const scoring = games.startMiniGame(ready, 'blocks', 'normal', actor, 'early-blocks', now);
+      const latest = structuredClone(scoring.miniGames.hub);
+      latest.games.blocks.score = 1250;
+      latest.games.blocks.best = 1250;
+      const earlyRound = latest.games.blocks.id;
+      const paused = games.pauseMiniGame(scoring);
+      assert.equal(endMiniGameHub(paused, 'early-blocks', actor, latest, now), paused);
+      assert.equal(endMiniGameHub(scoring, 'stale-view', actor, latest, now), scoring);
+      assert.equal(endMiniGameHub(scoring, 'early-blocks', 'other-actor', latest, now), scoring);
+      const busy = { ...scoring, isSleeping: true };
+      assert.equal(endMiniGameHub(busy, 'early-blocks', actor, latest, now), busy);
+      const ended = endMiniGameHub(scoring, 'early-blocks', actor, latest, now);
+      assert.equal(ended.miniGames.lastResult.score, 1250, 'early settlement uses the latest snapshot before the debounced save');
+      assert.equal(ended.miniGames.lastResult.baseHearts, 8, 'Lv.10 gives floor(7 * 1250 / 1000) base hearts');
+      assert.equal(ended.miniGames.lastResult.pending, true);
+      assert.equal(ended.miniGames.active, undefined);
+      assert.notEqual(ended.miniGames.hub.games.blocks.id, earlyRound);
+      assert.equal(ended.miniGames.hub.games.blocks.score, 0);
+      assert.equal(ended.miniGames.hub.games.blocks.best, 1250);
+      assert.deepEqual(ended.miniGames.hub.games.fruit, scoring.miniGames.hub.games.fruit);
+      assert.ok(ended.miniGames.hub.reportedSessions.includes(earlyRound));
+      assert.equal(endMiniGameHub(ended, 'early-blocks', actor, latest, now), ended, 'double clicks cannot settle twice');
+      assert.equal(saveMiniGameHub(ended, 'early-blocks', actor, latest, now), ended, 'unmount cannot restore a settled board');
+      const earlyRestored = parseSaveFileText(createSaveFileText(ended, null, now), now).pet;
+      assert.equal(earlyRestored.miniGames.lastResult.pending, true);
+      assert.deepEqual(earlyRestored.miniGames.hub, ended.miniGames.hub);
+      const replay = games.startMiniGame(games.acknowledgeMiniGameResult(earlyRestored, earlyRound), 'blocks', 'normal', actor, 'next-blocks', now);
+      assert.equal(replay.miniGames.hub.games.blocks.score, 0);
+      assert.equal(endMiniGameHub(replay, 'next-blocks', actor, latest, now), replay, 'old round snapshots cannot claim a new round');
+      const tiny = structuredClone(replay.miniGames.hub);
+      tiny.games.blocks.score = 1;
+      const noReward = endMiniGameHub(replay, 'next-blocks', actor, tiny, now);
+      assert.equal(noReward.miniGames.lastResult.baseHearts, 0);
+      assert.equal(noReward.miniGames.lastResult.hearts, 0);
+      assert.equal(noReward.hearts, replay.hearts, 'rounds below one base heart do not trigger bonus hearts');
+      assert.equal(noReward.mood, replay.mood);
+      assert.deepEqual(noReward.partnerSchedule.skills, replay.partnerSchedule.skills);
+
       let legacy = games.startMiniGame(ready, 'matching', 'gentle', actor, 'legacy-cards', now);
       const deck = legacy.miniGames.active.deck;
       for (let face = 0; face < 6; face++) for (const index of deck.map((card, index) => card === face ? index : -1).filter(index => index >= 0)) {
@@ -320,7 +360,7 @@ async function verifySavesAndErrors() {
       for (const id of ['coop', 'barn']) legacy.community.facilities[id] = { found: true, built: true, work: 2 };
       legacy.community.animals.coop.stock = 2;
       const migrated = restore(legacy);
-      assert.equal(migrated.community.schemaVersion, 14);
+      assert.equal(migrated.community.schemaVersion, 15);
       assert.equal(migrated.community.ranchCompostCycles, 0, 'legacy stock does not retroactively earn compost');
       assert.equal(migrated.community.animals.coop.name, undefined);
       assert.equal(migrated.community.plots[0].lastCrop, 'carrot');
@@ -424,7 +464,7 @@ async function verifySavesAndErrors() {
       legacy.community.expedition.projects.riverside = { completed: 2, stage: 1, theme: 'journey', lastDay: '2026-09-01', firstAt: now - 86400000, actorId: 'old.partner', actorName: '旧伙伴' };
       legacy.inventory.dish_mushroom_rice = 2;
       let state = parseSaveFileText(createSaveFileText(legacy, null, now), now).pet;
-      assert.equal(state.community.schemaVersion, 14);
+      assert.equal(state.community.schemaVersion, 15);
       assert.equal(state.community.expedition.projects.riverside.stage, 1);
       const cap = getPetEnergyCap(state), runId = actions.getProjectRunId(state, 'riverside');
       const frozen = { ...state, timePause: { schemaVersion: 1, pausedAt: now } };
@@ -622,6 +662,15 @@ async function verifySavesAndErrors() {
       assert.deepEqual(saved.inventory, started.inventory, 'all dishes, including emoji placeholders, survive inventory round trips');
       assert.deepEqual(saved.kitchen.made, started.kitchen.made, 'new recipe progress survives round trips');
       assert.deepEqual(saved.adventure.landmarks, all.adventure.landmarks);
+      assert.equal(saved.adventure.active.rulesVersion, 12, 'new trips retain the current rules after saving');
+      const oldManual = structuredClone(started);
+      oldManual.adventure.active.rulesVersion = 11;
+      const oldManualTrip = parseSaveFileText(createSaveFileText(oldManual, null, now), now).pet.adventure.active;
+      assert.equal(oldManualTrip.rulesVersion, 11, 'already departed trips keep their rules');
+      const oldAction = getAdventureSteps(oldManualTrip.rulesVersion, oldManualTrip.region, oldManualTrip.purpose)[0].choices[0];
+      assert.deepEqual([oldAction.hunger, oldAction.energy], [18, 10], 'loading an old observatory trip must not raise its supply cost');
+      const newAction = getAdventureSteps(saved.adventure.active.rulesVersion, saved.adventure.active.region, saved.adventure.active.purpose)[0].choices[0];
+      assert.deepEqual([newAction.hunger, newAction.energy], [50, 50]);
     });
 
     await check('固定料理、烤鱼与小吃套餐存档往返、上架和无效制作恢复', async () => {
@@ -1801,6 +1850,108 @@ async function verifySavesAndErrors() {
       assert.equal(reload(oldWait, now).community.market.remainingVisitMs, 15 * 60000, 'legacy paused waits remain unchanged on reload');
     });
 
+    await check('邻居雇佣扣费、游戏日到期与存档恢复', async () => {
+      const { hireFarmNeighbor, getFarmNeighborStatus } = await import('../src/core/farmNeighbor.ts');
+      const { getDailyResetDateKey } = await import('../src/core/dailyReset.ts');
+      const { reconcilePetClock } = await import('../src/core/gameClock.ts');
+      const hiredAt = new Date(2026, 9, 5, 12).getTime();
+      const initial = { ...createDefaultPet(hiredAt), hearts: 900 };
+      const neighbors = [{ modId: 'fixture.neighbor', name: '小邻居' }];
+      const hired = hireFarmNeighbor(initial, neighbors, hiredAt);
+      assert.equal(hired.hearts, 300);
+      assert.equal(hired.community.farmNeighbor.hiredDay, '2026-10-05');
+      assert.equal(hired.community.farmNeighbor.expiresDay, '2026-10-12');
+      assert.equal(getFarmNeighborStatus(hired, hiredAt).remainingDays, 7);
+      assert.equal(hireFarmNeighbor(hired, neighbors, hiredAt), hired, 'double clicks cannot charge twice');
+      const poor = { ...initial, hearts: 599 };
+      assert.equal(hireFarmNeighbor(poor, neighbors, hiredAt), poor);
+      const frozen = { ...initial, timePause: { schemaVersion: 1, pausedAt: hiredAt } };
+      assert.equal(hireFarmNeighbor(frozen, neighbors, hiredAt), frozen);
+      const stored = createSaveFileText(hired, null, hiredAt);
+      const restored = parseSaveFileText(stored, hiredAt).pet;
+      assert.deepEqual(restored.community.farmNeighbor, hired.community.farmNeighbor);
+      assert.equal(restored.hearts, 300);
+      assert.equal(restored.timeGuard.maxDailyDateKey, '2026-10-05', 'a future expiry is not a clock watermark');
+      const nextDay = new Date(2026, 9, 6, 5).getTime();
+      assert.equal(getFarmNeighborStatus(restored, nextDay - 1).remainingDays, 7);
+      assert.equal(getFarmNeighborStatus(restored, nextDay).remainingDays, 6);
+      const later = new Date(2026, 9, 8, 12).getTime();
+      const imported = parseSaveFileText(stored, later).pet;
+      assert.equal(getFarmNeighborStatus(imported, later).remainingDays, 4, 'importing does not renew the week');
+      const loaded = loadStoredPetJson(stored, later, quiet);
+      assert.equal(loaded.status, 'ok');
+      assert.equal(getFarmNeighborStatus(loaded.pet, later).remainingDays, 4);
+      const endsAt = new Date(2026, 9, 12, 5).getTime();
+      assert.equal(getFarmNeighborStatus(restored, endsAt - 1).remainingDays, 1);
+      assert.equal(getFarmNeighborStatus(restored, endsAt).active, false);
+      const pausedHelp = { ...restored, timePause: { schemaVersion: 1, pausedAt: hiredAt } };
+      const pausedRestored = parseSaveFileText(createSaveFileText(pausedHelp, null, hiredAt), endsAt).pet;
+      assert.equal(getFarmNeighborStatus(pausedRestored, endsAt).active, false);
+      assert.equal(getFarmNeighborStatus(clock.resumePetTime(pausedRestored, endsAt), endsAt).active, false);
+      const rebased = reconcilePetClock({ ...imported, timeGuard: { ...imported.timeGuard, maxDailyDateKey: getDailyResetDateKey(later), lastObservedAt: later } }, hiredAt).pet;
+      assert.equal(getFarmNeighborStatus(rebased, hiredAt).remainingDays, 4, 'clock correction preserves only unused days');
+      const expired = normalizePet(hired, endsAt);
+      assert.equal(getFarmNeighborStatus(reconcilePetClock({ ...expired, timeGuard: { ...expired.timeGuard, lastObservedAt: endsAt } }, hiredAt).pet, hiredAt).active, false);
+      const renewed = hireFarmNeighbor({ ...expired, hearts: 600 }, neighbors, endsAt);
+      assert.equal(renewed.hearts, 0);
+      assert.equal(renewed.community.farmNeighbor.expiresDay, '2026-10-19');
+      const legacy = { ...initial, community: { ...initial.community, schemaVersion: 14 } };
+      assert.equal(parseSaveFileText(createSaveFileText(legacy, null, hiredAt), hiredAt).pet.community.farmNeighbor, undefined);
+      for (const bad of [{ hiredDay: '2026-02-30', expiresDay: '2026-03-09' }, { ...hired.community.farmNeighbor, expiresDay: '2027-10-12' }]) {
+        assert.equal(normalizePet({ ...initial, community: { ...initial.community, farmNeighbor: bad } }, hiredAt).community.farmNeighbor, undefined);
+      }
+    });
+
+    await check('邻居代劳收获回执随存档保存且不重复结算', async () => {
+      const { hireFarmNeighbor } = await import('../src/core/farmNeighbor.ts');
+      const { plantCommunityCrops, harvestCommunityCrops, harvestCommunityCrop } = await import('../src/core/community.ts');
+      const { careCommunityAnimal, collectCommunityAnimal } = await import('../src/core/communityFarm.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const { listCommunityGoods } = await import('../src/core/communityMarket.ts');
+      const { processFood } = await import('../src/core/foodProcessing.ts');
+      const neighbors = [{ modId: 'fixture.neighbor', name: '小邻居' }, { modId: 'fixture.other', name: '另一位邻居' }];
+      const initial = structuredClone(pet);
+      initial.hearts = 900; initial.isSleeping = true; initial.energy = 0;
+      initial.community.gardenBuilt = true; initial.community.upgrades.garden = 2;
+      initial.community.plots = [{ id: 1 }, { id: 2 }]; initial.inventory.carrot_seed = 2;
+      initial.community.facilities.coop = { found: true, built: true, work: 2 };
+      initial.community.animals.coop = { feed: 1, stock: 2, cycleMs: 21600000, nextAt: now + 21600000, cared: false, revision: 0 };
+      initial.community.ranchCompostCycles = 4;
+      const hired = hireFarmNeighbor(initial, neighbors, now);
+      const planted = plantCommunityCrops(hired, [{ plotId: 1, cropId: 'carrot' }, { plotId: 2, cropId: 'carrot' }], now, neighbors);
+      assert.equal(planted.community.farmNeighbor.sequence, 1, 'a whole batch records one helper');
+      assert.equal(planted.inventory.carrot_seed ?? 0, 0);
+      const cared = careCommunityAnimal(planted, 'coop', 0, now, neighbors);
+      assert.equal(cared.energy, 0); assert.equal(cared.isSleeping, true);
+      assert.equal(cared.community.animals.coop.cared, true);
+      assert.equal(cared.community.farmNeighbor.sequence, 2);
+      const collected = collectCommunityAnimal(cared, 'coop', 1, now, neighbors);
+      assert.equal(collected.community.farmNeighbor.sequence, 3, 'automatic compost shares the collection receipt');
+      assert.equal(collected.inventory.nutrient_compost, (cared.inventory.nutrient_compost ?? 0) + 1);
+      const saved = parseSaveFileText(createSaveFileText(collected, null, now), now).pet;
+      assert.deepEqual(saved.community.farmNeighbor, collected.community.farmNeighbor);
+      assert.equal(collectCommunityAnimal(saved, 'coop', 1, now, neighbors).hearts, saved.hearts);
+      assert.equal(collectCommunityAnimal(saved, 'coop', 1, now, neighbors).community.farmNeighbor.sequence, 3);
+      const matureAt = planted.community.plots[0].crop.readyAt;
+      const plots = saved.community.plots.map(plot => ({ id: plot.id, plantedAt: plot.crop.plantedAt }));
+      const full = { ...saved, inventory: { ...saved.inventory, carrot: inventoryItemLimit } };
+      assert.equal(harvestCommunityCrop(full, 1, plots[0].plantedAt, matureAt, false, neighbors).community.farmNeighbor.sequence, 3);
+      const harvest = harvestCommunityCrops(saved, plots, matureAt, neighbors);
+      assert.equal(harvest.hearts, saved.hearts + 8);
+      assert.equal(harvest.community.farmNeighbor.sequence, 4);
+      const helperName = neighbors.find(n => n.modId === harvest.community.farmNeighbor.neighbor.modId).name;
+      assert.ok(harvest.recentEvent.startsWith(helperName + '帮忙收获。'));
+      const reloaded = parseSaveFileText(createSaveFileText(harvest, null, matureAt), matureAt).pet;
+      const duplicate = harvestCommunityCrops(reloaded, plots, matureAt, neighbors);
+      assert.equal(duplicate.hearts, reloaded.hearts);
+      assert.deepEqual(duplicate.community.farmNeighbor, reloaded.community.farmNeighbor);
+      const paused = { ...saved, timePause: { schemaVersion: 1, pausedAt: now } };
+      assert.equal(harvestCommunityCrops(paused, plots, matureAt, neighbors), paused);
+      const stocked = { ...saved, inventory: { ...saved.inventory, wheat: 2 }, community: { ...saved.community, market: { ...saved.community.market, level: 1 } } };
+      assert.equal(processFood(stocked, 'wheat_feed', 1, stocked.community.processing.revision, now), stocked, 'help does not unlock processing');
+      assert.equal(listCommunityGoods(stocked, 'wheat', 1, stocked.community.market.nextListingId, now).community.market.listings.length, 0, 'the duty portrait does not unlock stocking');
+    });
+
     await check('忙碌果园操作不消耗存档资源，成熟待领果实可恢复', async () => {
       const { advanceGarden, clearWitheredTree, harvestTree, plantTree, unlockGardenSlot } = await import('../src/core/garden.ts');
       const initial = unlockGardenSlot({ ...pet, inventory: { ...pet.inventory, fruit_tree_sapling: 1 } }, 0, now);
@@ -1822,6 +1973,17 @@ async function verifySavesAndErrors() {
       assert.equal(harvested.hearts, restored.hearts + 10);
       const claimed = parseSaveFileText(createSaveFileText(harvested, null, readyAt), readyAt).pet;
       assert.equal(harvestTree(claimed, 0, readyAt).hearts, claimed.hearts);
+      const { hireFarmNeighbor } = await import('../src/core/farmNeighbor.ts');
+      const neighbors = [{ modId: 'fixture.neighbor', name: '小邻居' }];
+      const helped = hireFarmNeighbor({ ...restored, hearts: 900 }, neighbors, readyAt);
+      assert.equal(clearWitheredTree(helped, 0, readyAt), helped, 'tree removal still needs the companion');
+      assert.equal(unlockGardenSlot(helped, 1, readyAt), helped);
+      const picked = harvestTree(helped, 0, readyAt, neighbors);
+      assert.equal(picked.hearts, 310);
+      assert.equal(picked.community.farmNeighbor.sequence, 1);
+      const pickedSave = parseSaveFileText(createSaveFileText(picked, null, readyAt), readyAt).pet;
+      assert.deepEqual(pickedSave.community.farmNeighbor, picked.community.farmNeighbor);
+      assert.equal(harvestTree(pickedSave, 0, readyAt, neighbors).community.farmNeighbor.sequence, 1);
     });
 
     await check('损坏输入和高版本存档拒绝覆盖', () => {
@@ -1878,8 +2040,11 @@ async function verifySavesAndErrors() {
       assert.equal(storage.getItem(disk.migrationLedgerStorageKey), '{broken');
     });
 
-    await check('行程随机种子、规则版本及冻结时间保存', async () => {
-      const { startAdventure } = await import('../src/core/adventure.ts');
+    await check('行程随机种子、规则版本、分享奖励及冻结时间保存', async () => {
+      const { startAdventure, advanceAdventure, returnFromAdventure } = await import('../src/core/adventure.ts');
+      const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
       const ready = { ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 } } };
       const adventure = startAdventure(ready, 'valley', 'official.furo', 'Furo', {}, false, now);
       for (const [started, tripOf] of [[adventure, p => p.adventure.active]]) {
@@ -1888,6 +2053,29 @@ async function verifySavesAndErrors() {
         const restored = tripOf(parseSaveFileText(createSaveFileText(started, null, now), now).pet);
         for (const key of ['id', 'rulesVersion', 'revision', 'bag', 'checkState']) assert.deepEqual(restored[key], trip[key], key);
       }
+      let sharing = adventure;
+      const steps = getLandmarkSteps(sharing.adventure.active.purpose, sharing.adventure.active.rulesVersion);
+      const fuel = state => ({ ...state, hunger: getPetStatCap(state), energy: getPetEnergyCap(state), health: getPetStatCap(state) });
+      for (const step of steps.slice(0, -1)) {
+        const trip = sharing.adventure.active;
+        sharing = advanceAdventure(fuel(sharing), trip.id, trip.choices.length, step.choices[0].id, now, trip.revision);
+      }
+      sharing = reload(fuel({ ...sharing, mood: getPetStatCap(sharing) - 10 }));
+      const trip = sharing.adventure.active, skillBefore = { ...sharing.partnerSchedule.skills.study };
+      assert.equal(trip.choices.length, steps.length - 1);
+      const shared = advanceAdventure(sharing, trip.id, trip.choices.length, 'observe:finish', now, trip.revision);
+      assert.equal(shared.partnerSchedule.skills.study.xp, skillBefore.xp + 1);
+      assert.equal(shared.mood, sharing.mood + 5);
+      assert.equal(shared.health, sharing.health);
+      const sharedReloaded = reload(shared);
+      assert.deepEqual(sharedReloaded.partnerSchedule.skills.study, shared.partnerSchedule.skills.study);
+      assert.equal(sharedReloaded.adventure.active.checkState.last.xp, 1);
+      assert.equal(sharedReloaded.adventure.active.checkState.last.moodChange, 5);
+      assert.deepEqual(advanceAdventure(sharedReloaded, trip.id, trip.choices.length, 'observe:finish', now, trip.revision), sharedReloaded, 'retrying a saved ending cannot grant sharing rewards twice');
+      const returned = reload(returnFromAdventure(sharedReloaded, trip.id, now));
+      assert.equal(returned.adventure.pending.rulesVersion, 12);
+      assert.equal(returned.adventure.pending.lastCheck.xp, 1);
+      assert.deepEqual(returned.partnerSchedule.skills.study, shared.partnerSchedule.skills.study);
       const frozen = clock.prepareTimePause(pet, now, quiet);
       const restored = parseSaveFileText(createSaveFileText(frozen, null, now), now + 86400000).pet;
       assert.deepEqual(restored.timePause, frozen.timePause);

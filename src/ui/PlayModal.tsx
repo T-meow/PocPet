@@ -1,21 +1,19 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Gamepad2, Heart, Pause, X } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Pause, X } from 'lucide-react';
 import { DialogShell } from './DialogShell';
 import { CompanionMemories } from './CompanionMemories';
 import { MiniGameBoard } from './play/MiniGameBoard';
 import { activityText as L } from '../core/kitchenRecipes';
-import { abandonMiniGame, acknowledgeMiniGameResult, buyBubbleWand, gameName, getMiniGameBaseHearts, getMiniGameSkillCategory, miniGameDefinitions, miniGameUnlockLevel, pauseMiniGame, resumeMiniGame, startMiniGame, type MiniGameAction } from '../core/miniGames';
-import { formatPracticeSkillXp, partnerScheduleMaxSkillLevel } from '../core/partnerSchedule';
+import { acknowledgeMiniGameResult, gameName, miniGameUnlockLevel, pauseMiniGame, startMiniGame, type MiniGameAction } from '../core/miniGames';
 import { isExpeditionAway } from '../core/expeditionData';
 import { MiniGameResultModal } from './play/MiniGameResultModal';
 import { useMiniGameFeedback } from './play/useMiniGameFeedback';
 import { itemIcons } from '../assets';
 import type { PetState } from '../core/pet';
 import { isHostedMiniGameSession, type PlayMode } from '../core/companionActivityTypes';
-import { isHubGameId, miniGameCatalog } from '../minigames/catalog';
 import { sessionId } from '../minigames/shared/state';
-import { Icon } from '../minigames/shared/ui';
-import { matchingCardBack, matchingCardFaces } from '../miniGameAssets';
+import { MiniGameEntrance } from './play/MiniGameEntrance';
+import { playSfx } from '../core/audio';
 import './play/miniGameHub.css';
 
 const HostedMiniGame = lazy(() => import('./play/HostedMiniGame'));
@@ -30,8 +28,6 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
   const available = levelUnlocked && !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !isExpeditionAway(pet) && !pet.community.fishing.active && !pet.timePause;
   const playing = active && !active.paused && active.actorId === actorId && available;
   const hosted = active && isHostedMiniGameSession(active);
-  const maySwitch = hosted && active.paused && active.actorId === actorId;
-  const startDisabled = !available || Boolean(active && !maySwitch);
   const result = pet.miniGames.lastResult?.actorId === actorId ? pet.miniGames.lastResult : undefined;
   const body = useRef<HTMLDivElement>(null);
   const returnGame = useRef<string>();
@@ -39,7 +35,7 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
   useEffect(() => {
     if (body.current) body.current.scrollTop = 0;
     if (!playing && returnGame.current) {
-      body.current?.querySelector<HTMLButtonElement>(`[data-game-entry="${returnGame.current}"] button`)?.focus();
+      body.current?.querySelector<HTMLButtonElement>(`[data-game-entry="${returnGame.current}"] button`)?.focus({ preventScroll: true });
       returnGame.current = undefined;
     }
   }, [Boolean(playing), active?.game]);
@@ -52,67 +48,27 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
     onReplay={() => { const id = sessionId(); update((current) => startMiniGame(acknowledgeMiniGameResult(current, result.id), result.game, result.mode, actorId, id, Date.now())); }}
   />;
 
-  const gameCard = (game: typeof miniGameDefinitions[number]) => {
-    const entry = miniGameCatalog.find(candidate => candidate.id === game.id);
-    const unlocked = Boolean(entry) || (game.id === 'catch' ? (pet.inventory.toy_ball ?? 0) > 0 : pet.miniGames.unlocked.includes(game.id));
-    const gameMode = entry ? 'normal' : mode;
-    const record = pet.miniGames.records[`${game.id}:${gameMode}`];
-    const skillCategory = getMiniGameSkillCategory(game.id);
-    const description = entry?.description ?? (game.id === 'matching' ? L('翻开十二张牌，慢慢找到六对朋友。', 'Find six pairs among twelve cards.')
-      : game.id === 'catch' ? L('滑动把球抛出去，移动中的伙伴来接！一局十次。', 'Swipe to throw at your moving companion. Ten throws per game!')
-        : L('轻按、松开、戳破。吹出三个泡泡，互动六秒就有收获。', 'Hold, release, pop! Three bubbles and six seconds earn your reward.'));
-    const bestLabel = game.id === 'matching' || game.id === 'water' ? '步数' : game.id === 'catch' ? '连击' : game.id === 'bubbles' ? '泡泡数' : '得分';
-    return <article className={`play-game-card play-game-card--${game.id}`} key={game.id} data-game-entry={game.id}>
-      <span className="game-glyph">{game.id === 'catch' ? <img src={ballImage} alt="" draggable={false} />
-        : game.id === 'matching' ? <img src={matchingCardBack} alt="" draggable={false} />
-          : game.id === 'match3' ? <img src={matchingCardFaces.garden[0].image} alt="" draggable={false} />
-            : game.id === 'fruit' ? <img src={itemIcons.watermelon} alt="" draggable={false} />
-              : entry ? <Icon name={entry.icon} /> : game.glyph}</span>
-      <h3>{gameName(game.id)}</h3><p>{description}</p>
-      <span className="activity-heart">♥ {L(`至少 ${getMiniGameBaseHearts(pet.level, game.id)} 心`, `At least ${getMiniGameBaseHearts(pet.level, game.id)} hearts`)}</span>
-      {skillCategory && pet.partnerSchedule.skills[skillCategory].level < partnerScheduleMaxSkillLevel && <small className="activity-skill-xp">{L('完成一局：', 'Finish a game: ')}{formatPracticeSkillXp(skillCategory)}</small>}
-      {game.id === 'catch' && <small>{L(`每局消耗 1 个玩具球 · 持有 ${pet.inventory.toy_ball ?? 0}`, `One toy ball per game · ${pet.inventory.toy_ball ?? 0} owned`)}</small>}
-      {record && <small>{L(`完成 ${record.completed} 局 · 最佳${bestLabel} ${record.best}`, `${record.completed} completed · Best ${record.best}`)}</small>}
-      {unlocked ? <button className="activity-primary" disabled={startDisabled} onClick={() => {
-        const id = sessionId(); update((current) => startMiniGame(current, game.id, gameMode, actorId, id, Date.now()));
-      }}>{maySwitch && active.game === game.id ? '继续玩' : L('一起玩', 'Let’s play')}</button>
-        : game.id === 'catch' ? <button className="activity-secondary" onClick={onShop}>{L('去买玩具球', 'Get a toy ball')}</button>
-          : <button className="activity-secondary" disabled={pet.coins < 30} onClick={() => update(buyBubbleWand)}>{L('泡泡棒 · 30 金币，永久使用', 'Bubble wand · 30 coins, yours forever')}</button>}
-    </article>;
+  const changeMode = (nextMode: PlayMode) => {
+    setMode(nextMode); playSfx('tap');
+    update(current => current.miniGames.active?.id === active?.id && current.miniGames.active && !isHostedMiniGameSession(current.miniGames.active)
+      ? { ...current, miniGames: { ...current.miniGames, active: { ...current.miniGames.active, mode: nextMode } } } : current);
   };
 
   return <DialogShell className={`activity-modal play-modal play-hub-modal${playing && hosted ? ' play-hub-playing' : ''}`} backdropClassName="activity-backdrop" labelId="play-title" onClose={onClose}>
     <header className="activity-header">
-      <div className="activity-heading"><span className="activity-icon"><Gamepad2 /></span><div><small>A LITTLE TIME, TOGETHER</small><h2 id="play-title">{playing ? gameName(active.game) : L('一起游戏', 'Games together')}</h2></div></div>
+      <div className="activity-heading"><span className="activity-icon"><Gamepad2 /></span><div><small>陪伴小日常</small><h2 id="play-title">{playing ? gameName(active.game) : tab === 'memories' ? L('共同回忆', 'Memories') : L('一起游戏', 'Games together')}</h2></div></div>
       <div className="activity-header-actions">
         {playing && <button className="icon-button" onClick={backToGames} aria-label={hosted ? '返回游戏列表并保存进度' : L('暂停', 'Pause')}>{hosted ? <ArrowLeft size={20} /> : <Pause size={20} />}</button>}
+        {!playing && tab === 'memories' && <button className="icon-button" onClick={() => { playSfx('tap'); setTab('games'); }} aria-label="返回游戏列表"><ArrowLeft size={20} /></button>}
         <button className="icon-button" onClick={onClose} aria-label={L('关闭游戏', 'Close games')}><X /></button>
       </div>
     </header>
     <div className="activity-body" ref={body}>{!levelUnlocked ? <div className="play-welcome"><img src={portrait} alt={pet.name} /><div><h3>{L(`Lv.${miniGameUnlockLevel} 解锁小游戏`, `Games unlock at Lv.${miniGameUnlockLevel}`)}</h3><p>{L('先一起熟悉小窝，长大一点再来玩吧。', 'Settle into your little home first. Games will be here as you grow.')}</p>{active && <p>{L('上次的进度已保留，解锁后可以继续。', 'Your progress is saved. Continue when games unlock.')}</p>}</div></div>
       : playing ? isHostedMiniGameSession(active)
         ? <Suspense fallback={<p className="activity-info" role="status">正在铺好游戏桌…</p>}><HostedMiniGame key={active.id} pet={pet} session={active} portrait={portrait} happyPortrait={happyPortrait} update={update} /></Suspense>
-        : <MiniGameBoard key={active.id} session={active} portrait={active.game === 'catch' && active.throwResult === 'caught' ? happyPortrait : portrait} ballImage={ballImage} style={pet.miniGames.style} feedback={feedback} onAct={(action) => onAct(active.id, action)} />
-      : <>
-        <div className="play-welcome"><img src={portrait} alt={pet.name} /><div><h3>{L('开心就好，不用拿满分。', 'No perfect scores needed. Just us.')}</h3><p>{L('随时开始，随时休息。每次完成都有心心。', 'Start whenever you like. Take breaks. Every finished game earns hearts.')}</p><span className="activity-heart"><Heart size={16} /> {L(`Lv.${pet.level} · 心心收益随等级一起成长`, `Lv.${pet.level} · Heart rewards grow with your level`)}</span></div></div>
-        <nav className="activity-tabs"><button aria-pressed={tab === 'games'} className={tab === 'games' ? 'selected' : ''} onClick={() => setTab('games')}>{L('小游戏', 'Games')}</button><button aria-pressed={tab === 'memories'} className={tab === 'memories' ? 'selected' : ''} onClick={() => setTab('memories')}>{L('共同回忆', 'Memories')}</button></nav>
-        {!available && <p className="activity-info">伙伴正在休息或忙着别的事，等空闲再一起玩吧。</p>}
-        {active && <section className="paused-game">
-          <h3>{L('上次的一局还留在这里', 'Your game is right where you left it')}</h3><p>{gameName(active.game)} · {L('已暂停，离开期间不计时', 'Paused; time away does not count')}</p>
-          {active.actorId !== actorId && <p>{L('这是与另一位伙伴开始的一局。切回那位伙伴可以继续。', 'This game belongs to another companion. Switch back to continue.')}</p>}
-          <div className="activity-choice"><button className="activity-primary" disabled={!available || active.actorId !== actorId} onClick={() => update((current) => resumeMiniGame(current, actorId, Date.now()))}>{L('继续一起玩', 'Continue playing')}</button><button className="activity-secondary" onClick={() => update(abandonMiniGame)}>{hosted ? '收好进度' : L('结束这一局', 'End this game')}</button></div>
-          {maySwitch && <p className="activity-muted">也可以选下面的其他游戏，每款进度都会保留。</p>}
-        </section>}
-        {tab === 'games' ? <>
-          <div className="play-game-grid play-hub-grid">{miniGameDefinitions.filter(game => isHubGameId(game.id)).map(gameCard)}</div>
-          <h3 className="play-classic-heading">和伙伴互动</h3>
-          <div className="activity-choice mode-choice"><span>{L('节奏', 'Pace')}</span><button aria-pressed={mode === 'gentle'} onClick={() => setMode('gentle')}>{L('轻松 · 有辅助', 'Gentle · assisted')}</button><button aria-pressed={mode === 'normal'} onClick={() => setMode('normal')}>{L('标准', 'Standard')}</button><small>下方三款适用 · 两种模式同等奖励</small></div>
-          <div className="activity-choice play-style-choice" role="group" aria-label={L('翻牌图案', 'Matching cards')}><span>{L('翻牌图案', 'Matching cards')}</span>{([['garden', L('花园', 'Garden')], ['fruit', L('水果', 'Fruit')], ['night', L('星夜', 'Night')]] as const).map(([style, label]) => <button key={style} aria-pressed={pet.miniGames.style === style} onClick={() => update((current) => ({ ...current, miniGames: { ...current.miniGames, style } }))}>{label}</button>)}</div>
-          <div className="play-game-grid">{miniGameDefinitions.filter(game => !isHubGameId(game.id)).map(gameCard)}</div>
-          <button className="activity-link" disabled={!available || Boolean(active)} onClick={onQuickPlay}>{L('只想简单陪玩一下', 'Just a little quick play')}</button>
-          {result && <section className="play-result" aria-live="polite"><img src={happyPortrait} alt="" /><div><small>{L('上次的开心时光', 'OUR LAST HAPPY MOMENT')}</small><h3>{gameName(result.game)}</h3><p className="activity-heart">♥ +{result.hearts}</p><p>{L('已经收好啦，下次还一起玩。', 'All saved. Let’s play again sometime.')}</p></div></section>}
-        </> : <CompanionMemories pet={pet} actorId={actorId} />}
-      </>}
+        : <><div className="play-session-settings"><div role="group" aria-label={L('节奏', 'Pace')}><span>{L('节奏', 'Pace')}</span><button aria-pressed={active.mode === 'gentle'} onClick={() => changeMode('gentle')}>{L('轻松 · 有辅助', 'Gentle · assisted')}</button><button aria-pressed={active.mode === 'normal'} onClick={() => changeMode('normal')}>{L('标准', 'Standard')}</button></div>{active.game === 'matching' && <div role="group" aria-label={L('翻牌图案', 'Matching cards')}><span>图案</span>{([['garden', L('花园', 'Garden')], ['fruit', L('水果', 'Fruit')], ['night', L('星夜', 'Night')]] as const).map(([style, label]) => <button key={style} aria-pressed={pet.miniGames.style === style} onClick={() => { playSfx('tap'); update(current => ({ ...current, miniGames: { ...current.miniGames, style } })); }}>{label}</button>)}</div>}</div><MiniGameBoard key={active.id} session={active} portrait={active.game === 'catch' && active.throwResult === 'caught' ? happyPortrait : portrait} ballImage={ballImage} style={pet.miniGames.style} feedback={feedback} onAct={(action) => onAct(active.id, action)} /></>
+      : tab === 'games' ? <MiniGameEntrance pet={pet} actorId={actorId} portrait={portrait} ballImage={ballImage} mode={mode} available={available} onShop={onShop} onQuickPlay={onQuickPlay} onMemories={() => setTab('memories')} update={update} />
+        : <CompanionMemories pet={pet} actorId={actorId} />}
     </div>
   </DialogShell>;
 };

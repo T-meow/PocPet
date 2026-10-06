@@ -29,15 +29,14 @@
 .community-page .community-scene-heading small { color: var(--community-muted); letter-spacing: 1px; font-size: 11px; }
 .community-page .community-scene-heading h1 { margin: 6px 0 0; font-size: clamp(20px, 2.4vw, 28px); font-weight: 600; line-height: 1.4; }
 .community-page .community-season { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 10px; border-radius: 9px; font-size: 11px; color: #3d638b; background: #edf4ff; }
-.community-page .community-scene-layout { display: grid; grid-template-columns: minmax(0, 1fr) 262px; gap: 20px; align-items: start; margin-bottom: 20px; }
-.community-page .community-scene-card { min-width: 0; overflow: hidden; border: 1px solid var(--community-line); border-radius: 18px; background: #fff; }
+.community-page .community-scene-card { min-width: 0; margin-bottom: 20px; overflow: hidden; border: 1px solid var(--community-line); border-radius: 18px; background: #fff; }
 .community-page .community-place-scene { position: relative; width: 100%; aspect-ratio: 960 / 630; isolation: isolate; }
 .community-page .community-scene-art { display: block; width: 100%; height: auto; }
 .community-page .community-facility-art { pointer-events: none; }
 .community-page .community-facility-art[data-built=false] { filter: grayscale(.85); opacity: .65; }
 .community-page .community-scene-companion { position: absolute; left: 34%; bottom: 4%; width: 10%; height: 18%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 4px 3px #71856422); }
 .community-page [data-scene=fishing] .community-scene-companion { left: 34%; bottom: 22%; }
-.community-page .community-place, .community-page .community-status-link { --place-ink: #426e50; --place-soft: #eaf6ec; --place-line: #cde5d2; }
+.community-page .community-place { --place-ink: #426e50; --place-soft: #eaf6ec; --place-line: #cde5d2; }
 .community-page [data-place=orchard] { --place-ink: #984765; --place-soft: #ffeaf2; --place-line: #edc8d8; }
 .community-page [data-place=coop], .community-page [data-place=kitchen], .community-page [data-tone=gold] { --place-ink: #806324; --place-soft: #fff5d8; --place-line: #ecd7a2; }
 .community-page [data-place=barn], .community-page [data-place=market] { --place-ink: #935d3d; --place-soft: #fff0e5; --place-line: #efd3c0; }
@@ -51,17 +50,14 @@
 .community-page .community-place[data-ready=true] { border-color: var(--place-ink); }
 .community-page .community-place[data-ready=true] .community-place-dot { background: var(--place-ink); color: #fff; border-color: var(--place-ink); }
 .community-page .community-scene-card > footer { display: flex; align-items: center; gap: 7px; padding: 12px 16px; font-size: 11px; color: var(--community-muted); border-top: 1px solid var(--community-line); }
-.community-page .community-today { display: grid; gap: 16px; min-width: 0; }
 .community-page .community-card { min-width: 0; padding: 21px; border: 1px solid var(--community-line); border-radius: 15px; background: #fff; }
 .community-page .community-card h3 { font-size: 16px; font-weight: 600; margin: 0; }
 .community-page .community-card h4 { margin: 12px 0 4px; font-size: 14px; }
 .community-page .community-card p { margin: 10px 0 15px; color: var(--community-muted); font-size: 13px; }
-.community-page .community-next { background: #fff0e5; border-color: #efd3c0; }
-.community-page .community-next > small { display: block; font-size: 10px; color: #935d3d; letter-spacing: 1px; margin-bottom: 9px; }
-.community-page .community-status-link { display: flex; gap: 9px; align-items: center; width: 100%; min-height: 54px; text-align: left; padding: 10px; margin-top: 9px; border: 1px solid var(--place-line); border-radius: 10px; color: var(--place-ink); background: var(--place-soft); }
-.community-page .community-status-link:hover { border-color: var(--place-ink); }
-.community-page .community-status-link > span { flex: 1; font-size: 12px; }
-.community-page .community-status-link small { display: block; color: var(--community-muted); font-size: 10px; }
+.community-page .community-card.community-next { display: flex; flex-wrap: wrap; align-items: center; padding: 6px 14px; margin-bottom: 12px; background: #fff0e5; border-color: #efd3c0; }
+.community-page .community-next > h3 { flex: 1 1 140px; min-width: 0; margin: 4px 12px 4px 0; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+.community-page .community-next > button { flex: 0 0 auto; max-width: 100%; margin: 4px 0; gap: 0; }
+.community-page .community-next > button > svg { flex-shrink: 0; margin-left: 6px; }
 .community-page .primary-button, .community-page .secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 44px; padding: 10px 15px; border: 1px solid #c5d9f0; border-radius: 10px; box-shadow: none; white-space: normal; font-size: 13px; font-weight: 500; }
 .community-page .primary-button { color: var(--brand-on, #fff); background: var(--brand-color, #735593); border-color: var(--brand-color, #735593); }
 .community-page .secondary-button { color: #3d638b; background: #eaf3ff; }
@@ -127,10 +123,6 @@
 @supports (height: 100dvh) {
   .community-page .dialog-shell.community-place-dialog { height: 100dvh; max-height: 100dvh; }
 }
-@media (max-width: 1000px) {
-  .community-page .community-scene-layout { grid-template-columns: minmax(0, 1fr); }
-  .community-page .community-today { grid-template-columns: 1fr 1fr; }
-}
 @media (max-width: 600px) {
   .community-page { padding: 12px; border-radius: 0; border: 0; }
   .community-page .community-header h2 { font-size: 19px; }
@@ -145,7 +137,6 @@
   .community-page .community-place-dot { display: none; }
   .community-page .community-scene-card { border-radius: 13px; }
   .community-page .community-scene-card > footer { padding: 10px; font-size: 10px; }
-  .community-page .community-today { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .community-page .community-card { padding: 16px; }
   .community-page .community-place-dialog > header { padding: max(12px, env(safe-area-inset-top, 0px)) max(15px, env(safe-area-inset-right, 0px)) 12px max(15px, env(safe-area-inset-left, 0px)); }
   .community-page .community-place-dialog > header h2 { font-size: 18px; }

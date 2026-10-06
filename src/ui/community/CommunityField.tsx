@@ -4,6 +4,7 @@ import { careCommunityCrop, getCommunityCropYield, communityCrops, harvestCommun
 import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 import { toolDurabilityLabel } from '../../core/toolDurability';
 import { canSpendCompanionTime } from '../../core/kitchen';
+import { canDoFarmWork } from '../../core/farmNeighbor';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
 import { CommunityProductionScene } from './CommunityProductionScene';
 import type { CommunityPanelProps } from './types';
@@ -14,12 +15,12 @@ import { fieldHelp } from '../help/productionHelp';
 import { itemIcons } from '../../assets';
 
 export const CommunityField = (props: CommunityPanelProps) => {
-  const { pet, update, onExplore, onKitchen, onShop, onAdventure, itemIconMap } = props;
+  const { pet, update, onExplore, onKitchen, onShop, onAdventure, itemIconMap, neighbors } = props;
   const [panel, setPanel] = useState<'care' | 'construction' | null>(null);
   const [selectedId, setSelectedId] = useState(1);
   const [seedChoices, setSeedChoices] = useState<Partial<Record<number, CropId>>>({});
   const c = pet.community, plot = c.plots.find(p => p.id === selectedId) ?? c.plots[0], crop = plot.crop, plotId = plot.id;
-  const free = !pet.timePause && canSpendCompanionTime(pet), now = Date.now();
+  const now = Date.now(), free = canDoFarmWork(pet, now), companionFree = !pet.timePause && canSpendCompanionTime(pet);
   const ready = Boolean(crop && now >= crop.readyAt);
   const growth = crop ? Math.min(1, Math.max(0, (now - crop.plantedAt) / Math.max(1, crop.readyAt - crop.plantedAt))) : 0;
   const status = !c.gardenBuilt ? '踩点结算后免费开放' : ready ? '可以收获了' : crop ? '正在慢慢生长' : '等待播种';
@@ -49,8 +50,8 @@ export const CommunityField = (props: CommunityPanelProps) => {
     {c.gardenBuilt && <section className="community-field-quick" aria-label="菜地快捷操作">
       <div className="community-field-quick-heading"><strong>菜地快捷操作</strong><span>成熟 {maturePlots.length} 块 · 空地 {emptyPlots.length} 块</span></div>
       <div className="community-field-quick-actions">
-        <button type="button" className="primary-button" disabled={!free || !maturePlots.length} onClick={() => update(p => harvestCommunityCrops(p, maturePlots))}>一键收获 · {maturePlots.length} 块</button>
-        <button type="button" className="secondary-button" disabled={!free || !repeatSeeds.length} onClick={() => update(p => plantCommunityCrops(p, repeatSeeds))}>按上次补种 · {repeatSeeds.length} 块</button>
+        <button type="button" className="primary-button" disabled={!free || !maturePlots.length} onClick={() => update(p => harvestCommunityCrops(p, maturePlots, Date.now(), neighbors))}>一键收获 · {maturePlots.length} 块</button>
+        <button type="button" className="secondary-button" disabled={!free || !repeatSeeds.length} onClick={() => update(p => plantCommunityCrops(p, repeatSeeds, Date.now(), neighbors))}>按上次补种 · {repeatSeeds.length} 块</button>
       </div>
       {emptyPlots.length > 0 && <>
         <p className="community-field-quick-note">{repeatSeeds.length ? `本次补种：${repeatSeeds.map(p => `第 ${p.plotId} 块${communityCrops[p.cropId].name}`).join('、')}。` : '按上次补种会沿用各块地的作物，种子不足的地块保留为空地。'}</p>
@@ -61,8 +62,8 @@ export const CommunityField = (props: CommunityPanelProps) => {
           <div className="community-field-seed-detail"><img src={cropIcon(selectedSeed)} alt="" /><span>{seed.hours} 小时 · 收获 {seed.yield} 份 · {getProductionHeartReward(seed.hours)} 心心</span></div>
         </div>
         <div className="community-field-quick-actions">
-          <button type="button" className="primary-button" disabled={!free || Boolean(crop) || seedCount < 1 || Boolean(seedLock)} onClick={() => update(p => plantCommunityCrop(p, plotId, selectedSeed))}>播种第 {plotId} 块 · 种子 ×1</button>
-          {emptyPlots.length > 1 && <button type="button" className="secondary-button" disabled={!free || !selectedSeeds.length} onClick={() => update(p => plantCommunityCrops(p, selectedSeeds))}>播种空地 · {selectedSeeds.length} 块</button>}
+          <button type="button" className="primary-button" disabled={!free || Boolean(crop) || seedCount < 1 || Boolean(seedLock)} onClick={() => update(p => plantCommunityCrop(p, plotId, selectedSeed, Date.now(), neighbors))}>播种第 {plotId} 块 · 种子 ×1</button>
+          {emptyPlots.length > 1 && <button type="button" className="secondary-button" disabled={!free || !selectedSeeds.length} onClick={() => update(p => plantCommunityCrops(p, selectedSeeds, Date.now(), neighbors))}>播种空地 · {selectedSeeds.length} 块</button>}
           <button type="button" className="text-button" onClick={onShop}>补充种子</button>
         </div>
         <p className="community-field-quick-note">{seedLock || (seedCount < 1 ? `${seed.name}种子不足，可更换种子或补充库存。` : crop ? `第 ${plotId} 块已有作物，可切换空地${emptyPlots.length > 1 ? '或批量播种' : ''}。` : `每块地消耗 1 份种子${emptyPlots.length > 1 ? `，本次最多播种 ${selectedSeeds.length} 块，优先第 ${plotId} 块` : ''}。`)}</p>
@@ -74,7 +75,7 @@ export const CommunityField = (props: CommunityPanelProps) => {
       supplies={crop ? `长势 ${Math.floor(growth * 100)}% · 这轮收获 ${getCommunityCropYield(pet, plotId)} 份 · ${getProductionHeartReward(communityCrops[crop.id].hours)} 心心` : c.gardenBuilt ? '16 种作物 · 从一颗种子开始' : '完成并结算新手踩点，菜地自动开放'}
       detail={crop ? ready ? '成熟的作物会一直等你' : `距离成熟 · ${timeLeft(crop.readyAt, now)}` : c.gardenBuilt ? '在上方选种播种，或一键补种上次作物' : '免费开放第 1 块菜地，体力上限永久 +4'}
       harvest={crop ? `${communityCrops[crop.id].name} · ${ready ? '已经成熟' : '正在生长'}` : '这片土地还空着'} harvestDisabled={!free || !c.gardenBuilt || !ready}
-      onHarvest={() => { if (crop) update(p => harvestCommunityCrop(p, plotId, crop.plantedAt)); }} onCare={() => setPanel('care')}
+      onHarvest={() => { if (crop) update(p => harvestCommunityCrop(p, plotId, crop.plantedAt, Date.now(), false, neighbors)); }} onCare={() => setPanel('care')}
       onConstruction={c.gardenBuilt ? () => setPanel('construction') : undefined} />
     {panel === 'construction' && <CommunityUpgradeDialog {...props} id="garden" onClose={() => setPanel(null)} />}
     {panel === 'care' && <CommunityDetailDialog title={c.gardenBuilt ? `照料第 ${plotId} 块菜地` : '开放第一块菜地'} eyebrow="顺着季节，照顾每一颗种子" onClose={() => setPanel(null)}>
@@ -86,22 +87,22 @@ export const CommunityField = (props: CommunityPanelProps) => {
         {selector}
         {crop ? <section className="community-care-section"><h3 className="community-crop-heading"><img src={cropIcon(crop.id)} alt="" /><span>{communityCrops[crop.id].name} · {ready ? '已经成熟' : timeLeft(crop.readyAt, now)}</span></h3><progress aria-label="作物生长进度" max={1} value={growth} /><p>预计收获 {getCommunityCropYield(pet, plotId)} 份 · {getProductionHeartReward(communityCrops[crop.id].hours)} 小心心</p>
           <p>细嘴浇水壶：{toolDurabilityLabel(pet, 'field_watering_can')} · 精收镰刀：{toolDurabilityLabel(pet, 'harvest_sickle')} · 堆肥 {pet.inventory.nutrient_compost ?? 0} 份</p><div className="community-actions">
-            <button className="secondary-button" disabled={!free || ready || crop.watered || !(pet.inventory.field_watering_can ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'water'))}>{crop.watered ? '本轮已浇水' : '浇水 · 生长时间 −20% · 耐久 −1'}</button>
-            <button className="secondary-button" disabled={!free || ready || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'fertilize'))}>{crop.fertilized ? '本轮已施肥 · 产量 +1' : '堆肥 ×1 · 本轮产量 +1'}</button>
-            <button className="primary-button" disabled={!free || !ready || !(pet.inventory.harvest_sickle ?? 0)} onClick={() => update(p => harvestCommunityCrop(p, plotId, crop.plantedAt, Date.now(), true))}>精细收割 {getCommunityCropYield(pet, plotId, true)} 份 · 镰刀耐久 −1</button>
+            <button className="secondary-button" disabled={!free || ready || crop.watered || !(pet.inventory.field_watering_can ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'water', Date.now(), neighbors))}>{crop.watered ? '本轮已浇水' : '浇水 · 生长时间 −20% · 耐久 −1'}</button>
+            <button className="secondary-button" disabled={!free || ready || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)} onClick={() => update(p => careCommunityCrop(p, plotId, crop.plantedAt, 'fertilize', Date.now(), neighbors))}>{crop.fertilized ? '本轮已施肥 · 产量 +1' : '堆肥 ×1 · 本轮产量 +1'}</button>
+            <button className="primary-button" disabled={!free || !ready || !(pet.inventory.harvest_sickle ?? 0)} onClick={() => update(p => harvestCommunityCrop(p, plotId, crop.plantedAt, Date.now(), true, neighbors))}>精细收割 {getCommunityCropYield(pet, plotId, true)} 份 · 镰刀耐久 −1</button>
             <button className="secondary-button" onClick={onShop}>补充种植用具</button>
           </div></section>
           : <section className="community-care-section"><h3>今天想种些什么</h3><div className="community-seed-packets">{(Object.keys(communityCrops) as (keyof typeof communityCrops)[]).filter(id => id !== 'berry' || Boolean(pet.inventory.forest_berry_seed || c.expedition.regions.forest.surveyed)).map(id => {
             const d = communityCrops[id];
-            return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id)); setSeedChoices(previous => ({ ...previous, [plotId]: id })); setPanel(null); }}>
+            return <button type="button" className="community-seed-packet" data-crop={id} key={id} disabled={!free || !(pet.inventory[d.seed] ?? 0) || Boolean(getCropUnlockReason(pet, id))} onClick={() => { update(p => plantCommunityCrop(p, plotId, id, Date.now(), neighbors)); setSeedChoices(previous => ({ ...previous, [plotId]: id })); setPanel(null); }}>
               <img src={cropIcon(id)} alt="" /><strong>{d.name}</strong><small>{d.hours} 小时 · 收获 {d.yield} 份 · {getProductionHeartReward(d.hours)} 心心</small><small>种子库存 {pet.inventory[d.seed] ?? 0}{d.seedPrice ? ` · 原价 ${d.seedPrice}` : ''}</small><b>{getCropUnlockReason(pet, id) || '种下种子 ×1'}</b>
             </button>;
           })}</div></section>}
         <section className="community-care-section"><h3>补充种子</h3><div className="community-actions">
-          <button className="secondary-button" disabled={!free || Boolean(pet.adventure.pending)} onClick={() => onExplore('seeds')}>去溪谷补种子</button>
+          <button className="secondary-button" disabled={!companionFree || Boolean(pet.adventure.pending)} onClick={() => onExplore('seeds')}>去溪谷补种子</button>
           <button className="secondary-button" onClick={onShop}>购买作物种子</button>
         </div></section>
-        <button className="text-button" disabled={!free || !c.herbDiscovered} onClick={() => onKitchen('herb_porridge')}>去厨房做暖粥</button>
+        <button className="text-button" disabled={!companionFree || !c.herbDiscovered} onClick={() => onKitchen('herb_porridge')}>去厨房做暖粥</button>
         <button className="text-button" onClick={() => onKitchen()}>打开厨房与加工台</button>
       </>}
     </CommunityDetailDialog>}

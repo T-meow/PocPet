@@ -1,6 +1,7 @@
 import { getDailyResetDateKey, getWeekStartDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import type { PetState, TimeGuardState } from './petTypes';
 import { isHostedMiniGameSession } from './companionActivityTypes';
+import { rebaseFarmNeighborHelp } from './farmNeighborState';
 
 export const timeGuardSchemaVersion = 1 as const;
 export const severeClockRollbackThresholdMs = 36 * 60 * 60 * 1000;
@@ -78,6 +79,7 @@ const findLatestStoredDailyDateKey = (value: unknown, fallback: string, now: num
     community.boardDay,
     community.seedForageDay,
     object(community.ranchDay).day,
+    object(community.farmNeighbor).hiredDay,
   ].forEach(record);
   recordArray(yearlyStats.activeDateKeys);
   Object.values(companionYears).slice(0, 100).forEach(recordArray);
@@ -272,6 +274,7 @@ const getCalendarDateKey = (value: unknown) => {
 
 export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): PetState => {
   const currentDateKey = getDailyResetDateKey(now);
+  const previousDateKey = normalizeTimeGuardState(pet.timeGuard, pet, now).maxDailyDateKey;
   const loop = pet.community?.expedition?.loop;
   const loopOffset = loop && loop.day > currentDateKey ? Date.parse(currentDateKey + 'T12:00:00Z') - Date.parse(loop.day + 'T12:00:00Z') : 0;
   const rebaseLoopDay = (day: string) => loopOffset ? new Date(Date.parse(day + 'T12:00:00Z') + loopOffset).toISOString().slice(0, 10) : day;
@@ -373,6 +376,7 @@ export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): P
       activityBoard: pet.community.activityBoard?.week > currentDateKey ? { ...pet.community.activityBoard, week: getWeekStartDateKey(currentDateKey) } : pet.community.activityBoard,
       specialtyOrders: pet.community.specialtyOrders ? { ...pet.community.specialtyOrders, acceptedDay: rebaseFutureDateKey(pet.community.specialtyOrders.acceptedDay, currentDateKey) } : pet.community.specialtyOrders,
       ranchDay: pet.community.ranchDay ? { ...pet.community.ranchDay, day: rebaseFutureDateKey(pet.community.ranchDay.day, currentDateKey) } : pet.community.ranchDay,
+      farmNeighbor: rebaseFarmNeighborHelp(pet.community.farmNeighbor, previousDateKey, currentDateKey),
       expedition: pet.community.expedition ? { ...pet.community.expedition,
         loop: loop ? { ...loop, day: rebaseLoopDay(loop.day), vouchers: loop.vouchers.map(v => ({ ...v, day: rebaseLoopDay(v.day) })), heartDays: loop.heartDays.map(v => ({ ...v, day: rebaseLoopDay(v.day) })) } : undefined,
         regions: Object.fromEntries(Object.entries(pet.community.expedition.regions).map(([id, r]) => [id, { ...r, harvestDay: rebaseFutureDateKey(r.harvestDay, currentDateKey) }])) as PetState['community']['expedition']['regions'],

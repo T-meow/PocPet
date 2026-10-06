@@ -17,6 +17,7 @@ export interface ExplorationCheckDefinition {
   risky?: boolean;
   tool?: DurableToolId;
   prepare?: 'focus' | 'meal';
+  practice?: boolean;
 }
 export interface ExplorationCheckState {
   seed: number;
@@ -148,7 +149,7 @@ export const resolveExplorationCheck = (pet: PetState, action: ExplorationCheckA
   const { probability: _probability, ...outcome } = picked;
   return { ...outcome, node: context.node, choiceId: action.id, title: action.title,
     ...(action.check.skill ? { skill: action.check.skill } : {}), skillLevel: preview.skillLevel, difficulty: preview.difficulty, chance: preview.chance,
-    xp: action.check.mode === 'check' && preview.skillLevel < 10 ? 1 : 0,
+    xp: (action.check.mode === 'check' || action.check.practice) && preview.skill && preview.skillLevel < 10 ? 1 : 0,
     ...(action.mealItem ? { mealItem: action.mealItem } : {}), ...(action.check.tool ? { tool: action.check.tool } : {}), ...(action.research ? { researchId: action.research.id } : {}) };
 };
 export const advanceExplorationCheckState = (state: ExplorationCheckState, action: ExplorationCheckAction, result: ExplorationCheckResult): ExplorationCheckState => {

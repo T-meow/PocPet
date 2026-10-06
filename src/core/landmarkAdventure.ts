@@ -43,7 +43,7 @@ export const completeLandmarkStory = (pet: PetState, trip: AdventureTrip, now: n
 export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, choice: AdventureChoice, index: number, now: number): PetState => {
   if (!isLandmarkId(trip.purpose)) return pet;
   const purpose = trip.purpose, { region, node } = parseLandmarkId(purpose), r = expeditionRegionForMap[region];
-  const steps = getLandmarkSteps(purpose), step = steps[index], complete = index + 1 === steps.length;
+  const steps = getLandmarkSteps(purpose, trip.rulesVersion), step = steps[index], complete = index + 1 === steps.length;
   if (!step || trip.stageIds?.includes(step.id)) return pet;
   const harvest = choice.harvest ?? 0;
   if (harvest && (getExplorationBudget(pet, now)?.available ?? 0) < harvest) return { ...pet, recentEvent: '采集机会不足，可以继续观察并完成故事，或等待机会恢复。' };

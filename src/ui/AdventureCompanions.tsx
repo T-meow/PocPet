@@ -1,23 +1,10 @@
 import { useState } from 'react';
 import { Compass, Flag, MessageCircle } from 'lucide-react';
-import { resolvePetStatusImages } from '../assets';
-import type { InstalledPetModSummary } from '../core/mod';
 import { hashString } from '../core/utils';
 import { adventureHallScene } from './adventureScenes';
-
-export interface AdventureCompanion { id: string; name: string; portrait: string }
-const fallbackPortrait = resolvePetStatusImages(null).content;
-
-export const getAdventureCompanions = (mods: readonly InstalledPetModSummary[]): AdventureCompanion[] =>
-  [...new Map([
-    { id: 'official.furo', name: 'Furo', portrait: fallbackPortrait },
-    ...mods.map(mod => ({ id: mod.manifest.id, name: mod.manifest.defaultPetName, portrait: mod.contentImageUrl ?? fallbackPortrait })),
-  ].map(actor => [actor.id, actor])).values()];
-
-export const resolveAdventureCompanion = (roster: readonly AdventureCompanion[], id: string, name?: string): AdventureCompanion => {
-  const actor = roster.find(value => value.id === id);
-  return { id, name: name ?? actor?.name ?? '旅途伙伴', portrait: actor?.portrait ?? fallbackPortrait };
-};
+import type { CompanionPortrait as AdventureCompanion } from './companionRoster';
+export type { CompanionPortrait as AdventureCompanion } from './companionRoster';
+export { getCompanionRoster as getAdventureCompanions, resolveCompanionPortrait as resolveAdventureCompanion } from './companionRoster';
 
 export const AdventureHall = ({ actor, roster, day, traveling }: {
   actor: AdventureCompanion; roster: readonly AdventureCompanion[]; day: string; traveling: boolean;

@@ -33,7 +33,7 @@ export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost, onSh
   const selectedCount = Object.values(quote.common).reduce((sum, n) => sum + n, 0);
   return <DialogShell fullscreen historyNavigation className="decoration-dialog" backdropClassName="decoration-backdrop" labelId="decoration-title" onClose={onClose}>
     <header><div><small>装饰工坊 · {level ? `Lv.${level} / 10` : '制作永久装饰'}</small><h2 id="decoration-title">{definition.name}</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭装饰详情，返回原位置"><X size={22} /></button></header>
-    <div className="decoration-detail-scroll"><div className="decoration-hero"><DecorationArt id={id} level={level} /><p>{definition.description}</p><small>陈列在{decorationEffects[id].place} · 设施未开放时暂放旅途角</small></div>
+    <div className="decoration-detail-scroll"><div className="decoration-hero"><DecorationArt id={id} level={level} /><p>{definition.description}</p><small>陈列在{decorationEffects[id].place} · 设施未开放的装饰可在工坊查看与升级</small></div>
       <section className="decoration-effect-card"><div className="help-heading"><h3><Sparkles size={18} />{level ? '当前永久效果' : '制作后获得'}</h3><HelpButton {...getDecorationHelp(id, level)} /></div><strong>{effectText(id, level || 1)}</strong>{level > 0 && !full && <p>下一级 · {effectText(id, level + 1)}</p>}</section>
       {!full && <section className="decoration-materials"><h3>{level ? `升至 Lv.${level + 1}` : '制作材料'}</h3>{level > 0 && <p>金币 <b>{pet.coins}/{quote.coins}</b>{pet.coins < quote.coins && <em>还差 {quote.coins - pet.coins}</em>}</p>}
         {Object.entries(items).filter(([item]) => !level || !adventureTreasureIds.includes(item as typeof adventureTreasureIds[number])).map(([item, n]) => <p key={item}><span>{itemName(item)}</span><b>{pet.inventory[item] ?? 0}/{n}</b>{missing[item] > 0 && <em>还差 {missing[item]}</em>}</p>)}
@@ -47,26 +47,22 @@ export const DecorationDetail = ({ pet, update, id, onClose, onOpenOutpost, onSh
   </DialogShell>;
 };
 
-const decorationPositions = (pet: PetState): Record<CommunityDecorationId, [number, number, boolean]> => {
+const decorationPositions = (pet: PetState): Record<Exclude<CommunityDecorationId, 'star_dome'>, [number, number, boolean]> => {
   const c = pet.community;
   return {
     amber_lantern: [61, 73, true], golden_sign: [16, 72, c.facilities.stall.built], creek_fountain: [33, 53, c.gardenBuilt],
     sun_weather_vane: [65, 18, c.facilities.coop.built || c.facilities.barn.built], emerald_pendant: [61, 49, true],
-    pearl_lamp: [59, 67, c.facilities.fishing_hut.built], star_dome: [72, 92, true],
+    pearl_lamp: [59, 67, c.facilities.fishing_hut.built],
   };
 };
 export const DecorationScene = ({ pet, fishing, onSelect }: { pet: PetState; fishing: boolean; onSelect: (id: CommunityDecorationId) => void }) => {
   const positions = decorationPositions(pet);
   return <>{communityDecorationIds.flatMap(id => {
     const level = getDecorationLevel(pet, id);
+    if (!level || id === 'star_dome') return [];
     const [x, y, host] = positions[id];
-    if (!level || !host || id === 'star_dome') return [];
+    if (!host) return [];
     if (fishing !== (id === 'pearl_lamp' && host)) return [];
     return [<button key={id} type="button" className="decoration-scene-object" style={{ '--decoration-x': `${x}%`, '--decoration-y': `${y}%` } as CSSProperties} aria-label={`${communityDecorations[id].name} Lv.${level}，查看效果与升级`} aria-haspopup="dialog" onClick={() => onSelect(id)}><DecorationArt id={id} level={level} /></button>];
   })}</>;
-};
-export const DecorationCorner = ({ pet, onSelect }: { pet: PetState; onSelect: (id: CommunityDecorationId) => void }) => {
-  const positions = decorationPositions(pet);
-  const ids = communityDecorationIds.filter(id => getDecorationLevel(pet, id) && (id === 'star_dome' || !positions[id][2]));
-  return ids.length ? <div className="decoration-corner" aria-label="农场旅途角"><small>旅途角</small><div>{ids.map(id => <button type="button" key={id} aria-haspopup="dialog" aria-label={`${communityDecorations[id].name}，查看效果与升级`} onClick={() => onSelect(id)}><DecorationArt id={id} level={getDecorationLevel(pet, id)} /><span>{communityDecorations[id].name}</span></button>)}</div></div> : null;
 };

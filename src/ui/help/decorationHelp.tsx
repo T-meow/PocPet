@@ -22,7 +22,7 @@ const timing: Record<CommunityDecorationId, string> = {
 };
 export const decorationsHelp: HelpContent = {
   title: '装饰工坊',
-  overview: <><p>从农场首屏的「装饰工坊」进入，查看全部装饰、制作与升级材料。制作后自动陈列，所有装饰同时提供永久加成，每件最高十级。材料可以从各地探索中收集。</p><p>铭牌、叶影灯和水景还能吸引更多客人，客流加成相加，最高 +100%。加成从下一轮到访等待生效，当前等待时间保留。</p></>,
+  overview: <><p>从农场首屏的「装饰工坊」进入，查看全部装饰、制作与升级材料。制作后在小窝或已开放的设施旁自动陈列，所有装饰同时提供永久加成，每件最高十级。材料可以从各地探索中收集。</p><p>小窝里的星辉穹顶模型通往溪畔小摊，月潮贝灯通往钓鱼小屋；装饰的效果与升级可在工坊查看。</p><p>铭牌、叶影灯和水景还能吸引更多客人，客流加成相加，最高 +100%。加成从下一轮到访等待生效，当前等待时间保留。</p></>,
 };
 export const getDecorationHelp = (id: CommunityDecorationId, level: number): HelpContent => {
   const material = level ? decorationEffects[id].treasure : communityDecorations[id].material;

@@ -97,7 +97,8 @@ type GardenActionDialog = { kind: 'plant' | 'manage'; slotIndex: number } | { ki
 export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.back'), embedded = false, onUnlockSlot, onPlantTree, onRecycleSapling, onWater, onFertilize, onNutrient, onHarvest, onClear, onUpgradeTool, onOpenShop, compensationCoins = 0, onClaimCompensation }: GardenPageProps) => {
   const [actionDialog, setActionDialog] = useState<GardenActionDialog>(null);
   const [fertilizerQuantities, setFertilizerQuantities] = useState<Record<number, number>>({});
-  const blockedReason = getGardenActionBlockedReason(pet), canAct = !blockedReason;
+  const blockedReason = getGardenActionBlockedReason(pet, Date.now(), true), canAct = !blockedReason;
+  const manageBlockedReason = getGardenActionBlockedReason(pet), canManage = !manageBlockedReason;
   const now = Date.now();
   const effectiveDateKey = getEffectiveDailyDateKey(pet, now);
   const view = getGardenView(pet, now);
@@ -130,13 +131,14 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
           <button type="button" className="secondary-button" disabled={!canAct} onClick={() => setActionDialog({ kind: 'tools' })}><Wrench size={17} />{t('ui.garden.toolsButton')}</button>
         </div>
         {onClaimCompensation && compensationCoins > 0 && (
-          <button type="button" className="secondary-button garden-board-gift" disabled={!canAct} onClick={onClaimCompensation}>
+          <button type="button" className="secondary-button garden-board-gift" disabled={!canManage} onClick={onClaimCompensation}>
             <img src={giftBoxIcon} alt="" aria-hidden="true" />
             {t('ui.garden.compensationGiftLabel', { coins: compensationCoins })}
           </button>
         )}
         <HelpButton {...orchardHelp} />
         {blockedReason && <p className="garden-practice-hint" role="status">{blockedReason}</p>}
+        {!blockedReason && manageBlockedReason && <p className="garden-practice-hint">邻居可以代办种植、照料和收获；解锁、清树、回收树苗与工具升级要等伙伴空闲。</p>}
         <div className="garden-plot-grid">
           {view.garden.slots.map((plot) => {
             const plotView = view.slotViews[plot.slotIndex];
@@ -175,11 +177,11 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
                 {state === 'growing' && <span className="garden-progress"><i style={{ width: `${plotView?.progressPercent ?? 0}%` }} /></span>}
                 {plot.hasNutrientBoost && state === 'growing' && <small>{L('下次收获有额外产物', 'Extra produce next harvest')}</small>}
                 <div className="garden-plot-actions">
-                  {state === 'locked' && <button type="button" className="primary-button" disabled={!canAct || pet.coins < unlockCost} onClick={() => onUnlockSlot(plot.slotIndex)}>{t('ui.garden.unlockSlot', { coins: unlockCost })}</button>}
+                  {state === 'locked' && <button type="button" className="primary-button" disabled={!canManage || pet.coins < unlockCost} onClick={() => onUnlockSlot(plot.slotIndex)}>{t('ui.garden.unlockSlot', { coins: unlockCost })}</button>}
                   {state === 'empty' && <button type="button" className="primary-button garden-plant-button" disabled={!canAct} onClick={() => setActionDialog({ kind: 'plant', slotIndex: plot.slotIndex })}><Sprout size={18} />{t('ui.garden.chooseSapling')}</button>}
                   {state === 'growing' && <button type="button" className="garden-choice" disabled={!canAct || wateredToday || waterPreview.actualReductionMs <= 0} onClick={() => onWater(plot.slotIndex)}><Droplets size={18} /><span><strong>{t('ui.garden.actions.water')}</strong><small>{wateredToday ? L('今天已浇水', 'Watered today') : getGardenCarePreviewText(waterPreview)}</small></span></button>}
                   {state === 'ready' && <button type="button" className="primary-button garden-harvest-button" disabled={!canAct} onClick={() => onHarvest(plot.slotIndex)}>{t('ui.garden.actions.harvest')} · {getProductionHeartReward(gardenTreeDefinitions[plot.treeId!].harvestCooldownMs / 3600000)} 心心</button>}
-                  {state === 'withered' && <button type="button" className="danger-button" disabled={!canAct || pet.coins < clearCost} onClick={() => onClear(plot.slotIndex)}>{t('ui.garden.actions.clear', { coins: clearCost })}</button>}
+                  {state === 'withered' && <button type="button" className="danger-button" disabled={!canManage || pet.coins < clearCost} onClick={() => onClear(plot.slotIndex)}>{t('ui.garden.actions.clear', { coins: clearCost })}</button>}
                   {(state === 'growing' || state === 'ready') && <button type="button" className="secondary-button garden-manage-button" disabled={!canAct} aria-haspopup="dialog" onClick={() => setActionDialog({ kind: 'manage', slotIndex: plot.slotIndex })}><Wrench size={16} aria-hidden="true" />{state === 'growing' ? L('施肥 / 管理', 'Feed / manage') : L('管理树木', 'Manage tree')}</button>}
                 </div>
               </article>
@@ -208,7 +210,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
                         </>}
                       </>}
                       {state === 'ready' && <button type="button" className="primary-button garden-harvest-button" disabled={!canAct} onClick={() => { setActionDialog(null); onHarvest(plot.slotIndex); }}>{t('ui.garden.actions.harvest')}</button>}
-                      <button type="button" className="danger-button" disabled={!canAct || pet.coins < clearCost} onClick={() => { setActionDialog(null); onClear(plot.slotIndex); }}>{t('ui.garden.actions.remove', { coins: clearCost })}</button>
+                      <button type="button" className="danger-button" disabled={!canManage || pet.coins < clearCost} onClick={() => { setActionDialog(null); onClear(plot.slotIndex); }}>{t('ui.garden.actions.remove', { coins: clearCost })}</button>
                 </div>
               </DialogShell>}
               </Fragment>
@@ -265,7 +267,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
                           {t('ui.garden.plantAction')}
                         </button>
                         {recycleCoins > 0 && (
-                          <button type="button" className="secondary-button" disabled={!canAct || count <= 0} onClick={() => onRecycleSapling(treeId)}>
+                          <button type="button" className="secondary-button" disabled={!canManage || count <= 0} onClick={() => onRecycleSapling(treeId)}>
                             <Recycle size={16} aria-hidden="true" />
                             {t('ui.garden.recycleSapling', { coins: recycleCoins })}
                           </button>
@@ -293,7 +295,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
                       <small>{toolId === 'watering_can' ? L(`浇水基础减时 ${getGardenWaterReductionPercent(pet.garden.tools)}%`, `Base watering reduction ${getGardenWaterReductionPercent(pet.garden.tools)}%`) : toolId === 'shovel' ? L(`清理费：普通树 ${getGardenClearCost(pet.garden.tools, 'fruit_tree')}／高级树 ${getGardenClearCost(pet.garden.tools, 'money_tree')}`, `Clearing: ordinary ${getGardenClearCost(pet.garden.tools, 'fruit_tree')} / advanced ${getGardenClearCost(pet.garden.tools, 'money_tree')}`) : L(`施肥减时：普通 ${getGardenFertilizerReductionPercent(pet.garden.tools, 'normal')}%／爱心 ${getGardenFertilizerReductionPercent(pet.garden.tools, 'heart')}%`, `Fertilizer reduction: normal ${getGardenFertilizerReductionPercent(pet.garden.tools, 'normal')}% / heart ${getGardenFertilizerReductionPercent(pet.garden.tools, 'heart')}%`)}</small>
                       <small>{cost > 0 ? t('ui.garden.toolUpgrade', { level: level + 1, coins: cost }) : t('ui.garden.maxTool')}</small>
                     </div>
-                    <button type="button" className="primary-button" disabled={!canAct || cost <= 0 || pet.coins < cost} onClick={() => onUpgradeTool(toolId)}>
+                    <button type="button" className="primary-button" disabled={!canManage || cost <= 0 || pet.coins < cost} onClick={() => onUpgradeTool(toolId)}>
                       {cost > 0 ? t('ui.garden.upgradeTool') : t('ui.garden.maxTool')}
                     </button>
                   </article>

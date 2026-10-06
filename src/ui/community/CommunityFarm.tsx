@@ -4,6 +4,7 @@ import { animalHelp } from '../help/productionHelp';
 import { animalNameMaxLength, animals, facilities, normalizeAnimalName, ranchCompostCycleCount } from '../../core/communityData';
 import { careCommunityAnimal, collectCommunityAnimal, collectRanchCompost, feedCommunityAnimal, getAnimalHarvestHearts, getRanchCompost, getRanchDay, claimRanchMilk, renameCommunityAnimal } from '../../core/communityFarm';
 import { canSpendCompanionTime } from '../../core/kitchen';
+import { canDoFarmWork, getFarmAnimalCareEnergy } from '../../core/farmNeighbor';
 import { getProcessingLimit, processFood, processingRecipes } from '../../core/foodProcessing';
 import { inventoryItemLimit } from '../../core/saveMetadata';
 import type { AnimalId } from '../../core/communityTypes';
@@ -16,12 +17,13 @@ import { CommunityUpgradeDialog } from './CommunityUpgradeTask';
 
 const feedRecipes = processingRecipes.filter(recipe => recipe.output === 'animal_feed');
 
-const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap }: CommunityPanelProps & { id: AnimalId }) => {
+const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap, neighbors }: CommunityPanelProps & { id: AnimalId }) => {
   const [panel, setPanel] = useState<'care' | 'construction' | null>(null);
   const [naming, setNaming] = useState(false), [draftName, setDraftName] = useState('');
   const nameInputId = useId();
   const state = pet.community.animals[id], built = pet.community.facilities[id].built;
-  const def = animals[id], free = !pet.timePause && canSpendCompanionTime(pet), name = facilities[id].name;
+  const def = animals[id], free = canDoFarmWork(pet), companionFree = !pet.timePause && canSpendCompanionTime(pet), name = facilities[id].name;
+  const careEnergy = getFarmAnimalCareEnergy(pet);
   const defaultName = id === 'coop' ? '小鸡' : '奶牛', animalName = state.name || defaultName;
   const daily = getRanchDay(pet), capacity = getAnimalCapacity(pet.community, id);
   const feedQuantity = Math.max(0, Math.min(capacity.feed - state.feed, pet.inventory.animal_feed ?? 0));
@@ -40,7 +42,7 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
       status={status} detail={detail} supplies={`Lv.${pet.community.upgrades[id]} · 饲料 ${state.feed}/${capacity.feed} · 待收 ${state.stock}/${capacity.stock}${compost.ready ? ` · 牧场堆肥待领 ${compost.ready}` : ''}${id === 'barn' && daily.cared && daily.collected && !daily.claimed ? ' · 照料窗口有今日牛奶可领' : ''}`}
       harvest={state.stock ? `${def.name} ×${state.stock} · ${getAnimalHarvestHearts(id, state.stock)} 心心` : `${def.name}还在准备中`} ready={state.stock > 0}
       stock={state.stock} feed={state.feed} harvestDisabled={!free || !built || !state.stock}
-      onHarvest={() => update(p => collectCommunityAnimal(p, id, state.revision))} onCare={() => setPanel('care')}
+      onHarvest={() => update(p => collectCommunityAnimal(p, id, state.revision, Date.now(), neighbors))} onCare={() => setPanel('care')}
       onConstruction={built ? () => setPanel('construction') : undefined} />
     {panel === 'construction' && <CommunityUpgradeDialog pet={pet} update={update} id={id} registry={registry} itemIconMap={itemIconMap} onClose={() => setPanel(null)} />}
     {panel === 'care' && <CommunityDetailDialog title={`照料${name}`} eyebrow="添一点饲料，陪它待一会儿" onClose={() => setPanel(null)}>
@@ -48,18 +50,18 @@ const AnimalScene = ({ pet, update, onKitchen, onShop, id, registry, itemIconMap
       {!built ? <p>完成{name}的修复后，就能在这里喂养和收获。</p> : <>
         <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong className="community-animal-name-word">{animalName} · {status}</strong><p>每轮产出 2 份 · {getAnimalHarvestHearts(id, 2)} 心心{state.nextAt !== undefined ? ` · 剩余 ${timeLeft(state.nextAt)}` : ''}</p><button type="button" className="text-button" aria-haspopup="dialog" onClick={openNaming}>{state.name ? '改个名字' : `给${id === 'coop' ? '鸡群' : '奶牛'}起名`}</button></div></div>
         <section className="community-care-section"><h3>把食槽添满一点</h3><p>食槽 {state.feed}/{capacity.feed} · 饲料库存 {pet.inventory.animal_feed ?? 0}</p><div className="community-actions">
-          <button className="primary-button" disabled={!free || state.feed >= capacity.feed || !(pet.inventory.animal_feed ?? 0)} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision))}>添饲料 ×1</button>
-          <button className="secondary-button" disabled={!free || !feedQuantity} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision, feedQuantity))}>{feedQuantity && feedQuantity < capacity.feed - state.feed ? '添入全部' : '添满食槽'}{feedQuantity ? ` ×${feedQuantity}` : ''}</button>
+          <button className="primary-button" disabled={!free || state.feed >= capacity.feed || !(pet.inventory.animal_feed ?? 0)} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision, 1, Date.now(), neighbors))}>添饲料 ×1</button>
+          <button className="secondary-button" disabled={!free || !feedQuantity} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision, feedQuantity, Date.now(), neighbors))}>{feedQuantity && feedQuantity < capacity.feed - state.feed ? '添入全部' : '添满食槽'}{feedQuantity ? ` ×${feedQuantity}` : ''}</button>
           <button className="secondary-button" onClick={onShop}>补充饲料 · 5 金币／份</button>
         </div></section>
-        <section className="community-care-section"><h3>把作物变成饲料</h3><p>收获的小麦或甜玉米可以免费制成饲料，先放入仓库，再添进食槽。</p><div className="community-actions">{feedRecipes.map(recipe => <button key={recipe.id} className="secondary-button" disabled={!free || !getProcessingLimit(pet, recipe.id)} onClick={() => update(p => processFood(p, recipe.id, 1, processingRevision))}>{Object.entries(recipe.inputs).map(([item, count]) => `${itemName(item)} ×${count}`).join('、')} → 饲料 ×{recipe.quantity}</button>)}</div><p>小麦库存 {pet.inventory.wheat ?? 0} · 甜玉米库存 {pet.inventory.sweet_corn ?? 0}{feedRecipes.every(recipe => (pet.inventory.animal_feed ?? 0) + recipe.quantity > inventoryItemLimit) ? ' · 饲料仓库不足以放下 1 批' : ''}</p><button type="button" className="text-button" onClick={() => onKitchen()}>去厨房加工台批量制作</button></section>
-        <section className="community-care-section"><h3>牧场堆肥 · 回到菜地</h3><p>鸡舍和牛棚合计每完成 {ranchCompostCycleCount} 轮生产，就得到 1 份营养堆肥。收获蛋奶时自动收好，给菜地施肥可让本轮增产 1 份。</p><p>下一份进度 {compost.progress}/{ranchCompostCycleCount} 轮 · 待领 {compost.ready} 份 · 库存 {compostStock} 份</p>{compost.ready > 0 && <><button type="button" className="secondary-button" disabled={!free || !compostQuantity} onClick={() => update(p => collectRanchCompost(p))}>收好堆肥{compostQuantity ? ` ×${compostQuantity}` : ''}</button>{compostQuantity < compost.ready && <p>仓库放不下的堆肥会留在牧场，腾出空间后可以回来领取。</p>}</>}</section>
-        <section className="community-care-section"><h3>陪伴也是照料</h3><p>{state.cared ? '这轮已经照料过了，让它安心等下一次收获。' : '消耗 2 点体力，让这一轮提前 10% 完成。'}{state.nextAt !== undefined ? `下轮还需 ${timeLeft(state.nextAt)}。` : ''}</p>
-          <button className="secondary-button" disabled={!free || !state.nextAt || state.cared || pet.energy < 2} onClick={() => update(p => careCommunityAnimal(p, id, state.revision))}>{state.cared ? '本轮已照料' : '照料一下 · 体力 −2'}</button>
+        <section className="community-care-section"><h3>把作物变成饲料</h3><p>收获的小麦或甜玉米可以免费制成饲料，先放入仓库，再添进食槽。</p><div className="community-actions">{feedRecipes.map(recipe => <button key={recipe.id} className="secondary-button" disabled={!companionFree || !getProcessingLimit(pet, recipe.id)} onClick={() => update(p => processFood(p, recipe.id, 1, processingRevision))}>{Object.entries(recipe.inputs).map(([item, count]) => `${itemName(item)} ×${count}`).join('、')} → 饲料 ×{recipe.quantity}</button>)}</div><p>小麦库存 {pet.inventory.wheat ?? 0} · 甜玉米库存 {pet.inventory.sweet_corn ?? 0}{feedRecipes.every(recipe => (pet.inventory.animal_feed ?? 0) + recipe.quantity > inventoryItemLimit) ? ' · 饲料仓库不足以放下 1 批' : ''}</p><button type="button" className="text-button" onClick={() => onKitchen()}>去厨房加工台批量制作</button></section>
+        <section className="community-care-section"><h3>牧场堆肥 · 回到菜地</h3><p>鸡舍和牛棚合计每完成 {ranchCompostCycleCount} 轮生产，就得到 1 份营养堆肥。收获蛋奶时自动收好，给菜地施肥可让本轮增产 1 份。</p><p>下一份进度 {compost.progress}/{ranchCompostCycleCount} 轮 · 待领 {compost.ready} 份 · 库存 {compostStock} 份</p>{compost.ready > 0 && <><button type="button" className="secondary-button" disabled={!free || !compostQuantity} onClick={() => update(p => collectRanchCompost(p, Date.now(), neighbors))}>收好堆肥{compostQuantity ? ` ×${compostQuantity}` : ''}</button>{compostQuantity < compost.ready && <p>仓库放不下的堆肥会留在牧场，腾出空间后可以回来领取。</p>}</>}</section>
+        <section className="community-care-section"><h3>陪伴也是照料</h3><p>{state.cared ? '这轮已经照料过了，让它安心等下一次收获。' : careEnergy ? '消耗 2 点体力，让这一轮提前 10% 完成。' : '邻居帮忙照料，不消耗伙伴体力，让这一轮提前 10% 完成。'}{state.nextAt !== undefined ? `下轮还需 ${timeLeft(state.nextAt)}。` : ''}</p>
+          <button className="secondary-button" disabled={!free || !state.nextAt || state.cared || pet.energy < careEnergy} onClick={() => update(p => careCommunityAnimal(p, id, state.revision, Date.now(), neighbors))}>{state.cared ? '本轮已照料' : careEnergy ? '照料一下 · 体力 −2' : '请邻居照料 · 不耗体力'}</button>
         </section>
         <p className="community-care-footnote">待收{def.name} {state.stock}/{capacity.stock} · 仓库 {pet.inventory[def.item] ?? 0} 份</p>
-        <button className="text-button" disabled={!free} onClick={() => onKitchen(id === 'coop' ? 'carrot_omelet' : 'milk_custard')}>用收获做{id === 'coop' ? '胡萝卜蛋饼' : '鲜奶蛋羹'}</button>
-        {id === 'barn' && <section className="community-care-section"><h3>牧场今日心意 · 任选一瓶</h3><p>照料 {daily.cared ? '✓' : '○'} · 收获 {daily.collected ? '✓' : '○'} · {daily.claimed ? '今天已领取' : '完成后任选'}</p><div className="community-actions">{(['strawberry_milk', 'ad_milk'] as const).map(choice => <button key={choice} className="secondary-button" disabled={!free || !daily.cared || !daily.collected || daily.claimed || (pet.inventory[choice] ?? 0) >= inventoryItemLimit} onClick={() => update(p => claimRanchMilk(p, choice))}>{choice === 'ad_milk' ? 'AD 高钙奶' : '草莓牛奶'} ×1</button>)}</div><button className="text-button" onClick={() => onKitchen()}>去厨房加工奶制品</button></section>}
+        <button className="text-button" disabled={!companionFree} onClick={() => onKitchen(id === 'coop' ? 'carrot_omelet' : 'milk_custard')}>用收获做{id === 'coop' ? '胡萝卜蛋饼' : '鲜奶蛋羹'}</button>
+        {id === 'barn' && <section className="community-care-section"><h3>牧场今日心意 · 任选一瓶</h3><p>照料 {daily.cared ? '✓' : '○'} · 收获 {daily.collected ? '✓' : '○'} · {daily.claimed ? '今天已领取' : '完成后任选'}</p><div className="community-actions">{(['strawberry_milk', 'ad_milk'] as const).map(choice => <button key={choice} className="secondary-button" disabled={!free || !daily.cared || !daily.collected || daily.claimed || (pet.inventory[choice] ?? 0) >= inventoryItemLimit} onClick={() => update(p => claimRanchMilk(p, choice, Date.now(), neighbors))}>{choice === 'ad_milk' ? 'AD 高钙奶' : '草莓牛奶'} ×1</button>)}</div><button className="text-button" onClick={() => onKitchen()}>去厨房加工奶制品</button></section>}
       </>}
       <p role="status">{pet.recentEvent}</p>
     </CommunityDetailDialog>}

@@ -502,13 +502,23 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     setCommunityPlace(fishing.active || fishing.pending ? 'pond' : null);
     setActivePage('community');
   };
+  const handleOpenMarket = () => {
+    setCommunityTab('village');
+    setCommunityPlace('market');
+    setActivePage('community');
+  };
+  const handleOpenFishing = () => {
+    setCommunityTab('fishing');
+    setCommunityPlace(null);
+    setActivePage('community');
+  };
   const handleOpenOutpost = (request?: OutpostRequest) => {
     setCommunityRoute(undefined);
     setOutpostRequest(request);
     setActivePage('adventure');
   };
 
-  const gardenController = useGardenController({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock });
+  const gardenController = useGardenController({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock, neighbors });
   const rewardController = useRewardController({ pet, setPet: setPetWithEventFeedback, commitPet, hasLoadedModRef, playAfterUnlock });
   const {
     clearConfirm: gardenClearConfirm,
@@ -1621,7 +1631,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     resumeTime();
   }} persistenceError={persistenceError} onRetry={retryPersistence} />;
   return (
-    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
+    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}${activePage === 'commonDreams' ? ' app-shell--dreams' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); setActivePage('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
@@ -1706,6 +1716,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'partnerSchedule' ? (
         <PartnerSchedulePage
           pet={pet}
+          portrait={petStatusImageMap.content}
+          activityImages={activeMod ? activeMod.petImageUrls : petActivityImageMap}
           itemIconMap={itemIconMap}
           neighbors={neighbors}
           onBack={handleClosePartnerSchedule}
@@ -1722,7 +1734,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
-        <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+        <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} installedMods={installedMods} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
           orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
             onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}
@@ -1736,6 +1748,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
           pet={pet}
+          portrait={petActivityImageMap.happy ?? petStatusImageMap.content}
+          projectImages={{
+            study: petActivityImageMap.reading_books ?? petStatusImageMap.content,
+            cooking: petActivityImageMap.work_food ?? petStatusImageMap.content,
+            garden: petActivityImageMap.work_plants ?? petStatusImageMap.content,
+            exercise: petActivityImageMap.workout ?? petStatusImageMap.content,
+          }}
+          itemIconMap={itemIconMap}
           onBack={handleCloseCommonDreams}
           onInvestProject={(category: PartnerScheduleCategory, coins: number) => commitEndgameAction((current) => investDreamProject(current, category, coins))}
           onCompleteProjectStage={(category: PartnerScheduleCategory) => commitEndgameAction((current) => completeDreamProjectStage(current, category))}
@@ -1757,6 +1777,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           actorId={actorId}
           adventure={{ status: 'available', traveling: Boolean(pet.adventure.active || pet.community.expedition.active), pending: Boolean(pet.adventure.pending || pet.community.expedition.pending), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
+          onOpenMarket={handleOpenMarket}
+          onOpenFishing={handleOpenFishing}
           hasAchievementNotice={hasAchievementNotice}
           onOpenShop={() => handleOpenShop()}
           onOpenAchievements={handleOpenAchievements}

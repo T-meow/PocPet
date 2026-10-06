@@ -14,6 +14,9 @@ import type { FestivalId } from '../core/festivalCalendar';
 import type { HomePageProps } from './HomePage';
 import { hasFestivalReward } from '../core/festivalStories';
 import { ClaimNotice } from './ClaimNotice';
+import { getDecorationLevel } from '../core/decorationEffects';
+import { DecorationArt } from './community/TreasureDisplay';
+import '../styles/decorations.css';
 
 interface Props extends HomePageProps {
   actorId: string;
@@ -27,6 +30,8 @@ interface Props extends HomePageProps {
   onOpenFestival?: (festival: FestivalId) => void;
   onOpenShop: () => void;
   onOpenCommunity?: () => void;
+  onOpenMarket: () => void;
+  onOpenFishing: () => void;
   onOpenAchievements: () => void;
   onOpenNotices?: () => void;
   onOpenAppearance?: () => void;
@@ -40,6 +45,12 @@ export const HomePageV2 = (props: Props) => {
   const welcome = getReturnWelcomeView(pet);
   const companionWish = getCompanionWish(pet, actorId);
   const friendGiftReady = canClaimBoostCardDailyReward(pet);
+  const starDomeLevel = getDecorationLevel(pet, 'star_dome');
+  const pearlLampLevel = getDecorationLevel(pet, 'pearl_lamp');
+  const roomDecorations = starDomeLevel > 0 || pearlLampLevel > 0 ? <nav className="home-room-decorations" aria-label="小窝装饰入口">
+    {starDomeLevel > 0 && <button type="button" className="home-room-decoration home-room-decoration--market" onClick={props.onOpenMarket} title="星辉穹顶模型 · 前往溪畔小摊" aria-label={`星辉穹顶模型 Lv.${starDomeLevel}，前往溪畔小摊`}><DecorationArt id="star_dome" level={starDomeLevel} /><span className="home-room-decoration-label">溪畔小摊</span></button>}
+    {pearlLampLevel > 0 && <button type="button" className="home-room-decoration home-room-decoration--fishing" onClick={props.onOpenFishing} title="月潮贝灯 · 前往钓鱼小屋" aria-label={`月潮贝灯 Lv.${pearlLampLevel}，前往钓鱼小屋`}><DecorationArt id="pearl_lamp" level={pearlLampLevel} /><span className="home-room-decoration-label">钓鱼小屋</span></button>}
+  </nav> : undefined;
   const gardenGiftReady = props.gardenReminder === 'ready' || !pet.claimedRewardIds.includes(gardenCompensationRewardId);
   const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending)
     || pet.community.tasks.some(task => task.found) || Object.values(pet.community.animals).some(state => state.stock > 0)
@@ -65,7 +76,7 @@ export const HomePageV2 = (props: Props) => {
     : props.isCriticallyHungry ? t('ui.actionDock.lowHunger')
       : props.isLowEnergy ? t('ui.actionDock.lowEnergy') : L('消耗体力，恢复心情', 'Spend energy to lift their mood');
   return <div className="home-v2"><div className="home-v2-title"><div><p>OUR LITTLE HOME</p><h2>{L(`${pet.name} 的小窝`, `${pet.name}’s little home`)}</h2></div><span>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} together`)}</span></div>
-    <div className="home-v2-grid"><section className="home-companion-card"><div className="home-room"><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} onOpenAppearance={props.onOpenAppearance} /></div><button className="home-event" onClick={props.onOpenNotices} aria-label={L('查看完整消息', 'Read full message')}><span>✦</span><p>{pet.recentEvent}</p><span>›</span></button>
+    <div className="home-v2-grid"><section className="home-companion-card"><div className="home-room"><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} roomDecorations={roomDecorations} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} onOpenAppearance={props.onOpenAppearance} /></div><button className="home-event" onClick={props.onOpenNotices} aria-label={L('查看完整消息', 'Read full message')}><span>✦</span><p>{pet.recentEvent}</p><span>›</span></button>
       <CompanionStatus pet={pet} />
       <nav className="home-care-bar" aria-label={L('日常照顾', 'Daily care')}>
         <button onClick={onOpenInventory}><PackageOpen size={20} />{L('背包 / 喂食', 'Bag / Feed')}</button>

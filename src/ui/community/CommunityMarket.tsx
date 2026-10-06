@@ -17,10 +17,14 @@ import { CommunityDetailDialog } from './CommunityDetailDialog';
 import { CommunityMarketArt } from './CommunityMarketArt';
 import { DishValueBadge } from '../DishValueBadge';
 import type { CommunityPanelProps } from './types';
+import { genericNeighbor, type CompanionPortrait } from '../companionRoster';
+import { CompanionDuty } from './CompanionDuty';
 
 const customerNames = { ordinary: '邻里客人', foodie: '美食客人', collector: '收藏客人', generous: '慷慨游客', legacy: '成交记录' };
 
-export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, onToggleItemFavorite }: CommunityPanelProps) => {
+export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, onToggleItemFavorite, currentCompanion, substituting, companionRoster = [] }: CommunityPanelProps & { currentCompanion: CompanionPortrait; substituting: boolean; companionRoster?: readonly CompanionPortrait[] }) => {
+  const [dutyId] = useState(() => companionRoster[Math.floor(Math.random() * companionRoster.length)]?.id);
+  const dutyCompanion = substituting ? companionRoster.find(actor => actor.id === dutyId) ?? genericNeighbor : currentCompanion;
   const name = (id: string) => registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id;
   const icons: Partial<Record<string, string>> = itemIconMap ?? itemIcons;
   const icon = (id: string) => icons[id] ?? registry?.get(id)?.imageUrl ?? unknownItemIcon;
@@ -58,6 +62,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
     <section className="community-production-scene community-market-scene" data-production-scene="market" data-open={m.open} aria-label="溪畔小摊场景">
       <header className="community-production-heading"><div><small>溪畔小摊 · Lv.{m.level}</small><h3>{m.open ? '把今天的好东西，摆出来' : '小摊在这里，等你开张'}</h3></div><span className="community-scene-status"><i />{m.open ? '开门迎客' : '收摊休息'}</span></header>
       <div className="community-production-view"><CommunityMarketArt market={m} iconFor={icon} nameFor={name} visitor={visitor} />
+        {m.open && <CompanionDuty actor={dutyCompanion} label={substituting ? '代班中' : '执勤中'} className="community-market-duty" />}
         <div className="community-market-announcement" role="status" aria-live="polite">{visitor && <span data-generous={visitor.customer === 'generous'}><b>{visitor.buyout ? '全部买下！' : customerNames[visitor.customer]}</b>{visitor.buyout ? '慷慨游客包场，货架售空' : `带走 ${visitorQuantity} 份好东西`}<small>+{visitor.coins} 金币</small></span>}</div>
         <div className="community-harvest-sign"><Store size={18} /><span>{occupied ? `货架 ${occupied}/${capacity} 格 · 共 ${stock} 份` : '货架空着，挑一点收获摆上来'}</span></div></div>
       <footer className="community-production-footer"><div className="community-production-caption"><span>本次摆摊收入 {m.sessionRevenue} 金币</span><span>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 份</span><span>{m.open ? `基础 2–6 分钟一位 · 装饰客流 +${traffic.total}% · 偶尔还有慷慨大单` : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
