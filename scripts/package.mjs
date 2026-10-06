@@ -12,9 +12,9 @@ const npm = (script) => ({ npm: script });
 const node = (...args) => ({ node: args });
 export const packageTypes = {
   windows: { label: 'Windows x64 便携版', suffix: '.exe', windowsOnly: true, commands: [npm('package:win:portable')] },
-  android: { label: 'Android arm64 测试签名 APK', suffix: '.apk', windowsOnly: true, commands: [npm('package:android:arm64')] },
+  android: { label: 'Android arm64 APK', suffix: '.apk', windowsOnly: true, commands: [npm('package:android:arm64')] },
   'windows-x86': { label: 'Windows 32 位便携版', suffix: '-win32.exe', windowsOnly: true, commands: [npm('package:win:portable:x86')] },
-  'android-armv7': { label: 'Android ARMv7 测试签名 APK', suffix: '-32bit.apk', windowsOnly: true, commands: [npm('package:android:armv7')] },
+  'android-armv7': { label: 'Android ARMv7 APK', suffix: '-32bit.apk', windowsOnly: true, commands: [npm('package:android:armv7')] },
   toy: { label: 'B 站 Toy ZIP', suffix: '-toy.zip', dist: 'dist-toy', edition: 'bilibili', commands: [npm('build:toy'), node('scripts/check.mjs', '--release', '--dist', 'dist-toy', '--edition', 'bilibili')] },
   web: { label: '普通网页版 ZIP', suffix: '-web.zip', dist: 'dist', edition: 'standard', commands: [npm('build'), node('scripts/check.mjs', '--release', '--dist', 'dist')] },
 };
@@ -34,7 +34,7 @@ export const selectTypes = (values) => {
   return Object.keys(packageTypes).filter((type) => selected.has(type));
 };
 
-export const createPlan = (types, version, androidSigning = 'debug') => {
+export const createPlan = (types, version, androidSigning = 'release') => {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('package.json 版本必须是 major.minor.patch。');
   if (!['debug', 'release'].includes(androidSigning)) throw new Error('--android-signing 只能是 debug 或 release。');
   return types.map((type) => {
@@ -42,7 +42,7 @@ export const createPlan = (types, version, androidSigning = 'debug') => {
     if (!definition) throw new Error(`未知打包类型：${type}`);
     const artifact = `release/pocket${version}${definition.suffix}`;
     const signing = type.startsWith('android') ? androidSigning : undefined;
-    const label = signing === 'release' ? definition.label.replace('测试签名', '正式签名') : definition.label;
+    const label = signing ? `${definition.label}（${signing === 'release' ? '正式' : '测试'}签名）` : definition.label;
     return { type, ...definition, label, signing, artifact, commands: [...definition.commands, ...(definition.dist ? [node('scripts/package-web.mjs', definition.dist, artifact)] : [])] };
   });
 };
@@ -196,7 +196,7 @@ const help = () => console.log(`PocPet 统一打包（不提交 Git，不发布�
 export const main = async (argv = process.argv.slice(2)) => {
   const { values } = parseArgs({ args: argv, options: {
     type: { type: 'string', multiple: true }, 'dry-run': { type: 'boolean' }, json: { type: 'boolean' },
-    'android-signing': { type: 'string', default: 'debug' },
+    'android-signing': { type: 'string', default: 'release' },
     'require-clean': { type: 'boolean' }, list: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   } });
   if (values.help) return help();

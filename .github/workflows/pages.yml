@@ -19,10 +19,6 @@ on:
         description: Exact commit to deploy
         type: string
         required: true
-      run_id:
-        description: Release workflow run containing standard-web
-        type: string
-        required: false
 
 permissions:
   actions: read
@@ -52,40 +48,29 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Verify published release and source run
+      - name: Verify published release
         if: inputs.source == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_VERSION: ${{ inputs.version }}
           EXPECTED_REVISION: ${{ inputs.revision }}
-          SOURCE_RUN_ID: ${{ inputs.run_id }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
-          gh release view "v$EXPECTED_VERSION" --json isDraft,tagName > source-release.json
+          gh release view "v$EXPECTED_VERSION" --json isDraft,isPrerelease,tagName,assets > source-release.json
           node --input-type=module -e '
             import assert from "node:assert/strict";
             import { readFileSync } from "node:fs";
             import { execFileSync } from "node:child_process";
-            const run = JSON.parse(readFileSync("source-run.json", "utf8"));
             const release = JSON.parse(readFileSync("source-release.json", "utf8"));
             const tag = "v" + process.env.EXPECTED_VERSION;
             assert.equal(process.env.GITHUB_REF, "refs/heads/main");
-            assert.equal(run.path, ".github/workflows/release.yml");
-            assert.equal(run.event, "push");
-            assert.equal(run.head_branch, tag);
-            assert.equal(run.head_sha, process.env.EXPECTED_REVISION);
             assert.equal(execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), process.env.EXPECTED_REVISION);
+            assert.equal(JSON.parse(readFileSync("package.json", "utf8")).version, process.env.EXPECTED_VERSION);
             assert.equal(release.tagName, tag);
             assert.equal(release.isDraft, false);
+            assert.equal(release.isPrerelease, false);
+            assert.deepEqual(release.assets.map(asset => asset.name).sort(), ["pocket" + process.env.EXPECTED_VERSION + ".apk", "pocket" + process.env.EXPECTED_VERSION + ".exe"]);
+            for (const asset of release.assets) assert.ok(asset.size > 0);
           '
-
-      - uses: actions/download-artifact@v4
-        if: inputs.source == 'release'
-        with:
-          name: standard-web
-          path: dist
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ github.token }}
 
       - name: Verify requested main commit
         if: inputs.source == 'main'
@@ -103,8 +88,7 @@ jobs:
             assert.equal(JSON.parse(readFileSync("package.json", "utf8")).version, process.env.EXPECTED_VERSION);
           '
 
-      - name: Build requested main commit
-        if: inputs.source == 'main'
+      - name: Build requested revision
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmmirror.com/
         run: |

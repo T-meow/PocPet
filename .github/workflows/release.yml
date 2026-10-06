@@ -10,12 +10,8 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      full_build:
-        description: "Build all platforms for manual testing (all stable release tags always build every platform)"
-        required: false
-        default: false
-        type: boolean
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -23,57 +19,25 @@ permissions:
 env:
   NODE_VERSION: "24"
   NPM_CONFIG_REGISTRY: https://registry.npmmirror.com/
-  RUST_TOOLCHAIN: stable
-  ANDROID_NDK_VERSION: "27.0.12077973"
 
 jobs:
-  metadata:
-    name: Build metadata
-    runs-on: ubuntu-22.04
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      revision: ${{ steps.meta.outputs.revision }}
-      release_build: ${{ steps.meta.outputs.release_build }}
-      full_build: ${{ steps.meta.outputs.full_build }}
-      publish_release: ${{ steps.meta.outputs.publish_release }}
-    env:
-      MANUAL_FULL_BUILD: ${{ inputs.full_build || 'false' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Detect version and build scope
-        id: meta
-        shell: bash
-        run: node scripts/check.mjs --release --metadata
-
   validate:
     name: Save safety, module loading and both editions
-    needs: metadata
+    if: github.event_name != 'release'
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies
         run: npm ci
-
       - name: Check saves, errors and versions
         run: |
           npm test
           npm run check:release
-
       - name: Build both editions
         run: |
           npm run build
@@ -81,439 +45,23 @@ jobs:
           npm run build:toy
           node scripts/check.mjs --release --dist dist-toy --edition bilibili
 
-      - uses: actions/upload-artifact@v4
-        if: needs.metadata.outputs.release_build == 'true'
-        with:
-          name: standard-web
-          path: dist/
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        if: needs.metadata.outputs.release_build == 'true'
-        with:
-          name: bilibili-web
-          path: dist-toy/
-          if-no-files-found: error
-
-  windows:
-    name: Windows x64 portable
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build portable exe
-        shell: powershell
-        run: npm.cmd run package:win:portable
-
-      - name: Upload Windows x64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-windows-x64-${{ needs.metadata.outputs.version }}
-          path: release/pocket${{ needs.metadata.outputs.version }}.exe
-          if-no-files-found: error
-
-  windows_x86:
-    name: Windows 32-bit portable
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: i686-pc-windows-msvc
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build 32-bit portable exe
-        shell: powershell
-        run: npm.cmd run package:win:portable:x86
-
-      - name: Upload Windows 32-bit artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-windows-x86-${{ needs.metadata.outputs.version }}
-          path: release/pocket${{ needs.metadata.outputs.version }}-win32.exe
-          if-no-files-found: error
-
-  android:
-    name: Android arm64 APK
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Require fixed arm64 signing key
-        shell: powershell
-        env:
-          SIGNING_KEY: ${{ secrets.POCPET_ANDROID_ARM64_KEYSTORE_BASE64 }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_KEY)) {
-            throw 'Missing POCPET_ANDROID_ARM64_KEYSTORE_BASE64. Configure the fixed test signing keystore before building.'
-          }
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # v3 defaults include the retired tools package.
-          packages: platform-tools
-
-      - name: Install Android SDK packages
-        shell: powershell
-        run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;${{ env.ANDROID_NDK_VERSION }}"
-          $ndkPath = Join-Path $env:ANDROID_HOME "ndk\${{ env.ANDROID_NDK_VERSION }}"
-          "ANDROID_NDK_HOME=$ndkPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "NDK_HOME=$ndkPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build debug-signed APK
-        shell: powershell
-        env:
-          POCPET_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.POCPET_ANDROID_ARM64_KEYSTORE_BASE64 }}
-        run: npm.cmd run package:android:arm64
-
-      - name: Upload Android arm64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-android-arm64-${{ needs.metadata.outputs.version }}
-          path: release/pocket${{ needs.metadata.outputs.version }}.apk
-          if-no-files-found: error
-
-  android_armv7:
-    name: Android 32-bit ARMv7 APK
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Require fixed ARMv7 signing key
-        shell: powershell
-        env:
-          SIGNING_KEY: ${{ secrets.POCPET_ANDROID_ARMV7_KEYSTORE_BASE64 }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_KEY)) {
-            throw 'Missing POCPET_ANDROID_ARMV7_KEYSTORE_BASE64. Configure the fixed test signing keystore before building.'
-          }
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: armv7-linux-androideabi
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # v3 defaults include the retired tools package.
-          packages: platform-tools
-
-      - name: Install Android SDK packages
-        shell: powershell
-        run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;${{ env.ANDROID_NDK_VERSION }}"
-          $ndkPath = Join-Path $env:ANDROID_HOME "ndk\${{ env.ANDROID_NDK_VERSION }}"
-          "ANDROID_NDK_HOME=$ndkPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "NDK_HOME=$ndkPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build 32-bit debug-signed APK
-        shell: powershell
-        env:
-          POCPET_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.POCPET_ANDROID_ARMV7_KEYSTORE_BASE64 }}
-        run: npm.cmd run package:android:armv7
-
-      - name: Upload Android 32-bit artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-android-armv7-${{ needs.metadata.outputs.version }}
-          path: release/pocket${{ needs.metadata.outputs.version }}-32bit.apk
-          if-no-files-found: error
-
-  web:
-    name: Web package
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: standard-web
-          path: dist
-
-      - run: node scripts/check.mjs --release --dist dist
-
-      - name: Build web zip
-        if: needs.metadata.outputs.full_build == 'true'
-        shell: powershell
-        run: ./scripts/package-web.ps1
-
-      - name: Upload web artifact
-        if: needs.metadata.outputs.full_build == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-web-${{ needs.metadata.outputs.version }}
-          path: release/pocket${{ needs.metadata.outputs.version }}-web.zip
-          if-no-files-found: error
-
-  linux:
-    name: Linux bundles
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf build-essential curl wget file
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Linux bundles
-        run: |
-          npm run package:desktop
-          node scripts/check.mjs --release --dist dist --binary src-tauri/target/release/app --arch x64
-
-      - name: Export Linux artifacts
-        shell: bash
-        run: |
-          version=$(node -p "require('./package.json').version")
-          mkdir -p artifacts
-          appimage=$(find src-tauri/target/release/bundle -type f -name '*.AppImage' | head -n 1)
-          if [[ -z "$appimage" ]]; then
-            echo "No AppImage found."
-            exit 1
-          fi
-          cp "$appimage" "artifacts/pocket${version}-ubuntu.AppImage"
-
-          deb=$(find src-tauri/target/release/bundle -type f -name '*.deb' | head -n 1 || true)
-          if [[ -z "$deb" ]]; then
-            echo "No Debian package found."
-            exit 1
-          fi
-          cp "$deb" "artifacts/pocket${version}-ubuntu.deb"
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-linux-${{ needs.metadata.outputs.version }}
-          path: artifacts/*
-          if-no-files-found: error
-
-  macos:
-    name: macOS dmg
-    needs: [metadata, validate]
-    if: needs.metadata.outputs.release_build == 'true' && needs.metadata.outputs.full_build == 'true'
-    runs-on: macos-latest
-    outputs:
-      arch: ${{ steps.arch.outputs.arch }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build macOS bundle
-        run: |
-          npm run package:desktop -- --no-sign
-          node scripts/check.mjs --release --dist dist --binary src-tauri/target/release/app --arch "$(node -p process.arch)"
-
-      - name: Record macOS architecture
-        id: arch
-        run: node -e "require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'arch=' + process.arch + '\n')"
-
-      - name: Export macOS artifact
-        shell: bash
-        run: |
-          version=$(node -p "require('./package.json').version")
-          mkdir -p artifacts
-          dmg=$(find src-tauri/target/release/bundle -type f -name '*.dmg' | head -n 1)
-          if [[ -z "$dmg" ]]; then
-            echo "No dmg found."
-            exit 1
-          fi
-          cp "$dmg" "artifacts/pocket${version}-mac.dmg"
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pocpet-macos-${{ needs.metadata.outputs.version }}
-          path: artifacts/pocket${{ needs.metadata.outputs.version }}-mac.dmg
-          if-no-files-found: error
-
-  release:
-    name: Publish GitHub Release
-    needs:
-      - metadata
-      - validate
-      - windows
-      - windows_x86
-      - android
-      - android_armv7
-      - web
-      - linux
-      - macos
-    if: |
-      always() &&
-      needs.metadata.outputs.publish_release == 'true' &&
-      needs.validate.result == 'success' &&
-      needs.windows.result == 'success' &&
-      needs.windows_x86.result == 'success' &&
-      needs.android.result == 'success' &&
-      needs.android_armv7.result == 'success' &&
-      needs.web.result == 'success' &&
-      needs.linux.result == 'success' &&
-      needs.macos.result == 'success'
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist-release
-          merge-multiple: true
-          pattern: pocpet-*
-
-      - name: Verify complete artifact set
-        run: node scripts/check.mjs --artifacts dist-release
-
-      - name: Create client update manifest
-        env:
-          MAC_ARCH: ${{ needs.macos.outputs.arch }}
-        run: node scripts/create-update-manifest.mjs dist-release
-
-      - name: Create SHA-256 checksums
-        working-directory: dist-release
-        run: sha256sum pocket* update-info.json > SHA256SUMS.txt
-
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: PocPet ${{ github.ref_name }}
-          draft: true
-          files: dist-release/*
-          fail_on_unmatched_files: true
-
-      - name: Make complete release available
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release edit "$RELEASE_TAG" --draft=false --latest
-
   pages:
-    name: Deploy matching standard edition
-    needs: [metadata, release]
-    if: needs.metadata.outputs.publish_release == 'true'
+    name: Deploy the locally packaged release
+    if: github.event_name == 'release' && !github.event.release.prerelease
     runs-on: ubuntu-22.04
     permissions:
       actions: write
       contents: read
     steps:
-      - name: Start deployment from the allowed main branch
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Start Pages deployment from main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
-          RELEASE_REVISION: ${{ needs.metadata.outputs.revision }}
-        run: gh workflow run pages.yml --ref main -f version="$RELEASE_VERSION" -f revision="$RELEASE_REVISION" -f run_id="$GITHUB_RUN_ID"
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          revision="$(git rev-parse HEAD)"
+          gh workflow run pages.yml --ref main -f source=release -f version="$version" -f revision="$revision"

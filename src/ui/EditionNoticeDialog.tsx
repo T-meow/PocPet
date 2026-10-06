@@ -13,10 +13,12 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenAcknowledge
 }) => {
   useEffect(() => { recordEditionNoticeShown(); }, []);
   const sections = [
-    { key: 'harvest', emoji: '🌱', tone: 'green', paragraphs: ['harvestAdvice'] },
-    { key: 'tools', emoji: '🔎', tone: 'blue', paragraphs: ['toolsAdvice'] },
-    { key: 'supplies', emoji: '🍳', tone: 'amber', paragraphs: ['suppliesAdvice'] },
-    { key: 'companions', emoji: '🏡', tone: 'purple', paragraphs: ['companionsAdvice'] },
+    { key: 'farm', emoji: '🌱', tone: 'green', paragraphs: ['farmAdvice'] },
+    { key: 'games', emoji: '🎮', tone: 'purple', paragraphs: ['gamesAdvice'] },
+    { key: 'kitchen', emoji: '🍳', tone: 'amber', paragraphs: ['kitchenAdvice'] },
+    { key: 'exploration', emoji: '🧭', tone: 'blue', paragraphs: ['explorationAdvice'] },
+    { key: 'daily', emoji: '⭐', tone: 'green', paragraphs: ['dailyAdvice'] },
+    { key: 'music', emoji: '🎵', tone: 'purple', paragraphs: ['musicAdvice'] },
     { key: 'backup', emoji: '💾', tone: 'blue', paragraphs: ['backupAdvice', 'formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
   ];
   return <DialogShell className="edition-notice" labelId="edition-notice-title" onClose={onAcknowledge}>
@@ -28,7 +30,7 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenAcknowledge
       {sections.map(({ key, emoji, tone, paragraphs }) => <section className={`edition-notice__section edition-notice__section--${key}`} data-tone={tone} key={key}>
         <span className="edition-notice__emoji" aria-hidden="true">{emoji}</span>
         <div><h3>{t(`ui.editionNotice.${key}Title`)}</h3>
-          {paragraphs.map((paragraph) => <p className={['harvestAdvice', 'backupAdvice'].includes(paragraph) ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${paragraph}`)}</p>)}
+          {paragraphs.map((paragraph) => <p className={['farmAdvice', 'backupAdvice'].includes(paragraph) ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${paragraph}`)}</p>)}
           {key === 'backup' && onOpenUpdates && <button type="button" className="text-button edition-notice__update-link" onClick={onOpenUpdates}><RefreshCw size={16} />{t('ui.editionNotice.openUpdates')}</button>}
         </div>
       </section>)}

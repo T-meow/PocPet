@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
-import { appendFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { getReleaseBuildPlan, releaseArtifactNames } from './release-policy.mjs';
+import { releaseArtifactNames } from './release-policy.mjs';
 
 // npm test is the only daily check. Release modes also work before npm ci in CI.
 const { values } = parseArgs({ options: {
   release: { type: 'boolean' }, artifacts: { type: 'string' },
   dist: { type: 'string' }, edition: { type: 'string', default: 'standard' },
-  binary: { type: 'string' }, arch: { type: 'string' }, metadata: { type: 'boolean' },
+  binary: { type: 'string' }, arch: { type: 'string' },
 } });
 const json = file => JSON.parse(readFileSync(file, 'utf8'));
 
@@ -24,10 +24,6 @@ async function verifyRelease() {
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   if (process.env.GITHUB_SHA) assert.equal(process.env.GITHUB_SHA, revision);
   if ((process.env.GITHUB_REF || '').startsWith('refs/tags/')) assert.equal(process.env.GITHUB_REF, `refs/tags/v${version}`);
-  if (values.metadata && process.env.GITHUB_OUTPUT) {
-    const plan = getReleaseBuildPlan({ eventName: process.env.GITHUB_EVENT_NAME, ref: process.env.GITHUB_REF, manualFullBuild: process.env.MANUAL_FULL_BUILD === 'true' });
-    appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nrevision=${revision}\nfull_build=${plan.fullBuild}\nrelease_build=${plan.releaseBuild}\npublish_release=${plan.publishRelease}\n`);
-  }
   let assets = [];
   if (values.dist) {
     const build = json(join(values.dist, 'build-info.json'));
@@ -2226,13 +2222,13 @@ async function verifySavesAndErrors() {
 }
 
 if (values.artifacts) {
-  const expected = releaseArtifactNames(json('package.json').version, process.env.FULL_BUILD !== 'false').sort();
+  const expected = releaseArtifactNames(json('package.json').version).sort();
   assert.deepEqual(readdirSync(values.artifacts).sort(), expected, 'Release artifact set mismatch');
   for (const file of expected) assert.ok(statSync(join(values.artifacts, file)).size > 0, `Empty artifact: ${file}`);
   console.log(`Verified ${expected.length} release artifacts.`);
 } else if (values.release) {
   await verifyRelease();
 } else {
-  assert.ok(!values.dist && !values.binary && !values.metadata && !values.arch, 'Release options require --release.');
+  assert.ok(!values.dist && !values.binary && !values.arch, 'Release options require --release.');
   await verifySavesAndErrors();
 }

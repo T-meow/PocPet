@@ -3,7 +3,7 @@ param(
   [Alias('Target')]
   [string]$AndroidTarget = 'aarch64',
   [ValidateSet('debug', 'release')]
-  [string]$Signing = $(if ($env:POCPET_ANDROID_SIGNING) { $env:POCPET_ANDROID_SIGNING } else { 'debug' }),
+  [string]$Signing = $(if ($env:POCPET_ANDROID_SIGNING) { $env:POCPET_ANDROID_SIGNING } else { 'release' }),
   [switch]$RebuildRust,
   [switch]$ReuseNative
 )

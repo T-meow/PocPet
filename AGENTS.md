@@ -33,17 +33,18 @@
 ## 发布规则
 
 - 明确要求推送、发布或更新时，按授权范围直接完成，不重复确认，不按版本大小、尾号或白名单设限；仅改代码／本地测试不自动推送或发布。
-- 正式标签为与 `package.json` 一致的 `v<version>`；所有正式标签均触发 CI 全平台构建、GitHub Release、客户端更新清单及网页部署。
+- 正式标签为与 `package.json` 一致的 `v<version>`；GitHub Release 仅上传本地校验通过的 Windows x64 EXE 和 Android arm64 正式签名 APK。签名密钥及密码只留在本机，不上传 GitHub Secrets、源码、日志或附件。
+- 推送分支／标签只触发 CI 检查，不在 CI 构建原生包或自动创建 Release。先上传两份本地产物到草稿，再公开 Release；客户端按现有文件名识别更新，不再上传更新清单或其他平台包。
 - GitHub 推送成功即反馈；仅在用户明确要求跟进构建或获取产物时等待／轮询 CI。
-- 单独部署 GitHub Pages：`pages.yml` 使用 `source=main`，指定推送后的版本与提交，独立执行、不等原生打包；正式 Release 网页使用默认 `source=release`。
+- 单独部署 GitHub Pages：`pages.yml` 使用 `source=main`，指定推送后的版本与提交，独立执行。正式 Release 公开后自动以 `source=release` 从相同标签构建并部署网页，不依赖原生 CI 产物。Toy 单独构建并更新已有作品，不作为 Release 附件。
 
 ## 打包规则
 
 - 版本以 `package.json` 为准，打包前核对并同步 Tauri、Cargo 版本。
 - 本地默认仅 Windows x64、Android arm64 测试包；“全量／完整包”同此范围，不随版本变化。32 位仅按明确要求生成；本地不构建 Web、macOS、Linux，也不自动启动 CI。
 - 本地顺序：核对版本 → `npm.cmd run check:release` → 备份同名产物 → `npm.cmd run package:win:portable` → `npm.cmd run package:android:arm64` → 核验版本、架构、内嵌资源、APK 签名，记录大小及 SHA-256。
-- CI 遵循 `.github/workflows/release.yml`；手动构建默认 Windows x64、Android arm64，显式 `full_build` 才全量，手动构建不公开 Release。macOS／Linux 在对应系统或 CI runner 构建。
-- Android 测试包默认 debug keystore 签名；正式商店签名须用户明确要求。
+- CI 遵循 `.github/workflows/release.yml`，仅执行存档、版本及两种前端检查；手动触发同样不构建原生包、不公开 Release。额外架构或平台仅按明确要求在对应环境构建，不加入默认 Release。
+- Android 包默认使用正式密钥签名，包括本地测试包；统一打包入口显式传入 `--android-signing release`，直接调用平台脚本时显式传入 `-Signing release`。仅在用户明确要求时使用 debug 测试签名；正式签名配置缺失时直接报错，不得自动回退。
 - 产物不提交 Git，统一命名为 `release/pocket<version><后缀>`；本地及 CI 使用下表：
 
 | 平台／架构 | 后缀 |
