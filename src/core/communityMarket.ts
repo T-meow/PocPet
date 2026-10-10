@@ -9,6 +9,7 @@ import { inventoryItemLimit } from './saveMetadata';
 import type { CommunityMarket, MarketReceipt } from './communityTypes';
 import { createMarketSeed, getMarketBuyoutBonusForLevels, getMarketVisit, marketRandom, marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { getCommunityUpgradeQuote } from './communityUpgradeData';
+import { getDailyResetDateKey } from './dailyReset';
 
 export const getMarketCapacity = (pet: PetState) => marketSlotCount(pet.community.market.level);
 export const getMarketBuyoutBonus = (pet: Pick<PetState, 'community' | 'partnerSchedule'>) =>
@@ -75,6 +76,8 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
   let market = syncMarketClock(pet, original, pet.coins, now, anchor), coins = pet.coins;
   while (market.nextVisitAt !== undefined && market.nextVisitAt <= now) {
     const at = market.nextVisitAt, visit = getMarketVisit(market.seed, market.visitors, trafficBonus, buyoutBonus);
+    const visitDay = getDailyResetDateKey(at);
+    const buyout = visit.buyout && visitDay > market.lastBuyoutDay;
     let listings = market.listings.map(listing => ({ ...listing })).sort((a, b) => a.slotIndex - b.slotIndex);
     const items: MarketReceipt['items'] = [];
     const basket: { listing: typeof listings[number]; quantity: number; amount: number }[] = [];
@@ -89,13 +92,13 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
     };
     if (visit.customer === 'generous') {
       const shelves = [...listings];
-      if (!visit.buyout) {
+      if (!buyout) {
         for (let index = shelves.length - 1; index > 0; index--) {
           const other = Math.floor(marketRandom(market.seed, market.visitors, 4 + index) * (index + 1));
           [shelves[index], shelves[other]] = [shelves[other], shelves[index]];
         }
       }
-      for (const listing of shelves) select(listing, visit.buyout ? listing.quantity : Math.max(0, visit.quantity - basketQuantity));
+      for (const listing of shelves) select(listing, buyout ? listing.quantity : Math.max(0, visit.quantity - basketQuantity));
     } else {
       const affordable = listings.filter(listing => listing.unitPrice <= walletRoom(coins));
       const rare = affordable.filter(listing => listing.collector);
@@ -115,9 +118,10 @@ const settleCommunityMarket = (pet: PetState, now: number): PetState => {
     }
     listings = listings.filter(listing => listing.quantity > 0);
     const visitors = market.visitors + 1;
-    const receipt: MarketReceipt = { visit: visitors, customer: visit.customer, buyout: visit.buyout && !listings.length, at, coins: revenue, items };
+    const receipt: MarketReceipt = { visit: visitors, customer: visit.customer, buyout: buyout && !listings.length, at, coins: revenue, items };
     coins += revenue;
     market = { ...market, listings, visitors, lastVisitAt: at, nextVisitAt: at + getMarketVisit(market.seed, visitors, trafficBonus).delayMs,
+      lastBuyoutDay: buyout && sold > 0 ? visitDay : market.lastBuyoutDay,
       // This counter also invalidates stale manual-listing quotes after a sale.
       nextListingId: market.nextListingId + (sold ? 1 : 0),
       revenue: market.revenue + revenue, sessionRevenue: market.sessionRevenue + revenue, premium: market.premium + premium, sold: market.sold + sold,
@@ -173,7 +177,7 @@ export const setCommunityMarketOpen = (pet: PetState, open: boolean, now = Date.
   pet = advanceCommunityMarket(pet, now);
   const m = pet.community.market;
   if (!m.level || m.open === open) return pet;
-  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open, sessionRevenue: open ? 0 : m.sessionRevenue }, pet.coins, now) }, recentEvent: open ? '小摊营业中，基础每隔 2–6 分钟来一位客人，装饰可增加客流。客人按挑选数量和挂牌价购买，慷慨游客会带来大单或包场。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
+  return { ...pet, community: { ...pet.community, market: syncMarketClock(pet, { ...m, open, sessionRevenue: open ? 0 : m.sessionRevenue }, pet.coins, now) }, recentEvent: open ? '小摊营业中，基础每隔 4–8 分钟来一位客人，装饰可增加客流。客人按挑选数量和挂牌价购买，慷慨游客会带来大单或包场。离线也会继续营业。' : '小摊已经闭店，货品和剩余等待时间都已保留。' };
 };
 export const upgradeCommunityMarket = (pet: PetState, expectedLevel: number, now = Date.now()): PetState => {
   if (pet.timePause || !Number.isFinite(now) || now < pet.lastUpdatedAt || now < pet.community.market.lastVisitAt || !canSpendCompanionTime(pet)) return pet;

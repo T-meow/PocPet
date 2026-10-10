@@ -15,7 +15,7 @@ export const adventureHealthRules = { departure: 0.4, warning: 0.35, retreat: 0.
 export const needsAdventureHealthReturn = (pet: PetState) => Boolean(pet.adventure.active) && getPetStatRatio(pet, 'health') < adventureHealthRules.retreat;
 export const getAdventureRewardPreview = (pet: PetState, now = pet.lastUpdatedAt) => {
   const trip = pet.adventure.active;
-  if (trip?.campaign?.mode === 'visit') {
+  if (trip?.museum || trip?.campaign?.mode === 'visit') {
     const { steps, total } = adventureTripProgress(pet, trip);
     return { steps, complete: steps === total, first: false, coins: 0, hearts: 0 };
   }
@@ -55,6 +55,7 @@ export const finishAdventure = (pet: PetState, now: number, forced = false): Pet
   if (salvage) for (const [id, n] of Object.entries(trip.loot)) salvage[id] = (salvage[id] ?? 0) + n;
   const pending: AdventureResult = { ...reward, rulesVersion: trip.rulesVersion, id: trip.id, region: trip.region, purpose: trip.purpose, actorId: trip.actorId, actorName: trip.actorName, endedAt: now,
     ...(trip.campaign?.mode === 'visit' ? { campaignVisit: trip.campaign.visitId, campaignTotal: adventureTripProgress(pet, trip).total } : {}),
+    ...(trip.museum ? { museumVisit: trip.museum.visitId, museumTotal: adventureTripProgress(pet, trip).total } : {}),
     items: salvage ? {} : items, rewardsClaimed: false,
     ...(trip.checkState?.last ? { lastCheck: trip.checkState.last } : {}),
     ...(forced ? { returnReason: 'health' as const } : {}), ...(salvage ? { salvage, salvageTool: trip.tool } : {}),

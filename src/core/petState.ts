@@ -17,6 +17,7 @@ import { settleExpeditionTime } from './expeditionReturn';
 import { getUpgradeHeartCurveRefund, isPetOverfed } from './petStats';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
+import { defaultMuseumState, normalizeMuseumState } from './museumState';
 import { defaultAchievementState, normalizeAchievementState } from './achievements';
 import { defaultPetBirthday, getLocalCalendarDate, normalizePetBirthday, normalizePetCalendarDate } from './dateRewards';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
@@ -179,6 +180,7 @@ export const createDefaultPet = (now = Date.now(), saveMetadata: SaveMetadata = 
   partnerSchedule: defaultPartnerScheduleState({ level: 1, createdAt: now }, now),
   goldenAppleGacha: defaultGoldenAppleGachaState(now, now),
   classicEndgame: defaultClassicEndgameState(),
+  museum: defaultMuseumState(),
   dailyWish: createDailyWish({
     level: 1,
     createdAt: now,
@@ -565,6 +567,7 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     partnerSchedule,
     goldenAppleGacha: normalizeGoldenAppleGachaState(raw.goldenAppleGacha, createdAt, now, currentDailyDateKey),
     classicEndgame,
+    museum: normalizeMuseumState(raw.museum, classicEndgame.legacyLevel),
     timeGuard,
     ...(timePause ? { timePause } : {}),
   };

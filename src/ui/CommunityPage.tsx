@@ -42,6 +42,7 @@ import '../styles/farm-neighbor.css';
 interface Props {
   pet: PetState; portrait: string; update: (action: (pet: PetState) => PetState) => void;
   actorId?: string; actorName?: string;
+  favoriteFoodIds?: readonly ItemId[];
   installedMods?: readonly InstalledPetModSummary[];
   onToggleItemFavorite: (id: ItemId) => void;
   onBack: () => void; onExplore: (purpose: CommunityRoute) => void; onKitchen: (recipe?: RecipeId) => void; onShop: () => void; orchard: ReactNode;
@@ -56,7 +57,7 @@ type Place = CommunityPlace;
 const fishingPlaces: readonly Place[] = ['hut', 'hut_manage', 'pond', 'upstream', 'fishbook'];
 const titles: Record<Place, string> = { field: '水渠与菜地', orchard: '果园', coop: '鸡舍', barn: '牛棚', hut: '钓鱼小屋', hut_manage: '小屋建设与水域', pond: '栈桥垂钓', upstream: '溪流上游', fishbook: '鱼类手账', board: '邻里公告板', market: '溪畔小摊', journey: '旅途与日常', growth: '旅途留下的成长', decorations: '装饰工坊' };
 
-export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorName = pet.name, installedMods = [], update, onToggleItemFavorite, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
+export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorName = pet.name, favoriteFoodIds, installedMods = [], update, onToggleItemFavorite, onBack, onExplore, onKitchen, onShop, orchard, initialTab = 'village', initialPlace, tab: controlledTab, onTabChange, place: controlledPlace, onPlaceChange, registry, itemIconMap, onOpenOutpost, onAdventure }: Props) => {
   const [localTab, setLocalTab] = useState<CommunityTab>(initialPlace && fishingPlaces.includes(initialPlace) ? 'fishing' : initialTab);
   const [selectedDecoration, setSelectedDecoration] = useState<CommunityDecorationId | null>(null);
   const communityRef = useRef<HTMLElement>(null), decorationTrigger = useRef<HTMLElement | null>(null);
@@ -145,7 +146,7 @@ export const CommunityPage = ({ pet, portrait, actorId = 'official.furo', actorN
   else if (panel === 'hut' || panel === 'pond' || panel === 'upstream') content = !c.facilities.fishing_hut.built ? <CommunityFacilities {...panelProps} only="fishing_hut" /> : <CommunityFacilities {...panelProps} only="upstream" />;
   else if (panel === 'fishbook') content = <CommunityFishing {...panelProps} view="journal" />;
   else if (panel === 'board') content = <CommunityBoard {...panelProps} actorId={actorId} actorName={actorName} onFishing={visitWater} onFarm={openPlace} />;
-  else if (panel === 'market') content = c.facilities.stall.built ? <CommunityMarket {...panelProps} currentCompanion={{ id: actorId, name: actorName, portrait }} substituting={farmBusy && farmHelp.active} companionRoster={neighborRoster} /> : <CommunityFacilities {...panelProps} only="stall" />;
+  else if (panel === 'market') content = c.facilities.stall.built ? <CommunityMarket {...panelProps} currentCompanion={{ id: actorId, name: actorName, portrait }} favoriteFoodIds={favoriteFoodIds} substituting={farmBusy && farmHelp.active} companionRoster={neighborRoster} /> : <CommunityFacilities {...panelProps} only="stall" />;
   else if (panel === 'decorations') content = <DecorationWorkshop pet={pet} onSelect={selectDecoration} />;
   else if (panel === 'growth') content = <section className="community-card"><p>首次成果永久增加体力上限，通过休息恢复新增容量。社区活动可以在布告牌接取。</p>{getAdventureGrowthSources(pet).map(source => <div className="community-growth-row" key={source.id} data-done={source.achieved}><span>{source.achieved ? '✓' : '○'} {source.name}</span><b>+{source.energy}</b></div>)}</section>;
   else if (panel === 'journey') content = <><section className="community-card"><h3>从前哨出发，把收获带回农场</h3><p>地图里继续故事、采集与营地建设；回到农场，交付订单或制作收藏。</p><div className="community-actions"><button className="primary-button" disabled={!onAdventure} onClick={adventure}>去前哨基地</button>{onOpenOutpost && <><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'idle', region: 'valley' })}>安排挂机探索</button><button className="secondary-button" onClick={() => panelProps.onOpenOutpost?.({ view: 'journal' })}>旅行日志</button></>}<button className="secondary-button" onClick={() => setPanel('growth')}>旅途留下的成长</button></div></section><DecorationEntry pet={pet} onOpen={() => openPlace('decorations')} /><CommunityValleyProgress {...panelProps} onAdventure={adventure} onOpen={openPlace} /></>;

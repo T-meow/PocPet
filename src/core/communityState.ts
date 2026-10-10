@@ -12,18 +12,18 @@ import { getDecorationEffects } from './decorationEffects';
 import { normalizeFishingState, unlockCompletedFishingWaters } from './fishingState';
 import type { AdventureState } from './adventureTypes';
 import { regionIds, projectIds } from './expeditionData';
-import { getWeekStartDateKey } from './dailyReset';
+import { getDailyResetDateKey, getWeekStartDateKey } from './dailyReset';
 import { landmarkNodes } from './landmarkProgress';
 import { normalizeFarmNeighborHelp } from './farmNeighborState';
 
-export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 15, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
+export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 16, activityBoard: { week: '', sequence: 0, accepted: false }, expedition: defaultExpeditionState(), irrigationFound: false, herbDiscovered: false, repairStep: 0, gardenBuilt: false, firstOrderDelivered: false, seedForageDay: '', boardDay: '', acceptedToday: [], candidates: [], tasks: [],
   plots: [{ id: 1 }], upgrades: { garden: 1, coop: 1, barn: 1, fishing_hut: 1 },
   toolWear: {}, treasureResearch: {}, decorations: [], decorationLevels: {}, commissionsCompleted: 0, specialtyOrders: { acceptedDay: '', completed: 0 },
   discoveredCrops: [], waterAccess: { forest_pool: { found: false, built: false }, coast_pier: { found: false, built: false } }, forageResearch: {}, processing: { revision: 0 }, ranchDay: { day: '', cared: false, collected: false, claimed: false }, ranchCompostCycles: 0,
   facilities: { coop: { found: false, work: 0, built: false }, barn: { found: false, work: 0, built: false }, fishing_hut: { found: false, work: 0, built: false }, upstream: { found: false, work: 0, built: false }, stall: { found: false, work: 0, built: false } },
   animals: { coop: { feed: 0, stock: 0, cycleMs: 21600000, cared: false, revision: 0 }, barn: { feed: 0, stock: 0, cycleMs: 28800000, cared: false, revision: 0 } },
   fishing: { casts: 0, nextIdleId: 1, journal: {} },
-  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, listings: [], reserve: {}, revenue: 0, sessionRevenue: 0, premium: 0, sold: 0, log: [] },
+  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, lastBuyoutDay: '', listings: [], reserve: {}, revenue: 0, sessionRevenue: 0, premium: 0, sold: 0, log: [] },
 });
 const day = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
@@ -144,5 +144,10 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
     const customer = !legacy && ['ordinary', 'foodie', 'collector', 'generous'].includes(entry.customer) ? entry.customer : 'legacy';
     return [{ visit: legacy ? 0 : n(entry.visit), customer, buyout: customer === 'generous' && entry.buyout === true, at: n(entry.at), coins: n(entry.coins), items }];
   });
+  market.lastBuyoutDay = typeof m.lastBuyoutDay === 'string' ? day(m.lastBuyoutDay)
+    : market.log.reduce((latest, receipt) => {
+      const boughtDay = receipt.buyout ? getDailyResetDateKey(receipt.at) : '';
+      return boughtDay > latest ? boughtDay : latest;
+    }, '');
   return state;
 };

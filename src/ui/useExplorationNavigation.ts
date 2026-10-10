@@ -8,6 +8,7 @@ export interface ExplorationNavigation {
   mode: 'manual' | 'idle';
   target?: string;
   campaignVisit?: CampaignVisitId;
+  museumVisit?: import('../core/museumData').MuseumVisitId;
   taskTab?: 'current' | 'completed';
 }
 export const useExplorationNavigation = (initial: ExplorationNavigation, leave: () => void, available: { journey: boolean; receipt: boolean }) => {

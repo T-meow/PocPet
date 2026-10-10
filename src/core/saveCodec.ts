@@ -152,14 +152,14 @@ export const createSaveFileText = (pet: PetState, activeMod?: PocPetSaveModSumma
   createSaveFilePlainText(pet, activeMod, now);
 
 const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
-  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 4, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 2, festivalStories: 3, adventure: 9, community: 15 };
+  const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 5, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, museum: 1, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 2, festivalStories: 3, adventure: 10, community: 16 };
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   }
   const adventure = rawPet.adventure;
   const campaign = isObject(adventure) ? adventure.campaign : undefined;
-  if (isObject(campaign) && typeof campaign.schemaVersion === 'number' && campaign.schemaVersion > 1) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  if (isObject(campaign) && typeof campaign.schemaVersion === 'number' && campaign.schemaVersion > 2) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   const community = rawPet.community;
   const expedition = isObject(community) ? community.expedition : undefined;
   const expeditionTrip = isObject(expedition) ? expedition.active : undefined;
@@ -297,7 +297,7 @@ export const decodeSaveSnapshot = (text: string, fallbackName?: string): PocPetI
 };
 
 const clearRestoredGachaHistory = (pet: PetState): PetState => ({
-  ...pet, goldenAppleGacha: { ...pet.goldenAppleGacha, recentResults: [], recentHeartResults: [] },
+  ...pet, goldenAppleGacha: { ...pet.goldenAppleGacha, recentResults: [], recentHeartResults: [], recentGoldenResults: [] },
 });
 
 export const parseSaveFileText = (text: string, now = Date.now(), fallbackName?: string): PocPetImportedSave => {

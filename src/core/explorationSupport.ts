@@ -8,6 +8,8 @@ import { getAdventureStageChoices } from './adventureGathering';
 import { formatInteger } from './displayNumbers';
 import { adventureTripProgress, campaignEventVisible, campaignVisitComplete } from './explorationCampaignState';
 import { getCampaignStepPreview } from './explorationCampaign';
+import { getMuseumStepPreview } from './museumJourney';
+import { museumVisits } from './museumData';
 
 export type ExplorationSystem = 'adventure';
 const activeTrip = (pet: PetState, system: ExplorationSystem) => pet.adventure.active;
@@ -21,12 +23,12 @@ export const getExplorationRescueQuote = (pet: PetState, system: ExplorationSyst
   const campaign = trip?.campaign && campaignEventVisible(pet) ? trip.campaign : undefined;
   const step = trip && getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[trip.choices.length];
   const ordinary = getAdventureStageChoices(pet, step?.choices ?? []).filter(choice => !choice.harvest && !choice.tool && !choice.check?.tool && !choice.item);
-  const campaignPreview = campaign ? getCampaignStepPreview(pet, campaign.visitId) : undefined;
+  const campaignPreview = trip?.museum ? getMuseumStepPreview(pet, trip.museum.visitId) : campaign ? getCampaignStepPreview(pet, campaign.visitId) : undefined;
   const blocked = campaignPreview ? pet.hunger < campaignPreview.hunger[1] || pet.energy < campaignPreview.energy[1] : ordinary.length > 0 && ordinary.every(choice => {
     const preview = getAdventureChoicePreview(pet, choice);
     return pet.hunger < (preview?.hunger[1] ?? choice.hunger) || pet.energy < (preview?.energy[1] ?? choice.energy);
   });
-  const hasStep = campaign ? !campaignVisitComplete(pet.adventure.campaign, campaign.visitId) : Boolean(step);
+  const hasStep = trip?.museum ? trip.museum.step < museumVisits[trip.museum.visitId].steps.length : campaign ? !campaignVisitComplete(pet.adventure.campaign, campaign.visitId) : Boolean(step);
   const visible = Boolean(hasStep && !supportReason(pet, system) && (pet.hunger <= cap * .3 || pet.energy <= energyCap * .3 || blocked));
   const hunger = Math.max(0, Math.min(cap - pet.hunger, Math.floor(cap * .8))), energy = Math.max(0, Math.min(energyCap - pet.energy, Math.floor(energyCap * .5))), mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
   const reason = supportReason(pet, system) || (!visible ? '当前无需应急救援' : !hunger && !energy ? '饱食和体力都无需恢复' : pet.hearts < 100 ? `需要 100 心心，还差 ${formatInteger(100 - pet.hearts)} 心心` : '');
@@ -51,7 +53,7 @@ export const getExplorationCampQuote = (pet: PetState, system: ExplorationSystem
   const mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
   const rested = pet.adventure.active?.rested;
   const progress = t ? adventureTripProgress(pet, t) : undefined;
-  const checkpoint = t?.campaign?.mode === 'visit' ? Math.max(1, Math.floor(progress!.total / 2)) : t ? Math.floor(getAdventureStepCount(t.region, t.purpose) / 2) : 0;
+  const checkpoint = t?.museum || t?.campaign?.mode === 'visit' ? Math.max(1, Math.floor(progress!.total / 2)) : t ? Math.floor(getAdventureStepCount(t.region, t.purpose) / 2) : 0;
   const atCheckpoint = Boolean(t && progress?.steps === checkpoint && progress.steps < progress.total);
   const reason = supportReason(pet, system) || (rested ? '本趟已休整过' : !atCheckpoint ? `仅在完成第 ${checkpoint} 阶段后、继续前进前可以休整` : getToolUsesLeft(pet, 'camp_kit') <= 0 ? '仓库中需要有剩余耐久的便携营具' : !energy && !health && !mood ? '当前没有需要恢复的状态' : '');
   return { energy, health, mood, reason, checkpoint, atCheckpoint };

@@ -1,7 +1,7 @@
 import { getGachaRewardItems, type GachaResult, type YearReview, type YearlyCareActionKey } from '../core/pet';
 import { getGachaRewardContentLabels, getGachaRewardLabel } from '../ui/gachaRewards';
 import { createGachaCardData, createPetProfileCardData, type PetProfileCardData } from '../core/shareCards';
-import type { PetState } from '../core/pet';
+import type { GachaMachine, PetState } from '../core/pet';
 import { t } from '../i18n';
 import { getToySdk, supportsToyAbility, withToySdkTimeout } from './toySdk';
 import { createMemoryPoster } from './albumPoster';
@@ -23,7 +23,7 @@ const posterColors = {
   softBlue: 'rgba(232, 247, 255, 0.94)',
 } as const;
 
-export type GachaMachine = 'apple' | 'heart';
+export type { GachaMachine } from '../core/pet';
 
 interface PosterBaseOptions {
   petImageUrl: string;
@@ -360,7 +360,7 @@ export const createGachaPoster = async ({
   const cardData = createGachaCardData(machine, results);
   const { canvas, context } = createCanvas();
   drawSceneBackground(context);
-  drawHeader(context, t('ui.share.poster.gachaTitle', { count: results.length }), t(machine === 'heart' ? 'ui.gacha.machineTwo' : 'ui.gacha.machineOne'));
+  drawHeader(context, t('ui.share.poster.gachaTitle', { count: results.length }), t(machine === 'heart' ? 'ui.gacha.machineTwo' : machine === 'golden' ? 'ui.gacha.machineThree' : 'ui.gacha.machineOne'));
   fillPanel(context, 55, 195, 970, 240, posterColors.surface);
   const petImage = await loadImage(petImageUrl);
   if (petImage) drawContainedImage(context, petImage, 75, 210, 235, 205);

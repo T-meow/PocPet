@@ -2,6 +2,7 @@ import { expeditionBagCount, isExpeditionAway, regions } from './expeditionData'
 import type { ExpeditionItemId, ExpeditionReceipt } from './expeditionTypes';
 import type { Inventory, PetState } from './petTypes';
 import { getPetStatCap } from './petStats';
+import { recordMuseumGather } from './museumEvents';
 import { advanceExplorationBudget, earnExplorationPay, earnExplorationHarvestPay, settleReservedHarvest, settleExplorationLoot } from './explorationBudget';
 import { valleyGatherFinds } from './valleyExplorationData';
 import type { ValleyGatherTarget } from './valleyExplorationData';
@@ -87,7 +88,7 @@ export const settleExpeditionTime = (pet: PetState, now: number, completeLegacy 
           const finds = t.rulesVersion >= 8 ? rollIdleExplorationFinds(region, t.target, t.gatherSeed ?? hashString(t.id), check)
             : t.rulesVersion >= 6 ? getIdleExplorationFinds(region, t.target)
             : region === 'valley' ? valleyGatherFinds((t.target ?? 'valley_mushroom') as ValleyGatherTarget, true) : { [regions[region].product]: 2 };
-          pet = putExpeditionFinds(pet, finds);
+          pet = recordMuseumGather(putExpeditionFinds(pet, finds), region, finds, at);
           if (t.rewardsVersion === 1) {
             const extra = settleExplorationLoot(pet, 1, 'hour', region, at);
             pet = putExpeditionFinds(extra.pet, extra.finds);

@@ -22,7 +22,7 @@ import { CompanionDuty } from './CompanionDuty';
 
 const customerNames = { ordinary: '邻里客人', foodie: '美食客人', collector: '收藏客人', generous: '慷慨游客', legacy: '成交记录' };
 
-export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, onToggleItemFavorite, currentCompanion, substituting, companionRoster = [] }: CommunityPanelProps & { currentCompanion: CompanionPortrait; substituting: boolean; companionRoster?: readonly CompanionPortrait[] }) => {
+export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, onToggleItemFavorite, currentCompanion, favoriteFoodIds, substituting, companionRoster = [] }: CommunityPanelProps & { currentCompanion: CompanionPortrait; favoriteFoodIds?: readonly ItemId[]; substituting: boolean; companionRoster?: readonly CompanionPortrait[] }) => {
   const [dutyId] = useState(() => companionRoster[Math.floor(Math.random() * companionRoster.length)]?.id);
   const dutyCompanion = substituting ? companionRoster.find(actor => actor.id === dutyId) ?? genericNeighbor : currentCompanion;
   const name = (id: string) => registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id;
@@ -65,13 +65,13 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
         {m.open && <CompanionDuty actor={dutyCompanion} label={substituting ? '代班中' : '执勤中'} className="community-market-duty" />}
         <div className="community-market-announcement" role="status" aria-live="polite">{visitor && <span data-generous={visitor.customer === 'generous'}><b>{visitor.buyout ? '全部买下！' : customerNames[visitor.customer]}</b>{visitor.buyout ? '慷慨游客包场，货架售空' : `带走 ${visitorQuantity} 份好东西`}<small>+{visitor.coins} 金币</small></span>}</div>
         <div className="community-harvest-sign"><Store size={18} /><span>{occupied ? `货架 ${occupied}/${capacity} 格 · 共 ${stock} 份` : '货架空着，挑一点收获摆上来'}</span></div></div>
-      <footer className="community-production-footer"><div className="community-production-caption"><span>本次摆摊收入 {m.sessionRevenue} 金币</span><span>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 份</span><span>{m.open ? `基础 2–6 分钟一位 · 装饰客流 +${traffic.total}% · 偶尔还有慷慨大单` : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
+      <footer className="community-production-footer"><div className="community-production-caption"><span>本次摆摊收入 {m.sessionRevenue} 金币</span><span>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 份</span><span>{m.open ? `基础 4–8 分钟一位 · 装饰客流 +${traffic.total}% · 偶尔还有慷慨大单` : '准备好货品，再开店迎接邻居'}</span></div><div className="community-production-dock">
         <button type="button" className="primary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('stock')}><PackagePlus size={20} />手动上架</button>
         <button type="button" className="secondary-button" disabled={!m.level} onClick={() => update(p => setCommunityMarketOpen(p, !m.open))}><Store size={20} />{m.open ? '收摊休息' : '开店营业'}</button>
         <button type="button" className="secondary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('construction')}><Hammer size={20} />建设</button>
       </div></footer>
     </section>
-    {panel === 'stock' && <ItemStorageModal onToggleItemFavorite={onToggleItemFavorite} mode="bag" pet={pet} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} quantityDisabled={!free}
+    {panel === 'stock' && <ItemStorageModal onToggleItemFavorite={onToggleItemFavorite} mode="bag" pet={pet} actorId={currentCompanion.id} favoriteFoodIds={favoriteFoodIds} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} quantityDisabled={!free}
       context={{ title: '手动上架', inventory: pet.inventory, quantityLimit: item => getMarketListingOffer(pet, item.id)?.quantityLimit ?? 0, countLabel: '持有', showStats: false, showRecovery: false, help: item => getMarketItemHelp(pet, item.id) }}
       footer={<><span>货架 {occupied}/{capacity} 格 · 共 {stock} 份</span><button className="storage-switch" onClick={() => setPanel('manage')}>管理货架</button></>}
       tileInfo={item => { const offer = getMarketListingOffer(pet, item.id), quote = getMarketQuote(pet, item.id)!; return { price: <span>{offer ? `${offer.unitPrice} 金币／份` : '暂无可用栏位'}</span>, mark: offer?.listingId !== undefined ? '原价补货' : quote.collector ? '收藏品' : undefined }; }}

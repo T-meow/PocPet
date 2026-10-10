@@ -4,6 +4,7 @@ import {
   getPetEnergyCap,
   getPetStatCap,
   type GachaResult,
+  type GachaMachine,
   type PetState,
   type YearlyCareActionKey,
 } from './pet';
@@ -20,7 +21,7 @@ export interface PetProfileCardData {
 }
 
 export interface GachaCardData {
-  machine: 'apple' | 'heart';
+  machine: GachaMachine;
   count: number;
   jackpotCount: number;
   guaranteedCount: number;
@@ -29,7 +30,7 @@ export interface GachaCardData {
 }
 
 export const createGachaCardData = (
-  machine: 'apple' | 'heart',
+  machine: GachaMachine,
   results: readonly GachaResult[],
 ): GachaCardData => {
   if (results.length < 1 || results.length > 10) throw new Error('A gacha card needs one to ten results.');
@@ -57,7 +58,7 @@ const getCareTag = (pet: PetState) => {
 };
 
 const getGameplayTag = (pet: PetState) => {
-  const gachaDraws = pet.goldenAppleGacha.totalDraws + pet.goldenAppleGacha.heartGachaTotalDraws;
+  const gachaDraws = pet.goldenAppleGacha.totalDraws + pet.goldenAppleGacha.heartGachaTotalDraws + pet.goldenAppleGacha.goldenGachaTotalDraws;
   const candidates = [
     ['gacha', gachaDraws],
     ['garden', pet.garden.lifetimeHarvestCount],
@@ -73,7 +74,8 @@ const getGameplayTag = (pet: PetState) => {
 const getCollectionTag = (pet: PetState) => {
   const inventoryKinds = Object.values(pet.inventory).filter((count) => count > 0).length;
   const goldenApples = pet.inventory.golden_apple ?? 0;
-  if (pet.goldenAppleGacha.jackpotCount > 0) return t('ui.share.tags.jackpot', { count: pet.goldenAppleGacha.jackpotCount });
+  const jackpots = pet.goldenAppleGacha.jackpotCount + pet.goldenAppleGacha.goldenGachaJackpotCount;
+  if (jackpots > 0) return t('ui.share.tags.jackpot', { count: jackpots });
   if (goldenApples >= 10) return t('ui.share.tags.goldenApple', { count: goldenApples });
   if (inventoryKinds >= 12) return t('ui.share.tags.collector', { count: inventoryKinds });
   if (pet.coins >= 50000) return t('ui.share.tags.wealth', { coins: pet.coins });
@@ -83,7 +85,7 @@ const getCollectionTag = (pet: PetState) => {
 export const createPetProfileCardData = (pet: PetState, now = Date.now()): PetProfileCardData => {
   const statCap = getPetStatCap(pet);
   const achievementCount = Object.keys(pet.achievements.unlockedAtById).length;
-  const gachaDraws = pet.goldenAppleGacha.totalDraws + pet.goldenAppleGacha.heartGachaTotalDraws;
+  const gachaDraws = pet.goldenAppleGacha.totalDraws + pet.goldenAppleGacha.heartGachaTotalDraws + pet.goldenAppleGacha.goldenGachaTotalDraws;
   const activeDays = new Set(
     Object.values(pet.achievements.counters.companionYearActiveDateKeysByYear).flat(),
   ).size;

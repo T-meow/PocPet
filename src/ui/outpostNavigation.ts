@@ -4,7 +4,7 @@ import type { PetState } from '../core/petTypes';
 import type { LandmarkNode } from '../core/landmarkProgress';
 
 export type OutpostRequest =
-  | { view: 'idle' | 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode }
+  | { view: 'idle' | 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode; museumVisit?: import('../core/museumData').MuseumVisitId }
   | { view: 'journal' };
 
 export { expeditionRegionForMap, mapRegionForExpedition } from '../core/landmarkProgress';

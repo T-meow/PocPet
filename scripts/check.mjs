@@ -356,7 +356,7 @@ async function verifySavesAndErrors() {
       for (const id of ['coop', 'barn']) legacy.community.facilities[id] = { found: true, built: true, work: 2 };
       legacy.community.animals.coop.stock = 2;
       const migrated = restore(legacy);
-      assert.equal(migrated.community.schemaVersion, 15);
+      assert.equal(migrated.community.schemaVersion, 16);
       assert.equal(migrated.community.ranchCompostCycles, 0, 'legacy stock does not retroactively earn compost');
       assert.equal(migrated.community.animals.coop.name, undefined);
       assert.equal(migrated.community.plots[0].lastCrop, 'carrot');
@@ -460,7 +460,7 @@ async function verifySavesAndErrors() {
       legacy.community.expedition.projects.riverside = { completed: 2, stage: 1, theme: 'journey', lastDay: '2026-09-01', firstAt: now - 86400000, actorId: 'old.partner', actorName: '旧伙伴' };
       legacy.inventory.dish_mushroom_rice = 2;
       let state = parseSaveFileText(createSaveFileText(legacy, null, now), now).pet;
-      assert.equal(state.community.schemaVersion, 15);
+      assert.equal(state.community.schemaVersion, 16);
       assert.equal(state.community.expedition.projects.riverside.stage, 1);
       const cap = getPetEnergyCap(state), runId = actions.getProjectRunId(state, 'riverside');
       const frozen = { ...state, timePause: { schemaVersion: 1, pausedAt: now } };
@@ -1384,10 +1384,10 @@ async function verifySavesAndErrors() {
       assert.equal(legacyReceipt.adventure.pending.items.community_stone, 1);
     });
 
-    await check('聚餐任务旧档兼容、交付续程与一次性奖励往返防重', async () => {
+    await check('季度聚餐旧轮迁移、跨季续程与独立领奖防重', async () => {
       const { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureRewardPreview } = await import('../src/core/adventure.ts');
       const { startExplorationCampaign, advanceCampaignVisit, claimCampaignTask } = await import('../src/core/explorationCampaign.ts');
-      const { campaignTasks, campaignVisitIds, campaignVisits } = await import('../src/core/explorationCampaignData.ts');
+      const { campaignTasks, campaignVisitIds, campaignVisits, getCampaignReward } = await import('../src/core/explorationCampaignData.ts');
       const { campaignDestination, getCampaignSupplies, getCampaignDelivery, campaignVisitStep, campaignVisitComplete, campaignText } = await import('../src/core/explorationCampaignState.ts');
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
@@ -1472,14 +1472,48 @@ async function verifySavesAndErrors() {
       assert.equal(state.hearts, hearts);
       const blocked = { ...state, inventory: { ...state.inventory, golden_apple: inventoryItemLimit } };
       assert.equal(claimCampaignTask(blocked, 1, now), blocked, 'a full warehouse keeps the entire reward unclaimed');
+      const unclaimed = state;
       for (const task of campaignTasks) {
         state = reload(claimCampaignTask(state, task.id, now));
         assert.equal(claimCampaignTask(state, task.id, now), state, 'claimed rewards cannot be duplicated after restoring');
       }
-      assert.equal(state.hearts - hearts, 30000);
-      assert.equal(state.inventory.golden_apple - apples, 125);
+      assert.equal(state.hearts - hearts, 10000);
+      assert.equal(state.inventory.golden_apple - apples, 40);
       assert.deepEqual(state.boostCards, boost, 'fixed task rewards do not consume boost cards');
       assert.equal(Object.values(state.adventure.campaign.tasks).filter(record => record.claimedAt).length, 30);
+
+      const nextQuarter = new Date(2026, 9, 1, 5).getTime(), previousRun = state.adventure.campaign.runId;
+      assert.equal(startExplorationCampaign(state, candidates, 'official.furo', nextQuarter - 1), state, '05:00 is the quarterly boundary');
+      assert.equal(startExplorationCampaign({ ...state, timePause: { pausedAt: now } }, candidates, 'official.furo', nextQuarter).adventure.campaign.runId, previousRun);
+      assert.equal(startExplorationCampaign(unclaimed, candidates, 'official.furo', nextQuarter).adventure.campaign.runId, previousRun, 'unclaimed rewards keep the current run');
+      const nextRound = startExplorationCampaign(state, [{ modId: 'fixture.new', name: '新邻居' }], 'official.furo', nextQuarter, previousRun);
+      assert.equal(nextRound.adventure.campaign.quarter, '2026-Q4');
+      assert.notEqual(nextRound.adventure.campaign.runId, previousRun);
+      assert.equal(nextRound.adventure.campaign.contacts.valley.name, '新邻居');
+      assert.deepEqual(nextRound.adventure.campaign.history[0].tasks, state.adventure.campaign.tasks);
+      assert.deepEqual(nextRound.adventure.landmarks, landmarks);
+      assert.deepEqual(nextRound.adventure.campaign.tasks, {});
+      assert.equal(startExplorationCampaign(nextRound, candidates, 'official.furo', nextQuarter, previousRun), nextRound, 'old start requests cannot affect a newer run');
+      const readyToClaim = { ...nextRound, adventure: { ...nextRound.adventure, campaign: { ...nextRound.adventure.campaign, tasks: { 1: { completedAt: nextQuarter } } } } };
+      assert.equal(claimCampaignTask(readyToClaim, 1, nextQuarter, previousRun), readyToClaim, 'old task UI cannot claim the new run');
+      assert.equal(startExplorationCampaign({ ...state, adventure: { ...state.adventure, pending: { id: 'unsettled' } } }, candidates, 'official.furo', nextQuarter).adventure.campaign.runId, previousRun);
+      assert.equal(startExplorationCampaign(state, candidates, 'official.furo', new Date(2027, 6, 1, 5).getTime()).adventure.campaign.history.length, 1, 'missed quarters do not create catch-up runs');
+
+      const legacy = structuredClone(unclaimed);
+      legacy.adventure.schemaVersion = 9;
+      legacy.adventure.campaign = { schemaVersion: 1, startedAt: now, contacts: legacy.adventure.campaign.contacts, visits: legacy.adventure.campaign.visits, tasks: legacy.adventure.campaign.tasks };
+      legacy.adventure.campaign.tasks[1] = { ...legacy.adventure.campaign.tasks[1], claimedAt: now, reward: getCampaignReward(1, 1) };
+      legacy.hearts += getCampaignReward(1, 1).hearts;
+      legacy.inventory.golden_apple = apples + getCampaignReward(1, 1).apples;
+      let migrated = reload(legacy);
+      assert.equal(migrated.adventure.campaign.rewardVersion, 1);
+      assert.equal(migrated.adventure.campaign.quarter, '2026-Q3');
+      assert.deepEqual(migrated.adventure.campaign.tasks[1], legacy.adventure.campaign.tasks[1]);
+      for (const task of campaignTasks) migrated = reload(claimCampaignTask(migrated, task.id, now));
+      assert.equal(migrated.hearts - hearts, 30000, 'already-started legacy runs retain all old rewards');
+      assert.equal(migrated.inventory.golden_apple - apples, 125);
+      assert.equal(migrated.adventure.campaign.history.length, 0, 'migration never starts a new quarter');
+      assert.equal(startExplorationCampaign(migrated, candidates, 'official.furo', nextQuarter).adventure.campaign.rewardVersion, 2);
 
       const existingTrip = startAdventure(full, 'valley', 'official.furo', 'Furo', {}, false, now, 'landmark:valley:crossing');
       const upgradedTrip = reload(startExplorationCampaign(existingTrip, candidates, 'official.furo', now));
@@ -1503,6 +1537,14 @@ async function verifySavesAndErrors() {
       const earned = getAdventureRewardPreview(newcomer), nextTrip = newcomer.adventure.active;
       newcomer = reload(advanceCampaignVisit(fuel(newcomer), nextTrip.id, nextTrip.revision, 0, 'continue', {}, candidates, now));
       assert.ok(newcomer.adventure.campaign.tasks[1]);
+      assert.deepEqual(startExplorationCampaign(newcomer, candidates, 'official.furo', nextQuarter).adventure.campaign, newcomer.adventure.campaign, 'an unfinished trip and run continue across quarters');
+      const legacyInFlight = structuredClone(newcomer);
+      legacyInFlight.adventure.schemaVersion = 9;
+      legacyInFlight.adventure.campaign.schemaVersion = 1;
+      delete legacyInFlight.adventure.campaign.runId;
+      delete legacyInFlight.adventure.active.campaign.runId;
+      const restoredFlight = reload(legacyInFlight);
+      assert.equal(restoredFlight.adventure.active.campaign.runId, restoredFlight.adventure.campaign.runId, 'legacy trips bind to their migrated run');
       assert.deepEqual(getAdventureRewardPreview(newcomer), earned, 'embedded preparation keeps the normal first-clear reward unchanged');
       const returned = reload(returnFromAdventure(newcomer, nextTrip.id, now));
       assert.equal(returned.adventure.pending.campaignVisit, undefined);
@@ -1844,6 +1886,231 @@ async function verifySavesAndErrors() {
       assert.equal(split.coins, lumped.coins);
       const oldWait = { ...initial, community: { ...initial.community, market: { ...initial.community.market, remainingVisitMs: 15 * 60000 } } };
       assert.equal(reload(oldWait, now).community.market.remainingVisitMs, 15 * 60000, 'legacy paused waits remain unchanged on reload');
+    });
+
+    await check('包场游戏日存档、旧日志迁移与跨日恢复', async () => {
+      const { advanceCommunityMarket, setCommunityMarketOpen } = await import('../src/core/communityMarket.ts');
+      const { getMarketVisit } = await import('../src/core/communityMarketRules.ts');
+      const { reconcilePetClock } = await import('../src/core/gameClock.ts');
+      const beforeReset = new Date(2026, 9, 8, 4, 55).getTime();
+      const resetAt = new Date(2026, 9, 8, 5).getTime();
+      let seed = 1;
+      while (!getMarketVisit(seed, 0).buyout && seed < 100000) seed++;
+      assert.ok(getMarketVisit(seed, 0).buyout, 'fixture must offer a buyout');
+      const ready = (state, at) => ({ ...state, community: { ...state.community,
+        facilities: { ...state.community.facilities, stall: { found: true, built: true, work: 2 } },
+        market: { ...state.community.market, level: 1, open: true, seed, visitors: 0, lastVisitAt: at - 1, nextVisitAt: at, remainingVisitMs: undefined,
+          listings: [{ id: 1, slotIndex: 0, itemId: 'apple', quantity: 20, unitPrice: 10, basePrice: 8, bonus: 20, collector: false }], nextListingId: 2 },
+      } });
+      const reload = (state, at) => parseSaveFileText(createSaveFileText(state, null, at), at).pet;
+      const first = advanceCommunityMarket(ready(createDefaultPet(beforeReset), beforeReset), beforeReset);
+      assert.equal(first.community.market.lastBuyoutDay, '2026-10-07');
+      assert.equal(first.community.market.log[0].buyout, true);
+      assert.equal(first.community.market.listings.length, 0);
+      const legacy = structuredClone(first);
+      delete legacy.community.market.lastBuyoutDay;
+      assert.equal(normalizePet(legacy, beforeReset).community.market.lastBuyoutDay, '2026-10-07');
+      const saved = reload({ ...first, community: { ...first.community, market: { ...first.community.market, log: [] } } }, beforeReset);
+      assert.equal(saved.community.market.lastBuyoutDay, '2026-10-07', 'short logs are not the quota ledger');
+      const reopened = setCommunityMarketOpen(setCommunityMarketOpen(saved, false, beforeReset), true, beforeReset);
+      assert.equal(reopened.community.market.lastBuyoutDay, '2026-10-07');
+      const lateVisit = resetAt - 60000;
+      const waiting = ready(reopened, lateVisit);
+      const offline = advanceCommunityMarket(waiting, resetAt + 60000);
+      assert.equal(offline.community.market.log[0].buyout, false, 'offline visits use their own date, not catch-up time');
+      assert.equal(offline.community.market.log[0].items[0].quantity, getMarketVisit(seed, 0).quantity);
+      assert.deepEqual(advanceCommunityMarket(reload(advanceCommunityMarket(waiting, lateVisit), lateVisit), resetAt + 60000).community.market, offline.community.market);
+      const nextDay = advanceCommunityMarket(ready(reload(offline, resetAt + 60000), resetAt + 120000), resetAt + 120000);
+      assert.equal(nextDay.community.market.log[0].buyout, true);
+      assert.equal(nextDay.community.market.lastBuyoutDay, '2026-10-08');
+      const future = { ...nextDay, community: { ...nextDay.community, market: { ...nextDay.community.market, lastBuyoutDay: '2026-10-11' } } };
+      assert.equal(reconcilePetClock(future, resetAt + 120000).pet.community.market.lastBuyoutDay, '2026-10-08');
+    });
+
+    await check('纪念馆筹款、短回访、策展扣费与周记录存档防重', async () => {
+      const { investMuseumHall, withdrawMuseumHall, completeMuseumHallStage, acceptMuseumQuest } = await import('../src/core/museum.ts');
+      const { beginMuseumCuration, editMuseumCuration, hostMuseumCuration, advanceMuseumWeek, findMuseumSolution } = await import('../src/core/museumCuration.ts');
+      const { getMuseumExhibits } = await import('../src/core/museumState.ts');
+      const { advanceMuseumVisit } = await import('../src/core/museumJourney.ts');
+      const { museumVisits, getMuseumStageCost } = await import('../src/core/museumData.ts');
+      const { startAdventure, returnFromAdventure, claimAdventureResult } = await import('../src/core/adventure.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { reconcilePetClock, shiftPetRuntimeTimestamps } = await import('../src/core/gameClock.ts');
+      const { getDailyResetDateKey, getWeekStartDateKey } = await import('../src/core/dailyReset.ts');
+      const reload = p => parseSaveFileText(createSaveFileText(p, null, now), now).pet;
+      let state = reload({ ...pet, coins: 500000, museum: undefined,
+        classicEndgame: { ...pet.classicEndgame, legacyLevel: 12, projects: Object.fromEntries(Object.entries(pet.classicEndgame.projects).map(([id, progress]) => [id, { ...progress, completedStages: 5 }])) },
+        adventure: { ...pet.adventure, completed: { tutorial: 1 }, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) },
+        community: { ...pet.community, herbDiscovered: true }, kitchen: { ...pet.kitchen, equipment: ['pan', 'mix', 'blender', 'oven'] },
+        inventory: { ...pet.inventory, golden_apple: 100, community_wood: 10, community_stone: 10, valley_mushroom: 8, creek_herb: 8, dish_mushroom_rice: 20, dish_herb_porridge: 20, creek_aquamarine: 3 } });
+      assert.equal(state.museum.appearance.crown, true, 'existing legacy levels unlock their cosmetics');
+      const startCoins = state.coins;
+      state = reload(investMuseumHall(state, 'valley', 0, 1000, 0));
+      assert.equal(investMuseumHall(state, 'valley', 0, 1000, 0), state, 'retrying a funding request does not charge twice');
+      state = reload(withdrawMuseumHall(state, 'valley', 0));
+      assert.equal(state.coins, startCoins);
+      state = investMuseumHall(state, 'valley', 0, 6000, 0);
+      const shortWood = { ...state, inventory: { ...state.inventory, community_wood: 9 } };
+      assert.equal(completeMuseumHallStage(shortWood, 'valley', 0, now), shortWood, 'missing material leaves all funding and items intact');
+      state = reload(completeMuseumHallStage(state, 'valley', 0, now));
+      assert.equal(state.museum.halls.valley.stage, 1);
+      assert.equal(completeMuseumHallStage(state, 'valley', 0, now), state);
+      state = reload(acceptMuseumQuest(state, 'valley_record', now));
+      const campaign = structuredClone(state.adventure.campaign);
+      for (const visitId of ['valley_bridge', 'valley_greenhouse']) {
+        const depart = p => startAdventure({ ...p, hunger: 100, energy: 100, health: 100, mood: 100 }, 'valley', 'official.furo', 'Furo', {}, false, now, museumVisits[visitId].destination, undefined, [], undefined, visitId);
+        state = reload(depart(state));
+        assert.equal(state.adventure.active.campaign, undefined);
+        for (let step = 0; step < 2; step++) {
+          const trip = state.adventure.active;
+          state = reload(advanceMuseumVisit(state, trip.id, trip.revision, step, {}, now));
+          assert.equal(state.adventure.active.museum.step, step + 1);
+          assert.equal(advanceMuseumVisit(state, trip.id, trip.revision, step, {}, now), state);
+          if (step === 0) {
+            const shifted = shiftPetRuntimeTimestamps(state, -60000);
+            assert.equal(shifted.adventure.active.museum.acceptedAt, shifted.museum.quests.valley_record.acceptedAt, 'clock rebasing preserves the visit identity');
+            state = reload(returnFromAdventure(state, trip.id, now));
+            assert.equal(state.adventure.pending.coins, 0);
+            state = reload(claimAdventureResult(state, trip.id));
+            state = reload(depart(state));
+            assert.equal(state.adventure.active.museum.startStep, 1);
+          }
+        }
+        const id = state.adventure.active.id;
+        state = reload(returnFromAdventure(state, id, now));
+        assert.equal(state.adventure.pending.museumVisit, visitId);
+        assert.equal(state.adventure.pending.hearts, 0);
+        state = reload(claimAdventureResult(state, id));
+      }
+      assert.ok(state.museum.quests.valley_record.completedAt);
+      assert.deepEqual(state.adventure.campaign, campaign, 'museum visits cannot advance picnic tasks');
+      for (const stage of [1, 2]) {
+        const cost = getMuseumStageCost('valley', stage);
+        state = reload(completeMuseumHallStage(investMuseumHall(state, 'valley', stage, cost.coins, 0), 'valley', stage, now));
+        assert.equal(state.museum.halls.valley.stage, stage + 1);
+      }
+      assert.equal(state.coins, startCoins - 30000);
+      assert.equal(state.inventory.golden_apple, 95);
+      assert.equal(getMuseumExhibits(state.museum).length, 4);
+      state = advanceMuseumWeek(state, now);
+      const invitations = structuredClone(state.museum.board);
+      assert.ok(invitations.themes.length > 0);
+      assert.deepEqual(advanceMuseumWeek(reload(state), now).museum.board, invitations);
+      state = beginMuseumCuration(state, 'valley');
+      const solution = findMuseumSolution(state, 'valley');
+      state = editMuseumCuration(state, state.museum.draft.id, state.museum.draft.revision, { ...solution, dishes: ['dish_mushroom_rice', 'dish_herb_porridge'], scale: 'standard' });
+      const prepared = reload(state), { id, revision } = prepared.museum.draft;
+      const noApples = { ...prepared, inventory: { ...prepared.inventory, golden_apple: 29 } };
+      assert.equal(hostMuseumCuration(noApples, id, revision, 'official.furo', 'Furo', [], now), noApples, 'failed validation cannot partly consume coins or meals');
+      state = reload(hostMuseumCuration(prepared, id, revision, 'official.furo', 'Furo', [{ modId: 'fixture.museum', name: '旧名字' }], now));
+      assert.equal(state.coins, prepared.coins - 30000);
+      assert.equal(state.inventory.golden_apple, prepared.inventory.golden_apple - 30);
+      assert.equal(state.inventory.dish_mushroom_rice, prepared.inventory.dish_mushroom_rice - 4);
+      assert.equal(state.museum.stars, 9);
+      assert.equal(state.museum.weeklyPages, 1);
+      assert.equal(state.museum.records[0].guestName, '旧名字');
+      assert.equal(hostMuseumCuration(state, id, revision, 'official.furo', 'Furo', [], now), state);
+      assert.deepEqual(reload(state).museum, state.museum);
+      state = beginMuseumCuration(state, 'valley');
+      const nextWeek = new Date(2026, 8, 28, 5).getTime(), draft = structuredClone(state.museum.draft);
+      state = advanceMuseumWeek(state, nextWeek);
+      assert.deepEqual(state.museum.draft, draft, 'drafts survive invitation changes');
+      assert.deepEqual(advanceMuseumWeek(state, now).museum.board, state.museum.board, 'clock rollback cannot redraw invitations');
+      state = hostMuseumCuration(state, draft.id, draft.revision, 'official.furo', 'Furo', [], now);
+      assert.equal(state.museum.hosted, 2, 'a repeat theme is fully charged and recorded');
+      assert.equal(state.museum.weeklyPages, 1, 'repeat exhibitions in the same week do not duplicate its memorial page');
+      assert.equal(state.coins, prepared.coins - 42000);
+
+      const currentWeek = getWeekStartDateKey(getDailyResetDateKey(now));
+      const futureWeek = getWeekStartDateKey(getDailyResetDateKey(now + 365 * 86400000));
+      const future = beginMuseumCuration({ ...state, museum: { ...state.museum,
+        board: { ...state.museum.board, week: futureWeek }, lastHostedWeek: futureWeek,
+      } }, 'valley');
+      const corrected = reconcilePetClock(future, now);
+      assert.equal(corrected.dailyDateRebased, true, 'future museum weeks trigger correction even when the global clock is already current');
+      let rebased = reload(corrected.pet);
+      assert.deepEqual(rebased.museum, { ...future.museum,
+        board: { ...future.museum.board, week: currentWeek }, lastHostedWeek: currentWeek,
+      }, 'clock correction preserves invitations, drafts and previously earned pages across reloads');
+      rebased = hostMuseumCuration(rebased, rebased.museum.draft.id, rebased.museum.draft.revision, 'official.furo', 'Furo', [], now);
+      assert.equal(rebased.museum.hosted, state.museum.hosted + 1);
+      assert.equal(rebased.museum.weeklyPages, state.museum.weeklyPages, 'clock correction does not reopen the current weekly reward');
+      rebased = beginMuseumCuration(advanceMuseumWeek(rebased, nextWeek), 'valley');
+      assert.equal(rebased.museum.board.week, getWeekStartDateKey(getDailyResetDateKey(nextWeek)), 'invitations resume refreshing on the next week');
+      rebased = hostMuseumCuration(rebased, rebased.museum.draft.id, rebased.museum.draft.revision, 'official.furo', 'Furo', [], nextWeek);
+      assert.equal(rebased.museum.weeklyPages, state.museum.weeklyPages + 1, 'next week can earn a memorial page after clock correction');
+    });
+
+    await check('金苹果专用券与新机存档往返、支付失败及独立序列', async () => {
+      const gacha = await import('../src/core/goldenAppleGacha.ts');
+      const ready = { ...createDefaultPet(now), level: 20, hearts: 2000, coins: 50000 };
+      for (const skill of Object.values(ready.partnerSchedule.skills)) skill.level = 6;
+      ready.goldenAppleGacha.tickets = 12;
+      ready.goldenAppleGacha.totalDraws = 1000;
+      ready.goldenAppleGacha.jackpotPityMisses = 1000;
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const legacy = { ...ready, goldenAppleGacha: { ...ready.goldenAppleGacha, schemaVersion: 4, specialTickets: 99 } };
+      assert.equal(reload(legacy).goldenAppleGacha.specialTickets, 0);
+      assert.equal(gacha.drawGoldenAppleOnlyGacha(createDefaultPet(now), 'coins', 1, now).error, 'locked');
+      const exchanged = gacha.exchangeHeartsForSpecialGachaTickets(ready, 10, now);
+      assert.equal(exchanged.error, undefined);
+      assert.equal(exchanged.pet.hearts, 1000);
+      assert.equal(exchanged.pet.goldenAppleGacha.specialTickets, 10);
+      assert.equal(exchanged.pet.goldenAppleGacha.specialTicketHeartsSpent, 1000);
+      const paid = reload(exchanged.pet);
+      assert.equal(paid.goldenAppleGacha.specialTickets, 10);
+      const ticketDraw = gacha.drawGoldenAppleOnlyGacha(paid, 'specialTickets', 10, now);
+      const coinDraw = gacha.drawGoldenAppleOnlyGacha(paid, 'coins', 10, now);
+      assert.equal(ticketDraw.error, undefined);
+      assert.equal(coinDraw.error, undefined);
+      assert.deepEqual(ticketDraw.results, coinDraw.results, 'payment does not change the pool or random sequence');
+      assert.equal(ticketDraw.pet.coins, paid.coins);
+      assert.equal(ticketDraw.pet.goldenAppleGacha.specialTickets, 0);
+      assert.equal(ticketDraw.pet.goldenAppleGacha.tickets, 12);
+      assert.equal(coinDraw.pet.coins, paid.coins - 10000);
+      assert.equal(coinDraw.pet.goldenAppleGacha.specialTickets, 10);
+      assert.equal(coinDraw.pet.goldenAppleGacha.jackpotPityMisses, 1000, 'the old machine keeps its pity');
+      let singles = paid;
+      const singleResults = [];
+      for (let index = 0; index < 10; index++) {
+        const result = gacha.drawGoldenAppleOnlyGacha(reload(singles), 'coins', 1, now);
+        assert.equal(result.error, undefined);
+        singles = result.pet;
+        singleResults.push(...result.results);
+      }
+      assert.deepEqual(singleResults, coinDraw.results, 'ten draws are exactly ten singles, including across reloads');
+      assert.ok(coinDraw.results.every(result => !result.guaranteed && !result.pityGuaranteed));
+      const restored = reload(ticketDraw.pet);
+      for (const key of ['specialTickets', 'specialTicketHeartsSpent', 'goldenGachaTotalDraws', 'goldenGachaCoinsSpent', 'goldenGachaTicketsSpent', 'goldenGachaRngCounter', 'goldenGachaJackpotCount']) {
+        assert.equal(restored.goldenAppleGacha[key], ticketDraw.pet.goldenAppleGacha[key], key);
+      }
+      assert.deepEqual(restored.goldenAppleGacha.recentGoldenResults, []);
+      assert.equal(restored.hearts, ticketDraw.pet.hearts);
+      assert.deepEqual(restored.inventory, ticketDraw.pet.inventory);
+      for (const [state, payment, error] of [
+        [{ ...ready, coins: 999 }, 'coins', 'not_enough_coins'],
+        [ready, 'specialTickets', 'not_enough_special_tickets'],
+        [ready, 'tickets', 'invalid_payment'],
+      ]) {
+        const failed = gacha.drawGoldenAppleOnlyGacha(state, payment, 1, now);
+        assert.equal(failed.error, error);
+        assert.equal(failed.pet, state);
+      }
+      const full = { ...paid, inventory: { ...paid.inventory, golden_apple: 9999 } };
+      assert.ok(coinDraw.results.some(result => result.kind === 'item'));
+      assert.equal(gacha.drawGoldenAppleOnlyGacha(full, 'coins', 10, now).pet, full, 'capacity failure leaves fees and sequence untouched');
+      const poor = { ...ready, hearts: 99 };
+      assert.equal(gacha.exchangeHeartsForSpecialGachaTickets(poor, 1, now).pet, poor);
+      const fullTickets = { ...ready, goldenAppleGacha: { ...ready.goldenAppleGacha, specialTickets: 9999 } };
+      assert.equal(gacha.exchangeHeartsForSpecialGachaTickets(fullTickets, 1, now).error, 'tickets_full');
+      assert.equal(gacha.getSpecialGachaTicketExchangeLimit(fullTickets), 0);
+      assert.equal(gacha.goldenAppleOnlyGachaRewards.reduce((sum, reward) => sum + reward.weight, 0), 100000);
+      assert.equal(gacha.goldenAppleOnlyGachaRewards.reduce((sum, reward) => sum + reward.weight * reward.amount * (reward.kind === 'item' ? 100 : 1), 0) / 100000, 90);
+      reset(createSaveFileText(paid, null, now));
+      const before = storage.getItem(primary);
+      storage.failWrite = primary;
+      assert.throws(() => disk.savePet(ticketDraw.pet), /Injected write/);
+      assert.equal(storage.getItem(primary), before, 'failed persistence retains the paid balance and next draw');
     });
 
     await check('邻居雇佣扣费、游戏日到期与存档恢复', async () => {

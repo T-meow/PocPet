@@ -1,2 +1,5 @@
 .storage-tile-tag.dish-value-tag { min-width: 20px; min-height: 20px; padding: 2px; border: 0; background: transparent; font-size: 16px; line-height: 1; }
 .storage-item-tile > .dish-value-tag { margin: 3px 4px; }
+.storage-food-badges { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 3px 4px; font-size: 16px; line-height: 1; }
+.storage-food-badge-slot { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; min-height: 20px; }
+.storage-food-badge-slot + .storage-food-badge-slot { margin-left: 4px; }

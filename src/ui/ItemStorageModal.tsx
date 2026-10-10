@@ -21,6 +21,7 @@ import { useExplorationWideLayout } from './useExplorationWideLayout';
 import { favoritesFirst } from '../core/favorites';
 import { FavoriteButton, FavoriteMark } from './Favorite';
 import { DishValueBadge } from './DishValueBadge';
+import { ItemFoodBadges } from './ItemFoodBadges';
 
 const effectIcons = { hunger: Apple, mood: Smile, cleanliness: Droplets, energy: Zap, health: HeartPulse };
 
@@ -54,10 +55,11 @@ interface Props {
   tileInfo?: (item: InventoryItemDefinition) => { price: ReactNode; mark?: string };
   renderActions: (item: InventoryItemDefinition, quantity: number) => ReactNode;
   favoriteFoodIds?: readonly ItemId[];
+  actorId?: string;
   onToggleItemFavorite: (id: ItemId) => void;
 }
 
-export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds, onToggleItemFavorite }: Props) => {
+export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds, actorId, onToggleItemFavorite }: Props) => {
   const [detailItemId, setDetailItemId] = useState<string>();
   const wide = useExplorationWideLayout();
   const inlineDetails = context?.layout === 'exploration' && wide;
@@ -133,7 +135,9 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
             </span>
             <span className="storage-tile-count" title={L(`持有 ${owned} 件`, `${owned} owned`)}>{context?.countLabel ?? (mode === 'shop' ? L('有 ', 'Have ') : '×')}{formatCompactNumber(owned)}</span>
             {info?.mark && <span className="storage-tile-mark">{info.mark}</span>}
-            <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{pet.favorites.itemIds.includes(entry.id) && <FavoriteMark />}{entry.displayName}</strong><DishValueBadge itemId={entry.id} />{info && <span className="storage-tile-price">{info.price}</span>}
+            <span className="storage-tile-picture"><img src={iconFor(entry)} alt="" draggable={false} /></span><strong className="storage-tile-name">{pet.favorites.itemIds.includes(entry.id) && <FavoriteMark />}{entry.displayName}</strong>
+            {mode === 'bag' && actorId ? <ItemFoodBadges pet={pet} item={entry} actorId={actorId} favoriteFoodIds={favoriteFoodIds} /> : <DishValueBadge itemId={entry.id} />}
+            {info && <span className="storage-tile-price">{info.price}</span>}
           </button>;
         })}</div>{!visible.length && <div className="storage-empty"><PackageOpen size={32} /><p>{t('ui.inventory.emptyCategory')}</p>{mode === 'bag' && onSwitch && <button className="storage-primary" onClick={() => onSwitch && perform(onSwitch)}>{context?.switchLabel ?? t('ui.inventory.openCategoryShop')}</button>}</div>}</div>
         <footer className="storage-catalogue-footer"><span>{L(`${visible.length} 种物品`, `${visible.length} items`)}</span>{footer}</footer>

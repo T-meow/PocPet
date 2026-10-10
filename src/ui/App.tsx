@@ -23,6 +23,8 @@ import {
   createDefaultPet,
   drawGoldenAppleHeartGacha,
   drawGoldenAppleGacha,
+  drawGoldenAppleOnlyGacha,
+  exchangeHeartsForSpecialGachaTickets,
   defaultPetBirthday,
   defaultPetName,
   dismissYearReview,
@@ -71,6 +73,8 @@ import {
   type GachaPaymentMethod,
   type GachaResult,
   type GoldenAppleGachaDrawOutcome,
+  type GoldenAppleOnlyPaymentMethod,
+  type SpecialGachaTicketExchangeOutcome,
   type ItemId,
   type NeighborEventContext,
   type NeighborIdentity,
@@ -127,6 +131,9 @@ import { resolveImportedSaveMod } from '../core/saveImport';
 import { AchievementsPage, type AchievementTabId } from './AchievementsPage';
 import { BoostCardModal } from './BoostCardModal';
 import { CommonDreamsPage } from './CommonDreamsPage';
+import { MuseumPage } from './MuseumPage';
+import { museumVisits } from '../core/museumData';
+import { parseLandmarkId, expeditionRegionForMap } from '../core/landmarkProgress';
 import { ConfirmDialog } from './ConfirmDialog';
 import { GardenPage } from './GardenPage';
 import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
@@ -335,6 +342,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     openUtilityDialog,
     closeUtilityDialog,
   } = useAppNavigation();
+  const [museumReturnPage, setMuseumReturnPage] = useState<'home' | 'commonDreams'>('commonDreams');
   const [isPomodoroOpen, setPomodoroOpen] = useState(false);
   const [festivalReplayId, setFestivalReplayId] = useState<string | null>(null);
   const [selectedFestival, setSelectedFestival] = useState<{ festival: FestivalId; runId: string } | null>(() => {
@@ -861,6 +869,20 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     return Boolean(saveAction(commitPet(outcome.pet), 'action'));
   };
 
+  const handleGoldenOnlyGachaDraw = (payment: GoldenAppleOnlyPaymentMethod, count: 1 | 10): GoldenAppleGachaDrawOutcome => {
+    const outcome = drawGoldenAppleOnlyGacha(petRef.current, payment, count);
+    if (outcome.error) return outcome;
+    const settled = saveAction(commitPet(outcome.pet));
+    return settled ? { ...outcome, pet: settled } : { pet: petRef.current, results: [], error: 'save_failed' };
+  };
+
+  const handleExchangeSpecialGachaTickets = (count: number): SpecialGachaTicketExchangeOutcome => {
+    const outcome = exchangeHeartsForSpecialGachaTickets(petRef.current, count);
+    if (outcome.error) return outcome;
+    const settled = saveAction(commitPet(outcome.pet));
+    return settled ? { ...outcome, pet: settled } : { pet: petRef.current, tickets: 0, error: 'save_failed' };
+  };
+
   const handleOpenCommonDreams = () => {
     playAfterUnlock('open');
     setPet((current) => markClassicEndgameUnlockSeen(current));
@@ -870,6 +892,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleCloseCommonDreams = () => {
     playAfterUnlock('close');
     setActivePage('home');
+  };
+
+  const handleOpenMuseum = (from: 'home' | 'commonDreams') => {
+    playAfterUnlock('open');
+    setMuseumReturnPage(from);
+    setActivePage('museum');
   };
 
   const commitEndgameAction = (updater: (current: PetState) => PetState) => {
@@ -1631,7 +1659,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     resumeTime();
   }} persistenceError={persistenceError} onRetry={retryPersistence} />;
   return (
-    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}${activePage === 'commonDreams' ? ' app-shell--dreams' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
+    <main className={`app-shell ui-v2-app${activePage === 'home' ? ' app-shell--home-v2' : ''}${activePage === 'adventure' ? ' app-shell--adventure' : ''}${activePage === 'commonDreams' || activePage === 'museum' ? ' app-shell--dreams' : ''}`} onClickCapture={() => { void unlockAudio(); }}>
       {updateController.showReminder && !editionNoticeVisible && !persistenceError && !utilityDialog && !pendingImportedSave && <div className="client-update-banner" role="status">
         <button type="button" className="text-button" onClick={() => { setSettingsInitialPage('updates'); setActivePage('settings'); }}>{t('ui.updates.available', { version: updateController.result?.update?.version ?? '' })}</button>
         <button type="button" className="icon-button" title={t('ui.updates.later')} aria-label={t('ui.updates.later')} onClick={updateController.remindLater}><X size={18} /></button>
@@ -1730,11 +1758,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'adventure' ? (
         <AdventurePage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
           communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
-          update={activities.update} onBack={() => setActivePage('home')} onUseHomeItem={handleUseItem}
+          update={activities.update} onBack={() => setActivePage(outpostRequest && outpostRequest.view !== 'journal' && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
-        <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} installedMods={installedMods} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
+        <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} installedMods={installedMods} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
           orchard={<GardenPage embedded pet={pet} itemIconMap={itemIconMap} onBack={handleCloseGarden}
             onUnlockSlot={handleUnlockGardenSlot} onPlantTree={handlePlantTree} onRecycleSapling={handleRecycleGardenSapling}
@@ -1745,6 +1773,14 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onAdventure={() => handleOpenOutpost()}
           onExplore={purpose => { setOutpostRequest(undefined); setCommunityRoute(purpose); setActivePage('adventure'); }} onShop={() => handleOpenShop()} onOpenOutpost={handleOpenOutpost}
           onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }} />
+      ) : activePage === 'museum' ? (
+        <MuseumPage pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petActivityImageMap.happy ?? petStatusImageMap.content} mods={installedMods} icons={itemIconMap} update={activities.update}
+          backLabel={museumReturnPage === 'home' ? '返回小窝' : '返回共同梦想'}
+          onBack={() => { playAfterUnlock('close'); setActivePage(museumReturnPage); }} onLegacy={() => setActivePage('commonDreams')}
+          onVisit={id => { const location = parseLandmarkId(museumVisits[id].destination); handleOpenOutpost({ view: 'manual', region: expeditionRegionForMap[location.region], node: location.node, museumVisit: id }); }}
+          onExplore={region => handleOpenOutpost({ view: 'manual', region, node: 'gather' })}
+          onKitchen={(recipe = 'herb_porridge') => { activities.setRecipeId(recipe); activities.setBanana(false); activities.setQuantity(1); activities.update(current => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
+          onFarm={() => { setCommunityTab('field'); setCommunityPlace(null); setActivePage('community'); }} onFishing={handleOpenFishing} />
       ) : activePage === 'commonDreams' ? (
         <CommonDreamsPage
           pet={pet}
@@ -1757,6 +1793,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           }}
           itemIconMap={itemIconMap}
           onBack={handleCloseCommonDreams}
+          onMuseum={() => handleOpenMuseum('commonDreams')}
           onInvestProject={(category: PartnerScheduleCategory, coins: number) => commitEndgameAction((current) => investDreamProject(current, category, coins))}
           onCompleteProjectStage={(category: PartnerScheduleCategory) => commitEndgameAction((current) => completeDreamProjectStage(current, category))}
           onClaimProjectSupplement={(category: PartnerScheduleCategory) => commitEndgameAction((current) => claimDreamProjectSupplySupplement(current, category))}
@@ -1778,6 +1815,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           adventure={{ status: 'available', traveling: Boolean(pet.adventure.active || pet.community.expedition.active), pending: Boolean(pet.adventure.pending || pet.community.expedition.pending), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
           onOpenMarket={handleOpenMarket}
+          onOpenMuseum={() => handleOpenMuseum('home')}
           onOpenFishing={handleOpenFishing}
           hasAchievementNotice={hasAchievementNotice}
           onOpenShop={() => handleOpenShop()}
@@ -1884,6 +1922,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onToggleItemFavorite={handleToggleItemFavorite}
           items={ownedItems}
           pet={pet}
+          actorId={actorId}
           favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
           itemIconMap={itemIconMap}
           browse={inventoryController.browse}
@@ -1905,6 +1944,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onClose={handleCloseGacha}
           onDraw={handleGachaDraw}
           onHeartDraw={handleHeartGachaDraw}
+          onGoldenDraw={handleGoldenOnlyGachaDraw}
+          onExchangeSpecialTickets={handleExchangeSpecialGachaTickets}
           onClaimStarterGift={handleClaimGachaStarterGift}
           isSavingResults={shareBusy !== null}
           saveFeedback={gachaCardSaveFeedback}

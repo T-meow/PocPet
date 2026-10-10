@@ -141,6 +141,8 @@ export interface BoostCardState {
 export type GachaTicketSource = 'partner_schedule' | 'daily_wish' | 'daily_encounter';
 
 export type GachaPaymentMethod = 'coins' | 'tickets';
+export type GoldenAppleOnlyPaymentMethod = 'coins' | 'specialTickets';
+export type GachaMachine = 'apple' | 'heart' | 'golden';
 
 export type GachaRewardRarity = 'common' | 'uncommon' | 'rare' | 'legendary' | 'jackpot';
 
@@ -163,7 +165,7 @@ export interface GachaResult {
 }
 
 export interface GoldenAppleGachaState {
-  schemaVersion: 4;
+  schemaVersion: 5;
   tickets: number;
   totalDraws: number;
   coinsSpent: number;
@@ -182,6 +184,14 @@ export interface GoldenAppleGachaState {
   heartGachaApplesSpent: number;
   heartGachaRngCounter: number;
   recentHeartResults: GachaResult[];
+  specialTickets: number;
+  specialTicketHeartsSpent: number;
+  goldenGachaTotalDraws: number;
+  goldenGachaCoinsSpent: number;
+  goldenGachaTicketsSpent: number;
+  goldenGachaRngCounter: number;
+  goldenGachaJackpotCount: number;
+  recentGoldenResults: GachaResult[];
 }
 
 export interface DreamProjectProgress {
@@ -540,6 +550,7 @@ export interface PetState {
   partnerSchedule: PartnerScheduleState;
   goldenAppleGacha: GoldenAppleGachaState;
   classicEndgame: ClassicEndgameState;
+  museum: import('./museumTypes').MuseumState;
   timeGuard: TimeGuardState;
   timePause?: import('./timePauseState').TimePauseState;
   kitchen: KitchenState;

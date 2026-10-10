@@ -16,7 +16,7 @@ export const persistentPetKeys = [
   'lastInteractionAt', 'lastPetInteractionAt', 'pomodoro', 'claimedRewardIds', 'birthday', 'claimedDateRewardKeys',
   'dailyLoginRewardDateKey', 'yearlyStats', 'pendingYearReview', 'latestYearReview', 'lastYearReviewYear',
   'dailyWish', 'returnWelcome', 'achievements', 'lastCleanActionAt', 'garden', 'boostCards', 'partnerSchedule',
-  'goldenAppleGacha', 'classicEndgame', 'timeGuard', 'timePause', 'kitchen', 'miniGames', 'companionMemories', 'festivalStories', 'adventure', 'community',
+  'goldenAppleGacha', 'classicEndgame', 'museum', 'timeGuard', 'timePause', 'kitchen', 'miniGames', 'companionMemories', 'festivalStories', 'adventure', 'community',
 ] as const satisfies readonly (keyof PetState)[];
 
 type PersistentBase = Pick<PetState, typeof persistentPetKeys[number]>;
@@ -29,7 +29,7 @@ type PersistedExpedition = Omit<Expedition, 'active' | 'pending' | 'lastReceipt'
 };
 export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGacha' | 'kitchen' | 'miniGames' | 'achievements' | 'yearlyStats' | 'companionMemories' | 'community'> & {
   garden: Omit<PetState['garden'], 'activeSlotIndex' | 'slots'> & { slots: Array<PetState['garden']['slots'][number] | { unlocked: boolean }> };
-  goldenAppleGacha: Omit<PetState['goldenAppleGacha'], 'recentResults' | 'recentHeartResults'>;
+  goldenAppleGacha: Omit<PetState['goldenAppleGacha'], 'recentResults' | 'recentHeartResults' | 'recentGoldenResults'>;
   kitchen: Omit<PetState['kitchen'], 'plating' | 'lastCraft'>;
   miniGames: Omit<PetState['miniGames'], 'style'>;
   achievements: Omit<PetState['achievements'], 'pendingReviewNotice' | 'counters'> & {
@@ -53,7 +53,7 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
   const current = normalizePet(pet, now);
   const base = Object.fromEntries(persistentPetKeys.map((key) => [key, current[key]])) as PersistentBase;
   const { activeSlotIndex: _slot, ...garden } = current.garden;
-  const { recentResults: _gold, recentHeartResults: _heart, ...goldenAppleGacha } = current.goldenAppleGacha;
+  const { recentResults: _gold, recentHeartResults: _heart, recentGoldenResults: _goldenOnly, ...goldenAppleGacha } = current.goldenAppleGacha;
   const { plating: _plating, lastCraft: _craft, ...kitchen } = current.kitchen;
   const { style: _style, lastResult, ...miniGames } = current.miniGames;
   const { pendingReviewNotice: _notice, ...achievements } = current.achievements;
@@ -80,7 +80,7 @@ const withEmptyJournal = (record: unknown) => isObject(record) ? { ...record, jo
 
 export const hydratePersistedPet = (raw: Record<string, unknown>, compact = false): Record<string, unknown> => {
   const pet = { ...raw, recentEvent: '', recentActivity: 'idle', recentActivityUntil: 0, lowCleanlinessSleepConfirmCount: 0,
-    goldenAppleGacha: { ...(raw.goldenAppleGacha as object), recentResults: [], recentHeartResults: [] },
+    goldenAppleGacha: { ...(raw.goldenAppleGacha as object), recentResults: [], recentHeartResults: [], recentGoldenResults: [] },
   } as Record<string, unknown>;
   if (!compact) return pet;
   if (isObject(raw.yearlyStats)) pet.yearlyStats = { ...raw.yearlyStats, activeDateKeys: unpackDateKeys(raw.yearlyStats.activeDateKeys) };

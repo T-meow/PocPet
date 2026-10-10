@@ -10,7 +10,7 @@ export const facilities: Record<FacilityId, { name: string; clue: string; jobs: 
   barn: { name: '牛棚', clue: '牧道旁的饮水设备', jobs: ['铺好干草垫', '修好饮水槽'], coins: 420, wood: 7, stone: 4, requires: 'coop', benefit: '每份饲料 8 小时产鲜奶 ×2，解锁鲜奶蛋羹' },
   fishing_hut: { name: '钓鱼小屋', clue: '河岸栈桥的修复图纸', jobs: ['清理栈桥', '修补小屋屋顶'], coins: 180, wood: 4, stone: 2, benefit: '开放池塘、鱼类手账与鱼汤配方，附赠普通钓竿 ×1' },
   upstream: { name: '上游步道', clue: '溪流岔口的水域勘测记录', jobs: ['清开沿岸灌木', '铺设上游石阶'], coins: 0, wood: 0, stone: 0, requires: 'fishing_hut', benefit: '通关后自动开放溪流上游、鳟鱼与烤鱼配方' },
-  stall: { name: '溪畔小摊', clue: '旧集市的摊位图纸', jobs: ['整修木柜', '搭好遮雨棚'], coins: 220, wood: 5, stone: 2, benefit: '开放摆摊，6 格货架、每格最多 20 份；基础每 2–6 分钟一位客人，装饰可增加客流' },
+  stall: { name: '溪畔小摊', clue: '旧集市的摊位图纸', jobs: ['整修木柜', '搭好遮雨棚'], coins: 220, wood: 5, stone: 2, benefit: '开放摆摊，6 格货架、每格最多 20 份；基础每 4–8 分钟一位客人，装饰可增加客流' },
 };
 export const facilityAvailable = (pet: PetState, id: FacilityId) => {
   if (pet.community.facilities[id].built) return true;

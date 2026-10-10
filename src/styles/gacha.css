@@ -39,7 +39,9 @@
   align-items: start;
   gap: 24px;
 }
-.gacha-supply-layout--results { grid-template-columns: minmax(0, 1fr); }
+.gacha-supply-layout--results,
+.gacha-supply-layout--exchange { grid-template-columns: minmax(0, 1fr); }
+.gacha-supply-layout--exchange .gacha-play-panel { width: 100%; max-width: 600px; margin: 0 auto; }
 .gacha-play-panel { display: grid; min-width: 0; gap: 14px; align-content: start; }
 .gacha-supply-modal .gacha-stage { min-height: 390px; padding: 26px 18px; border-radius: 20px; }
 .gacha-supply-modal .gacha-stage--revealing,
@@ -120,6 +122,7 @@
   .gacha-supply-modal .gacha-stage--results { min-height: 0; }
 }
 @media (max-width: 600px) {
+  .gacha-supply-modal .gacha-machine-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gacha-supply-modal .gacha-wallet > span { flex: 1 1 auto; justify-content: center; padding: 8px; gap: 5px; }
   .gacha-supply-modal .gacha-wallet small { font-size: 0.68rem; }
   .gacha-supply-modal .gacha-stage { padding: 22px 10px; }
@@ -140,7 +143,8 @@
 
 .gacha-machine-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-gap: 5px;
   gap: 5px;
   padding: 5px;
   border-radius: 8px;
@@ -149,6 +153,8 @@
 
 .gacha-machine-tabs button {
   display: inline-flex;
+  flex-wrap: wrap;
+  min-width: 0;
   min-height: 40px;
   align-items: center;
   justify-content: center;
@@ -160,6 +166,20 @@
   font-weight: 800;
 }
 
+.gacha-neighbor-exchange {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e5ce99;
+  border-radius: 12px;
+  background: #fff6df;
+  color: #704208;
+}
+.gacha-neighbor-exchange h3 { margin: 0 0 8px; font-size: 1rem; }
+.gacha-neighbor-exchange p { margin: 8px 0; font-size: 0.8rem; line-height: 1.6; overflow-wrap: break-word; }
+.gacha-exchange-quantities { display: flex; flex-wrap: wrap; margin: -4px; }
+.gacha-exchange-quantities button { margin: 4px; min-width: 0; }
+.gacha-exchange-quantities button[aria-pressed="true"] { border-color: #a66e16; background: #ffeab4; color: #704208; }
+
 .gacha-machine-tabs button[aria-pressed="true"] {
   border-color: rgba(138, 79, 8, 0.25);
   color: #704208;
@@ -167,7 +187,7 @@
   box-shadow: 0 2px 8px rgba(35, 52, 74, 0.08);
 }
 
-.gacha-machine-tabs button:last-child[aria-pressed="true"] {
+.gacha-machine-tabs .gacha-machine-tab--heart[aria-pressed="true"] {
   border-color: rgba(185, 43, 86, 0.28);
   color: #9b244b;
 }

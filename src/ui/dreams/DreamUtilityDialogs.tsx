@@ -7,7 +7,7 @@ import {
   type PartnerScheduleCategory, type PetState,
 } from '../../core/pet';
 import { t } from '../../i18n';
-import { trophyImages } from '../../trophyAssets';
+import { MuseumTrophy } from '../museum/MuseumShared';
 import {
   DreamBar, DreamConfirmation, DreamDialog, DreamFeedback, DreamFunding, DreamRequirement,
   dreamNumber, dreamText, dreamTitle, useDreamAction, useDreamInvestment,
@@ -67,7 +67,7 @@ export const DreamLegacyDialog = ({ pet, onClose, onInvest, onComplete }: {
     footer={selection.remaining > 0 ? <><p className="dreams-footer-caption">{dreamText('coinsAfter', { coins: dreamNumber(pet.coins - selection.amount) })}</p><button type="button" className="dreams-primary" disabled={!canInvest || selection.amount <= 0} onClick={requestInvestment}>{dreamText('invest', { coins: dreamNumber(selection.amount) })}</button></>
       : <><p className="dreams-footer-caption">{t('ui.classicEndgame.nextRequirementApples', { target: appleCost })}</p><button type="button" className="dreams-primary" disabled={!canComplete} onClick={() => { if (canComplete) feedback.run(onComplete); }}>{t('ui.classicEndgame.completeLegacy', { level: targetLevel })}</button></>}>
     <DreamFeedback message={feedback.message} />
-    <div className={`dreams-center dreams-legacy--${rarity}`}><img src={trophyImages.diamond} alt="" /><h3>{t('ui.classicEndgame.legacyTitle', { level: pet.classicEndgame.legacyLevel })}</h3><p>{dreamText('legacyCopy')}<br />{t('ui.classicEndgame.legacySummary')}</p></div>
+    <div className={`dreams-legacy--${rarity}`}><MuseumTrophy pet={pet} /><p className="dreams-copy">{dreamText('legacyCopy')}<br />{t('ui.classicEndgame.legacySummary')}</p></div>
     <h3 className="dreams-section-label">{t('ui.classicEndgame.legacyTitle', { level: targetLevel })}</h3>
     <DreamFunding cost={cost} invested={pet.classicEndgame.legacyCoinsInvested} coins={pet.coins} selection={selection} />
     <div className="dreams-requirements"><DreamRequirement icon={<Apple size={16} />} label={dreamText('apples')} current={goldenApples} target={appleCost} /></div>

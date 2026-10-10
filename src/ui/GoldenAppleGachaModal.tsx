@@ -12,6 +12,16 @@ import {
   goldenAppleHeartGachaRewards,
   goldenAppleHeartGachaSingleCost,
   goldenAppleHeartGachaTenCost,
+  goldenAppleOnlyGachaRewards,
+  goldenAppleOnlyGachaSingleCost,
+  specialGachaTicketHeartCost,
+  specialGachaTicketLimit,
+  getSpecialGachaTicketExchangeLimit,
+  isClassicEndgameUnlocked,
+  type GachaMachine,
+  type GoldenAppleOnlyPaymentMethod,
+  type GoldenAppleGachaDrawError,
+  type SpecialGachaTicketExchangeOutcome,
   type GachaPaymentMethod,
   type GachaResult,
   type GoldenAppleGachaDrawOutcome,
@@ -27,13 +37,28 @@ import { getGachaRewardContentLabels, getGachaRewardLabel, summarizeGachaResults
 import { features } from '../platform/edition';
 
 type GachaAnimationPhase = 'idle' | 'charging' | 'burst' | 'revealing' | 'results';
+type GachaTab = GachaMachine | 'exchange';
 type GachaDetailKind = 'probabilities' | 'history';
-type GachaMachine = 'apple' | 'heart';
 type PendingGachaDraw =
   | { machine: 'apple'; count: 1 | 10; payment: GachaPaymentMethod }
+  | { machine: 'golden'; count: 1 | 10; payment: GoldenAppleOnlyPaymentMethod }
   | { machine: 'heart'; count: 1 | 10 };
 
-export const GachaMachineArt = ({ machine, phase, itemIconMap }: { machine: GachaMachine; phase: GachaAnimationPhase; itemIconMap: Partial<Record<string, string>> }) => <div className={`v2-gacha-machine v2-gacha-machine--${machine}`} data-phase={phase} aria-hidden="true"><div className="v2-gacha-globe">{[0, 1, 2, 3, 4].map((index) => <span key={index} className="v2-gacha-prize">{machine === 'heart' ? <Heart size={42} /> : <img src={itemIconMap[['golden_apple', 'strawberry_milk', 'orange', 'apple', 'banana'][index]] ?? unknownItemIcon} alt="" />}</span>)}</div><div className="v2-gacha-base"><span className="v2-gacha-knob" /></div><div className="v2-gacha-slot" /></div>;
+export const GachaMachineArt = ({ machine, phase, itemIconMap }: { machine: GachaMachine; phase: GachaAnimationPhase; itemIconMap: Partial<Record<string, string>> }) => <div className={`v2-gacha-machine v2-gacha-machine--${machine}`} data-phase={phase} aria-hidden="true"><div className="v2-gacha-globe">{[0, 1, 2, 3, 4].map((index) => <span key={index} className="v2-gacha-prize">{machine === 'heart' ? <Heart size={42} /> : <img src={itemIconMap[machine === 'golden' ? 'golden_apple' : ['golden_apple', 'strawberry_milk', 'orange', 'apple', 'banana'][index]] ?? unknownItemIcon} alt="" />}</span>)}</div><div className="v2-gacha-base"><span className="v2-gacha-knob" /></div><div className="v2-gacha-slot" /></div>;
+
+const getGachaErrorText = (error: GoldenAppleGachaDrawError) => t(({
+  save_failed: 'ui.backup.actionNotSaved', inventory_full: 'ui.gacha.inventoryFull',
+  not_enough_tickets: 'ui.gacha.notEnoughTickets', not_enough_coins: 'ui.gacha.notEnoughCoins',
+  not_enough_golden_apples: 'ui.gacha.notEnoughGoldenApples', not_enough_special_tickets: 'ui.gacha.notEnoughSpecialTickets',
+  not_enough_hearts: 'ui.gacha.notEnoughHearts', tickets_full: 'ui.gacha.specialTicketsFull',
+  locked: 'ui.gacha.goldenLocked', paused: 'ui.gacha.paused', invalid_count: 'ui.gacha.invalidRequest', invalid_payment: 'ui.gacha.invalidRequest',
+})[error]);
+
+const getMachineRewards = (machine: GachaMachine) => machine === 'heart' ? goldenAppleHeartGachaRewards
+  : machine === 'golden' ? goldenAppleOnlyGachaRewards : goldenAppleGachaRewards;
+const getGuaranteeText = (machine: GachaMachine, details = false) => t(machine === 'golden' ? 'ui.gacha.goldenNoGuarantee'
+  : machine === 'heart' ? details ? 'ui.gacha.heartGuaranteeNote' : 'ui.gacha.heartGuaranteed'
+  : details ? 'ui.gacha.guaranteeNote' : 'ui.gacha.guaranteed');
 
 const gachaSkipDelayMs = 300;
 const gachaBurstDelayMs = 650;
@@ -47,6 +72,8 @@ interface GoldenAppleGachaModalProps {
   onClose: () => void;
   onDraw: (payment: GachaPaymentMethod, count: 1 | 10) => GoldenAppleGachaDrawOutcome;
   onHeartDraw: (count: 1 | 10) => GoldenAppleGachaDrawOutcome;
+  onGoldenDraw: (payment: GoldenAppleOnlyPaymentMethod, count: 1 | 10) => GoldenAppleGachaDrawOutcome;
+  onExchangeSpecialTickets: (count: number) => SpecialGachaTicketExchangeOutcome;
   onClaimStarterGift: () => boolean;
   isSavingResults: boolean;
   saveFeedback: string;
@@ -115,12 +142,12 @@ const supplyPoolGroups = [
 const GachaPrizePreview = ({ machine, itemIconMap, onOpenProbabilities, disabled }: {
   machine: GachaMachine; itemIconMap: Partial<Record<string, string>>; onOpenProbabilities: () => void; disabled: boolean;
 }) => {
-  const rewards = machine === 'heart' ? goldenAppleHeartGachaRewards : goldenAppleGachaRewards.filter((reward) => reward.kind === 'bundle');
+  const rewards = machine === 'apple' ? goldenAppleGachaRewards.filter((reward) => reward.kind === 'bundle') : getMachineRewards(machine);
   return (
     <section className="gacha-prize-preview" aria-labelledby="gacha-preview-title">
       <header><h3 id="gacha-preview-title">{t('ui.gacha.previewTitle')}</h3><button type="button" className="game-help-button" disabled={disabled} onClick={onOpenProbabilities}>{t('ui.gacha.probabilities')}</button></header>
       {machine === 'apple' ? <ul className="gacha-pool-groups">{supplyPoolGroups.map(({ key, weight }) => <li key={key}>{t(`ui.gacha.groups.${key}`)}<strong>{formatProbability(weight)}</strong></li>)}</ul> : null}
-      <p className="gacha-preview-note">{t(machine === 'apple' ? 'ui.gacha.bundleDelivery' : 'ui.gacha.heartPreviewNote')}</p>
+      <p className="gacha-preview-note">{t(machine === 'apple' ? 'ui.gacha.bundleDelivery' : machine === 'golden' ? 'ui.gacha.goldenPreviewNote' : 'ui.gacha.heartPreviewNote')}</p>
       <ul className="gacha-prize-list">
         {rewards.map((reward) => <li key={reward.id}>
           <GachaRewardArtwork reward={reward} itemIconMap={itemIconMap} />
@@ -133,14 +160,13 @@ const GachaPrizePreview = ({ machine, itemIconMap, onOpenProbabilities, disabled
 };
 
 const getRevealAllSfx = (results: readonly GachaResult[]): SfxId => {
-  if (results.some((result) => result.rarity === 'jackpot')) return 'notification';
-  if (results.some((result) => result.rarity === 'legendary')) return 'purchase';
-  return 'open';
+  return results.some((result) => result.rarity === 'jackpot' || result.rarity === 'legendary')
+    ? 'gacha_jackpot' : 'gacha_reveal';
 };
 
 export const GachaDetailDialog = ({ kind, machine, results, gachaState, itemIconMap, onClose }: GachaDetailDialogProps) => {
   const isProbability = kind === 'probabilities';
-  const rewards = machine === 'heart' ? goldenAppleHeartGachaRewards : goldenAppleGachaRewards;
+  const rewards = getMachineRewards(machine);
   const titleId = isProbability ? 'gacha-probabilities-title' : 'gacha-history-title';
   const pityProgress = Math.min(goldenAppleGachaJackpotPityThreshold, Math.max(0, gachaState.jackpotPityMisses));
   return (
@@ -175,7 +201,7 @@ export const GachaDetailDialog = ({ kind, machine, results, gachaState, itemIcon
           </ul>
           {machine === 'apple' ? <p className="gacha-preview-note">{t('ui.gacha.bundleDelivery')}</p> : null}
           <p className="gacha-detail-modal__note">
-            {t(machine === 'heart' ? 'ui.gacha.heartGuaranteeNote' : 'ui.gacha.guaranteeNote')}
+            {getGuaranteeText(machine, true)}
           </p>
           {machine === 'apple' && !gachaState.jackpotPityUsed ? (
             <aside className="gacha-pity-status">
@@ -211,11 +237,11 @@ const GachaDrawConfirmDialog = ({ draw, goldenAppleCount, onCancel, onConfirm }:
   const cost = isHeartMachine
     ? draw.count === 10 ? goldenAppleHeartGachaTenCost : goldenAppleHeartGachaSingleCost
     : draw.payment === 'coins'
-      ? draw.count === 10 ? goldenAppleGachaTenCost : goldenAppleGachaSingleCost
+      ? draw.machine === 'golden' ? draw.count * goldenAppleOnlyGachaSingleCost : draw.count === 10 ? goldenAppleGachaTenCost : goldenAppleGachaSingleCost
       : draw.count;
   const messageKey = isHeartMachine
     ? 'ui.gacha.confirm.goldenApples'
-    : draw.payment === 'coins' ? 'ui.gacha.confirm.coins' : 'ui.gacha.confirm.tickets';
+    : draw.payment === 'coins' ? 'ui.gacha.confirm.coins' : draw.machine === 'golden' ? 'ui.gacha.confirm.specialTickets' : 'ui.gacha.confirm.tickets';
   return (
     <DialogShell
       className="confirm-modal gacha-draw-confirm"
@@ -253,6 +279,8 @@ export const GoldenAppleGachaModal = ({
   onClose,
   onDraw,
   onHeartDraw,
+  onGoldenDraw,
+  onExchangeSpecialTickets,
   onClaimStarterGift,
   isSavingResults,
   saveFeedback,
@@ -260,8 +288,13 @@ export const GoldenAppleGachaModal = ({
   onClearSaveFeedback,
   onPlaySfx,
 }: GoldenAppleGachaModalProps) => {
-  const [machine, setMachine] = useState<GachaMachine>('apple');
+  const [tab, setTab] = useState<GachaTab>('apple');
+  const isExchange = tab === 'exchange';
+  const machine: GachaMachine = tab === 'exchange' ? 'golden' : tab;
   const [payment, setPayment] = useState<GachaPaymentMethod>('coins');
+  const [goldenPayment, setGoldenPayment] = useState<GoldenAppleOnlyPaymentMethod>('coins');
+  const [exchangeQuantity, setExchangeQuantity] = useState<1 | 10 | 'max'>(1);
+  const [exchangeFeedback, setExchangeFeedback] = useState('');
   const [phase, setPhase] = useState<GachaAnimationPhase>('idle');
   const [results, setResults] = useState<GachaResult[]>([]);
   const [revealedCount, setRevealedCount] = useState(0);
@@ -277,9 +310,15 @@ export const GoldenAppleGachaModal = ({
   const goldenAppleCount = pet.inventory.golden_apple ?? 0;
   const hasClaimedStarterGift = pet.claimedRewardIds.includes(goldenAppleGachaStarterGiftRewardId);
   const showingResults = phase === 'revealing' || phase === 'results';
-  const availableCurrency = machine === 'heart' ? goldenAppleCount : payment === 'coins' ? pet.coins : pet.goldenAppleGacha.tickets;
-  const singleCost = machine === 'heart' ? goldenAppleHeartGachaSingleCost : payment === 'coins' ? goldenAppleGachaSingleCost : 1;
-  const tenCost = machine === 'heart' ? goldenAppleHeartGachaTenCost : payment === 'coins' ? goldenAppleGachaTenCost : 10;
+  const activePayment = machine === 'golden' ? goldenPayment : payment;
+  const availableCurrency = machine === 'heart' ? goldenAppleCount : activePayment === 'coins' ? pet.coins
+    : machine === 'golden' ? pet.goldenAppleGacha.specialTickets : pet.goldenAppleGacha.tickets;
+  const singleCost = machine === 'heart' ? goldenAppleHeartGachaSingleCost : activePayment === 'coins'
+    ? machine === 'golden' ? goldenAppleOnlyGachaSingleCost : goldenAppleGachaSingleCost : 1;
+  const tenCost = machine === 'heart' ? goldenAppleHeartGachaTenCost : singleCost * 10;
+  const goldenLocked = machine === 'golden' && !isClassicEndgameUnlocked(pet);
+  const exchangeLimit = getSpecialGachaTicketExchangeLimit(pet);
+  const exchangeCount = exchangeQuantity === 'max' ? exchangeLimit : exchangeQuantity;
 
   const clearTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -310,9 +349,9 @@ export const GoldenAppleGachaModal = ({
     drawResults.forEach((result, index) => {
       timersRef.current.push(window.setTimeout(() => {
         setRevealedCount(index + 1);
-        if (result.rarity === 'jackpot') onPlaySfx('notification');
-        else if (result.rarity === 'legendary') onPlaySfx('purchase');
-        else onPlaySfx('tap');
+        if (interval !== gachaReducedMotionRevealIntervalMs || index === drawResults.length - 1) {
+          onPlaySfx(getRevealAllSfx(interval === gachaReducedMotionRevealIntervalMs ? drawResults : [result]));
+        }
         if (index === drawResults.length - 1) {
           setCanSkip(false);
           setPhase('results');
@@ -323,23 +362,17 @@ export const GoldenAppleGachaModal = ({
   };
 
   const executeDraw = (draw: PendingGachaDraw) => {
-    if (isAnimating || drawLockRef.current || detailKind) return;
+    if (isExchange || isAnimating || drawLockRef.current || detailKind) return;
     clearTimers();
     onClearSaveFeedback();
     drawLockRef.current = true;
     const outcome = draw.machine === 'heart'
       ? onHeartDraw(draw.count)
+      : draw.machine === 'golden' ? onGoldenDraw(draw.payment, draw.count)
       : onDraw(draw.payment, draw.count);
     if (outcome.error) {
       drawLockRef.current = false;
-      const key = outcome.error === 'save_failed' ? 'ui.backup.actionNotSaved' : outcome.error === 'inventory_full'
-        ? 'ui.gacha.inventoryFull'
-        : outcome.error === 'not_enough_tickets'
-        ? 'ui.gacha.notEnoughTickets'
-        : outcome.error === 'not_enough_golden_apples'
-          ? 'ui.gacha.notEnoughGoldenApples'
-          : 'ui.gacha.notEnoughCoins';
-      setErrorText(t(key));
+      setErrorText(getGachaErrorText(outcome.error));
       onPlaySfx('error');
       return;
     }
@@ -349,8 +382,8 @@ export const GoldenAppleGachaModal = ({
     setResults(drawResults);
     setRevealedCount(0);
     setCanSkip(false);
-    onPlaySfx('coin');
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    onPlaySfx(reducedMotion ? 'gacha_drop' : 'gacha_spin');
     if (reducedMotion) {
       setPhase('revealing');
       timersRef.current.push(window.setTimeout(() => setCanSkip(drawResults.length > 1), gachaSkipDelayMs));
@@ -362,20 +395,34 @@ export const GoldenAppleGachaModal = ({
     timersRef.current.push(window.setTimeout(() => setCanSkip(true), gachaSkipDelayMs));
     timersRef.current.push(window.setTimeout(() => {
       setPhase('burst');
-      onPlaySfx('open');
+      onPlaySfx('gacha_drop');
     }, gachaBurstDelayMs));
     timersRef.current.push(window.setTimeout(() => beginReveal(drawResults, drawResults.length === 10 ? gachaTenRevealIntervalMs : 0), gachaRevealDelayMs));
   };
 
   const requestDraw = (count: 1 | 10) => {
-    if (isAnimating || drawLockRef.current || detailKind || pendingDraw) return;
+    if (isExchange || isAnimating || drawLockRef.current || detailKind || pendingDraw || goldenLocked) return;
     if (machine === 'heart' && goldenAppleCount < count) {
       setErrorText(t('ui.gacha.notEnoughGoldenApples'));
       onPlaySfx('error');
       return;
     }
     onPlaySfx('open');
-    setPendingDraw(machine === 'heart' ? { machine, count } : { machine, count, payment });
+    setPendingDraw(machine === 'heart' ? { machine, count } : machine === 'golden' ? { machine, count, payment: goldenPayment } : { machine, count, payment });
+  };
+
+  const exchangeTickets = () => {
+    if (!isExchange || goldenLocked || isAnimating || drawLockRef.current || pendingDraw || detailKind || exchangeCount < 1 || exchangeCount > exchangeLimit) return;
+    const outcome = onExchangeSpecialTickets(exchangeCount);
+    if (outcome.error) {
+      setErrorText(getGachaErrorText(outcome.error));
+      setExchangeFeedback('');
+      onPlaySfx('error');
+      return;
+    }
+    setErrorText('');
+    setExchangeFeedback(t('ui.gacha.specialTicketsReceived', { count: outcome.tickets }));
+    onPlaySfx('purchase');
   };
 
   const cancelDraw = () => {
@@ -409,16 +456,17 @@ export const GoldenAppleGachaModal = ({
     setDetailKind(null);
   };
 
-  const selectMachine = (nextMachine: GachaMachine) => {
-    if (nextMachine === machine || isAnimating || drawLockRef.current || pendingDraw || detailKind) return;
+  const selectTab = (nextTab: GachaTab) => {
+    if (nextTab === tab || isAnimating || drawLockRef.current || pendingDraw || detailKind) return;
     clearTimers();
-    setMachine(nextMachine);
+    setTab(nextTab);
     setPhase('idle');
     setResults([]);
     setRevealedCount(0);
     setCanSkip(false);
     setErrorText('');
     setStarterFeedback('');
+    setExchangeFeedback('');
     onClearSaveFeedback();
     onPlaySfx('tap');
   };
@@ -445,7 +493,7 @@ export const GoldenAppleGachaModal = ({
             <span className="dialog-title-icon gacha-modal__title-icon" aria-hidden="true"><Dices size={22} /></span>
             <div>
               <h2 id="gacha-title">{t('ui.gacha.title')}</h2>
-              <p>{t(machine === 'heart' ? 'ui.gacha.heartSubtitle' : 'ui.gacha.subtitle')}</p>
+              <p>{isExchange ? t('ui.gacha.exchangeRate', { cost: specialGachaTicketHeartCost }) : t(machine === 'heart' ? 'ui.gacha.heartSubtitle' : machine === 'golden' ? 'ui.gacha.goldenSubtitle' : 'ui.gacha.subtitle')}</p>
             </div>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('ui.gacha.close')} title={t('ui.gacha.close')}>
@@ -456,27 +504,39 @@ export const GoldenAppleGachaModal = ({
         <div className="gacha-machine-tabs" role="group" aria-label={t('ui.gacha.machineAria')}>
           <button
             type="button"
-            aria-pressed={machine === 'apple'}
-            onClick={() => selectMachine('apple')}
+            aria-pressed={tab === 'apple'}
+            onClick={() => selectTab('apple')}
             disabled={isAnimating || Boolean(pendingDraw)}
           >
             <Dices size={17} aria-hidden="true" />{t('ui.gacha.machineOne')}
           </button>
           <button
             type="button"
-            aria-pressed={machine === 'heart'}
-            onClick={() => selectMachine('heart')}
+            className="gacha-machine-tab--heart"
+            aria-pressed={tab === 'heart'}
+            onClick={() => selectTab('heart')}
             disabled={isAnimating || Boolean(pendingDraw)}
           >
             <Heart size={17} aria-hidden="true" />{t('ui.gacha.machineTwo')}
           </button>
+          <button type="button" aria-pressed={tab === 'golden'} onClick={() => selectTab('golden')} disabled={isAnimating || Boolean(pendingDraw)}>
+            <Sparkles size={17} aria-hidden="true" />{t('ui.gacha.machineThree')}
+          </button>
+          <button type="button" aria-pressed={isExchange} onClick={() => selectTab('exchange')} disabled={isAnimating || Boolean(pendingDraw)}>
+            <Ticket size={17} aria-hidden="true" />{t('ui.gacha.exchangeTitle')}
+          </button>
         </div>
 
         <div className="gacha-wallet" aria-label={t('ui.gacha.walletAria')}>
-          {machine === 'apple' ? (
+          {isExchange ? (
+            <>
+              <span title={String(pet.hearts)}><Heart size={17} aria-hidden="true" /><small>{t('ui.gacha.heartsLabel')}</small><strong>{formatCompactNumber(pet.hearts)}</strong></span>
+              <span title={String(pet.goldenAppleGacha.specialTickets)}><Ticket size={17} aria-hidden="true" /><small>{t('ui.gacha.paySpecialTickets')}</small><strong>{formatCompactNumber(pet.goldenAppleGacha.specialTickets)}</strong></span>
+            </>
+          ) : machine !== 'heart' ? (
             <>
               <span title={String(pet.coins)}><img src={currencyIcon} alt="" aria-hidden="true" /><small>{t('ui.gacha.payCoins')}</small><strong>{formatCompactNumber(pet.coins)}</strong></span>
-              <span title={String(pet.goldenAppleGacha.tickets)}><Ticket size={17} aria-hidden="true" /><small>{t('ui.gacha.payTickets')}</small><strong>{formatCompactNumber(pet.goldenAppleGacha.tickets)}</strong></span>
+              <span title={String(machine === 'golden' ? pet.goldenAppleGacha.specialTickets : pet.goldenAppleGacha.tickets)}><Ticket size={17} aria-hidden="true" /><small>{t(machine === 'golden' ? 'ui.gacha.paySpecialTickets' : 'ui.gacha.payTickets')}</small><strong>{formatCompactNumber(machine === 'golden' ? pet.goldenAppleGacha.specialTickets : pet.goldenAppleGacha.tickets)}</strong></span>
               <span title={String(goldenAppleCount)}><img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" aria-hidden="true" /><small>{t('ui.gacha.groups.apples')}</small><strong>{formatCompactNumber(goldenAppleCount)}</strong></span>
             </>
           ) : (
@@ -487,8 +547,23 @@ export const GoldenAppleGachaModal = ({
           )}
         </div>
 
-        <div className={`gacha-supply-layout${showingResults ? ' gacha-supply-layout--results' : ''}`}>
+        <div className={`gacha-supply-layout${isExchange ? ' gacha-supply-layout--exchange' : showingResults ? ' gacha-supply-layout--results' : ''}`}>
         <div className="gacha-play-panel">
+        {isExchange ? <section className="gacha-neighbor-exchange" aria-label={t('ui.gacha.exchangeTitle')}>
+          <h3>{t('ui.gacha.exchangeTitle')}</h3>
+          <p>{t('ui.gacha.exchangeRate', { cost: specialGachaTicketHeartCost })}</p>
+          {goldenLocked ? <p>{t('ui.gacha.goldenLocked')}</p> : <>
+            <div className="gacha-exchange-quantities" role="group" aria-label={t('ui.gacha.exchangeQuantity')}>
+              {([1, 10, 'max'] as const).map(quantity => <button key={quantity} type="button" className="secondary-button" aria-pressed={exchangeQuantity === quantity} disabled={isAnimating || Boolean(pendingDraw)} onClick={() => { setExchangeQuantity(quantity); setExchangeFeedback(''); setErrorText(''); onPlaySfx('tap'); }}>{t(quantity === 'max' ? 'ui.gacha.exchangeMax' : 'ui.gacha.exchangeCount', { count: quantity })}</button>)}
+            </div>
+            <p>{t('ui.gacha.exchangePreview', { count: exchangeCount, hearts: exchangeCount * specialGachaTicketHeartCost })}</p>
+            <button type="button" className="primary-button" disabled={isAnimating || Boolean(pendingDraw) || Boolean(pet.timePause) || exchangeCount < 1 || exchangeCount > exchangeLimit} onClick={exchangeTickets}>{t('ui.gacha.exchangeSubmit')}</button>
+            {pet.goldenAppleGacha.specialTickets >= specialGachaTicketLimit ? <p>{t('ui.gacha.specialTicketsFull')}</p> : null}
+            {pet.timePause ? <p>{t('ui.gacha.paused')}</p> : null}
+            {errorText ? <p className="gacha-error" role="alert">{errorText}</p> : null}
+            {exchangeFeedback ? <p role="status">{exchangeFeedback}</p> : null}
+          </>}
+        </section> : <>
         {machine === 'apple' && !hasClaimedStarterGift && !isAnimating ? (
           <button type="button" className="gacha-welcome-gift" onClick={handleClaimStarterGift}>
             <Gift size={20} aria-hidden="true" /><span><strong>{t('ui.gacha.starterGift')}</strong><small>{t('ui.gacha.starterGiftHint', { count: goldenAppleGachaStarterGiftTickets })}</small></span>
@@ -503,7 +578,7 @@ export const GoldenAppleGachaModal = ({
         >
           {phase === 'idle' || phase === 'charging' ? (
             <div className="gacha-machine-display">
-            <span className="gacha-machine-caption">{t(machine === 'heart' ? 'ui.gacha.heartMachineCaption' : 'ui.gacha.supplyMachineCaption')}</span>
+            <span className="gacha-machine-caption">{t(machine === 'heart' ? 'ui.gacha.heartMachineCaption' : machine === 'golden' ? 'ui.gacha.goldenMachineCaption' : 'ui.gacha.supplyMachineCaption')}</span>
             <GachaMachineArt machine={machine} phase={phase} itemIconMap={itemIconMap} />
             <p>{t(machine === 'heart' ? 'ui.gacha.heartTopPrize' : 'ui.gacha.supplyTopPrize')}</p>
             </div>
@@ -553,36 +628,37 @@ export const GoldenAppleGachaModal = ({
 
         {phase === 'results' ? <GachaResultsSummary results={results} itemIconMap={itemIconMap} /> : null}
         <div className="gacha-controls">
-          <p className="gacha-guarantee-hint"><Sparkles size={16} aria-hidden="true" />{t(machine === 'heart' ? 'ui.gacha.heartGuaranteed' : 'ui.gacha.guaranteed')}</p>
-          {machine === 'apple' ? (
+          {goldenLocked ? <p className="gacha-controls__hint">{t('ui.gacha.goldenLocked')}</p> : null}
+          <p className="gacha-guarantee-hint"><Sparkles size={16} aria-hidden="true" />{getGuaranteeText(machine)}</p>
+          {machine !== 'heart' ? (
             <div className="gacha-payment" role="group" aria-label={t('ui.gacha.paymentAria')}>
-              <button type="button" aria-pressed={payment === 'coins'} onClick={() => { setPayment('coins'); setErrorText(''); }} disabled={isAnimating}>
+              <button type="button" aria-pressed={activePayment === 'coins'} onClick={() => { if (machine === 'golden') setGoldenPayment('coins'); else setPayment('coins'); setErrorText(''); }} disabled={isAnimating || Boolean(pendingDraw)}>
                 <Coins size={17} aria-hidden="true" />{t('ui.gacha.payCoins')}
               </button>
-              <button type="button" aria-pressed={payment === 'tickets'} onClick={() => { setPayment('tickets'); setErrorText(''); }} disabled={isAnimating}>
-                <Ticket size={17} aria-hidden="true" />{t('ui.gacha.payTickets')}
+              <button type="button" aria-pressed={activePayment !== 'coins'} onClick={() => { if (machine === 'golden') setGoldenPayment('specialTickets'); else setPayment('tickets'); setErrorText(''); }} disabled={isAnimating || Boolean(pendingDraw)}>
+                <Ticket size={17} aria-hidden="true" />{t(machine === 'golden' ? 'ui.gacha.paySpecialTickets' : 'ui.gacha.payTickets')}
               </button>
             </div>
           ) : null}
           <div className="gacha-draw-actions">
-            <button type="button" className="secondary-button" onClick={() => requestDraw(1)} disabled={isAnimating || Boolean(pendingDraw) || availableCurrency < singleCost}>
-              {machine === 'heart' ? <img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" /> : payment === 'coins' ? <Coins size={18} aria-hidden="true" /> : <Ticket size={18} aria-hidden="true" />}
+            <button type="button" className="secondary-button" onClick={() => requestDraw(1)} disabled={isAnimating || Boolean(pendingDraw) || goldenLocked || Boolean(pet.timePause) || availableCurrency < singleCost}>
+              {machine === 'heart' ? <img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" /> : activePayment === 'coins' ? <Coins size={18} aria-hidden="true" /> : <Ticket size={18} aria-hidden="true" />}
               {t(machine === 'heart' ? 'ui.gacha.heartSingleDraw' : 'ui.gacha.singleDraw', {
                 cost: singleCost,
               })}
             </button>
-            <button type="button" className="primary-button" onClick={() => requestDraw(10)} disabled={isAnimating || Boolean(pendingDraw) || availableCurrency < tenCost}>
-              {machine === 'heart' ? <img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" /> : payment === 'coins' ? <Coins size={18} aria-hidden="true" /> : <Ticket size={18} aria-hidden="true" />}
+            <button type="button" className="primary-button" onClick={() => requestDraw(10)} disabled={isAnimating || Boolean(pendingDraw) || goldenLocked || Boolean(pet.timePause) || availableCurrency < tenCost}>
+              {machine === 'heart' ? <img src={itemIconMap.golden_apple ?? unknownItemIcon} alt="" /> : activePayment === 'coins' ? <Coins size={18} aria-hidden="true" /> : <Ticket size={18} aria-hidden="true" />}
               {t(machine === 'heart' ? 'ui.gacha.heartTenDraw' : 'ui.gacha.tenDraw', {
                 cost: tenCost,
               })}
             </button>
           </div>
-          {machine === 'apple' && payment === 'tickets' ? (
-            <small className="gacha-controls__hint">{t('ui.gacha.ticketCostHint')}</small>
+          {machine !== 'heart' && activePayment !== 'coins' ? (
+            <small className="gacha-controls__hint">{t(machine === 'golden' ? 'ui.gacha.specialTicketCostHint' : 'ui.gacha.ticketCostHint')}</small>
           ) : null}
           {errorText ? <p className="gacha-error" role="alert">{errorText}</p> : null}
-          {!errorText && availableCurrency < singleCost ? <p className="gacha-error">{t(machine === 'heart' ? 'ui.gacha.notEnoughGoldenApples' : payment === 'tickets' ? 'ui.gacha.notEnoughTickets' : 'ui.gacha.notEnoughCoins')}</p> : null}
+          {!errorText && !goldenLocked && availableCurrency < singleCost ? <p className="gacha-error">{t(machine === 'heart' ? 'ui.gacha.notEnoughGoldenApples' : activePayment === 'coins' ? 'ui.gacha.notEnoughCoins' : machine === 'golden' ? 'ui.gacha.notEnoughSpecialTickets' : 'ui.gacha.notEnoughTickets')}</p> : null}
           {phase === 'results' && results.length > 0 ? (
             <button type="button" className="secondary-button gacha-save-results" disabled={!features.shareCards || isSavingResults} title={!features.shareCards ? t('ui.editionNotice.restricted') : undefined} onClick={handleSaveResults}>
               <Download size={17} aria-hidden="true" />
@@ -601,8 +677,9 @@ export const GoldenAppleGachaModal = ({
             <History size={17} aria-hidden="true" />{t('ui.gacha.recentTitle')}
           </button>
         </div>
+        </>}
         </div>
-        {!showingResults ? <GachaPrizePreview machine={machine} itemIconMap={itemIconMap} disabled={isAnimating} onOpenProbabilities={() => openDetail('probabilities')} /> : null}
+        {!isExchange && !showingResults ? <GachaPrizePreview machine={machine} itemIconMap={itemIconMap} disabled={isAnimating} onOpenProbabilities={() => openDetail('probabilities')} /> : null}
         </div>
       </DialogShell>
 
@@ -610,7 +687,7 @@ export const GoldenAppleGachaModal = ({
         <GachaDetailDialog
           kind={detailKind}
           machine={machine}
-          results={machine === 'heart' ? pet.goldenAppleGacha.recentHeartResults : pet.goldenAppleGacha.recentResults}
+          results={machine === 'heart' ? pet.goldenAppleGacha.recentHeartResults : machine === 'golden' ? pet.goldenAppleGacha.recentGoldenResults : pet.goldenAppleGacha.recentResults}
           gachaState={pet.goldenAppleGacha}
           itemIconMap={itemIconMap}
           onClose={closeDetail}

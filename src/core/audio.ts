@@ -17,6 +17,10 @@ import uiOpen from '../assets/audio/ui/ui_open.mp3';
 import kitchenStir from '../assets/audio/kitchen/kitchen_stir.mp3';
 import kitchenSizzle from '../assets/audio/kitchen/kitchen_sizzle.mp3';
 import kitchenBlend from '../assets/audio/kitchen/kitchen_blend.mp3';
+import gachaSpin from '../assets/audio/gacha/gacha_spin.wav';
+import gachaDrop from '../assets/audio/gacha/gacha_drop.wav';
+import gachaReveal from '../assets/audio/gacha/gacha_reveal.wav';
+import gachaJackpot from '../assets/audio/gacha/gacha_jackpot.wav';
 import fishingCast from '../assets/audio/world/fishing_cast.mp3';
 import fishingBite from '../assets/audio/world/fishing_bite.mp3';
 import fishingReel from '../assets/audio/world/fishing_reel.mp3';
@@ -51,6 +55,10 @@ export type SfxId =
   | 'game_bubble'
   | 'game_pop'
   | 'game_finish'
+  | 'gacha_spin'
+  | 'gacha_drop'
+  | 'gacha_reveal'
+  | 'gacha_jackpot'
   | 'kitchen_add'
   | 'kitchen_stir'
   | 'kitchen_flip'
@@ -93,6 +101,10 @@ const sfxSources: Record<SfxId, string> = {
   game_bubble: uiOpen,
   game_pop: uiTap,
   game_finish: notification,
+  gacha_spin: gachaSpin,
+  gacha_drop: gachaDrop,
+  gacha_reveal: gachaReveal,
+  gacha_jackpot: gachaJackpot,
   kitchen_add: uiTap,
   kitchen_stir: kitchenStir,
   kitchen_flip: kitchenSizzle,

@@ -429,6 +429,9 @@
 
 .home-room-decoration--market { left: 0; }
 .home-room-decoration--fishing { right: 0; }
+.home-room-decoration--museum { left: 0; bottom: 100px; }
+.home-room-decoration .museum-trophy { width: 56px; height: 62px; margin: 0 auto; }
+.home-room-decoration .museum-trophy-plate > span { display: none; }
 .home-room-decoration:focus { outline: 3px solid #779b83; outline-offset: 3px; }
 
 .home-room-decoration .decoration-art {

@@ -11,6 +11,8 @@ export const getDailyResetDate = (time: number) => {
 export const getDailyResetDateKey = (time: number) =>
   getLocalDateKey(getDailyResetDate(time).getTime());
 
+export const getQuarterKey = (day: string) => `${day.slice(0, 4)}-Q${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1}`;
+
 // Calendar arithmetic avoids daylight-saving offsets when finding Monday.
 export const getWeekStartDateKey = (day: string) => {
   const [year, month, date] = day.split('-').map(Number);

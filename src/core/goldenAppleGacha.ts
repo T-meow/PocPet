@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { recordEarnedCoins, recordEarnedHearts } from './achievements';
+import { isClassicEndgameUnlocked } from './classicEndgame';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, getInventoryCount, getInventoryItem, isBuiltinItemId } from './items';
@@ -8,6 +9,7 @@ import { clampCoins, clampCount } from './petStats';
 import type {
   BuiltinItemId,
   GachaPaymentMethod,
+  GoldenAppleOnlyPaymentMethod,
   GachaItemContent,
   GachaResult,
   GachaRewardRarity,
@@ -17,7 +19,7 @@ import type {
 } from './petTypes';
 import { hashString, isNumber } from './utils';
 
-export const goldenAppleGachaSchemaVersion = 4 as const;
+export const goldenAppleGachaSchemaVersion = 5 as const;
 const goldenAppleGachaPitySchemaVersion = 2;
 export const goldenAppleGachaSingleCost = 500;
 export const goldenAppleGachaTenCost = 5000;
@@ -35,6 +37,10 @@ export const goldenAppleHeartGachaPoolWeight = 100000;
 export const goldenAppleHeartGachaSingleCost = 1;
 export const goldenAppleHeartGachaTenCost = 10;
 export const goldenAppleHeartGachaGuaranteeMinimum = 100;
+export const goldenAppleOnlyGachaSingleCost = 1000;
+export const goldenAppleOnlyGachaPoolWeight = 100000;
+export const specialGachaTicketHeartCost = 100;
+export const specialGachaTicketLimit = 9999;
 
 interface BaseGachaRewardDefinition {
   id: string;
@@ -53,6 +59,10 @@ export interface GoldenAppleGachaRewardDefinition extends BaseGachaRewardDefinit
 
 export interface GoldenAppleHeartGachaRewardDefinition extends BaseGachaRewardDefinition {
   kind: 'hearts';
+}
+
+export interface GoldenAppleOnlyGachaRewardDefinition extends BaseGachaRewardDefinition {
+  kind: 'item' | 'hearts';
 }
 
 const coinReward = (amount: number, weight: number, rarity: GachaRewardRarity): GoldenAppleGachaRewardDefinition => ({
@@ -155,6 +165,19 @@ export const goldenAppleHeartGachaRewards: readonly GoldenAppleHeartGachaRewardD
   heartReward(888, 500, 'jackpot'),
 ] as const;
 
+const goldenOnlyReward = (amount: number, weight: number, rarity: GachaRewardRarity): GoldenAppleOnlyGachaRewardDefinition => ({
+  id: `golden_only_apples_${amount}`, kind: 'item', itemId: 'golden_apple', amount, weight, rarity,
+});
+// Per draw: 0.85 apples + 5 hearts; at 100 hearts/apple, the round trip returns 90 hearts.
+export const goldenAppleOnlyGachaRewards: readonly GoldenAppleOnlyGachaRewardDefinition[] = [
+  { id: 'golden_only_hearts_10', kind: 'hearts', amount: 10, weight: 50000, rarity: 'common' },
+  goldenOnlyReward(1, 38000, 'uncommon'),
+  goldenOnlyReward(2, 9000, 'rare'),
+  goldenOnlyReward(5, 2000, 'legendary'),
+  goldenOnlyReward(10, 900, 'legendary'),
+  goldenOnlyReward(100, 100, 'jackpot'),
+];
+
 // Old result IDs retain the amounts actually awarded, without entering the active pool.
 const legacyGachaRewards = [
   coinReward(100, 0, 'common'),
@@ -178,6 +201,7 @@ const legacyGachaRewards = [
 ];
 const rewardById = new Map([...legacyGachaRewards, ...goldenAppleGachaRewards].map((reward) => [reward.id, reward]));
 const heartRewardById = new Map(goldenAppleHeartGachaRewards.map((reward) => [reward.id, reward]));
+const goldenOnlyRewardById = new Map(goldenAppleOnlyGachaRewards.map((reward) => [reward.id, reward]));
 const guaranteedHeartRewards = goldenAppleHeartGachaRewards.filter((reward) =>
   reward.amount >= goldenAppleHeartGachaGuaranteeMinimum,
 );
@@ -210,6 +234,14 @@ export const defaultGoldenAppleGachaState = (
   heartGachaApplesSpent: 0,
   heartGachaRngCounter: 0,
   recentHeartResults: [],
+  specialTickets: 0,
+  specialTicketHeartsSpent: 0,
+  goldenGachaTotalDraws: 0,
+  goldenGachaCoinsSpent: 0,
+  goldenGachaTicketsSpent: 0,
+  goldenGachaRngCounter: 0,
+  goldenGachaJackpotCount: 0,
+  recentGoldenResults: [],
 });
 
 const normalizeSources = (value: unknown): GachaTicketSource[] => {
@@ -273,6 +305,12 @@ export const normalizeGoldenAppleGachaState = (
         .slice(0, 20)
     : [];
   const hasHeartGachaState = sourceSchemaVersion >= 4;
+  const goldenCount = (value: unknown) => sourceSchemaVersion >= 5 && isNumber(value) ? clampCount(value) : 0;
+  const recentGoldenResults = sourceSchemaVersion >= 5 && Array.isArray(raw.recentGoldenResults)
+    ? raw.recentGoldenResults.map((result) => normalizeResult(result, goldenOnlyRewardById))
+        .filter((result): result is GachaResult => Boolean(result))
+        .slice(0, 20).map(result => ({ ...result, guaranteed: false, pityGuaranteed: false }))
+    : [];
   const recentHeartResults = hasHeartGachaState && Array.isArray(raw.recentHeartResults)
     ? raw.recentHeartResults
         .map((result) => normalizeResult(result, heartRewardById))
@@ -314,6 +352,14 @@ export const normalizeGoldenAppleGachaState = (
       ? clampCount(isNumber(raw.heartGachaRngCounter) ? raw.heartGachaRngCounter : 0)
       : 0,
     recentHeartResults,
+    specialTickets: Math.min(specialGachaTicketLimit, goldenCount(raw.specialTickets)),
+    specialTicketHeartsSpent: goldenCount(raw.specialTicketHeartsSpent),
+    goldenGachaTotalDraws: goldenCount(raw.goldenGachaTotalDraws),
+    goldenGachaCoinsSpent: goldenCount(raw.goldenGachaCoinsSpent),
+    goldenGachaTicketsSpent: goldenCount(raw.goldenGachaTicketsSpent),
+    goldenGachaRngCounter: goldenCount(raw.goldenGachaRngCounter),
+    goldenGachaJackpotCount: goldenCount(raw.goldenGachaJackpotCount),
+    recentGoldenResults,
   };
 };
 
@@ -394,6 +440,12 @@ export type GoldenAppleGachaDrawError =
   | 'not_enough_coins'
   | 'not_enough_tickets'
   | 'not_enough_golden_apples'
+  | 'not_enough_special_tickets'
+  | 'not_enough_hearts'
+  | 'tickets_full'
+  | 'locked'
+  | 'paused'
+  | 'invalid_payment'
   | 'inventory_full'
   | 'invalid_count';
 
@@ -595,6 +647,92 @@ export const drawGoldenAppleHeartGacha = (
     pet: recordEarnedHearts(settled, hearts - pet.hearts),
     results,
   };
+};
+
+export interface SpecialGachaTicketExchangeOutcome {
+  pet: PetState;
+  tickets: number;
+  error?: GoldenAppleGachaDrawError;
+}
+
+export const getSpecialGachaTicketExchangeLimit = (pet: PetState) => Math.max(0, Math.min(
+  Math.floor(pet.hearts / specialGachaTicketHeartCost),
+  specialGachaTicketLimit - pet.goldenAppleGacha.specialTickets,
+));
+
+export const exchangeHeartsForSpecialGachaTickets = (
+  pet: PetState,
+  count: number,
+  now = Date.now(),
+): SpecialGachaTicketExchangeOutcome => {
+  const fail = (error: GoldenAppleGachaDrawError): SpecialGachaTicketExchangeOutcome => ({ pet, tickets: 0, error });
+  if (pet.timePause) return fail('paused');
+  if (!isClassicEndgameUnlocked(pet)) return fail('locked');
+  if (!Number.isSafeInteger(count) || count <= 0) return fail('invalid_count');
+  const state = normalizeGoldenAppleGachaState(pet.goldenAppleGacha, pet.createdAt, now, getEffectiveDailyDateKey(pet, now));
+  if (count > specialGachaTicketLimit - state.specialTickets) return fail('tickets_full');
+  const cost = count * specialGachaTicketHeartCost;
+  if (pet.hearts < cost) return fail('not_enough_hearts');
+  return {
+    tickets: count,
+    pet: {
+      ...pet,
+      hearts: pet.hearts - cost,
+      goldenAppleGacha: { ...state, specialTickets: state.specialTickets + count, specialTicketHeartsSpent: state.specialTicketHeartsSpent + cost },
+      recentEvent: t('pet.gacha.specialTicketsExchanged', { hearts: cost, count }),
+      lastInteractionAt: now,
+    },
+  };
+};
+
+export const drawGoldenAppleOnlyGacha = (
+  pet: PetState,
+  payment: GoldenAppleOnlyPaymentMethod,
+  count: 1 | 10,
+  now = Date.now(),
+): GoldenAppleGachaDrawOutcome => {
+  const fail = (error: GoldenAppleGachaDrawError): GoldenAppleGachaDrawOutcome => ({ pet, results: [], error });
+  if (pet.timePause) return fail('paused');
+  if (!isClassicEndgameUnlocked(pet)) return fail('locked');
+  if (count !== 1 && count !== 10) return fail('invalid_count');
+  if (payment !== 'coins' && payment !== 'specialTickets') return fail('invalid_payment');
+  const state = normalizeGoldenAppleGachaState(pet.goldenAppleGacha, pet.createdAt, now, getEffectiveDailyDateKey(pet, now));
+  const coinCost = payment === 'coins' ? count * goldenAppleOnlyGachaSingleCost : 0;
+  const ticketCost = payment === 'specialTickets' ? count : 0;
+  if (pet.coins < coinCost) return fail('not_enough_coins');
+  if (state.specialTickets < ticketCost) return fail('not_enough_special_tickets');
+  const results = Array.from({ length: count }, (_, index): GachaResult => {
+    const counter = state.goldenGachaRngCounter + index;
+    let target = hashString(`${state.rngSeed}:golden:${counter}:reward`) % goldenAppleOnlyGachaPoolWeight;
+    const definition = goldenAppleOnlyGachaRewards.find(reward => (target -= reward.weight) < 0)!;
+    return {
+      id: `${state.rngSeed}:golden:${counter}:${now}`, rewardId: definition.id,
+      kind: definition.kind, itemId: definition.itemId, amount: definition.amount, rarity: definition.rarity,
+      guaranteed: false, pityGuaranteed: false, drawnAt: now,
+    };
+  });
+  const apples = results.reduce((sum, result) => sum + (result.kind === 'item' ? result.amount : 0), 0);
+  const hearts = results.reduce((sum, result) => sum + (result.kind === 'hearts' ? result.amount : 0), 0);
+  if (getInventoryCount(pet.inventory, 'golden_apple') + apples > inventoryItemLimit) return fail('inventory_full');
+  const settled: PetState = {
+    ...pet,
+    coins: pet.coins - coinCost,
+    hearts: pet.hearts + hearts,
+    inventory: apples ? addInventoryItem(pet.inventory, 'golden_apple', apples) : pet.inventory,
+    goldenAppleGacha: {
+      ...state,
+      specialTickets: state.specialTickets - ticketCost,
+      goldenGachaTotalDraws: state.goldenGachaTotalDraws + count,
+      goldenGachaCoinsSpent: state.goldenGachaCoinsSpent + coinCost,
+      goldenGachaTicketsSpent: state.goldenGachaTicketsSpent + ticketCost,
+      goldenGachaRngCounter: state.goldenGachaRngCounter + count,
+      goldenGachaJackpotCount: state.goldenGachaJackpotCount + results.filter(result => result.rarity === 'jackpot').length,
+      recentGoldenResults: [...results].reverse().concat(state.recentGoldenResults).slice(0, 20),
+    },
+    recentEvent: t('pet.gacha.goldenOnlyDrawn', { count, apples, hearts }),
+    lastInteractionAt: now,
+  };
+  return { pet: hearts ? recordEarnedHearts(settled, hearts) : settled, results };
 };
 
 export interface DailyGachaTicketOutcome {

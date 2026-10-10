@@ -6,6 +6,7 @@ import { canSpendCompanionTime } from './kitchen';
 import type { Inventory, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getCommunityDay, acceptCommunityTask, cancelCommunityTask, claimCommunityTask, recordCommunityTaskEvent } from './communityCommissions';
+import { recordMuseumEvent } from './museumEvents';
 import type { CommunityCrop, CommunityRoute } from './communityTypes';
 import { communityCrops, getCropUnlockReason, type CropId } from './foodCatalog';
 import { spendToolUse } from './toolDurability';
@@ -80,6 +81,7 @@ export const harvestCommunityCrop = (pet: PetState, plotId: number, plantedAt: n
   if (sickle && !use) return pet;
   pet = use?.pet ?? pet;
   pet = setPlotCrop(pet, plotId);
+  pet = recordMuseumEvent(pet, `crop:${definition.product}`, quantity, now);
   const hearts = getProductionHeartReward(definition.hours);
   return finishFarmNeighborAction(grantActivityHearts({ ...pet, inventory: add(pet, items), community: { ...pet.community, discoveredCrops: [...new Set([...c.discoveredCrops, crop.id])] }, recentEvent: `第 ${plotId} 块菜地收获${definition.name} ${quantity} 份、${hearts} 颗小心心。${sickle ? `精收镰刀耐久 −1${use?.broken ? '，这把镰刀已用尽' : ''}。` : ''}${crop.id === 'wheat' ? `可免费磨出面粉 ${quantity * 2} 份；本轮种子成本 24 金币。` : '仓库、加工台与厨房共用这些食材。'}` }, hearts), '收获', now, neighbors);
 };

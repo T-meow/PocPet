@@ -49,6 +49,7 @@ export interface CommunityMarket {
   pricingVersion: number;
   level: number; open: boolean; lastVisitAt: number; visitors: number; nextListingId: number;
   seed: number; nextVisitAt?: number; remainingVisitMs?: number;
+  lastBuyoutDay: string;
   listings: MarketListing[]; reserve: Record<string, number>; revenue: number; sessionRevenue: number; premium: number; sold: number;
   log: MarketReceipt[];
 }
@@ -65,7 +66,7 @@ export interface FarmNeighborHelp {
   neighbor: import('./petTypes').NeighborReference;
 }
 export interface CommunityState {
-  schemaVersion: 15;
+  schemaVersion: 16;
   farmNeighbor?: FarmNeighborHelp;
   activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;

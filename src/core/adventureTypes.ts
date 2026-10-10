@@ -40,6 +40,7 @@ export interface AdventureTrip {
   earnedCoins?: number;
   earnedHearts?: number;
   campaign?: import('./explorationCampaignState').CampaignTripContext;
+  museum?: import('./museumTypes').MuseumTripContext;
 }
 
 export interface AdventureResult {
@@ -65,10 +66,12 @@ export interface AdventureResult {
   rulesVersion?: AdventureRulesVersion;
   campaignVisit?: import('./explorationCampaignData').CampaignVisitId;
   campaignTotal?: number;
+  museumVisit?: import('./museumData').MuseumVisitId;
+  museumTotal?: number;
 }
 
 export interface AdventureState {
-  schemaVersion: 9;
+  schemaVersion: 10;
   campaign: import('./explorationCampaignState').ExplorationCampaignState;
   landmarks: import('./landmarkProgress').LandmarkId[];
   backpackLevel: number;

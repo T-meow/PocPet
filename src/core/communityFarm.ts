@@ -8,6 +8,7 @@ import { inventoryItemLimit } from './saveMetadata';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
+import { recordMuseumEvent } from './museumEvents';
 
 export const getAnimalCycleMs = (pet: PetState, id: AnimalId) => Math.round(animals[id].hours * 3600000 * (pet.partnerSchedule.skills.garden.level >= 10 ? .92 : 1) * (1 - getDecorationEffects(pet).sun_weather_vane / 100));
 export const getAnimalHarvestHearts = (id: AnimalId, stock: number) => Math.ceil(stock / 2) * getProductionHeartReward(animals[id].hours);
@@ -75,8 +76,9 @@ export const collectCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevi
   const hearts = getAnimalHarvestHearts(id, state.stock);
   const harvested = grantActivityHearts({ ...pet, inventory: addInventoryItem(pet.inventory, item, state.stock), community: { ...pet.community, ranchDay: { ...getRanchDay(pet, now), collected: true }, animals: { ...pet.community.animals,
     [id]: { ...state, stock: 0, revision: state.revision + 1, cycleMs: state.nextAt === undefined ? getAnimalCycleMs(pet, id) : state.cycleMs, nextAt: state.nextAt ?? (state.feed ? Math.max(now, pet.lastUpdatedAt) + getAnimalCycleMs(pet, id) : undefined) } } }, recentEvent: `收好${animals[id].name} ×${state.stock}，获得 ${hearts} 颗小心心。有余粮时继续下一轮生产。` }, hearts);
-  const next = collectRanchCompost(harvested, now, null);
-  return finishFarmNeighborAction({ ...next, recentEvent: harvested.recentEvent + (next !== harvested ? next.recentEvent : '') + (getRanchCompost(next).ready ? '堆肥仓库已满，剩余堆肥留在牧场等你。' : '') }, '收获', now, neighbors);
+  const recorded = recordMuseumEvent(harvested, `animal:${item}`, state.stock, now);
+  const next = collectRanchCompost(recorded, now, null);
+  return finishFarmNeighborAction({ ...next, recentEvent: harvested.recentEvent + (next !== recorded ? next.recentEvent : '') + (getRanchCompost(next).ready ? '堆肥仓库已满，剩余堆肥留在牧场等你。' : '') }, '收获', now, neighbors);
 };
 export const careCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevision: number, now = Date.now(), neighbors?: FarmNeighborCandidates): PetState => {
   if (pet.timePause) return pet;

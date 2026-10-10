@@ -24,11 +24,12 @@ interface CommonDreamsPageProps extends DreamArtwork {
   onInvestLegacy: (coins: number) => void;
   onCompleteLegacy: () => void;
   onExchangeGoldenApples: (apples: number) => void;
+  onMuseum: () => void;
 }
 
 type DreamPanel = { kind: 'project'; category: PartnerScheduleCategory } | { kind: 'overview' | 'trophies' | 'supplement' | 'exchange' | 'legacy' };
 
-export const CommonDreamsPage = ({ pet, portrait, projectImages, itemIconMap, onBack, onInvestProject, onCompleteProjectStage, onClaimProjectSupplement, onInvestLegacy, onCompleteLegacy, onExchangeGoldenApples }: CommonDreamsPageProps) => {
+export const CommonDreamsPage = ({ pet, portrait, projectImages, itemIconMap, onBack, onInvestProject, onCompleteProjectStage, onClaimProjectSupplement, onInvestLegacy, onCompleteLegacy, onExchangeGoldenApples, onMuseum }: CommonDreamsPageProps) => {
   const [panel, setPanel] = useState<DreamPanel | null>(null);
   const unlocked = isClassicEndgameUnlocked(pet);
   const complete = isClassicEndgameComplete(pet);
@@ -82,6 +83,7 @@ export const CommonDreamsPage = ({ pet, portrait, projectImages, itemIconMap, on
       </button></div>;
     })}</div>
     {complete && <button type="button" className="dreams-utility dreams-utility--legacy" onClick={() => setPanel({ kind: 'legacy' })}><span className="dreams-utility-icon"><Sparkles size={20} /></span><span><strong>{t('ui.classicEndgame.legacyKicker')} · Lv.{pet.classicEndgame.legacyLevel}</strong><small>{dreamText('legacyCopy')}</small></span><ChevronRight size={17} /></button>}
+    <button type="button" className="dreams-utility" onClick={onMuseum}><span className="dreams-utility-icon"><Sparkles size={22} /></span><span><strong>我们的纪念馆</strong><small>{complete ? `建设五地区展厅 · 策展 ${dreamNumber(pet.museum.stars)} 星 · 举办 ${dreamNumber(pet.museum.hosted)} 场` : '获得钻石奖杯后，收藏旅途、举办主题展'}</small></span>{complete ? <ChevronRight size={17} /> : <Lock size={15} />}</button>
     <button type="button" className="dreams-collection" onClick={() => setPanel({ kind: 'trophies' })} aria-label={`${t('ui.classicEndgame.trophies.title')} ${goal.unlockedTrophies} / ${goal.totalTrophies}`}>
       <span className="dreams-collection-heading"><strong>{dreamText('collection')}</strong><span>{goal.unlockedTrophies} / {goal.totalTrophies}<ChevronRight size={14} /></span></span>
       <span className="dreams-shelf"><DreamTrophyShelf pet={pet} /><small>{goal.diamondUnlocked ? t('ui.classicEndgame.trophies.names.diamond') : dreamText('collectionCopy')}</small></span>

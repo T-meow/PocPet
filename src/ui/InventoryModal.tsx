@@ -12,6 +12,7 @@ import { regionalTreasureIds } from '../core/regionalTreasures';
 interface InventoryModalProps {
   items: readonly InventoryItemDefinition[];
   pet: PetState;
+  actorId: string;
   itemIconMap: Partial<Record<string, string>>;
   browse: ItemBrowseState;
   onBrowseChange: (state: ItemBrowseState) => void;
@@ -27,8 +28,8 @@ interface InventoryModalProps {
   favoriteFoodIds?: readonly ItemId[];
 }
 
-export const InventoryModal = ({ items, pet, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenCommunity, onOpenTravelCrafts, onOpenKitchen, onUseItem, favoriteFoodIds, onToggleItemFavorite }: InventoryModalProps) => <ItemStorageModal
-  mode="bag" pet={pet} items={items} itemIconMap={itemIconMap} browse={browse} onBrowseChange={onBrowseChange} onClose={onClose} onSwitch={onOpenShop} quantityDisabled={isPetBusy} favoriteFoodIds={favoriteFoodIds} onToggleItemFavorite={onToggleItemFavorite}
+export const InventoryModal = ({ items, pet, actorId, itemIconMap, browse, onBrowseChange, isPetBusy, onClose, onOpenShop, onOpenGarden, onOpenCommunity, onOpenTravelCrafts, onOpenKitchen, onUseItem, favoriteFoodIds, onToggleItemFavorite }: InventoryModalProps) => <ItemStorageModal
+  mode="bag" pet={pet} actorId={actorId} items={items} itemIconMap={itemIconMap} browse={browse} onBrowseChange={onBrowseChange} onClose={onClose} onSwitch={onOpenShop} quantityDisabled={isPetBusy} favoriteFoodIds={favoriteFoodIds} onToggleItemFavorite={onToggleItemFavorite}
   renderActions={(item, quantity) => {
     if (onOpenTravelCrafts && regionalTreasureIds.some(id => id === item.id)) return <><button className="storage-primary" onClick={onOpenTravelCrafts}><Sprout size={17} />打开装饰工坊</button>{onOpenCommunity && <button className="storage-secondary" onClick={onOpenCommunity}>去农场出售</button>}</>;
     if (onOpenCommunity && (fieldEquipmentItems.some(d => d.id === item.id) || regionalTreasureIds.some(id => id === item.id))) return <button className="storage-primary" onClick={onOpenCommunity}><Sprout size={17} />去农场使用／出售</button>;

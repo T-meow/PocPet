@@ -16,6 +16,7 @@ import { hasFestivalReward } from '../core/festivalStories';
 import { ClaimNotice } from './ClaimNotice';
 import { getDecorationLevel } from '../core/decorationEffects';
 import { DecorationArt } from './community/TreasureDisplay';
+import { MuseumTrophyArt } from './museum/MuseumShared';
 import '../styles/decorations.css';
 
 interface Props extends HomePageProps {
@@ -31,6 +32,7 @@ interface Props extends HomePageProps {
   onOpenShop: () => void;
   onOpenCommunity?: () => void;
   onOpenMarket: () => void;
+  onOpenMuseum: () => void;
   onOpenFishing: () => void;
   onOpenAchievements: () => void;
   onOpenNotices?: () => void;
@@ -47,9 +49,11 @@ export const HomePageV2 = (props: Props) => {
   const friendGiftReady = canClaimBoostCardDailyReward(pet);
   const starDomeLevel = getDecorationLevel(pet, 'star_dome');
   const pearlLampLevel = getDecorationLevel(pet, 'pearl_lamp');
-  const roomDecorations = starDomeLevel > 0 || pearlLampLevel > 0 ? <nav className="home-room-decorations" aria-label="小窝装饰入口">
+  const museumUnlocked = isClassicEndgameComplete(pet);
+  const roomDecorations = starDomeLevel > 0 || pearlLampLevel > 0 || museumUnlocked ? <nav className="home-room-decorations" aria-label="小窝装饰入口">
     {starDomeLevel > 0 && <button type="button" className="home-room-decoration home-room-decoration--market" onClick={props.onOpenMarket} title="星辉穹顶模型 · 前往溪畔小摊" aria-label={`星辉穹顶模型 Lv.${starDomeLevel}，前往溪畔小摊`}><DecorationArt id="star_dome" level={starDomeLevel} /><span className="home-room-decoration-label">溪畔小摊</span></button>}
     {pearlLampLevel > 0 && <button type="button" className="home-room-decoration home-room-decoration--fishing" onClick={props.onOpenFishing} title="月潮贝灯 · 前往钓鱼小屋" aria-label={`月潮贝灯 Lv.${pearlLampLevel}，前往钓鱼小屋`}><DecorationArt id="pearl_lamp" level={pearlLampLevel} /><span className="home-room-decoration-label">钓鱼小屋</span></button>}
+    {museumUnlocked && <button type="button" className="home-room-decoration home-room-decoration--museum" onClick={props.onOpenMuseum} title="纪念奖杯 · 前往纪念馆" aria-label={`纪念奖杯 Lv.${pet.classicEndgame.legacyLevel}，前往纪念馆`}><MuseumTrophyArt pet={pet} /><span className="home-room-decoration-label">纪念馆</span></button>}
   </nav> : undefined;
   const gardenGiftReady = props.gardenReminder === 'ready' || !pet.claimedRewardIds.includes(gardenCompensationRewardId);
   const farmGiftReady = gardenGiftReady || Boolean(pet.community.commission?.found || pet.community.fishing.pending)

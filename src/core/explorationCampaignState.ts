@@ -4,25 +4,36 @@ import { campaignChapterIds, campaignChapters, campaignTasks, campaignVisitIds, 
 import { getLandmarkReason, isLandmarkId, landmarkId, type LandmarkId } from './landmarkProgress';
 import { getAdventureStepCount } from './adventureData';
 import { selectNeighborReference } from './neighbors';
+import { getDailyResetDateKey, getQuarterKey } from './dailyReset';
+import { museumVisits } from './museumData';
 
 export interface CampaignContact { reference: NeighborReference; name: string }
 export interface CampaignTaskRecord { completedAt: number; claimedAt?: number; reward?: { hearts: number; apples: number }; delivery?: Inventory }
-export interface ExplorationCampaignState {
-  schemaVersion: 1; startedAt?: number;
+export interface CampaignRun {
+  runId: string; quarter: string; rewardVersion: 1 | 2; startedAt?: number;
   contacts: Partial<Record<CampaignChapterId, CampaignContact>>;
   visits: Partial<Record<CampaignVisitId, string[]>>;
   tasks: Partial<Record<number, CampaignTaskRecord>>;
 }
-export interface CampaignTripContext { visitId: CampaignVisitId; mode: 'visit' | 'embedded'; startStep: number }
-export const defaultExplorationCampaign = (): ExplorationCampaignState => ({ schemaVersion: 1, contacts: {}, visits: {}, tasks: {} });
+export interface ExplorationCampaignState extends CampaignRun {
+  schemaVersion: 2; lastOpenedQuarter: string; history: CampaignRun[];
+  archivedCount: number; archivedHearts: number; archivedApples: number;
+}
+export interface CampaignTripContext { runId: string; visitId: CampaignVisitId; mode: 'visit' | 'embedded'; startStep: number }
+const emptyRun = (): CampaignRun => ({ runId: '', quarter: '', rewardVersion: 2, contacts: {}, visits: {}, tasks: {} });
+export const defaultExplorationCampaign = (): ExplorationCampaignState => ({ ...emptyRun(), schemaVersion: 2, lastOpenedQuarter: '', history: [], archivedCount: 0, archivedHearts: 0, archivedApples: 0 });
 const object = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const timestamp = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined;
-const amount = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-export const normalizeExplorationCampaign = (raw: unknown): ExplorationCampaignState => {
-  const value = object(raw), state = defaultExplorationCampaign();
+const amount = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(value))) : 0;
+const quarter = (value: unknown) => typeof value === 'string' && /^\d{4}-Q[1-4]$/.test(value) ? value : '';
+const normalizeRun = (raw: unknown, legacy = false): CampaignRun => {
+  const value = object(raw), state = emptyRun();
   const startedAt = timestamp(value.startedAt);
   if (!startedAt) return state;
   state.startedAt = startedAt;
+  state.runId = typeof value.runId === 'string' && value.runId.length > 0 ? value.runId.slice(0, 128) : `picnic:legacy:${startedAt}`;
+  state.quarter = quarter(value.quarter) || getQuarterKey(getDailyResetDateKey(startedAt));
+  state.rewardVersion = legacy || value.rewardVersion === 1 ? 1 : 2;
   for (const chapter of campaignChapterIds) {
     const contact = object(object(value.contacts)[chapter]), reference = object(contact.reference);
     if (typeof contact.name !== 'string' || !contact.name.trim()) continue;
@@ -49,14 +60,28 @@ export const normalizeExplorationCampaign = (raw: unknown): ExplorationCampaignS
   }
   return state;
 };
-export const normalizeCampaignTripContext = (raw: unknown, purpose: unknown): CampaignTripContext | undefined => {
+export const normalizeExplorationCampaign = (raw: unknown): ExplorationCampaignState => {
+  const value = object(raw), run = normalizeRun(value, value.schemaVersion !== 2);
+  const seen = new Set([run.runId]);
+  const history = (Array.isArray(value.history) ? value.history : []).slice(-80).map(entry => normalizeRun(entry)).filter(entry => {
+    if (!entry.startedAt || seen.has(entry.runId) || !campaignTasks.every(task => entry.tasks[task.id]?.claimedAt)) return false;
+    seen.add(entry.runId); return true;
+  });
+  return { ...run, schemaVersion: 2, history,
+    lastOpenedQuarter: [quarter(value.lastOpenedQuarter), run.quarter, ...history.map(entry => entry.quarter)].sort().pop() ?? '',
+    archivedCount: amount(value.archivedCount), archivedHearts: amount(value.archivedHearts), archivedApples: amount(value.archivedApples) };
+};
+export const campaignRunSnapshot = (state: ExplorationCampaignState): CampaignRun => ({ runId: state.runId, quarter: state.quarter, rewardVersion: state.rewardVersion, startedAt: state.startedAt, contacts: state.contacts, visits: state.visits, tasks: state.tasks });
+export const campaignRunFinished = (state: CampaignRun) => campaignTasks.every(task => Boolean(state.tasks[task.id]?.claimedAt));
+export const normalizeCampaignTripContext = (raw: unknown, purpose: unknown, legacyRunId = ''): CampaignTripContext | undefined => {
   const value = object(raw);
   if (!isCampaignVisitId(value.visitId) || !isLandmarkId(purpose) || !['visit', 'embedded'].includes(String(value.mode))) return undefined;
   const visit = campaignVisits[value.visitId];
   if (purpose !== landmarkId(visit.region, visit.node)) return undefined;
-  return { visitId: value.visitId, mode: value.mode as CampaignTripContext['mode'], startStep: Math.min(visit.steps.length, amount(value.startStep)) };
+  const runId = typeof value.runId === 'string' ? value.runId.slice(0, 128) : legacyRunId;
+  return runId ? { runId, visitId: value.visitId, mode: value.mode as CampaignTripContext['mode'], startStep: Math.min(visit.steps.length, amount(value.startStep)) } : undefined;
 };
-export const campaignChapterReady = (state: ExplorationCampaignState, chapter: CampaignChapterId) => Boolean(state.startedAt) && campaignChapters[chapter].requires.every(id => state.tasks[id]);
+export const campaignChapterReady = (state: CampaignRun, chapter: CampaignChapterId) => Boolean(state.startedAt) && campaignChapters[chapter].requires.every(id => state.tasks[id]);
 export const bindCampaignContacts = (state: ExplorationCampaignState, neighbors: readonly NeighborIdentity[], actorId: string): ExplorationCampaignState => {
   if (!state.startedAt) return state;
   const contacts = { ...state.contacts };
@@ -71,9 +96,9 @@ export const bindCampaignContacts = (state: ExplorationCampaignState, neighbors:
   }
   return { ...state, contacts };
 };
-export const campaignText = (text: string, state: ExplorationCampaignState, chapter: CampaignChapterId) => text.replace(/\{neighbor\}/g, () => state.contacts[chapter]?.name ?? '伙伴');
-export const campaignVisitStep = (state: ExplorationCampaignState, id: CampaignVisitId) => state.visits[id]?.length ?? 0;
-export const campaignVisitComplete = (state: ExplorationCampaignState, id: CampaignVisitId) => campaignVisitStep(state, id) >= campaignVisits[id].steps.length;
+export const campaignText = (text: string, state: CampaignRun, chapter: CampaignChapterId) => text.replace(/\{neighbor\}/g, () => state.contacts[chapter]?.name ?? '伙伴');
+export const campaignVisitStep = (state: CampaignRun, id: CampaignVisitId) => state.visits[id]?.length ?? 0;
+export const campaignVisitComplete = (state: CampaignRun, id: CampaignVisitId) => campaignVisitStep(state, id) >= campaignVisits[id].steps.length;
 export const campaignVisitReady = (state: ExplorationCampaignState, id: CampaignVisitId) => campaignChapterReady(state, campaignVisits[id].region) && Boolean(state.contacts[campaignVisits[id].region]) && campaignVisits[id].requires.every(task => state.tasks[task]) && !campaignVisitComplete(state, id);
 export const availableCampaignVisits = (pet: PetState) => campaignVisitIds.filter(id => campaignVisitReady(pet.adventure.campaign, id));
 export const getCampaignVisitReason = (pet: PetState, id: CampaignVisitId) => {
@@ -110,8 +135,10 @@ export const campaignCargoIds = (pet: PetState, purpose?: string): string[] => {
   const id = campaignVisitAt(pet, purpose);
   return id ? [...new Set(getCampaignSupplies(pet, id).flatMap(requirement => requirement.items))] : [];
 };
-export const campaignEventVisible = (pet: PetState, trip = pet.adventure.active) => Boolean(trip?.campaign && (trip.campaign.mode === 'visit' || trip.choices.length >= getAdventureStepCount(trip.region, trip.purpose)));
-export const adventureTripProgress = (pet: Pick<PetState, 'adventure'>, trip: AdventureTrip) => trip.campaign?.mode === 'visit'
+export const campaignEventVisible = (pet: PetState, trip = pet.adventure.active) => Boolean(trip?.campaign && trip.campaign.runId === pet.adventure.campaign.runId && (trip.campaign.mode === 'visit' || trip.choices.length >= getAdventureStepCount(trip.region, trip.purpose)));
+export const adventureTripProgress = (pet: Pick<PetState, 'adventure'>, trip: AdventureTrip) => trip.museum
+  ? { steps: Math.max(0, trip.museum.step - trip.museum.startStep), total: museumVisits[trip.museum.visitId].steps.length - trip.museum.startStep }
+  : trip.campaign?.mode === 'visit'
   ? { steps: Math.max(0, campaignVisitStep(pet.adventure.campaign, trip.campaign.visitId) - trip.campaign.startStep), total: campaignVisits[trip.campaign.visitId].steps.length - trip.campaign.startStep }
   : { steps: trip.choices.length, total: getAdventureStepCount(trip.region, trip.purpose) };
 export const campaignDestination = (id: CampaignVisitId): LandmarkId => landmarkId(campaignVisits[id].region, campaignVisits[id].node);

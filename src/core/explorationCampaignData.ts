@@ -57,6 +57,10 @@ const taskRows: [string, string, string, number, number][] = [
 ];
 export const campaignTasks: CampaignTask[] = taskRows.map(([title, goal, outcome, hearts, apples], i) => ({ id: i + 1, chapter: campaignChapterIds[Math.floor(i / 6)], title, goal, outcome, hearts, apples }));
 export const getCampaignTask = (id: number) => campaignTasks.find(task => task.id === id);
+const quarterlyHearts = [100, 100, 150, 150, 150, 350, 150, 150, 150, 150, 250, 650, 150, 150, 250, 250, 300, 900, 200, 200, 250, 250, 350, 900, 250, 350, 400, 500, 500, 1350];
+export const getCampaignReward = (id: number, version: 1 | 2) => version === 1
+  ? { hearts: getCampaignTask(id)?.hearts ?? 0, apples: getCampaignTask(id)?.apples ?? 0 }
+  : { hearts: quarterlyHearts[id - 1] ?? 0, apples: id < 1 || id > 30 ? 0 : ({ 6: 2, 12: 2, 18: 3, 24: 3, 30: 5 } as Record<number, number>)[id] ?? 1 };
 const step = (title: string, story: string, label: string, result: string, task?: number, delivery?: CampaignDelivery): CampaignStep => ({ title, story, options: [{ id: 'continue', label, result }], task, delivery });
 const meal = (amount: number): CampaignDelivery => ({ items: ['bento', 'dish_herb_porridge'], amount });
 const give = (item: ItemId, amount: number): CampaignDelivery => ({ items: [item], amount });

@@ -16,6 +16,7 @@ import { eatReturningRations, rationReturnLines } from './expeditionRationReturn
 import { quoteFishingRations } from './fishingRations';
 import type { RationSelection } from './explorationRations';
 import { advancePet } from './petLifecycle';
+import { recordMuseumEvent } from './museumEvents';
 
 type Bait = 'fishing_bait' | 'river_bait';
 const withFishing = (pet: PetState, changes: Partial<PetState['community']['fishing']>): PetState => ({ ...pet, community: { ...pet.community, fishing: { ...pet.community.fishing, ...changes } } });
@@ -47,7 +48,7 @@ export const recordFishingCatch = (pet: PetState, caught: { fish: keyof typeof f
   const next = withFishing(pet, { journal: { ...pet.community.fishing.journal, [caught.fish]: {
     count: (entry?.count ?? 0) + 1, firstAt: entry?.firstAt ?? now, largest: Math.max(caught.size, entry?.largest ?? 0), goldCrown: Boolean(entry?.goldCrown || crown),
   } } });
-  return { pet: recordCommunityCatch(next, fish[caught.fish].water, fish[caught.fish].rare, now), caught: result };
+  return { pet: recordMuseumEvent(recordCommunityCatch(next, fish[caught.fish].water, fish[caught.fish].rare, now), `fish:${fish[caught.fish].water}`, 1, now), caught: result };
 };
 
 export const startCommunityFishing = (pet: PetState, water: WaterId, bait: Bait, strongRod: boolean, now = Date.now(), gear: { float?: boolean; net?: boolean } = {}): PetState => {

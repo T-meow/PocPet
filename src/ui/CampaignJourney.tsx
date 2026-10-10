@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Backpack, Check, Truck } from 'lucide-react';
 import { advanceCampaignVisit, getCampaignStepPreview } from '../core/explorationCampaign';
-import { campaignVisits, getCampaignTask } from '../core/explorationCampaignData';
+import { campaignVisits, getCampaignTask, getCampaignReward } from '../core/explorationCampaignData';
 import { campaignText, campaignVisitStep, getCampaignDelivery, isCampaignDeliveryValid } from '../core/explorationCampaignState';
 import { getAdventureBagCount } from '../core/adventureState';
 import { getExplorationBagCapacity } from '../core/explorationBackpack';
@@ -36,7 +36,7 @@ export const CampaignJourney = ({ pet, portrait, mods, update, move, busy, onSto
     setSelection({ step: index, items: { ...delivery, [item]: count } });
   };
   const previous = index > 0 ? visit.steps[index - 1].options.find(option => option.id === state.visits[id]?.[index - 1]) : undefined;
-  const task = step?.task ? getCampaignTask(step.task) : undefined;
+  const task = step?.task ? { ...getCampaignTask(step.task)!, ...getCampaignReward(step.task, state.rewardVersion) } : undefined;
   return <div className="exploration-journey-layout"><div className="exploration-journey campaign-journey">
     <section className="exploration-panel exploration-journey-hero"><ol className="exploration-stage-steps" aria-label="聚餐准备进度">{visit.steps.map((value, n) => <li key={n} className={n < index ? 'is-complete' : n === index ? 'is-current' : ''} aria-current={n === index ? 'step' : undefined}><span>{n < index ? <Check size={15} /> : n + 1}</span><strong>{value.title}</strong></li>)}</ol><AdventureLandscape region={visit.region} node={visit.node} portrait={portrait} label={landmarkNames[visit.region][visit.node]} /></section>
     {previous && <p className="campaign-last-action" role="status">{campaignText(previous.result, state, visit.region)}</p>}

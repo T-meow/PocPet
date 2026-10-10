@@ -1,8 +1,8 @@
 import type { MarketCustomer } from './communityTypes';
 
 export const marketStackLimit = 20;
-export const marketMinVisitMs = 2 * 60_000;
-export const marketMaxVisitMs = 6 * 60_000;
+export const marketMinVisitMs = 4 * 60_000;
+export const marketMaxVisitMs = 8 * 60_000;
 export const marketSlotCount = (level: number) => level > 0 ? 3 + level * 3 : 0;
 
 export const getMarketBuyoutBonusForLevels = (cookingLevel: number, signLevel: number) => {
@@ -36,6 +36,6 @@ export const getMarketVisit = (seed: number, visit: number, trafficBonusPercent 
     delayMs: Math.max(1, Math.round(baseDelayMs / (1 + Math.max(0, trafficBonusPercent) / 100))),
     customer,
     buyout: customer === 'generous' && marketRandom(seed, visit, 2) < getMarketBuyoutChance(buyoutBonusPercent),
-    quantity: customer === 'generous' ? 8 + Math.floor(marketRandom(seed, visit, 3) * 13) : 1 + Math.floor(marketRandom(seed, visit, 3) * 3),
+    quantity: customer === 'generous' ? 4 + Math.floor(marketRandom(seed, visit, 3) * 7) : 1 + Math.floor(marketRandom(seed, visit, 3) * 3),
   };
 };

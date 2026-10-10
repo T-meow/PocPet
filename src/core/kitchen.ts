@@ -5,6 +5,7 @@ import { clampCount } from './petStats';
 import type { PetState } from './petTypes';
 import type { CookingMethod, DishId, KitchenState, RecipeId, MilkChoice } from './companionActivityTypes';
 import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipes } from './kitchenRecipes';
+import { recordMuseumEvent } from './museumEvents';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
@@ -99,7 +100,7 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   next.recentEvent = activityText(`一起做好了 ${quantity} 份${dishName(dishId)}，收获 ${hearts} 颗心心。`, `Made ${quantity} × ${dishName(dishId)} together and earned ${hearts} hearts.`);
   if (skillXp > 0) next.recentEvent += ` ${formatPracticeSkillXp('cooking', skillXp)}`;
   if (recipeId === 'herb_porridge') next = recordCommunityTaskEvent(next, 'cook_porridge', now);
-  return recordEarnedHearts(next, hearts);
+  return recordMuseumEvent(recordEarnedHearts(next, hearts), `cook:${recipeId}`, quantity, now);
 };
 export const buyKitchenEquipment = (pet: PetState, id: CookingMethod): PetState => {
   const equipment = cookingMethods.find((item) => item.id === id);

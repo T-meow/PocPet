@@ -36,9 +36,11 @@ import { getAdventureStageChoices } from './adventureGathering';
 import { campaignCheckAction } from './explorationCampaign';
 import { campaignCargoIds, campaignDestination, campaignEventVisible, campaignVisitAt, campaignVisitStep, getCampaignVisitReason } from './explorationCampaignState';
 import type { CampaignVisitId } from './explorationCampaignData';
+import { museumVisits, type MuseumVisitId } from './museumData';
+import { getMuseumStepPreview, getMuseumVisitReason, museumVisitStep } from './museumJourney';
 
 const fail = (pet: PetState, message: string): PetState => ({ ...pet, recentEvent: message });
-export const getAdventureStartReason = (pet: PetState, region?: AdventureDestinationId, now = Date.now(), purpose?: CommunityRoute, campaignVisit?: CampaignVisitId) => {
+export const getAdventureStartReason = (pet: PetState, region?: AdventureDestinationId, now = Date.now(), purpose?: CommunityRoute, campaignVisit?: CampaignVisitId, museumVisit?: MuseumVisitId) => {
   if (region && region !== 'tutorial') purpose = purpose ? legacyPurposeLandmark(purpose) : landmarkId(region, 'entrance');
   if (pet.timePause) return '时间已冻结，恢复时间后再出发。';
   if (pet.community.expedition.pending) return '先收好上一次远行的物资与工具。';
@@ -46,6 +48,10 @@ export const getAdventureStartReason = (pet: PetState, region?: AdventureDestina
   if (pet.adventure.active) return adventureBusyMessage();
   if (pet.adventure.pending) return L('先收好上次行程的物资。', 'Collect the supplies from your last trip first.');
   if (pet.community.fishing.active) return '先收起鱼竿，再出发探索。';
+  if (museumVisit) {
+    if (campaignVisit || museumVisits[museumVisit]?.destination !== purpose) return '纪念馆回访的目的地已变化，请重新选择。';
+    const reason = getMuseumVisitReason(pet, museumVisit); if (reason) return reason;
+  }
   if (campaignVisit) {
     if (campaignDestination(campaignVisit) !== purpose) return '聚餐任务的目的地已变化，请重新选择。';
     const reason = getCampaignVisitReason(pet, campaignVisit); if (reason) return reason;
@@ -62,6 +68,7 @@ export const getAdventureStartReason = (pet: PetState, region?: AdventureDestina
   if (pet.partnerSchedule.active) return L('等伙伴结束社区工作再出发。', 'Wait until community work ends.');
   if (pet.miniGames.active && !pet.miniGames.active.paused) return L('先暂停小游戏再出发。', 'Pause your game before setting out.');
   if (getPetStatRatio(pet, 'health') < adventureHealthRules.departure) return '健康不足，请先护理再出发。';
+  if (museumVisit) return getMuseumStepPreview(pet, museumVisit).reason;
   const visitId = campaignVisit ?? campaignVisitAt(pet, purpose);
   if (visitId && pet.adventure.landmarks.includes(campaignDestination(visitId))) {
     return previewExplorationAction(pet, { id: 'departure', bag: {}, tool: false, rulesVersion: 12 }, campaignCheckAction(visitId, campaignVisitStep(pet.adventure.campaign, visitId)), 'picnic:departure', expeditionRegionForMap[region as import('./adventureTypes').AdventureRegionId]).reason;
@@ -81,14 +88,14 @@ export const claimAdventureStarter = (pet: PetState): PetState => {
     adventure: { ...pet.adventure, starterClaimed: true, starterMealsClaimed: true }, recentEvent: L('入门补给已放入仓库，包含四份胡萝卜蛋饭。整理行囊后就可以出发。', 'Starter supplies, including four carrot egg rice dishes, are in your inventory. Pack your bag to set out.') };
 };
 
-export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, _legacyTool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string, neighborIds: readonly string[] = [], campaignVisit?: CampaignVisitId): PetState => {
+export const startAdventure = (pet: PetState, region: AdventureDestinationId | undefined, actorId: string, actorName: string, bag: Inventory, _legacyTool: boolean, now = Date.now(), purpose?: CommunityRoute, target?: string, neighborIds: readonly string[] = [], campaignVisit?: CampaignVisitId, museumVisit?: MuseumVisitId): PetState => {
   if (region && region !== 'tutorial') purpose = purpose ? legacyPurposeLandmark(purpose) : landmarkId(region, 'entrance');
   if (purpose && !isLandmarkId(purpose)) return pet;
-  const reason = getAdventureStartReason(pet, region, now, purpose, campaignVisit);
+  const reason = getAdventureStartReason(pet, region, now, purpose, campaignVisit, museumVisit);
   if (reason) return fail(pet, reason);
   if (!region || !actorId || actorId.length > 128) return pet;
   const entries = Object.entries(bag).filter(([, amount]) => amount !== 0);
-  const cargo = campaignCargoIds(pet, purpose);
+  const cargo = museumVisit ? [] : campaignCargoIds(pet, purpose);
   if (entries.some(([id, amount]) => !isAdventureSupply(id) && !cargo.includes(id) || !Number.isInteger(amount) || amount < 1 || (pet.inventory[id] ?? 0) < amount)
     || getAdventureBagCount(Object.fromEntries(entries)) > getExplorationBagCapacity(pet)) return fail(pet, L('行囊或仓库物资已变化，请重新整理。', 'Your supplies have changed. Check your travel bag again.'));
   pet = advanceExplorationBudget(pet, now);
@@ -99,11 +106,12 @@ export const startAdventure = (pet: PetState, region: AdventureDestinationId | u
   const neighborId = neighbors.length > 0 && region !== 'tutorial' && (region === 'valley' && !(pet.adventure.completed.valley ?? 0) || roll % 3 !== 0) ? neighbors[roll % neighbors.length] : undefined;
   const inventory = entries.reduce((stock, [item, amount]) => removeInventoryItem(stock, item, amount), pet.inventory);
   const tool = false; // New trips use warehouse tools; true is reserved for legacy packed ropes.
-  const visitId = campaignVisit ?? campaignVisitAt(pet, purpose);
-  const campaign = visitId ? { visitId, mode: pet.adventure.landmarks.includes(campaignDestination(visitId)) ? 'visit' as const : 'embedded' as const, startStep: campaignVisitStep(pet.adventure.campaign, visitId) } : undefined;
+  const visitId = museumVisit ? undefined : campaignVisit ?? campaignVisitAt(pet, purpose);
+  const museum = museumVisit ? { visitId: museumVisit, acceptedAt: pet.museum.quests[museumVisits[museumVisit].quest]!.acceptedAt, step: museumVisitStep(pet, museumVisit), startStep: museumVisitStep(pet, museumVisit) } : undefined;
+  const campaign = visitId ? { runId: pet.adventure.campaign.runId, visitId, mode: pet.adventure.landmarks.includes(campaignDestination(visitId)) ? 'visit' as const : 'embedded' as const, startStep: campaignVisitStep(pet.adventure.campaign, visitId) } : undefined;
   return { ...pet, inventory, lastInteractionAt: now,
-    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, ...(campaign ? { campaign } : {}), rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 12, ...(isLandmarkId(purpose) ? { checkState: createExplorationCheckState(id), ...(target ? { target } : {}), nodeId: parseLandmarkId(purpose).node, stageIds: [], firstCompletion: false } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: neighborId ? createAdventureShopStock() : {}, purchases: 0, transportedCount: 0 } },
-    recentEvent: campaign?.mode === 'visit' ? '这段路已经熟了，直接去和伙伴碰头吧。' : region === 'tutorial' ? '从前哨门口开始 4 阶段新手踩点。' : '已开始手动地标探索。每次选择都会保存，途中可以补给或安全返程。' };
+    adventure: { ...pet.adventure, tripsStarted: pet.adventure.tripsStarted + 1, active: { id, region, purpose, ...(campaign ? { campaign } : {}), ...(museum ? { museum } : {}), rewardsVersion: 1, gatherBonus: getDecorationEffects(pet).emerald_pendant, actorId, actorName: actorName.slice(0, 32), startedAt: now, rulesVersion: 12, ...(isLandmarkId(purpose) ? { checkState: createExplorationCheckState(id), ...(target ? { target } : {}), nodeId: parseLandmarkId(purpose).node, stageIds: [], firstCompletion: false } : {}), energySpent: 0, healthLost: 0, paidActions: 0, rested: false, revision: 0, choices: [], bag: Object.fromEntries(entries), loot: {}, tool, neighborId, shopStock: neighborId ? createAdventureShopStock() : {}, purchases: 0, transportedCount: 0 } },
+    recentEvent: museum ? '已开始纪念馆回访，每一步记录都会保存。' : campaign?.mode === 'visit' ? '这段路已经熟了，直接去和伙伴碰头吧。' : region === 'tutorial' ? '从前哨门口开始 4 阶段新手踩点。' : '已开始手动地标探索。每次选择都会保存，途中可以补给或安全返程。' };
 };
 
 export const getAdventureCheckAction = (pet: PetState, choice: AdventureChoice, now = pet.lastUpdatedAt): ExplorationCheckAction => (pet.adventure.active?.rulesVersion ?? 0) >= 10 ? landmarkCheckAction(pet, choice, now) : ({
@@ -144,7 +152,7 @@ export const advanceAdventure = (pet: PetState, tripId: string, expectedStep: nu
   if (expectedRevision !== undefined && pet.adventure.active.revision !== expectedRevision) return pet;
   pet = (pet.adventure.active?.rulesVersion ?? 0) >= 9 ? advancePet(pet, now) : enforceAdventureHealth(pet, now);
   const trip = pet.adventure.active;
-  if (!trip || trip.id !== tripId || trip.choices.length !== expectedStep) return pet;
+  if (!trip || trip.museum || trip.campaign?.mode === 'visit' || trip.id !== tripId || trip.choices.length !== expectedStep) return pet;
   const choices = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag)[expectedStep]?.choices ?? [];
   const command = getAdventureStageChoices(pet, choices).find(value => value.id === choiceId);
   const choice = choices.find(value => value.id === (command?.sourceChoiceId ?? choiceId));
@@ -259,7 +267,7 @@ export const discardAdventureItem = (pet: PetState, tripId: string, revision: nu
   return { ...pet, community: { ...pet.community, toolWear }, adventure: { ...pet.adventure, active: { ...trip, revision: revision + 1, ...(source === 'tool' ? { tool: false } : { [source]: removeInventoryItem(trip[source], itemId, quantity) }) } }, recentEvent: L('已放弃所选物资。', 'The selected supplies have been left behind.') };
 };
 
-export const canUseAdventureService = (pet: PetState) => Boolean(!needsAdventureHealthReturn(pet) && pet.adventure.active && pet.adventure.active.region !== 'tutorial' && (campaignEventVisible(pet) || pet.adventure.active.neighborId && (pet.adventure.active.rulesVersion >= 10 ? pet.adventure.active.stageIds?.some(id => id.endsWith(':obstacle')) && !pet.adventure.active.stageIds?.some(id => id.endsWith(':finish')) : pet.adventure.active.choices.length === 4)) && !getAdventureBagCount(pet.adventure.active.loot));
+export const canUseAdventureService = (pet: PetState) => Boolean(!needsAdventureHealthReturn(pet) && pet.adventure.active && pet.adventure.active.region !== 'tutorial' && (pet.adventure.active.museum || campaignEventVisible(pet) || pet.adventure.active.neighborId && (pet.adventure.active.rulesVersion >= 10 ? pet.adventure.active.stageIds?.some(id => id.endsWith(':obstacle')) && !pet.adventure.active.stageIds?.some(id => id.endsWith(':finish')) : pet.adventure.active.choices.length === 4)) && !getAdventureBagCount(pet.adventure.active.loot));
 export const getAdventureServiceQuote = (pet: PetState, itemId: ItemId, quantity: number, service: 'buy' | 'transport') => {
   const trip = pet.adventure.active;
   const remaining = service === 'buy' ? trip?.rulesVersion === 1 && trip.purchases > 0 ? 0 : trip?.shopStock[itemId] ?? 0 : Math.max(0, (trip?.rulesVersion === 1 ? 1 : adventureTransportLimit) - (trip?.transportedCount ?? 0));
@@ -323,7 +331,7 @@ export const claimAdventureResult = (pet: PetState, resultId: string): PetState 
   const discoveries = [...new Set([...pet.adventure.discoveries, ...(result.purpose ? [] : Array.from({ length: result.steps }, (_, i) => `${result.region}:${i}`))])];
   const previousDay = getAdventureLastCompletedDay(pet.adventure, result.region);
   const completedDay = result.completedDay ?? getDailyResetDateKey(result.endedAt);
-  const entranceResult = !result.campaignVisit && (!result.purpose || isLandmarkId(result.purpose) && parseLandmarkId(result.purpose).node === 'entrance');
+  const entranceResult = !result.campaignVisit && !result.museumVisit && (!result.purpose || isLandmarkId(result.purpose) && parseLandmarkId(result.purpose).node === 'entrance');
   const adventure = { ...pet.adventure, pending, discoveries,
     landmarks: result.region === 'valley' && entranceResult && result.complete && !pet.adventure.landmarks.includes(landmarkId('valley', 'entrance')) ? [...pet.adventure.landmarks, landmarkId('valley', 'entrance')] : pet.adventure.landmarks,
     lastCompletedDay: entranceResult && !result.rewardsClaimed && result.complete ? { ...pet.adventure.lastCompletedDay, [result.region]: completedDay > previousDay ? completedDay : previousDay } : pet.adventure.lastCompletedDay,

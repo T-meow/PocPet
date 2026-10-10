@@ -1,5 +1,10 @@
 export { addMusicListeningTime, claimMusicHearts, getMusicHeartReward, musicHeartIntervalMs, musicHeartsPerInterval } from './musicCompanion';
 export type { MusicCompanionState } from './musicCompanion';
+export { acceptMuseumQuest, changeMuseumAppearance, completeMuseumHallStage, getMuseumCompleteReason, getMuseumHallReason, investMuseumHall, withdrawMuseumHall } from './museum';
+export { advanceMuseumWeek, beginMuseumCuration, cancelMuseumCuration, editMuseumCuration, evaluateMuseumLayout, findMuseumSolution, getMuseumAvailableDishes, getMuseumCurationQuote, getMuseumEligibleThemes, hostMuseumCuration, museumGuestMessages } from './museumCuration';
+export { getMuseumAppearance, getMuseumExhibits, getMuseumOpenHalls, museumTitle } from './museumState';
+export type { MuseumState, MuseumDraft, MuseumRecord, MuseumAppearance } from './museumTypes';
+export { advanceMuseumVisit, getMuseumStepPreview, getMuseumVisitReason, isMuseumMealDelivery, museumVisitStep } from './museumJourney';
 export type {
   AchievementCounters,
   AchievementId,
@@ -78,7 +83,9 @@ export type {
   GoldenAppleHeartGachaRewardDefinition,
   GoldenAppleGachaRewardDefinition,
   GoldenAppleGachaStarterGiftOutcome,
+  SpecialGachaTicketExchangeOutcome,
 } from './goldenAppleGacha';
+export type { GachaMachine, GoldenAppleOnlyPaymentMethod } from './petTypes';
 export {
   classicTrophyCategories,
   classicTrophyDefinitions,
@@ -103,6 +110,13 @@ export {
   defaultGoldenAppleGachaState,
   drawGoldenAppleHeartGacha,
   drawGoldenAppleGacha,
+  drawGoldenAppleOnlyGacha,
+  exchangeHeartsForSpecialGachaTickets,
+  getSpecialGachaTicketExchangeLimit,
+  goldenAppleOnlyGachaSingleCost,
+  goldenAppleOnlyGachaRewards,
+  specialGachaTicketHeartCost,
+  specialGachaTicketLimit,
   getGoldenAppleHeartGachaExpectedValue,
   getGoldenAppleHeartGachaTenExpectedValue,
   getGoldenAppleGachaCoinExpectedValue,

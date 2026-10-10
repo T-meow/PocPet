@@ -30,7 +30,7 @@
 .exploration-app .icon-button, .exploration-sheet .icon-button { color: #748669; border: 0; background: #eaeee0; border-radius: 50%; width: 42px; height: 42px; flex: none; }
 .exploration-app .exploration-muted { color: #788472; }
 .exploration-panel, .exploration-app .exploration-next, .exploration-app .exploration-growth,
-.exploration-app .exploration-pack-summary, .exploration-app .exploration-receipt, .exploration-app .exploration-camp-prompt {
+.exploration-app .exploration-pack-summary, .exploration-app .exploration-receipt {
   min-width: 0; padding: 24px; border: 1px solid #dde2d1; border-radius: 23px; background: #fffcf4; box-shadow: 0 6px 16px rgba(53,76,58,.04);
 }
 .exploration-rail { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: stretch; min-height: 0; padding: 28px 12px; background: #2d5041; background: linear-gradient(160deg,#345848,#274739); }
@@ -65,8 +65,10 @@
 .exploration-section-heading > small { color: #96a187; }
 .exploration-tag { display: inline-block; padding: 5px 13px; border-radius: 15px; background: #e5edd8; color: #6f885b; font-size: 12px; line-height: 1.5; text-align: center; }
 .exploration-home-layout, .exploration-prep-layout, .exploration-journey-layout, .exploration-idle-layout, .exploration-receipt-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(310px,30%); grid-column-gap: 24px; grid-row-gap: 24px; align-items: start; }
+.exploration-home-layout { width: 100%; max-width: 1480px; margin: 0 auto; grid-column-gap: 20px; grid-row-gap: 18px; }
 .exploration-home-main, .exploration-prep-main { min-width: 0; }
 .exploration-home-main > * + *, .exploration-prep-main > * + * { margin-top: 20px; }
+.exploration-home-main > * + * { margin-top: 16px; }
 .exploration-hall { min-width: 0; }
 .exploration-hall .exploration-hall-scene { display: block; height: 0; min-height: 0; max-height: none; padding-bottom: 54%; border: 16px solid #fffcf4; border-radius: 23px; box-shadow: 0 0 0 1px #dde2d1,0 6px 16px rgba(53,76,58,.04); }
 .exploration-hall-backdrop { position: absolute; top: 0; left: 0; height: 100%; width: 100%; border-radius: 12px; object-fit: cover; }
@@ -91,6 +93,8 @@
 .exploration-hall-dialogue small { margin-left: 20px; color: #788472; }
 .exploration-hall-dialogue p { margin: 9px 0 0; font-size: 14px; }
 .exploration-hall-dialogue > .exploration-tag { align-self: flex-start; flex: none; margin-left: 12px; }
+.exploration-home-main .exploration-hall-dialogue { min-height: 90px; margin-top: 16px; padding: 14px 18px; }
+.exploration-home-main .exploration-hall-dialogue > img { width: 54px; height: 60px; margin-right: 16px; }
 .exploration-starter { display: flex; align-items: center; width: 100%; border: 1px solid #e4d9b9; border-radius: 17px; padding: 17px 22px; background: #f5ecd7; color: #8b754b; }
 .exploration-starter > span { flex: 1; text-align: left; margin-left: 16px; }
 .exploration-starter small { display: block; margin-top: 4px; }
@@ -155,8 +159,6 @@
 .exploration-stat-summary small { color: #7e8972; font-size: 10px; font-weight: 400; }
 .exploration-stat-summary--hunger > svg { color: #b2824f; }
 .exploration-stat-summary--health > svg { color: #b7737b; }
-.exploration-camp-prompt > span, .exploration-camp-prompt button { display: inline-flex; align-items: center; }
-.exploration-camp-prompt svg { margin: 0 8px; }
 .exploration-main .adventure-map-regions { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); grid-column-gap: 12px; margin-bottom: 14px; overflow-x: auto; }
 .exploration-main .adventure-map-regions button { min-height: 76px; min-width: 135px; border: 1px solid #dde2d1; border-radius: 17px; padding: 8px 14px; color: #7b8c70; background: #ebeede; }
 .exploration-main .adventure-map-regions button[aria-pressed="true"] { background: #345e4e; border-color: #345e4e; color: #fff8e3; box-shadow: none; }
@@ -503,6 +505,7 @@
 .exploration-app .exp-receipt .exp-stock-list img { width: 54px; height: 54px; object-fit: contain; margin-right: 14px; }
 
 @media (min-width: 1024px) {
+  .exploration-home-layout { grid-template-columns: minmax(0, 1.6fr) minmax(310px, 1fr); }
   .exploration-sheet .storage-grid-scroll .storage-item-grid { grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); }
   .exploration-sheet .preparation-inventory { display: grid; grid-template-columns: minmax(0,1fr) 34%; grid-template-rows: 62px 64px minmax(0,1fr); }
   .exploration-sheet .exploration-pack-source { grid-column: 1; grid-row: 1; }

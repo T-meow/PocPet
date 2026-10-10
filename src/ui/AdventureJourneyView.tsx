@@ -23,6 +23,7 @@ import { getExplorationBagCapacity } from '../core/explorationBackpack';
 import { campaignEventVisible } from '../core/explorationCampaignState';
 import type { InstalledPetModSummary } from '../core/mod';
 import { CampaignJourney } from './CampaignJourney';
+import { MuseumJourney } from './MuseumJourney';
 
 const toolDescriptions: Partial<Record<DurableToolId, string>> = {
   trail_rope: '保证通过，健康无损；体力减少 50%、饱食减少 20%。',
@@ -42,6 +43,7 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
   const [lensSelection, setLensSelection] = useState<{ tripId: string; step: number; id: string }>();
   const trip = pet.adventure.active;
   if (!trip) return <p>当前行程已结束，可在结算页领取收获。</p>;
+  if (trip.museum) return <MuseumJourney key={trip.id} pet={pet} portrait={portrait} update={update} move={move} busy={busy} onStorage={onStorage} onReturn={onReturn} />;
   if (campaignEventVisible(pet, trip)) return <CampaignJourney key={trip.campaign!.visitId} pet={pet} portrait={portrait} mods={mods} update={update} move={move} busy={busy} onStorage={onStorage} onReturn={onReturn} onTasks={onTasks} />;
   const steps = getAdventureSteps(trip.rulesVersion, trip.region, trip.purpose, pet.community.expedition.regions.valley.base, trip.bag);
   const step = steps[trip.choices.length];

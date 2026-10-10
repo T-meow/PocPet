@@ -11,6 +11,7 @@ import { fishingIntervalMs } from './fishingRules';
 import { advanceCommunityMarket, migrateCommunityMarketPricing } from './communityMarket';
 import { advanceCommunityBoard } from './communityCommissions';
 import { advanceCommunityActivities } from './communityActivities';
+import { advanceMuseumWeek } from './museumCuration';
 import { goldenAppleGachaDailyTicketLimit, resolveDailyGachaTicket } from './goldenAppleGacha';
 import { getEffectiveDailyDateKey, reconcilePetClock } from './gameClock';
 import { dailyBiscuitClaimLimit } from './items';
@@ -764,6 +765,6 @@ export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetS
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);
   pet = advanceCommunityMarket(pet, now);
-  return advanceExplorationBudget(advanceCommunityActivities(advanceCommunityBoard(pet, now), now), now);
+  return advanceMuseumWeek(advanceExplorationBudget(advanceCommunityActivities(advanceCommunityBoard(pet, now), now), now), now);
 };
 

@@ -14,6 +14,7 @@ import { discoverCommunityFinds } from './community';
 import { recordLandmarkTaskEvent } from './communityCommissions';
 import { wildIngredients } from './foodCatalog';
 import { regionalTreasures } from './regionalTreasures';
+import { recordMuseumEvent, recordMuseumGather } from './museumEvents';
 
 export const landmarkCheckAction = (pet: PetState, choice: AdventureChoice, now: number): ExplorationCheckAction => {
   const available = !choice.harvest || (getExplorationBudget(pet, now)?.available ?? 0) >= choice.harvest;
@@ -54,6 +55,8 @@ export const advanceLandmarkAdventure = (pet: PetState, trip: AdventureTrip, cho
   let coins = 0, hearts = 0;
   const add = (items: Inventory) => { for (const [item, quantity] of Object.entries(items)) finds[item] = (finds[item] ?? 0) + quantity; };
   if (harvest) {
+    next = recordMuseumGather(next, r, checked.result.finds, now);
+    if (choice.research?.kind !== 'treasure' && choice.research) next = recordMuseumEvent(next, `research:${choice.research.id}`, checked.result.researchPoints, now);
     next = spendExplorationHarvest(next, harvest, now);
     if (trip.rulesVersion >= 11) { const pay = earnExplorationHarvestPay(next, harvest, 'manual', r); next = pay.pet; coins = pay.coins; hearts = pay.hearts; }
     if (choice.research) {
