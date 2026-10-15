@@ -12,14 +12,16 @@ import { DishArtwork } from './DishArtwork';
 import { DialogShell } from '../DialogShell';
 import { HelpButton } from '../help/HelpButton';
 import { getCookingResultHelp } from '../help/productionHelp';
+import { FoodPreference } from '../FoodPreference';
 import { beginCookingStep, cookingActionSound, createCookingProgress, finishCookingAnimation, getCookingActionText, getCookingActions, isCookingComplete, type KitchenCraftRequest } from './cookingProcess';
 
 interface Props {
   pet: PetState; request: KitchenCraftRequest; portrait: string; icons: Record<string, string>;
   update: (action: (pet: PetState) => PetState) => void; onBack: () => void; onFeed: (id: ItemId) => void;
   backLabel?: string;
+  favoriteFoodIds?: readonly ItemId[];
 }
-export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onBack, onFeed, backLabel }: Props) => {
+export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onBack, onFeed, backLabel, favoriteFoodIds }: Props) => {
   const recipe = getRecipe(request.recipeId, request.variantKey)!;
   const dishId = getDishId(recipe, request.banana);
   const result = pet.kitchen.lastCraft?.id === request.id ? pet.kitchen.lastCraft : undefined;
@@ -68,7 +70,7 @@ export const KitchenCookingModal = ({ pet, request, portrait, icons, update, onB
       <p className="cooking-reward-hearts"><Heart /><strong>+{result.hearts}</strong><span>{L('心心', 'hearts')}</span></p>
       <HelpButton {...getCookingResultHelp(result)} />
       {(result.skillXp ?? 0) > 0 && <p className="activity-skill-xp">{formatPracticeSkillXp('cooking', result.skillXp)}</p>}
-      <p className="activity-muted">{L('香喷喷的，留着慢慢分享。', 'Something tasty to share whenever you like.')}</p>
+      <FoodPreference itemId={result.dishId} favoriteFoodIds={favoriteFoodIds} />
       <div className="cooking-result-actions"><button className="activity-secondary" onClick={back}><ArrowLeft size={17} />{backLabel ?? L('回到食谱', 'Back to recipes')}</button><button className="activity-primary" disabled={!canSpendCompanionTime(pet) || !(pet.inventory[result.dishId] > 0)} onClick={() => onFeed(result.dishId)}>{L('喂给伙伴一份', 'Share one serving')}</button></div>
     </section> : <>
       <div className="cooking-order"><img src={icons[dishId] ?? unknownItemIcon} alt="" /><div><h3>{dishName(dishId)} × {request.quantity}</h3><p>{L('轻点三下，一起把它做好。', 'Three little actions to make it together.')}</p></div></div>

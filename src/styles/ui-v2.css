@@ -974,15 +974,18 @@
 
 .v2-notification {
   position: fixed;
-  top: calc(12px + env(safe-area-inset-top,0px));
+  top: 12px;
+  top: calc(12px + var(--safe-top, 0px));
   left: 50%;
   transform: translateX(-50%);
-  width: min(590px,calc(100% - 24px));
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  max-width: 590px;
+  min-width: 0;
   z-index: 6000;
   animation: v2-notice-in .18s ease-out;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
   padding: 12px 13px 12px 16px;
   background: #fff;
   color: #30445c;
@@ -990,6 +993,11 @@
   border-radius: 15px;
   box-shadow: 0 8px 32px #29466026;
   font-size: 13px;
+}
+
+.v2-notification > * + * { margin-left: 10px; }
+@supports (top: max(0px, env(safe-area-inset-top, 0px))) {
+  .v2-notification { top: calc(12px + max(var(--safe-top, 0px), env(safe-area-inset-top, 0px))); }
 }
 
 .v2-notification>svg {
@@ -1010,13 +1018,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-height: 3.4em;
+  word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
 .v2-notification.expanded .notice-copy p {
   display: block;
-  max-height: calc(var(--viewport-height) * .35);
+  max-height: 35vh;
+  max-height: calc(var(--viewport-height, 100vh) * .35);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .notice-expand {
@@ -1029,6 +1041,7 @@
 }
 
 .v2-notification .icon-button {
+  flex: 0 0 28px;
   width: 28px;
   height: 28px;
   min-height: 28px;

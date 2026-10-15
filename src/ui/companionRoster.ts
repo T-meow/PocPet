@@ -8,7 +8,6 @@ export const genericNeighbor: CompanionPortrait = { id: 'generic-neighbor', name
 
 export const getCompanionRoster = (mods: readonly InstalledPetModSummary[]): CompanionPortrait[] =>
   [...new Map([
-    { id: 'official.furo', name: 'Furo', portrait: fallbackPortrait },
     ...mods.map(mod => ({ id: mod.manifest.id, name: mod.manifest.defaultPetName, portrait: mod.contentImageUrl ?? fallbackPortrait })),
   ].map(actor => [actor.id, actor])).values()];
 

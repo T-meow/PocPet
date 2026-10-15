@@ -10,6 +10,7 @@ export interface ExplorationNavigation {
   campaignVisit?: CampaignVisitId;
   museumVisit?: import('../core/museumData').MuseumVisitId;
   taskTab?: 'current' | 'completed';
+  taskKind?: import('../core/explorationCampaignData').CampaignKind;
 }
 export const useExplorationNavigation = (initial: ExplorationNavigation, leave: () => void, available: { journey: boolean; receipt: boolean }) => {
   const [navigation, setNavigation] = useState(initial);

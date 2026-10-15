@@ -69,13 +69,14 @@ export const getItemPurchaseQuote = (
   if (itemId === 'emergency_biscuit') {
     const claimInfo = getDailyBiscuitClaimInfo(pet, now);
     const remainingDailyLimit = Math.max(0, claimInfo.limit - claimInfo.claimed);
+    const hasCapacity = quantity <= getPurchaseCapacity(pet, item);
     return {
       quantity,
       totalPrice: 0,
       firstItemPrice: 0,
       discountApplied: false,
-      canPurchase: quantity <= remainingDailyLimit,
-      reason: quantity <= remainingDailyLimit ? undefined : 'daily_limit',
+      canPurchase: quantity <= remainingDailyLimit && hasCapacity,
+      reason: quantity > remainingDailyLimit ? 'daily_limit' : !hasCapacity ? 'inventory_full' : undefined,
       remainingDailyLimit,
     };
   }
@@ -363,6 +364,7 @@ export const buyItem = (pet: PetState, itemId: ItemId, now = Date.now(), options
   const quote = getItemPurchaseQuote(current, itemId, options.quantity, now, options.item);
   const quantity = quote.quantity;
   if (quote.reason === 'unavailable') return { ...current, recentEvent: getCommunityPurchaseReason(current, itemId) || t('pet.buy.missing') };
+  if (quote.reason === 'inventory_full') return { ...current, recentEvent: t('pet.buy.inventoryFull') };
 
   if (itemId === 'emergency_biscuit') {
     const claimInfo = getDailyBiscuitClaimInfo(current, now);
@@ -407,7 +409,7 @@ export const buyItem = (pet: PetState, itemId: ItemId, now = Date.now(), options
     : current.dailyDiscountUsedItemIds;
 
   if (!quote.canPurchase) {
-    return { ...current, recentEvent: quote.reason === 'inventory_full' ? t('pet.buy.inventoryFull') : t('pet.buy.notEnoughCoins', { item: item.name, price }) };
+    return { ...current, recentEvent: t('pet.buy.notEnoughCoins', { item: item.name, price }) };
   }
 
   return incrementAchievementPurchase({

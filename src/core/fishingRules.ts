@@ -5,6 +5,12 @@ import type { FishId, WaterId } from './communityTypes';
 import { hashString } from './utils';
 
 export const fishingIntervalMs = 15 * 60 * 1000;
+export const companionFishingCount = 20;
+export const companionFishingHearts = 10;
+export const getManualFishingCost = (inviteCompanion = false) => ({
+  count: inviteCompanion ? companionFishingCount : 1,
+  hearts: inviteCompanion ? companionFishingHearts : 0,
+});
 export const getFishingHeartReward = (items: Inventory) => fishIds.reduce((sum, id) => sum + (items[id] ?? 0) * fishingCatchHearts, 0);
 export const getFishingClicks = (strong: boolean, net = false) => Math.max(2, (strong ? 3 : 4) - Number(net));
 export const getFishCrownThreshold = (id: FishId) => fish[id].length + 14;

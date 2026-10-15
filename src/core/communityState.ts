@@ -7,7 +7,7 @@ import { cropIds, wildIngredientIds } from './foodCatalog';
 import { durableToolIds, toolDefinitions } from './fieldEquipmentData';
 import { communityDecorationIds, regionalTreasureIds } from './regionalTreasures';
 import { specialtyGoods, specialtyRegularMultiplier, specialtyUrgentMultiplier, type SpecialtyItem } from './communitySpecialtyOrders';
-import { getAnimalCapacity } from './communityUpgradeData';
+import { communityGardenPlotLimit, getAnimalCapacity } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
 import { normalizeFishingState, unlockCompletedFishingWaters } from './fishingState';
 import type { AdventureState } from './adventureTypes';
@@ -57,7 +57,7 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
     state.specialtyOrders.active = { id: order.id, day: order.day, item, quantity: order.quantity, unitPrice: order.unitPrice, multiplier: order.multiplier, acceptedAt: order.acceptedAt, ...(stamp(order.rewardCoins) ? { rewardCoins: n(order.rewardCoins, Math.floor(order.quantity * order.unitPrice * 1.2)) } : {}) };
     if (!state.specialtyOrders.acceptedDay) state.specialtyOrders.acceptedDay = order.day;
   }
-  for (const id of ['garden', 'coop', 'barn', 'fishing_hut'] as const) state.upgrades[id] = Math.max(1, n(object(v.upgrades)[id], id === 'fishing_hut' ? 5 : 3));
+  for (const id of ['garden', 'coop', 'barn', 'fishing_hut'] as const) state.upgrades[id] = Math.max(1, n(object(v.upgrades)[id], id === 'garden' ? communityGardenPlotLimit : id === 'fishing_hut' ? 5 : 3));
   const legacyCrop = object(raw).crop;
   state.plots = Array.from({ length: state.upgrades.garden }, (_, index) => {
     const id = index + 1, saved = Array.isArray(v.plots) ? v.plots.find(plot => plot?.id === id) : undefined;

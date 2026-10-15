@@ -9,7 +9,7 @@ import { getCommunityDay, acceptCommunityTask, cancelCommunityTask, claimCommuni
 import { recordMuseumEvent } from './museumEvents';
 import type { CommunityCrop, CommunityRoute } from './communityTypes';
 import { communityCrops, getCropUnlockReason, type CropId } from './foodCatalog';
-import { spendToolUse } from './toolDurability';
+import { getToolUsesLeft, spendToolUse } from './toolDurability';
 import { getDecorationEffects } from './decorationEffects';
 import { clampCoins } from './petStats';
 import { canDoFarmWork, finishFarmNeighborAction, type FarmNeighborCandidates } from './farmNeighbor';
@@ -66,16 +66,16 @@ export const careCommunityCrop = (pet: PetState, plotId: number, plantedAt: numb
   if (action !== 'fertilize' || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)) return pet;
   return finishFarmNeighborAction({ ...setPlotCrop(pet, plotId, { ...crop, fertilized: true }), inventory: removeInventoryItem(pet.inventory, 'nutrient_compost'), recentEvent: `第 ${plotId} 块菜地施入营养堆肥 ×1，本轮收获 +1 份。` }, '施肥', now, neighbors);
 };
-export const getCommunityCropYield = (pet: PetState, plotId: number, sickle = false) => {
+export const getCommunityCropYield = (pet: PetState, plotId: number) => {
   const crop = pet.community.plots.find(plot => plot.id === plotId)?.crop;
-  return crop ? communityCrops[crop.id].yield + Number(Boolean(crop.fertilized)) + Number(sickle) : 0;
+  return crop ? communityCrops[crop.id].yield + Number(Boolean(crop.fertilized)) + Number(getToolUsesLeft(pet, 'harvest_sickle') > 0) : 0;
 };
-export const harvestCommunityCrop = (pet: PetState, plotId: number, plantedAt: number, now = Date.now(), sickle = false, neighbors?: FarmNeighborCandidates): PetState => {
+export const harvestCommunityCrop = (pet: PetState, plotId: number, plantedAt: number, now = Date.now(), neighbors?: FarmNeighborCandidates): PetState => {
   if (!Number.isFinite(now) || pet.timePause) return pet;
   const c = pet.community, crop = c.plots.find(plot => plot.id === plotId)?.crop;
   if (!canDoFarmWork(pet, now) || !crop || crop.plantedAt !== plantedAt || now < crop.readyAt) return pet;
-  if (sickle && !(pet.inventory.harvest_sickle ?? 0)) return pet;
-  const definition = communityCrops[crop.id], quantity = getCommunityCropYield(pet, plotId, sickle), items: Inventory = { [definition.product]: quantity };
+  const sickle = getToolUsesLeft(pet, 'harvest_sickle') > 0;
+  const definition = communityCrops[crop.id], quantity = getCommunityCropYield(pet, plotId), items: Inventory = { [definition.product]: quantity };
   if (!fits(pet, items)) return fail(pet, '仓库放不下这次收获，作物会留在菜地等你。');
   const use = sickle ? spendToolUse(pet, 'harvest_sickle') : undefined;
   if (sickle && !use) return pet;
@@ -88,10 +88,10 @@ export const harvestCommunityCrop = (pet: PetState, plotId: number, plantedAt: n
 export const harvestCommunityCrops = (pet: PetState, plots: { id: number; plantedAt: number }[], now = Date.now(), neighbors?: FarmNeighborCandidates): PetState => {
   let harvested = 0, hearts = 0;
   const produce: Partial<Record<CropId, number>> = {};
-  for (const { id, plantedAt } of plots) {
+  for (const { id, plantedAt } of [...plots].sort((a, b) => a.id - b.id)) {
     const crop = pet.community.plots.find(plot => plot.id === id)?.crop;
     if (!crop || crop.plantedAt !== plantedAt) continue;
-    const quantity = getCommunityCropYield(pet, id), next = harvestCommunityCrop(pet, id, plantedAt, now, false, null);
+    const quantity = getCommunityCropYield(pet, id), next = harvestCommunityCrop(pet, id, plantedAt, now, null);
     if (!next.community.plots.find(plot => plot.id === id)?.crop) {
       harvested++;
       hearts += getProductionHeartReward(communityCrops[crop.id].hours);

@@ -10,11 +10,6 @@
 .community-page .community-fishing-entry p { margin: 3px 0 0; font-size: 13px; word-wrap: break-word; }
 .community-page .community-fishing-entry > button { min-height: 48px; margin-bottom: 8px; padding: 10px 20px; border: 1px solid #315f72; background: #356b82; color: #fff; font-size: 16px; font-weight: 700; white-space: normal; }
 .community-fishing-entry > button > svg { flex-shrink: 0; margin-left: 8px; }
-.community-water-shortcuts { display: flex; flex-wrap: wrap; margin: -4px -8px 12px 0; }
-.community-page .community-water-shortcuts > button { display: flex; flex: 1 1 180px; flex-direction: column; align-items: center; min-width: 0; min-height: 88px; margin: 0 8px 8px 0; padding: 12px; border: 1px solid #a6c5d1; border-radius: 12px; background: #f1f8fb; color: #315f72; }
-.community-water-shortcuts strong { margin-top: 5px; font-size: 14px; }
-.community-water-shortcuts small { margin-top: 3px; font-size: 12px; line-height: 1.6; word-wrap: break-word; }
-.community-page .community-water-shortcuts > button:disabled { opacity: 1; color: #6b7679; background: #f0f2f2; border-color: #d5dcdc; }
 .fishing-dialog button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .fishing-dialog button:disabled { cursor: default; opacity: .5; }
 .fishing-dialog button:focus-visible, .fishing-dialog input:focus-visible { outline: 3px solid #769cbd; outline-offset: 3px; }
@@ -27,12 +22,20 @@
 .fishing-dialog .fishing-supply-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 12px; border: 1px solid #b8cbb9; border-radius: 12px; background: #edf4e7; color: #385c44; font-size: 14px; font-weight: 600; }
 .fishing-supply-button > svg { flex-shrink: 0; margin-right: 6px; }
 .fishing-dialog .fishing-setup-entry { display: flex; align-items: center; width: 100%; min-width: 0; min-height: 78px; margin-bottom: 12px; padding: 12px; border: 2px solid #83a9b8; border-radius: 14px; background: #e7f1f5; color: #315f72; text-align: left; }
+.fishing-company-options { display: flex; flex-wrap: wrap; margin: 0 -8px 4px 0; }
+.fishing-company-options > button { flex: 1 1 160px; min-width: 0; min-height: 64px; margin: 0 8px 8px 0; padding: 10px 8px; border: 1px solid #c4cdbb; border-radius: 12px; background: #fffdf5; color: #425b4d; }
+.fishing-company-options > button[aria-pressed=true] { border-color: #6b9176; background: #e9efe1; box-shadow: inset 0 0 0 1px #6b9176; }
+.fishing-company-options strong, .fishing-company-options small, .fishing-company strong, .fishing-company small { display: block; word-wrap: break-word; }
+.fishing-company-options small, .fishing-company small { margin-top: 4px; font-size: 12px; line-height: 1.5; }
+.fishing-company { display: flex; align-items: center; min-width: 0; margin-bottom: 10px; padding: 8px 12px; border-radius: 12px; background: #edf2e5; }
+.fishing-company > img { flex: 0 0 56px; width: 56px; height: 64px; margin-right: 10px; object-fit: contain; }
+.fishing-company > span { flex: 1; min-width: 0; }
 .fishing-setup-entry > svg { flex-shrink: 0; }
 .fishing-setup-entry > span { flex: 1; min-width: 0; margin: 0 10px; word-wrap: break-word; }
 .fishing-setup-entry strong, .fishing-setup-entry small { display: block; }
 .fishing-setup-entry strong { font-size: 15px; }
 .fishing-setup-entry small { margin-top: 3px; font-size: 12px; line-height: 1.5; }
-.fishing-setup-entry:focus, .fishing-supply-button:focus, .community-fishing-entry > button:focus, .community-water-shortcuts > button:focus { outline: 3px solid #537f98; outline-offset: 3px; }
+.fishing-setup-entry:focus, .fishing-supply-button:focus, .community-fishing-entry > button:focus { outline: 3px solid #537f98; outline-offset: 3px; }
 .fishing-mode { display: flex; padding: 3px; border-radius: 24px; background: #e9ede3; }
 .fishing-dialog .fishing-mode button { min-height: 44px; padding: 5px 14px; border: 0; border-radius: 21px; background: transparent; color: #627166; font-size: 14px; }
 .fishing-mode button[aria-pressed=true] { background: #fffdf5; color: #35614b; box-shadow: 0 2px 5px #45644812; }

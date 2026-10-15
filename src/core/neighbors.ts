@@ -11,10 +11,6 @@ type NeighborModSummary = {
   };
 };
 
-const builtinNeighborIdentities: readonly NeighborIdentity[] = [
-  { modId: builtinFuroNeighborId, name: 'Furo' },
-];
-
 const sortedNeighbors = (neighbors: readonly NeighborIdentity[]) =>
   [...neighbors].sort((left, right) => left.modId.localeCompare(right.modId));
 
@@ -25,10 +21,10 @@ export const getNeighborIdentities = (
   const activeNeighborId = activeModId ?? builtinFuroNeighborId;
   const neighborsById = new Map<string, NeighborIdentity>();
 
-  [...builtinNeighborIdentities, ...installedMods.map((mod) => ({
+  installedMods.map((mod) => ({
     modId: mod.manifest.id,
     name: mod.manifest.defaultPetName,
-  }))].forEach((neighbor) => {
+  })).forEach((neighbor) => {
     if (neighbor.modId !== activeNeighborId && !neighborsById.has(neighbor.modId)) {
       neighborsById.set(neighbor.modId, neighbor);
     }

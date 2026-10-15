@@ -8,6 +8,7 @@ import { isHubGameId } from '../../minigames/catalog';
 import { sessionId } from '../../minigames/shared/state';
 import { activityText as L } from '../../core/kitchenRecipes';
 import type { PetState } from '../../core/petTypes';
+import { HelpButton } from '../help/HelpButton';
 
 const presentation: Record<MiniGameId, { category: string; description: string; detail: string }> = {
   blocks: { category: '动动脑', description: '转一转，摆一摆，让每一块都刚刚好。', detail: '不计时 · 随时按分数结算' },
@@ -18,6 +19,10 @@ const presentation: Record<MiniGameId, { category: string; description: string; 
   catch: { category: '陪伙伴', description: '向伙伴的方向轻轻一抛，接住一点点开心。', detail: '十次抛球 · 每局消耗 1 个球' },
   bubbles: { category: '放轻松', description: '吹一颗小泡泡，把烦恼也轻轻放走。', detail: '按住吹 · 轻点戳破' },
 };
+
+export const MiniGameHelp = ({ game }: { game?: MiniGameId }) => <HelpButton title={game ? gameName(game) : '小游戏'}
+  overview={<>{miniGameDefinitions.filter(entry => !game || entry.id === game).map(entry => <section key={entry.id}><h3>{gameName(entry.id)}</h3><p>{presentation[entry.id].description}</p><p>{presentation[entry.id].detail}</p></section>)}</>}
+  details={<><p>心心收益随伙伴等级成长，具体数值显示在游戏入口。计分游戏每 {miniGameScoreUnit} 分折算一份基础心心，向下取整；主动结算会结束本局，其他心心加成在结算时计算。</p><p>离开会暂停进度；方块、彩瓶、合成水果和三消可以分别保留进度。暂停中的一局仍属于开始时的伙伴，切回对应伙伴后继续。</p></>} />;
 
 interface Props {
   pet: PetState;
@@ -61,7 +66,7 @@ export function MiniGameEntrance({ pet, actorId, portrait, ballImage, mode, avai
       const bestLabel = game.id === 'water' || game.id === 'matching' ? '步' : game.id === 'catch' ? '连击' : game.id === 'bubbles' ? '个泡泡' : '分';
       return <div className="play-entry-wrap" key={game.id}><article className={`play-entry-card play-entry-card--${game.id}`} data-game-entry={game.id}>
         <div className="play-entry-art"><span>{copy.category}</span><MiniGameEntryArt game={game.id} ballImage={ballImage} /></div>
-        <div className="play-entry-content"><h3>{gameName(game.id)}</h3><p>{copy.description}</p><div className="play-entry-detail">{copy.detail}</div>
+        <div className="play-entry-content"><h3>{gameName(game.id)}</h3><div className="play-entry-detail">{copy.detail}</div>
           {skill && pet.partnerSchedule.skills[skill].level < partnerScheduleMaxSkillLevel && <small className="play-entry-skill">{formatPracticeSkillXp(skill)}</small>}
           {game.id === 'catch' && <small className="play-entry-skill">持有 {pet.inventory.toy_ball ?? 0} 个玩具球</small>}
           <div className="play-entry-reward"><Heart size={13} /><span>{isScoreMiniGame(game.id) ? `每 ${miniGameScoreUnit} 分 ${getMiniGameBaseHearts(pet.level, game.id)} 心` : L(`至少 ${getMiniGameBaseHearts(pet.level, game.id)} 心`, `At least ${getMiniGameBaseHearts(pet.level, game.id)} hearts`)}</span></div>

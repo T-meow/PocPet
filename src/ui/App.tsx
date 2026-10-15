@@ -116,14 +116,20 @@ import {
 import { builtinMintMod } from '../core/builtinPetMods';
 import { isBuiltinPetModId } from '../core/builtinPetModManifests';
 import {
-  clearActivePetMod,
   deletePetMod,
+  adoptPreparedPetMod,
+  discardPreparedPetMod,
+  getAvailablePetModManifests,
   getPetModLibraryState,
   installPetMod,
   listInstalledPetMods,
   loadActivePetMod,
   loadPetMod,
+  preparePetMod,
+  petModMinimumCount,
+  petModMinimumMessage,
   restoreBuiltinPetMod,
+  restoreBuiltinPetMods,
   setActivePetMod,
 } from '../core/modStorage';
 import { createSaveFileText, decodeSaveSnapshot, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
@@ -369,6 +375,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [hasImportBackup, setHasImportBackup] = useState(() => Boolean(getImportBackup()));
   const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [modDeleteConfirmId, setModDeleteConfirmId] = useState<string | null>(null);
+  const modDeletePendingRef = useRef(false);
+  const [isDeletingMod, setIsDeletingMod] = useState(false);
   const [isGoldenAppleUseConfirmOpen, setGoldenAppleUseConfirmOpen] = useState(false);
   const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementTabId>('all');
   const [achievementCgPopup, setAchievementCgPopup] = useState<AchievementCgPopup | null>(null);
@@ -1185,25 +1193,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     }
   };
 
-  const handleClearMod = async () => {
+  const handleRestoreDefaultMods = async () => {
     try {
-      assertStorageUnchanged();
-      await music.detach();
-      const oldDefaultName = activeMod?.manifest.defaultPetName;
-      await clearActivePetMod();
-      setStoredSaveIdentity();
-      setActiveMod(null);
-      setPet((current) => {
-        const shouldRestoreDefaultName = Boolean(oldDefaultName) && current.name === oldDefaultName;
-        return {
-          ...withPetIdentityBirthday(current, defaultPetBirthday),
-          name: shouldRestoreDefaultName ? defaultPetName : current.name,
-        };
-      });
-      setDraftName((current) => (oldDefaultName && current === oldDefaultName ? defaultPetName : current));
-      setDraftBirthday(defaultPetBirthday);
-      setSaveText('');
-      setModMessage(t('ui.settings.mod.restored'));
+      restoreBuiltinPetMods();
+      setInstalledMods(await listInstalledPetMods());
+      setModMessage('默认四位伙伴已恢复。');
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.restoreFailed'));
     }
@@ -1211,23 +1205,31 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleConfirmDeleteMod = async () => {
     const modId = modDeleteConfirmId;
-    if (!modId) return;
+    if (!modId || modDeletePendingRef.current) return;
+    modDeletePendingRef.current = true;
+    setIsDeletingMod(true);
     const target = installedMods.find((mod) => mod.manifest.id === modId);
     try {
       const wasActive = activeMod?.manifest.id === modId;
       const oldDefaultName = wasActive ? activeMod?.manifest.defaultPetName : undefined;
       assertStorageUnchanged();
+      const available = getAvailablePetModManifests(getPetModLibraryState());
+      if (available.length <= petModMinimumCount) throw new Error(petModMinimumMessage);
+      const replacement = wasActive ? await preparePetMod(available.find(mod => mod.id !== modId)!.id) : null;
+      if (wasActive && !replacement) throw new Error(t('ui.settings.mod.loadFailed'));
       if (wasActive) await music.detach();
+      assertStorageUnchanged();
       await deletePetMod(modId);
-      if (wasActive) {
-        setStoredSaveIdentity(builtinMintMod.manifest);
-        setActiveMod(builtinMintMod);
+      if (replacement) {
+        adoptPreparedPetMod();
+        setStoredSaveIdentity(replacement.manifest);
+        setActiveMod(replacement);
         setPet((current) => ({
-          ...withPetIdentityBirthday(current, builtinMintMod.manifest.birthday),
-          name: oldDefaultName && current.name === oldDefaultName ? builtinMintMod.manifest.defaultPetName : current.name,
+          ...withPetIdentityBirthday(current, replacement.manifest.birthday),
+          name: oldDefaultName && current.name === oldDefaultName ? replacement.manifest.defaultPetName : current.name,
         }));
-        setDraftName((current) => oldDefaultName && current === oldDefaultName ? builtinMintMod.manifest.defaultPetName : current);
-        setDraftBirthday(builtinMintMod.manifest.birthday);
+        setDraftName((current) => oldDefaultName && current === oldDefaultName ? replacement.manifest.defaultPetName : current);
+        setDraftBirthday(replacement.manifest.birthday);
       }
       setInstalledMods(await listInstalledPetMods());
       setSaveText('');
@@ -1236,6 +1238,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.deleteFailed'));
       playSfx('error');
     } finally {
+      discardPreparedPetMod();
+      modDeletePendingRef.current = false;
+      setIsDeletingMod(false);
       setModDeleteConfirmId(null);
     }
   };
@@ -1477,7 +1482,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     try {
       let imported = parseSaveFileText(sourceText, Date.now());
       const importedMod = imported.activeMod;
-      const { mod: resolvedMod, missingImportedMod, usedMintFallback } = await resolveImportedSaveMod(imported, loadPetMod);
+      const { mod: resolvedMod, missingImportedMod, usedMintFallback } = await resolveImportedSaveMod(imported, loadPetMod, loadActivePetMod);
       imported = parseSaveFileText(sourceText, Date.now(), (missingImportedMod ? importedMod?.defaultPetName : undefined) ?? resolvedMod?.manifest.defaultPetName);
       activeModResourcesMayHaveChanged = Boolean(resolvedMod);
       const nextPet = resolvedMod
@@ -1758,7 +1763,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'adventure' ? (
         <AdventurePage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
           communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
-          update={activities.update} onBack={() => setActivePage(outpostRequest && outpostRequest.view !== 'journal' && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
+          update={activities.update} onBack={() => setActivePage(outpostRequest && outpostRequest.view !== 'journal' && outpostRequest.view !== 'tasks' && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
           onKitchen={() => { activities.update((current) => claimKitchenStarter(pauseMiniGame(current))); openUtilityDialog('kitchen'); }}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
@@ -1806,6 +1811,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onStart={() => activities.update((current) => startMidautumnStory(current, actorId, getSharePetName()))}
           onAction={(action) => { if (!festivalReplayId && festivalRun) activities.update((current) => advanceMidautumnStory(current, festivalRun.year, action)); }}
         /> : <SeasonalStoryPage {...festivalProps} key={`${festivalRun?.id ?? viewedFestival}:${festivalReplayId ? 'replay' : 'live'}`} festival={viewedFestival} run={festivalRun && festivalRun.festival !== 'midautumn' ? festivalRun : undefined}
+          onOpenReunion={() => handleOpenOutpost({ view: 'tasks', kind: 'spring-reunion' })}
           onStart={() => activities.update((current) => startSeasonalStory(current, viewedFestival, actorId, getSharePetName()))}
           onAction={(action) => { if (!festivalReplayId && festivalRun) activities.update((current) => advanceSeasonalStory(current, festivalRun.id, action)); }}
         />
@@ -2090,7 +2096,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           }}
           onSaveProfile={handleSaveProfile}
           onReset={handleReset}
-          onClearMod={handleClearMod}
+          onRestoreDefaultMods={() => void handleRestoreDefaultMods()}
           onActivateMod={(modId) => void handleActivateMod(modId)}
           onDeleteMod={setModDeleteConfirmId}
           onRestoreBuiltinMod={(modId) => void handleRestoreBuiltinMod(modId)}
@@ -2152,11 +2158,12 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
         <ConfirmDialog
           title={t('ui.settings.mod.deleteDialog.title')}
           message={isBuiltinPetModId(modDeleteConfirmId)
-            ? `从本机角色列表移除 ${modDeleteTarget?.manifest.name ?? modDeleteConfirmId}，之后可以恢复。已有存档和背包保留；删除当前角色时会切换到 Mint。`
-            : t('ui.settings.mod.deleteDialog.message', { name: modDeleteTarget?.manifest.name ?? modDeleteConfirmId })}
+            ? `从本机角色列表移除 ${modDeleteTarget?.manifest.name ?? modDeleteConfirmId}，之后可以恢复。已有存档和背包保留；删除当前角色时会切换到仍在列表中的伙伴。`
+            : `删除 ${modDeleteTarget?.manifest.name ?? modDeleteConfirmId} 及其本机 Mod 资源，重新导入后可再次使用。已有存档和背包保留；删除当前角色时会切换到仍在列表中的伙伴。`}
           cancelLabel={t('ui.settings.mod.deleteDialog.cancel')}
           confirmLabel={t('ui.settings.mod.deleteDialog.confirm')}
-          onCancel={() => setModDeleteConfirmId(null)}
+          disabled={isDeletingMod}
+          onCancel={() => { if (!modDeletePendingRef.current) setModDeleteConfirmId(null); }}
           onConfirm={() => void handleConfirmDeleteMod()}
         />
       )}
@@ -2262,7 +2269,7 @@ export const App = () => {
   const handleRecover = async (candidate: SaveRecoveryCandidate) => {
     try {
       let restored = readRecoveryCandidate(candidate);
-      const resolution = await resolveImportedSaveMod(restored, loadPetMod);
+      const resolution = await resolveImportedSaveMod(restored, loadPetMod, loadActivePetMod);
       restored = readRecoveryCandidate(candidate, (resolution.missingImportedMod ? restored.activeMod?.defaultPetName : undefined) ?? resolution.mod?.manifest.defaultPetName);
       const original = startupRecovery?.status === 'corrupt' ? startupRecovery.raw : '';
       const committedPet = replacePetFromImport(restored.pet, original, restored.activeMod ?? resolution.mod?.manifest ?? null, candidate.text);
@@ -2315,15 +2322,6 @@ export const App = () => {
     setModMessage(mod ? t('ui.settings.mod.active', { name: mod.manifest.name, version: mod.manifest.version }) : '');
   };
 
-  const handleUseBuiltin = async () => {
-    try {
-      await clearActivePetMod();
-      startWithMod(null);
-    } catch (error) {
-      setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.restoreFailed'));
-    }
-  };
-
   const handleUseInstalledMod = async (modId: string) => {
     try {
       const loaded = await loadPetMod(modId);
@@ -2371,7 +2369,6 @@ export const App = () => {
         modMessage={modMessage}
         isAudioEnabled={isAudioEnabled}
         isLoading
-        onUseBuiltin={handleUseBuiltin}
         onUseInstalledMod={() => undefined}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}
@@ -2385,7 +2382,6 @@ export const App = () => {
         installedMods={installedMods}
         modMessage={modMessage}
         isAudioEnabled={isAudioEnabled}
-        onUseBuiltin={handleUseBuiltin}
         onUseInstalledMod={(modId) => void handleUseInstalledMod(modId)}
         onImportMod={handleImportMod}
         onAudioToggle={handleAudioToggle}

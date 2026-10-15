@@ -139,15 +139,14 @@ const supplyPoolGroups = [
   { key: 'saplings', matches: (reward: typeof goldenAppleGachaRewards[number]) => Boolean(reward.itemId?.endsWith('_sapling')) },
 ].map(({ key, matches }) => ({ key, weight: goldenAppleGachaRewards.filter(matches).reduce((sum, reward) => sum + reward.weight, 0) }));
 
-const GachaPrizePreview = ({ machine, itemIconMap, onOpenProbabilities, disabled }: {
-  machine: GachaMachine; itemIconMap: Partial<Record<string, string>>; onOpenProbabilities: () => void; disabled: boolean;
+const GachaPrizePreview = ({ machine, itemIconMap }: {
+  machine: GachaMachine; itemIconMap: Partial<Record<string, string>>;
 }) => {
   const rewards = machine === 'apple' ? goldenAppleGachaRewards.filter((reward) => reward.kind === 'bundle') : getMachineRewards(machine);
   return (
     <section className="gacha-prize-preview" aria-labelledby="gacha-preview-title">
-      <header><h3 id="gacha-preview-title">{t('ui.gacha.previewTitle')}</h3><button type="button" className="game-help-button" disabled={disabled} onClick={onOpenProbabilities}>{t('ui.gacha.probabilities')}</button></header>
+      <header><h3 id="gacha-preview-title">{t('ui.gacha.previewTitle')}</h3></header>
       {machine === 'apple' ? <ul className="gacha-pool-groups">{supplyPoolGroups.map(({ key, weight }) => <li key={key}>{t(`ui.gacha.groups.${key}`)}<strong>{formatProbability(weight)}</strong></li>)}</ul> : null}
-      <p className="gacha-preview-note">{t(machine === 'apple' ? 'ui.gacha.bundleDelivery' : machine === 'golden' ? 'ui.gacha.goldenPreviewNote' : 'ui.gacha.heartPreviewNote')}</p>
       <ul className="gacha-prize-list">
         {rewards.map((reward) => <li key={reward.id}>
           <GachaRewardArtwork reward={reward} itemIconMap={itemIconMap} />
@@ -199,7 +198,7 @@ export const GachaDetailDialog = ({ kind, machine, results, gachaState, itemIcon
             </li>
           ))}
           </ul>
-          {machine === 'apple' ? <p className="gacha-preview-note">{t('ui.gacha.bundleDelivery')}</p> : null}
+          <p className="gacha-preview-note">{t(machine === 'apple' ? 'ui.gacha.bundleDelivery' : machine === 'golden' ? 'ui.gacha.goldenPreviewNote' : 'ui.gacha.heartPreviewNote')}</p>
           <p className="gacha-detail-modal__note">
             {getGuaranteeText(machine, true)}
           </p>
@@ -679,7 +678,7 @@ export const GoldenAppleGachaModal = ({
         </div>
         </>}
         </div>
-        {!isExchange && !showingResults ? <GachaPrizePreview machine={machine} itemIconMap={itemIconMap} disabled={isAnimating} onOpenProbabilities={() => openDetail('probabilities')} /> : null}
+        {!isExchange && !showingResults ? <GachaPrizePreview machine={machine} itemIconMap={itemIconMap} /> : null}
         </div>
       </DialogShell>
 

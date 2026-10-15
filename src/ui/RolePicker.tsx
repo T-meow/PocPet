@@ -11,7 +11,6 @@ interface RolePickerProps {
   modMessage: string;
   isAudioEnabled: boolean;
   isLoading?: boolean;
-  onUseBuiltin: () => void;
   onUseInstalledMod: (modId: string) => void;
   onImportMod: (event: ChangeEvent<HTMLInputElement>) => void;
   onAudioToggle: () => void;
@@ -19,7 +18,7 @@ interface RolePickerProps {
 
 const defaultRolePetImage = resolvePetStatusImages(null).content;
 
-export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoading = false, onUseBuiltin, onUseInstalledMod, onImportMod, onAudioToggle }: RolePickerProps) => (
+export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoading = false, onUseInstalledMod, onImportMod, onAudioToggle }: RolePickerProps) => (
   <main className="app-shell app-shell--role-picker ui-v2-app">
     <section className="role-picker" aria-label={t('ui.rolePicker.aria')}>
       <div className="role-picker__header">
@@ -29,10 +28,6 @@ export const RolePicker = ({ installedMods, modMessage, isAudioEnabled, isLoadin
       </div>
       {!isLoading && (
         <div className="role-picker__grid">
-          <button type="button" className="role-card" onClick={onUseBuiltin}>
-            <img src={defaultRolePetImage} alt="" aria-hidden="true" />
-            <span><strong>{t('ui.rolePicker.builtinTitle')}</strong></span>
-          </button>
           {installedMods.map((mod) => (
             <button type="button" className="role-card" key={mod.manifest.id} onClick={() => onUseInstalledMod(mod.manifest.id)}>
               <img src={mod.contentImageUrl ?? defaultRolePetImage} alt="" aria-hidden="true" />

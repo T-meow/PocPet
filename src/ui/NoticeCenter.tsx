@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Check, Info, MessageCircle, X } from 'lucide-react';
 import { activityText as L } from '../core/kitchenRecipes';
 import { DialogShell } from './DialogShell';
@@ -30,8 +31,7 @@ export const NoticeCenter = ({ controller, recentEvent }: { controller: ReturnTy
     return () => window.clearTimeout(timer);
   }, [current?.id, expanded, historyOpen]);
   const Icon = current?.kind === 'error' ? Info : current?.kind === 'success' ? Check : MessageCircle;
-  return <>
-    {current && <div key={current.id} className={`v2-notification${expanded ? ' expanded' : ''}`} data-kind={current.kind} role="status" aria-live="polite">
+  const notification = current && !historyOpen ? <div key={current.id} className={`v2-notification${expanded ? ' expanded' : ''}`} data-kind={current.kind} role="status" aria-live="polite">
       <Icon size={19} />
       <div className="notice-copy">
         <p>{current.text}</p>
@@ -39,7 +39,9 @@ export const NoticeCenter = ({ controller, recentEvent }: { controller: ReturnTy
       </div>
       <button className="icon-button" onClick={() => setHistoryOpen(true)} aria-label={L('查看最近 20 条消息', 'View the last 20 messages')}><Bell size={17} /></button>
       <button className="icon-button" onClick={controller.dismiss} aria-label={L('关闭通知', 'Dismiss notification')}><X size={18} /></button>
-    </div>}
+    </div> : null;
+  return <>
+    {typeof document !== 'undefined' && document.body ? createPortal(notification, document.body) : notification}
     {historyOpen && <DialogShell className="notice-history-modal" backdropClassName="notice-history-backdrop" labelId="notice-history-title" onClose={() => setHistoryOpen(false)}>
       <header className="dialog-header"><h2 id="notice-history-title"><Bell size={21} />{L('最近的小消息', 'Recent little messages')}</h2><button className="icon-button" onClick={() => setHistoryOpen(false)} aria-label={L('关闭', 'Close')}><X /></button></header>
       <div className="notice-history">{(history.length ? history : [{ id: 0, at: 0, text: recentEvent, kind: 'info' as const }]).map((notice) => <article key={notice.id}>{notice.at > 0 && <time>{new Date(notice.at).toLocaleTimeString()}</time>}<p>{notice.text}</p></article>)}</div>

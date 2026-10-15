@@ -22,8 +22,8 @@ pet.adventure = { ...pet.adventure, completed: { tutorial: 1, valley: 1 },
   landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))), valleyCompleted: [...valleyQuestIds], starterClaimed: true, starterMealsClaimed: true, backpackLevel: 3 };
 pet.community = { ...pet.community, gardenBuilt: true, irrigationFound: true,
   herbDiscovered: true, repairStep: 2, firstOrderDelivered: true,
-  upgrades: { garden: 3, coop: 3, barn: 3, fishing_hut: 5 },
-  plots: [{ id: 1 }, { id: 2 }, { id: 3 }], discoveredCrops: [...cropIds],
+  upgrades: { garden: 6, coop: 3, barn: 3, fishing_hut: 5 },
+  plots: Array.from({ length: 6 }, (_, index) => ({ id: index + 1 })), discoveredCrops: [...cropIds],
   waterAccess: { forest_pool: { found: true, built: true }, coast_pier: { found: true, built: true } },
 };
 for (const id of facilityIds) pet.community.facilities[id] = { found: true, work: 2, built: true };
@@ -67,7 +67,7 @@ for (const importedAt of [now, now + 180 * 86_400_000]) {
   assert.equal(loaded.pet.health, pet.health);
   assert.equal(loaded.pet.energy, pet.energy);
   assert.equal(loaded.pet.community.gardenBuilt, true);
-  assert.equal(loaded.pet.community.plots.length, 3);
+  assert.equal(loaded.pet.community.plots.length, 6);
   for (const id of facilityIds) assert.equal(loaded.pet.community.facilities[id].built, true, id);
   for (const id of regionIds) {
     assert.equal(getRegionUnlocked(loaded.pet, id), true, id);

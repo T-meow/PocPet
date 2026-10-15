@@ -65,6 +65,8 @@ export const AdventureStorage = ({ panel, pet, registry, icons, bag, destination
       switchLabel: switchTarget ? titles[switchTarget] : undefined }}
     tileInfo={shopping ? item => ({ price: (panel === 'shop' ? getAdventureShopPrice(item.id, trip?.rulesVersion) : getItemPurchaseQuote(pet, item.id).totalPrice) + L(' 金币', ' coins'), mark: panel === 'shop' && !(stock[item.id] ?? 0) ? L('已售完', 'Sold out') : undefined }) : undefined}
     footer={<>
+      {trip && (trip.gatherMultiplier ?? 1) > 1 && canUseAdventureService(pet) && (panel === 'bag' || panel === 'loot' || panel === 'delivery') && <button type="button" className="secondary-button" onClick={() => onPanel('shop')}>伙伴商店</button>}
+      {trip && (trip.gatherMultiplier ?? 1) > 1 && canUseAdventureService(pet) && (panel === 'bag' || panel === 'loot' || panel === 'shop') && <button type="button" className="secondary-button" onClick={() => onPanel('delivery')}>从仓库送来</button>}
       {trip && <span>{L('行囊', 'Bag')} {getAdventureBagCount(trip.bag)}/{capacity}</span>}
       {panel === 'delivery' && <span>{L('每份 2 小心心；本趟还可送 ', '2 hearts per item; remaining allowance: ')}{Math.max(0, (trip?.rulesVersion === 1 ? 1 : adventureTransportLimit) - (trip?.transportedCount ?? 0))}</span>}
       {panel === 'loot' && getAdventureBagCount(trip?.bag ?? {}) >= capacity && <span>背包已满，请先整理空间。</span>}

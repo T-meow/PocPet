@@ -59,6 +59,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
   const stock = m.listings.reduce((n, listing) => n + listing.quantity, 0);
   const visitorQuantity = visitor?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
   return <>
+    <HelpButton {...marketHelp} />
     <section className="community-production-scene community-market-scene" data-production-scene="market" data-open={m.open} aria-label="溪畔小摊场景">
       <header className="community-production-heading"><div><small>溪畔小摊 · Lv.{m.level}</small><h3>{m.open ? '把今天的好东西，摆出来' : '小摊在这里，等你开张'}</h3></div><span className="community-scene-status"><i />{m.open ? '开门迎客' : '收摊休息'}</span></header>
       <div className="community-production-view"><CommunityMarketArt market={m} iconFor={icon} nameFor={name} visitor={visitor} />
@@ -84,10 +85,9 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
         const listing = m.listings.find(listing => listing.slotIndex === slotIndex);
         return <article key={slotIndex} data-slot={slotIndex}><small>第 {slotIndex + 1} 格</small>{listing ? <><img src={icon(listing.itemId)} alt="" /><strong>{name(listing.itemId)} ×{listing.quantity}</strong><DishValueBadge itemId={listing.itemId} /><small>{listing.unitPrice} 金币／份{listing.collector ? ' · 收藏品' : ''}</small><button className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, listing.id))}>下架剩余</button></> : <strong>空栏位</strong>}</article>;
       })}</div>
-      <p>客流 +{traffic.total}% · 铭牌 +{traffic.sign}% · 叶影灯 +{traffic.lantern}% · 水景 +{traffic.fountain}%</p>
-      <p>包场机会加成 +{buyout.total}% · 烹饪 +{buyout.cooking}% · 鎏金社区铭牌 +{buyout.decoration}%</p>
+      <p>客流 +{traffic.total}% · 包场机会加成 +{buyout.total}%</p>
       <button type="button" className="secondary-button" aria-haspopup="dialog" onClick={() => setPanel('construction')}>货架建设与扩建</button>
-      <div className="help-heading"><HelpButton {...marketHelp} /><button className="text-button" onClick={onShop}>去商店补充用品</button></div>
+      <div className="help-heading"><HelpButton {...marketHelp} details={<>{marketHelp.details}<p>当前客流 +{traffic.total}%：铭牌 +{traffic.sign}%、叶影灯 +{traffic.lantern}%、水景 +{traffic.fountain}%。包场机会加成 +{buyout.total}%：烹饪 +{buyout.cooking}%、铭牌 +{buyout.decoration}%。</p></>} /><button className="text-button" onClick={onShop}>去商店补充用品</button></div>
       <details className="community-market-details"><summary>翻看营业账本</summary><p>本次摆摊收入 {m.sessionRevenue} 金币，收摊后保留，再次开店时归零。</p><p>历史总收入 {m.revenue} 金币（含本次），其中增值收入 {m.premium} 金币 · 接待 {m.visitors} 位客人。</p>{m.log.length ? <ul className="community-ledger">{m.log.map((entry, index) => <li key={`${entry.visit}:${entry.at}:${index}`}><span><strong>{entry.buyout ? '慷慨游客 · 全部买下' : customerNames[entry.customer]}</strong><span>{entry.items.map(item => `${name(item.itemId)} ×${item.quantity}`).join('、')}</span><small>{new Date(entry.at).toLocaleString('zh-CN', { hour12: false })}</small></span><b>+{entry.coins} 金币</b></li>)}</ul> : <p>还没有成交，下一位客人正在路上。</p>}</details>
     </CommunityDetailDialog>}
     {panel === 'construction' && <CommunityUpgradeDialog pet={pet} update={update} id="stall" registry={registry} itemIconMap={itemIconMap} onClose={() => setPanel(null)} />}

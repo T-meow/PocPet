@@ -10,6 +10,11 @@ import { farmNeighborCost, farmNeighborDays } from '../../core/farmNeighborState
 
 const farmNeighborHelp = <p>农场可花 {farmNeighborCost} 心心请邻居帮忙 {farmNeighborDays} 个游戏日，购买当天计第 1 天，每天凌晨 5 点换日。服务期间，伙伴忙碌也能点击种植、照料和收获；每次成功操作随机一位伙伴代劳，批量操作算一次。材料和耐久照常消耗，照料动物不扣伙伴体力。建设升级、清树、回收树苗、厨房加工和钓鱼仍需伙伴空闲；离线和冻结照常计日，冻结时不能操作。</p>;
 
+export const kitchenHelp: HelpContent = {
+  title: '厨房',
+  overview: <><p>在食谱本选择料理，备齐材料与厨具后设置份数。成品进入共用库存，可以喂给伙伴、交付委托或摆摊。加工台用于磨粉、调奶和制作饲料。</p><p>伙伴空闲时才能制作；厨具的解锁条件与价格显示在厨具页。香草暖粥需要在溪谷溪边采集地完成全部阶段取得香草线索，再到菜地培育原料。</p><p>料理详情列出实际材料、成品效果与心心。不同配料分开存放，奶类替换不改变成品效果；每次制作获得一次经验，批量制作计一次。</p></>,
+};
+
 export const getRecipeHelp = (pet: PetState, recipe: RecipeDefinition, banana: boolean, milk: MilkChoice): HelpContent => {
   const dishId = getDishId(recipe, banana), quote = getMarketQuote(pet, dishId);
   const cost = getRecipePricingCost(recipe, banana, milk);
@@ -22,7 +27,7 @@ export const getRecipeHelp = (pet: PetState, recipe: RecipeDefinition, banana: b
 };
 export const processingHelp: HelpContent = {
   title: '食材加工',
-  overview: <><p>选择批次后即时加工，成品收入共用库存。只消耗列出的原料和费用，加工不发料理心心。</p><p>小麦可磨成面粉，收获的奶可以调制成其他奶类、奶油和奶酪。鸡舍建好后，1 份小麦或 1 份甜玉米可免费加工成 4 份谷物饲料；在牧场照料窗口也能直接制作 1 批。</p></>,
+  overview: <><p>选择批次后即时加工，成品收入共用库存。只消耗列出的原料和费用，加工不发料理心心。</p><p>小麦可磨成面粉，收获的奶可以调制成其他奶类、奶油和奶酪。鸡舍建好后，1 份小麦或 1 份甜玉米可免费加工成 4 份谷物饲料；在牧场照料窗口点击「补充饲料」，也能选择购买或按批加工。</p></>,
   get details() { return <p>一轮小麦收获 4 份，可免费磨出面粉 8 份；种子成本 24 金币，平均每份面粉 3 金币。面粉基础售价 {getCommunitySale('flour')!.base} 金币，每批加工在材料计价和费用基础上加 25%，摆摊加成另计。上架后等待客人购买。</p>; },
 };
 export const getCookingResultHelp = (result: { quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number }): HelpContent => ({
@@ -32,8 +37,8 @@ export const getCookingResultHelp = (result: { quantity: number; hearts: number;
 });
 export const fieldHelp: HelpContent = {
   title: '菜地照料',
-  overview: <>{farmNeighborHelp}<p>在菜地主页面选好作物即可播种，空地也能按上次种植的作物补种。一键收获会普通收获所有已成熟、仓库放得下的地块，不消耗镰刀耐久。</p><p>每块菜地独立播种和照料。每轮浇水、施肥各一次；成熟后作物会一直等待收获。收获每轮额外获得 3–10 颗小心心，基础生长周期越长，奖励越多；加速和增产不改变本轮心心。</p><p>香草种子来自溪谷每日首次搜寻和水渠故事首次奖励，各 2 份。林莓种子在林地定向寻找，每次 2 份，消耗采集机会；这两种种子商店不出售。</p><p>香草和大米可以煮暖粥，小麦可磨成面粉，也可与甜玉米一样加工成谷物饲料。牧场产出的营养堆肥可以回到菜地使用。</p></>,
-  details: <><p>浇水缩短作物基础生长时间的 20%，消耗水壶耐久 1 次。堆肥使本轮收获增加 1 份，精细收割再增加 1 份，可叠加。需要精细收割时，在地块照料窗口操作。</p><p>成熟后不扣浇水耐久；仓库放不下时不扣收割耐久，一键收获也会保留暂时放不下的作物。</p>{processingHelp.details}</>,
+  overview: <>{farmNeighborHelp}<p>菜地最多扩建至六块，全部显示在同一场景中。点击地块即可播种或照料，点击下一块待扩建地可查看扩建任务。场景下方可以一键收获、选种批量播种，或按各块地上次种植的作物补种；种子不足的地块保留为空地。</p><p>所有收获入口都会自动使用有耐久的精收镰刀，增产 1 份并消耗耐久 1 次。一键收获按地块顺序进行，镰刀用尽后继续普通收获。</p><p>每轮浇水、施肥各一次；成熟后作物一直等待收获。每轮额外获得 3–10 颗小心心，基础周期越长，奖励越多；加速和增产不改变本轮心心。</p><p>香草种子来自溪谷每日首次搜寻和水渠故事首次奖励，各 2 份；林莓种子在林地定向寻找。这两种种子商店不出售。小麦可磨成面粉，也可与甜玉米一样加工成谷物饲料。</p></>,
+  details: <><p>浇水缩短基础生长时间的 20%，消耗水壶耐久 1 次；堆肥使本轮增产 1 份，可与镰刀叠加。成熟后不能浇水或施肥。</p><p>增产后的收获必须能全部放入仓库，否则作物留在菜地、不扣镰刀耐久。一键收获继续处理其他地块。</p>{processingHelp.details}</>,
 };
 export const orchardHelp: HelpContent = {
   title: '果园照料',

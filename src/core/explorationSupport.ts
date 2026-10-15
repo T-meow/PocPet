@@ -6,7 +6,7 @@ import { getAdventureStepCount, getAdventureSteps } from './adventureData';
 import { getAdventureChoicePreview } from './adventure';
 import { getAdventureStageChoices } from './adventureGathering';
 import { formatInteger } from './displayNumbers';
-import { adventureTripProgress, campaignEventVisible, campaignVisitComplete } from './explorationCampaignState';
+import { adventureTripProgress, campaignEventVisible, campaignVisitComplete, getCampaignState } from './explorationCampaignState';
 import { getCampaignStepPreview } from './explorationCampaign';
 import { getMuseumStepPreview } from './museumJourney';
 import { museumVisits } from './museumData';
@@ -28,7 +28,7 @@ export const getExplorationRescueQuote = (pet: PetState, system: ExplorationSyst
     const preview = getAdventureChoicePreview(pet, choice);
     return pet.hunger < (preview?.hunger[1] ?? choice.hunger) || pet.energy < (preview?.energy[1] ?? choice.energy);
   });
-  const hasStep = trip?.museum ? trip.museum.step < museumVisits[trip.museum.visitId].steps.length : campaign ? !campaignVisitComplete(pet.adventure.campaign, campaign.visitId) : Boolean(step);
+  const hasStep = trip?.museum ? trip.museum.step < museumVisits[trip.museum.visitId].steps.length : campaign ? !campaignVisitComplete(getCampaignState(pet, campaign.visitId), campaign.visitId) : Boolean(step);
   const visible = Boolean(hasStep && !supportReason(pet, system) && (pet.hunger <= cap * .3 || pet.energy <= energyCap * .3 || blocked));
   const hunger = Math.max(0, Math.min(cap - pet.hunger, Math.floor(cap * .8))), energy = Math.max(0, Math.min(energyCap - pet.energy, Math.floor(energyCap * .5))), mood = Math.max(0, Math.min(cap - pet.mood, Math.floor(cap * .2)));
   const reason = supportReason(pet, system) || (!visible ? '当前无需应急救援' : !hunger && !energy ? '饱食和体力都无需恢复' : pet.hearts < 100 ? `需要 100 心心，还差 ${formatInteger(100 - pet.hearts)} 心心` : '');

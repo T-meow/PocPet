@@ -113,6 +113,118 @@ async function verifySavesAndErrors() {
       return result;
     };
 
+    await check('角色库删除下限、默认角色恢复与读档回退', async () => {
+      const { builtinPetModManifests, builtinFuroManifest, builtinMintManifest } = await import('../src/core/builtinPetModManifests.ts');
+      const { normalizePetModLibraryState, getPetModLibraryState, getAvailablePetModManifests, deletePetMod, restoreBuiltinPetMod, restoreBuiltinPetMods, setActivePetMod } = await import('../src/core/modStorage.ts');
+      const { resolveImportedSaveMod } = await import('../src/core/saveImport.ts');
+      const { getNeighborIdentities } = await import('../src/core/neighbors.ts');
+      const key = 'pocpet.mod.library.v1';
+      const available = () => getAvailablePetModManifests(getPetModLibraryState());
+      try {
+        assert.equal(available().length, 4);
+        assert.equal(getPetModLibraryState().activeModId, builtinFuroManifest.id);
+        assert.ok(builtinFuroManifest.favoriteFoodIds.includes('farm_milk'));
+        await deletePetMod(builtinFuroManifest.id);
+        await deletePetMod(builtinMintManifest.id);
+        assert.equal(available().length, 2);
+        const before = storage.getItem(key);
+        await assert.rejects(deletePetMod(available()[0].id), /至少保留两位/);
+        assert.equal(storage.getItem(key), before, 'blocked deletion leaves the saved library intact');
+        const reloaded = normalizePetModLibraryState(JSON.parse(before));
+        assert.equal(reloaded.schemaVersion, 1);
+        assert.equal(getAvailablePetModManifests(reloaded).length, 2);
+        assert.ok(![builtinFuroManifest.id, builtinMintManifest.id].includes(reloaded.activeModId));
+        const neighbors = getNeighborIdentities(available().map(manifest => ({ manifest })), reloaded.activeModId);
+        assert.equal(neighbors.length, 1);
+        assert.ok(!neighbors.some(neighbor => neighbor.modId === builtinFuroManifest.id));
+        restoreBuiltinPetMod(builtinFuroManifest.id);
+        restoreBuiltinPetMod(builtinFuroManifest.id);
+        assert.equal(available().length, 3, 'restoring twice does not duplicate a character');
+        restoreBuiltinPetMods();
+        assert.equal(available().length, 4);
+        assert.equal(getPetModLibraryState().activeModId, reloaded.activeModId, 'restoring keeps the current companion');
+
+        const externalMods = ['fixture.first', 'fixture.second'].map(id => ({ manifest: { schemaVersion: 2, id, name: id, version: '1.0.0', defaultPetName: '自定义伙伴' }, importedAt: now }));
+        storage.setItem(key, JSON.stringify({ schemaVersion: 1, activeModId: builtinFuroManifest.id, mods: externalMods }));
+        for (const manifest of builtinPetModManifests) await deletePetMod(manifest.id);
+        assert.deepEqual(available().map(mod => mod.id), externalMods.map(mod => mod.manifest.id), 'every default character can be removed when two imported characters remain');
+        await assert.rejects(deletePetMod(externalMods[0].manifest.id), /至少保留两位/);
+        setActivePetMod(builtinFuroManifest.id);
+        assert.equal(getPetModLibraryState().activeModId, externalMods[0].manifest.id, 'a removed character cannot be selected');
+        const fallback = { manifest: externalMods[0].manifest, petImageUrls: {}, itemImageUrls: {}, cgImageUrls: {} };
+        const resolveMissing = () => Promise.resolve(fallback);
+        const missing = await resolveImportedSaveMod({ activeMod: builtinMintManifest }, async () => null, resolveMissing);
+        assert.equal(missing.mod, fallback);
+        assert.equal(missing.missingImportedMod, true);
+        const oldDefault = await resolveImportedSaveMod({}, async () => null, resolveMissing);
+        assert.equal(oldDefault.mod, fallback, 'a save without a character summary does not revive deleted Furo');
+        restoreBuiltinPetMods();
+        assert.equal(available().length, 6, 'restoring defaults keeps imported characters');
+        const damaged = normalizePetModLibraryState({ schemaVersion: 1, mods: [], deletedBuiltinModIds: builtinPetModManifests.map(mod => mod.id) });
+        assert.equal(getAvailablePetModManifests(damaged).length, 2, 'a damaged library still offers two valid companions');
+
+        storage.removeItem(key);
+        const legacyKey = 'pocpet.mod.active.v1';
+        storage.setItem(legacyKey, JSON.stringify(externalMods[0].manifest));
+        const migrated = getPetModLibraryState();
+        assert.equal(migrated.activeModId, externalMods[0].manifest.id, 'initializing the library preserves the formerly active imported character');
+        assert.equal(storage.getItem(legacyKey), null);
+        const beforeFailure = JSON.parse(storage.getItem(key));
+        const indexedDbDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+        const originalSetItem = storage.setItem;
+        let imageDeletes = 0;
+        Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: { open() { imageDeletes++; throw new Error('image-database-unavailable'); } } });
+        try {
+          storage.setItem = function (storageKey, value) {
+            if (storageKey === key && !JSON.parse(value).mods.some(mod => mod.manifest.id === externalMods[0].manifest.id)) throw new Error('library-write-blocked');
+            return originalSetItem.call(this, storageKey, value);
+          };
+          await assert.rejects(deletePetMod(externalMods[0].manifest.id), /library-write-blocked/);
+          assert.equal(imageDeletes, 0, 'a failed catalog write cannot remove imported images');
+          assert.deepEqual(JSON.parse(storage.getItem(key)), beforeFailure);
+          storage.setItem = originalSetItem;
+          await assert.rejects(deletePetMod(externalMods[0].manifest.id), /image-database-unavailable/);
+          assert.equal(imageDeletes, 1);
+          assert.deepEqual(JSON.parse(storage.getItem(key)), beforeFailure, 'failed image deletion restores the character entry and active selection');
+        } finally {
+          storage.setItem = originalSetItem;
+          if (indexedDbDescriptor) Object.defineProperty(globalThis, 'indexedDB', indexedDbDescriptor); else delete globalThis.indexedDB;
+        }
+      } finally {
+        storage.removeItem(key);
+        storage.removeItem('pocpet.mod.active.v1');
+      }
+    });
+
+    await check('普通物品满仓购买不扣费且可用容量随读档保留', async () => {
+      const { getItemPurchaseQuote, buyItem } = await import('../src/core/petActions.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const { createItemRegistry } = await import('../src/core/items.ts');
+      const { getItemBrowseLimit } = await import('../src/ui/itemBrowse.ts');
+      const source = { ...pet, coins: 5000, inventory: { ...pet.inventory, animal_feed: inventoryItemLimit },
+        community: { ...pet.community, facilities: { ...pet.community.facilities, coop: { found: true, work: 2, built: true } } } };
+      assert.equal(getItemPurchaseQuote(source, 'animal_feed', 1, now).reason, 'inventory_full');
+      assert.equal(getItemBrowseLimit(source, createItemRegistry().get('animal_feed'), 'shop', now), 0);
+      const rejected = buyItem(source, 'animal_feed', now, { quantity: 1 });
+      assert.equal(rejected.coins, source.coins);
+      assert.equal(rejected.inventory.animal_feed, inventoryItemLimit);
+      const almostFull = { ...source, inventory: { ...source.inventory, animal_feed: inventoryItemLimit - 1 } };
+      assert.equal(getItemPurchaseQuote(almostFull, 'animal_feed', 2, now).reason, 'inventory_full');
+      assert.equal(buyItem(almostFull, 'animal_feed', now, { quantity: 2 }).coins, source.coins, 'a batch is rejected before spending when only part fits');
+      const quote = getItemPurchaseQuote(almostFull, 'animal_feed', 1, now);
+      assert.equal(quote.canPurchase, true);
+      const bought = buyItem(almostFull, 'animal_feed', now, { quantity: 1 });
+      const restored = parseSaveFileText(createSaveFileText(bought, null, now), now).pet;
+      assert.equal(restored.inventory.animal_feed, inventoryItemLimit);
+      assert.equal(restored.coins, source.coins - quote.totalPrice);
+      assert.equal(getItemPurchaseQuote(restored, 'animal_feed', 1, now).reason, 'inventory_full');
+      const fullFreeItem = { ...source, inventory: { ...source.inventory, emergency_biscuit: inventoryItemLimit } };
+      assert.equal(getItemPurchaseQuote(fullFreeItem, 'emergency_biscuit', 1, now).reason, 'inventory_full');
+      const freeRejected = buyItem(fullFreeItem, 'emergency_biscuit', now);
+      assert.equal(freeRejected.inventory.emergency_biscuit, inventoryItemLimit);
+      assert.equal(freeRejected.dailyBiscuitClaims, fullFreeItem.dailyBiscuitClaims, 'full inventory does not spend a daily free claim');
+    });
+
     await check('独立小游戏预览的进度往返与损坏回退', async () => {
       const { createMiniGamesSave, normalizeMiniGamesSave, createPreviewHost, previewStorageKey } = await import('../src/minigames/storage.ts');
       const { possibleMoves, swapMatch3 } = await import('../src/minigames/match3/rules.ts');
@@ -408,12 +520,14 @@ async function verifySavesAndErrors() {
       const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
       const restore = (state, at = now) => parseSaveFileText(createSaveFileText(state, null, at), at).pet;
       const initial = restore({ ...pet, inventory: { ...pet.inventory, carrot_seed: 1, wheat_seed: 1, carrot: inventoryItemLimit },
-        community: { ...pet.community, gardenBuilt: true, upgrades: { ...pet.community.upgrades, garden: 3 },
-          plots: [{ id: 1, lastCrop: 'carrot' }, { id: 2, lastCrop: 'carrot' }, { id: 3, lastCrop: 'wheat' }],
+        community: { ...pet.community, gardenBuilt: true, upgrades: { ...pet.community.upgrades, garden: 6 },
+          plots: [{ id: 1, lastCrop: 'carrot' }, { id: 2, lastCrop: 'carrot' }, { id: 3, lastCrop: 'wheat' }, { id: 4 }, { id: 5 }, { id: 6, lastCrop: 'wheat' }],
           facilities: { ...pet.community.facilities, coop: { found: true, built: true, work: 2 } },
         },
       });
       const seeds = [{ plotId: 1, cropId: 'carrot' }, { plotId: 1, cropId: 'carrot' }, { plotId: 2, cropId: 'carrot' }, { plotId: 3, cropId: 'wheat' }];
+      assert.equal(initial.community.plots.length, 6, 'save/load must preserve all expanded plots');
+      assert.equal(initial.community.plots[5].lastCrop, 'wheat');
       let state = restore(plantCommunityCrops(initial, seeds, now));
       assert.equal(state.inventory.carrot_seed ?? 0, 0);
       assert.equal(state.inventory.wheat_seed ?? 0, 0);
@@ -421,6 +535,14 @@ async function verifySavesAndErrors() {
       assert.equal(state.community.plots[1].lastCrop, 'carrot');
       assert.equal(plantCommunityCrops(state, seeds, now), state, 'duplicate requests do not consume more seeds');
       const ripeAt = now + 8 * 3600000;
+      const sickleSource = restore({ ...initial, inventory: { ...initial.inventory, carrot: inventoryItemLimit - 3, wheat: 0, harvest_sickle: 1 },
+        community: { ...initial.community, toolWear: { harvest_sickle: 19 }, plots: initial.community.plots.map(plot => plot.id <= 3
+          ? { ...plot, crop: { id: plot.id === 1 ? 'carrot' : 'wheat', plantedAt: now, readyAt: ripeAt } } : plot) } });
+      const sickleHarvest = restore(harvestCommunityCrops(sickleSource, [3, 1, 2].map(id => ({ id, plantedAt: now })), ripeAt), ripeAt);
+      assert.ok(sickleHarvest.community.plots[0].crop, 'a crop that cannot fit its sickle bonus stays planted');
+      assert.equal(sickleHarvest.inventory.wheat, 9, 'one remaining tool use adds one item, later plots use ordinary harvesting');
+      assert.equal(sickleHarvest.inventory.harvest_sickle ?? 0, 0);
+      assert.equal(sickleHarvest.community.plots.length, 6);
       const crops = [{ id: 1, plantedAt: now - 1 }, { id: 1, plantedAt: now }, { id: 3, plantedAt: now }, { id: 3, plantedAt: now }];
       const frozen = { ...state, timePause: { schemaVersion: 1, pausedAt: now } };
       assert.equal(plantCommunityCrops(frozen, seeds, now), frozen);
@@ -458,7 +580,7 @@ async function verifySavesAndErrors() {
       const legacy = structuredClone(pet);
       legacy.community.schemaVersion = 11; delete legacy.community.activityBoard;
       legacy.community.expedition.projects.riverside = { completed: 2, stage: 1, theme: 'journey', lastDay: '2026-09-01', firstAt: now - 86400000, actorId: 'old.partner', actorName: '旧伙伴' };
-      legacy.inventory.dish_mushroom_rice = 2;
+      Object.assign(legacy.inventory, actions.getProjectDelivery(legacy, 'riverside'));
       let state = parseSaveFileText(createSaveFileText(legacy, null, now), now).pet;
       assert.equal(state.community.schemaVersion, 16);
       assert.equal(state.community.expedition.projects.riverside.stage, 1);
@@ -471,7 +593,7 @@ async function verifySavesAndErrors() {
       assert.deepEqual(actions.contributeCommunityProject(prepared, 'riverside', runId, 1, now).inventory, prepared.inventory);
       state = actions.finishCommunityProject(prepared, 'riverside', runId, 'new.partner', '新伙伴', now);
       const reward = state.community.expedition.projects.riverside.reward;
-      assert.ok(reward); assert.equal(reward.hearts, 200); assert.equal(reward.first, false);
+      assert.ok(reward); assert.equal(reward.hearts, 500); assert.equal(reward.first, false);
       assert.equal(state.community.expedition.projects.riverside.actorName, '旧伙伴');
       assert.equal(getPetEnergyCap(state), cap);
       assert.equal(state.community.expedition.projects.riverside.completed, 3);
@@ -506,9 +628,11 @@ async function verifySavesAndErrors() {
       const { getCommunityActivityBoard, advanceCommunityActivities } = await import('../src/core/communityActivities.ts');
       const { startCommunityProject, contributeCommunityProject, finishCommunityProject } = await import('../src/core/communityProjectActions.ts');
       const { reconcilePetClock } = await import('../src/core/gameClock.ts');
+      const { getProjectTheme } = await import('../src/core/communityThemes.ts');
       const time = new Date(2026, 8, 21, 12).getTime();
       const initial = createDefaultPet(time);
-      let state = normalizePet({ ...initial, adventure: { ...initial.adventure, completed: { tutorial: 1 } }, community: { ...initial.community, gardenBuilt: true, herbDiscovered: true, firstOrderDelivered: true }, inventory: { carrot: 3, egg: 2, dish_herb_porridge: 2 } }, time);
+      const menu = getProjectTheme('riverside', 'garden');
+      let state = normalizePet({ ...initial, adventure: { ...initial.adventure, completed: { tutorial: 1 } }, community: { ...initial.community, gardenBuilt: true, herbDiscovered: true, firstOrderDelivered: true }, inventory: { ...menu.supplies, ...menu.meals } }, time);
       state = advanceCommunityActivities(state, time);
       const board = state.community.activityBoard;
       assert.equal(board.week, '2026-09-21'); assert.equal(board.project, 'riverside');
@@ -520,7 +644,7 @@ async function verifySavesAndErrors() {
       assert.deepEqual(startCommunityProject(saved, 'riverside', 'journey', board.invitationId, time).community.expedition.projects, saved.community.expedition.projects, 'repeated accept cannot reset supplies or change theme');
       state = contributeCommunityProject(saved, 'riverside', board.invitationId, 1, time);
       const first = finishCommunityProject(state, 'riverside', board.invitationId, 'official.furo', 'Furo', time);
-      assert.equal(first.community.expedition.projects.riverside.reward.hearts, 400);
+      assert.equal(first.community.expedition.projects.riverside.reward.hearts, 1000);
       assert.equal(first.community.expedition.projects.riverside.completed, 1);
       assert.equal(first.community.acceptedToday.length, 0, 'activity must not consume daily commissions');
       const unlocked = structuredClone(saved);
@@ -544,11 +668,14 @@ async function verifySavesAndErrors() {
       assert.equal(advanceCommunityActivities(frozen, boundary + 7 * 86400000), frozen);
     });
 
-    await check('钓鱼水域旧档补开、配置记忆与在途存档往返', async () => {
+    await check('钓鱼水域、伙伴同行与分批鱼获存档防重', async () => {
       const { landmarkId, landmarkNodes } = await import('../src/core/landmarkProgress.ts');
       const { isWaterOpen, waterIds } = await import('../src/core/communityData.ts');
       const { completeLandmarkStory } = await import('../src/core/landmarkAdventure.ts');
       const { getFishingPreferences, rememberFishingPreferences } = await import('../src/core/fishingState.ts');
+      const { startCommunityFishing, actCommunityFishing, cancelCommunityFishing, claimCommunityFish } = await import('../src/core/communityFishing.ts');
+      const { getToolUsesLeft } = await import('../src/core/toolDurability.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
       const state = structuredClone(pet);
       state.community.facilities.fishing_hut = { found: true, work: 2, built: true };
       state.community.waterAccess.forest_pool.found = true;
@@ -579,6 +706,73 @@ async function verifySavesAndErrors() {
       assert.deepEqual(reload(roundTrip).community.fishing, roundTrip.community.fishing, 'repeated save/load preserves the configuration and trip');
       assert.deepEqual(getFishingPreferences(reload({ ...configured, inventory: {} })), preferences, 'depleted supplies do not clear remembered choices');
       assert.deepEqual(rememberFishingPreferences(restored, preferences).inventory, restored.inventory, 'remembering a setup does not reserve supplies');
+
+      const manualBase = structuredClone(restored);
+      manualBase.hearts = 50;
+      manualBase.community.fishing = { ...manualBase.community.fishing, active: undefined, pending: undefined, casts: 0, journal: {} };
+      manualBase.inventory = { ...manualBase.inventory, fishing_bait: 40, fishing_rod: 1, fishing_float: 1, landing_net: 1 };
+      const gear = { float: true, net: true, inviteCompanion: true };
+      const company = { actorId: 'official.furo', neighbors: [{ modId: 'official.furo', name: '当前伙伴' }, { modId: 'fixture.fishing', name: '钓鱼伙伴' }] };
+      const manualSetup = rememberFishingPreferences(manualBase, { ...preferences, mode: 'manual', ...gear });
+      assert.equal(getFishingPreferences(reload(manualSetup)).inviteCompanion, true);
+      for (const source of [
+        { ...manualSetup, hearts: 9 },
+        { ...manualSetup, inventory: { ...manualSetup.inventory, fishing_bait: 19 } },
+        { ...manualSetup, energy: 0 },
+        { ...manualSetup, inventory: { ...manualSetup.inventory, landing_net: 0 } },
+      ]) {
+        const blocked = startCommunityFishing(source, 'pond', 'fishing_bait', false, now, gear, company);
+        assert.equal(blocked.community.fishing.active, undefined);
+        assert.equal(blocked.hearts, source.hearts);
+        assert.deepEqual(blocked.inventory, source.inventory, 'failed preparation does not spend bait or tools');
+        assert.deepEqual(blocked.community.toolWear, source.community.toolWear);
+      }
+      const started = startCommunityFishing(manualSetup, 'pond', 'fishing_bait', false, now, gear, company);
+      assert.equal(started.hearts, 40);
+      assert.equal(started.inventory.fishing_bait, 20);
+      assert.equal(started.community.fishing.casts, 20);
+      assert.equal(started.community.fishing.active.catches.length, 20);
+      assert.equal(started.community.fishing.active.companion.modId, 'fixture.fishing');
+      for (const tool of ['fishing_rod', 'fishing_float', 'landing_net']) assert.equal(getToolUsesLeft(started, tool), getToolUsesLeft(manualSetup, tool) - 1);
+      const solo = startCommunityFishing(manualSetup, 'pond', 'fishing_bait', false, now, { ...gear, inviteCompanion: false });
+      assert.equal(solo.energy, started.energy, 'a batch consumes one round of energy');
+      assert.equal(solo.hunger, started.hunger, 'a batch consumes one round of hunger');
+      assert.equal(solo.hearts, manualSetup.hearts);
+      assert.equal(solo.inventory.fishing_bait, 39);
+      assert.equal(startCommunityFishing(started, 'pond', 'fishing_bait', false, now, gear, company), started, 'a repeated cast cannot charge again');
+      let batch = reload(started);
+      assert.deepEqual(batch.community.fishing.active, started.community.fishing.active, 'loading cannot redraw fish or the invited companion');
+      const trip = batch.community.fishing.active;
+      for (let index = 0; index < trip.requiredClicks; index++) {
+        const session = batch.community.fishing.active;
+        batch = actCommunityFishing(batch, session.id, session.revision, 'reel', trip.biteAt);
+      }
+      assert.equal(batch.community.fishing.pending.catches.length, 20);
+      assert.equal(Object.values(batch.community.fishing.pending.items).reduce((sum, count) => sum + count, 0), 20);
+      assert.equal(Object.values(batch.community.fishing.journal).reduce((sum, entry) => sum + entry.count, 0), 20);
+      assert.equal(actCommunityFishing(batch, trip.id, trip.requiredClicks - 1, 'reel', trip.biteAt), batch, 'repeated final reels cannot grant another batch');
+      batch = reload(batch);
+      assert.deepEqual(batch.community.fishing.pending.companion, trip.companion);
+      assert.deepEqual(batch.community.fishing.pending.catches.map(({ fish, size }) => ({ fish, size })), trip.catches);
+      const caughtIds = Object.keys(batch.community.fishing.pending.items);
+      const full = { ...batch, inventory: { ...batch.inventory, ...Object.fromEntries(caughtIds.map(id => [id, inventoryItemLimit])) } };
+      const basket = claimCommunityFish(full, trip.id);
+      assert.deepEqual(basket.community.fishing.pending.items, full.community.fishing.pending.items);
+      assert.equal(basket.hearts, full.hearts, 'a full warehouse keeps the fish and its heart rewards pending');
+      const partial = reload(claimCommunityFish({ ...basket, inventory: { ...basket.inventory, [caughtIds[0]]: inventoryItemLimit - 1 } }, trip.id));
+      assert.equal(partial.hearts, batch.hearts + 3);
+      assert.equal(Object.values(partial.community.fishing.pending.items).reduce((sum, count) => sum + count, 0), 19);
+      assert.equal(claimCommunityFish(partial, trip.id).hearts, partial.hearts);
+      const claimed = claimCommunityFish({ ...partial, inventory: { ...partial.inventory, ...Object.fromEntries(caughtIds.map(id => [id, 0])) } }, trip.id);
+      assert.equal(claimed.community.fishing.pending, undefined);
+      assert.equal(claimed.hearts, batch.hearts + 60);
+      assert.equal(claimCommunityFish(claimed, trip.id), claimed);
+      const cancelled = cancelCommunityFishing(started, trip.id, now);
+      assert.equal(cancelled.community.fishing.active, undefined);
+      assert.equal(cancelled.hearts, 40, 'cancelling does not refund the invitation');
+      assert.equal(cancelled.inventory.fishing_bait, 20);
+      const generic = startCommunityFishing(manualSetup, 'pond', 'fishing_bait', false, now, gear);
+      assert.equal(generic.community.fishing.active.companion.name, '热心邻居');
 
       const legacy = structuredClone(state);
       legacy.adventure.schemaVersion = 7; delete legacy.adventure.landmarks;
@@ -1154,7 +1348,7 @@ async function verifySavesAndErrors() {
     });
 
     await check('随机采集存档固定、原行动记录与重复请求防重', async () => {
-      const { startAdventure, advanceAdventure, getAdventureChoicePreview } = await import('../src/core/adventure.ts');
+      const { startAdventure, advanceAdventure, getAdventureChoicePreview, canUseAdventureService } = await import('../src/core/adventure.ts');
       const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
       const { getAdventureStageChoices } = await import('../src/core/adventureGathering.ts');
       const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
@@ -1171,6 +1365,37 @@ async function verifySavesAndErrors() {
       const restored = reload(ready);
       assert.deepEqual(getAdventureStageChoices(restored, steps[2].choices), commands, 'reload cannot redraw the reward entry');
       const trip = restored.adventure.active;
+      const companionSource = fuel({ ...ready, hearts: 200, adventure: { ...ready.adventure, active: undefined },
+        community: { ...ready.community, expedition: { ...ready.community.expedition, loop: { ...ready.community.expedition.loop, available: 20 } } } });
+      for (const multiplier of [3, 6, 9]) {
+        let paid = startAdventure(companionSource, 'valley', 'official.furo', 'Furo', {}, false, now, undefined, undefined, ['fixture.escort'], undefined, undefined,
+          { gatherMultiplier: multiplier, neighborNames: { 'fixture.escort': '同行伙伴' } });
+        assert.equal(paid.hearts, 200 - (multiplier - 1) * 10);
+        assert.ok(canUseAdventureService(paid), 'paid service is available before the obstacle');
+        paid = reload(paid);
+        assert.equal(paid.adventure.active.gatherMultiplier, multiplier);
+        assert.equal(paid.adventure.active.neighborName, '同行伙伴');
+        assert.equal(paid.adventure.active.neighborId, 'fixture.escort');
+        assert.equal(startAdventure(paid, 'valley', 'official.furo', 'Furo', {}, false, now).hearts, paid.hearts, 'repeated departure cannot charge twice');
+        for (const step of steps.slice(0, 2)) paid = act(paid, step.choices[0].id);
+        const single = act({ ...paid, adventure: { ...paid.adventure, active: { ...paid.adventure.active, gatherMultiplier: 1 } } }, 'gather:pick');
+        const boosted = act(paid, 'gather:pick'), saved = reload(boosted);
+        assert.equal(boosted.community.expedition.loop.used - paid.community.expedition.loop.used, multiplier);
+        assert.equal(boosted.adventure.active.checkState.last.researchPoints, single.adventure.active.checkState.last.researchPoints * multiplier);
+        assert.equal(boosted.energy, single.energy);
+        assert.equal(boosted.hunger, single.hunger);
+        assert.deepEqual(boosted.community.toolWear, single.community.toolWear);
+        assert.deepEqual(saved.adventure.active.checkState.last, boosted.adventure.active.checkState.last, 'multiplied research and rewards survive restore');
+        assert.deepEqual(saved.adventure.active.loot, boosted.adventure.active.loot);
+        assert.deepEqual(saved.community.treasureResearch, boosted.community.treasureResearch);
+        assert.ok(canUseAdventureService({ ...saved, adventure: { ...saved.adventure, active: { ...saved.adventure.active, loot: { apple: 1 } } } }));
+        assert.equal(advanceAdventure(saved, paid.adventure.active.id, 2, 'gather:pick', now, paid.adventure.active.revision), saved);
+        const remaining = { ...paid, community: { ...paid.community, expedition: { ...paid.community.expedition, loop: { ...paid.community.expedition.loop, available: 2 } } } };
+        assert.equal(act(remaining, 'gather:pick').adventure.active.checkState.last.harvestCount, 2, 'use the remaining opportunities without rounding up');
+      }
+      const fallback = startAdventure(companionSource, 'valley', 'official.furo', 'Furo', {}, false, now, undefined, undefined, [], undefined, undefined, { gatherMultiplier: 3 });
+      assert.equal(fallback.adventure.active.neighborId, 'generic-neighbor');
+      assert.ok(canUseAdventureService(reload(fallback)));
       for (const id of ['gather:random', 'gather:sickle', 'gather:pick']) {
         const command = commands.find(choice => choice.id === id);
         assert.ok(command?.sourceChoiceId);
@@ -1387,7 +1612,7 @@ async function verifySavesAndErrors() {
     await check('季度聚餐旧轮迁移、跨季续程与独立领奖防重', async () => {
       const { startAdventure, advanceAdventure, returnFromAdventure, claimAdventureResult, getAdventureRewardPreview } = await import('../src/core/adventure.ts');
       const { startExplorationCampaign, advanceCampaignVisit, claimCampaignTask } = await import('../src/core/explorationCampaign.ts');
-      const { campaignTasks, campaignVisitIds, campaignVisits, getCampaignReward } = await import('../src/core/explorationCampaignData.ts');
+      const { campaignTasks, quarterlyCampaignVisitIds: campaignVisitIds, campaignVisits, getCampaignReward } = await import('../src/core/explorationCampaignData.ts');
       const { campaignDestination, getCampaignSupplies, getCampaignDelivery, campaignVisitStep, campaignVisitComplete, campaignText } = await import('../src/core/explorationCampaignState.ts');
       const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
       const { getLandmarkSteps } = await import('../src/core/landmarkData.ts');
@@ -1549,6 +1774,81 @@ async function verifySavesAndErrors() {
       const returned = reload(returnFromAdventure(newcomer, nextTrip.id, now));
       assert.equal(returned.adventure.pending.campaignVisit, undefined);
       assert.equal(returned.adventure.pending.first, true);
+    });
+
+    await check('主题回忆与春节长线的存档恢复、分线和领奖防重', async () => {
+      const { getFestivalWindow } = await import('../src/core/festivalCalendar.ts');
+      const { startSpringReunion, isSpringReunionVisible } = await import('../src/core/springReunion.ts');
+      const { startExplorationCampaign, advanceCampaignVisit, claimCampaignTask } = await import('../src/core/explorationCampaign.ts');
+      const { getCampaignVisitIds, campaignVisits, getCampaignTasks } = await import('../src/core/explorationCampaignData.ts');
+      const { getCampaignSupplies, getCampaignDelivery, campaignDestination, getReunionWorkers } = await import('../src/core/explorationCampaignState.ts');
+      const { startAdventure, getAdventureStartReason, returnFromAdventure, claimAdventureResult } = await import('../src/core/adventure.ts');
+      const { getProjectThemes } = await import('../src/core/communityThemes.ts');
+      const { getProjectThemeReason } = await import('../src/core/communityActivities.ts');
+      const { finishCommunityProject, claimCommunityProjectReward } = await import('../src/core/communityProjectActions.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const { getPetStatCap, getPetEnergyCap } = await import('../src/core/petStats.ts');
+      const time = getFestivalWindow('spring-festival', 2027).startsAt + 12 * 3600000;
+      const later = getFestivalWindow('spring-festival', 2027).endsAt + 12 * 3600000;
+      const fuel = p => ({ ...p, hunger: getPetStatCap(p), energy: getPetEnergyCap(p), health: getPetStatCap(p), mood: getPetStatCap(p), lastUpdatedAt: time });
+      const reload = (p, at = time) => parseSaveFileText(createSaveFileText(p, null, at), at).pet;
+      let seed = createDefaultPet(time);
+      seed = fuel({ ...seed, adventure: { ...seed.adventure, completed: { tutorial: 1 }, landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))) } });
+      assert.equal(isSpringReunionVisible(seed, later), false, 'undiscovered reunion is hidden off-season');
+      assert.equal(startSpringReunion(seed, [], 'official.furo', 'Furo', later), seed, 'hidden entry cannot be bypassed off-season');
+      const neighbors = Array.from({ length: 52 }, (_, i) => ({ modId: 'fixture.reunion' + i, name: '伙伴' + i + '$&' }));
+      let state = startExplorationCampaign(seed, neighbors, 'official.furo', time);
+      state = reload(startSpringReunion(state, neighbors, 'official.furo', 'Furo', time));
+      assert.equal(state.adventure.reunion.participants.length, 53, 'the actor and every installed companion are captured');
+      const quarterly = structuredClone(state.adventure.campaign), roster = structuredClone(state.adventure.reunion.participants);
+      assert.match(getAdventureStartReason(state, 'valley', time, 'landmark:valley:crossing'), /选择/, 'shared destination requires an explicit task selection');
+      const participated = new Set();
+      for (const task of getCampaignTasks('spring-reunion')) for (const person of getReunionWorkers(state.adventure.reunion, task.chapter, task.id)) participated.add(person.modId);
+      assert.equal(participated.size, 53, 'large rosters assign multiple helpers without dropping anyone');
+      const runId = state.adventure.reunion.runId;
+      for (const id of getCampaignVisitIds('spring-reunion')) {
+        const bag = getCampaignSupplies(state, id).reduce((stock, need) => { stock[need.items[0]] = (stock[need.items[0]] ?? 0) + need.amount; return stock; }, {});
+        state = { ...fuel(state), inventory: { ...state.inventory, ...bag } };
+        state = reload(startAdventure(state, campaignVisits[id].region, 'official.furo', 'Furo', bag, false, time, campaignDestination(id), undefined, [], id));
+        assert.equal(state.adventure.active.campaign.kind, 'spring-reunion');
+        for (let index = 0; index < 3; index++) {
+          const trip = state.adventure.active, step = campaignVisits[id].steps[index];
+          const delivery = step.delivery ? getCampaignDelivery(step.delivery, trip.bag) : {};
+          const advanced = advanceCampaignVisit(fuel(state), trip.id, trip.revision, index, 'continue', delivery, [], time);
+          state = reload(advanced);
+          assert.equal(advanceCampaignVisit(state, trip.id, trip.revision, index, 'continue', delivery, [], time), state, 'stale actions cannot consume again');
+        }
+        state = reload(returnFromAdventure(state, state.adventure.active.id, time));
+        state = reload(claimAdventureResult(state, state.adventure.pending.id));
+      }
+      assert.equal(Object.keys(state.adventure.reunion.tasks).length, 45);
+      assert.deepEqual(state.adventure.campaign, quarterly, 'Spring Festival preparation never advances quarterly tasks');
+      assert.deepEqual(state.adventure.reunion.participants, roster, 'uninstalling companions does not change the cast');
+      const restored = reload(state, later);
+      assert.ok(isSpringReunionVisible(restored, later));
+      assert.deepEqual(restored.adventure.reunion, state.adventure.reunion, 'progress continues after the festival window');
+      const crowded = { ...state, goldenAppleGacha: { ...state.goldenAppleGacha, tickets: 9950 } };
+      assert.equal(claimCampaignTask(crowded, 45, time, runId, 'spring-reunion'), crowded, 'full ticket capacity preserves the whole final reward');
+      const originalHearts = state.hearts, originalApples = state.inventory.golden_apple ?? 0, originalTickets = state.goldenAppleGacha.tickets;
+      for (const id of [9, 18, 27, 36, 45]) {
+        state = reload(claimCampaignTask(state, id, time, runId, 'spring-reunion'));
+        assert.equal(claimCampaignTask(state, id, time, runId, 'spring-reunion'), state);
+      }
+      assert.deepEqual([state.hearts - originalHearts, state.inventory.golden_apple - originalApples, state.goldenAppleGacha.tickets - originalTickets], [1000, 30, 100]);
+      assert.equal(startSpringReunion(state, neighbors, 'official.furo', 'Furo', time), state, 'one invitation per year');
+      const nextTime = getFestivalWindow('spring-festival', 2028).startsAt + 12 * 3600000;
+      const next = reload(startSpringReunion(state, [], 'official.furo', 'Furo', nextTime, runId), nextTime);
+      assert.equal(next.adventure.reunion.history.length, 1);
+      assert.deepEqual(next.adventure.reunion.history[0].participants, roster);
+      assert.equal(claimCampaignTask(next, 45, nextTime, runId, 'spring-reunion'), next, 'an old UI cannot claim a new year');
+      assert.equal(getProjectThemes('riverside').length, 10);
+      assert.match(getProjectThemeReason(seed, 'riverside', 'summer', time), /6–8 月/);
+      let weekly = { ...fuel(seed), community: { ...seed.community, expedition: { ...seed.community.expedition, projects: { ...seed.community.expedition.projects, riverside: { completed: 0, stage: 2, theme: 'summer', lastDay: '', invitationId: 'activity:1:riverside' } } } } };
+      weekly = reload(finishCommunityProject(weekly, 'riverside', 'activity:1:riverside', 'official.furo', 'Furo', time));
+      assert.equal(weekly.community.expedition.projects.riverside.reward.theme, 'summer', 'an accepted seasonal theme survives a season change');
+      weekly = reload(claimCommunityProjectReward(weekly, 'riverside', 'activity:1:riverside'));
+      assert.equal(weekly.community.expedition.projects.riverside.lastTheme, 'summer');
+      assert.equal(weekly.community.expedition.projects.riverside.memories.summer.completed, 1);
     });
 
     await check('计时提醒随取消、冻结、成熟和存档恢复保持一致', async () => {
@@ -2198,7 +2498,7 @@ async function verifySavesAndErrors() {
       const matureAt = planted.community.plots[0].crop.readyAt;
       const plots = saved.community.plots.map(plot => ({ id: plot.id, plantedAt: plot.crop.plantedAt }));
       const full = { ...saved, inventory: { ...saved.inventory, carrot: inventoryItemLimit } };
-      assert.equal(harvestCommunityCrop(full, 1, plots[0].plantedAt, matureAt, false, neighbors).community.farmNeighbor.sequence, 3);
+      assert.equal(harvestCommunityCrop(full, 1, plots[0].plantedAt, matureAt, neighbors).community.farmNeighbor.sequence, 3);
       const harvest = harvestCommunityCrops(saved, plots, matureAt, neighbors);
       assert.equal(harvest.hearts, saved.hearts + 8);
       assert.equal(harvest.community.farmNeighbor.sequence, 4);

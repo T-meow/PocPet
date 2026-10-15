@@ -93,10 +93,10 @@ export const getExplorationHarvestPay = (pet: PetState, kind: 'manual' | 'hour',
   coins: Math.floor((kind === 'manual' ? [20, 40, 80] : [16, 32, 64])[getExplorationTier(pet) - 1] * explorationTravel[region].payPercent / 100),
   hearts: Math.round(5 * getPetStatScale(pet)),
 });
-export const earnExplorationHarvestPay = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId) => {
+export const earnExplorationHarvestPay = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId, quote = getExplorationHarvestPay(pet, kind, region)) => {
   const loop = pet.community.expedition.loop;
   if (pet.timePause || !loop || loop.version !== 2 || !Number.isSafeInteger(count) || count <= 0) return { pet, coins: 0, hearts: 0 };
-  const paid = Math.min(count, Math.max(0, loop.used - (loop.paySettledThrough ?? 0))), quote = getExplorationHarvestPay(pet, kind, region);
+  const paid = Math.min(count, Math.max(0, loop.used - (loop.paySettledThrough ?? 0)));
   return { pet: setBudget(pet, { ...loop, paySettledThrough: loop.used }), coins: quote.coins * paid, hearts: quote.hearts * paid };
 };
 export const spendExplorationHarvest = (pet: PetState, count: number, now: number, reserve = false): PetState => {

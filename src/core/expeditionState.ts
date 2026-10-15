@@ -10,6 +10,7 @@ import type { ExpeditionItemId } from './expeditionTypes';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 import type { RegionalTreasureFind } from './expeditionTypes';
 import { communityGiftPool } from './communityProjectData';
+import { getProjectThemes, isProjectTheme } from './communityThemes';
 import { getIdleExplorationTargets, idleExplorationRandomTarget } from './explorationResources';
 import { idleExplorationBaseIntervalMs, idleExplorationMinIntervalMs } from './expeditionTiming';
 import { hashString } from './utils';
@@ -71,9 +72,15 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
       ...(r.surveyed === true && stamp(r.storyAt) ? { storyAt: r.storyAt, actorId: label(r.actorId), actorName: label(r.actorName) } : {}) };
   }
   for (const id of projectIds) {
-    const p = obj(obj(v.projects)[id]), theme = p.theme === 'garden' || p.theme === 'journey' ? p.theme : undefined;
+    const p = obj(obj(v.projects)[id]), theme = isProjectTheme(id, p.theme) ? p.theme : undefined;
     state.projects[id] = { completed: n(p.completed), stage: theme ? n(p.stage, 2) : 0, theme, lastDay: day(p.lastDay),
       ...(n(p.completed) > 0 && stamp(p.firstAt) ? { firstAt: p.firstAt, actorId: label(p.actorId), actorName: label(p.actorName) } : {}) };
+    state.projects[id].lastTheme = isProjectTheme(id, p.lastTheme) ? p.lastTheme : n(p.completed) ? 'garden' : undefined;
+    state.projects[id].memories = Object.fromEntries(getProjectThemes(id).flatMap(definition => {
+      const memory = obj(obj(p.memories)[definition.id]);
+      return n(memory.completed) && stamp(memory.firstAt) ? [[definition.id, { completed: n(memory.completed), firstAt: memory.firstAt, actorId: label(memory.actorId), actorName: label(memory.actorName) }]] : [];
+    }));
+    if (n(p.completed) && !Object.keys(state.projects[id].memories!).length && stamp(p.firstAt)) state.projects[id].memories = { garden: { completed: n(p.completed), firstAt: p.firstAt, actorId: label(p.actorId), actorName: label(p.actorName) } };
     const invitation = typeof p.invitationId === 'string' && (new RegExp(`^activity:[1-9][0-9]*:${id}$`).test(p.invitationId) || new RegExp(`^legacy:${id}:[0-9]+$`).test(p.invitationId)) ? p.invitationId.slice(0, 128) : undefined;
     if (invitation) state.projects[id].invitationId = invitation;
     const reward = obj(p.reward), gift = communityGiftPool.find(entry => entry.kind === reward.gift)?.kind;
@@ -84,7 +91,7 @@ export const normalizeExpeditionState = (raw: unknown, capacity = 24): Expeditio
       && Number.isSafeInteger(reward.hearts) && reward.hearts > 0 && validRewardItems) {
       const first = n(p.completed) === 1 && reward.first === true;
       // A completed event owns its quoted reward even if future activity tuning changes.
-      state.projects[id].reward = { version: 1, id: invitation, first, gift, hearts: reward.hearts, items: Object.fromEntries(rewardItems), at: reward.at, actorName: label(reward.actorName) };
+      state.projects[id].reward = { version: 1, id: invitation, first, gift, hearts: reward.hearts, items: Object.fromEntries(rewardItems), at: reward.at, actorName: label(reward.actorName), theme: isProjectTheme(id, reward.theme) ? reward.theme : state.projects[id].lastTheme };
     }
   }
   for (const id of [...Object.keys(expeditionProducts), ...adventureTreasureIds] as ExpeditionItemId[]) {

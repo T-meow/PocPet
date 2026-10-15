@@ -3,8 +3,9 @@ import { enforceAdventureHealth } from './adventureReturn';
 import { isAdventureMapUnlocked } from './adventureState';
 import { applyExplorationCheck, previewExplorationAction } from './explorationCheckActions';
 import type { ExplorationCheckAction } from './explorationChecks';
-import { campaignVisits, getCampaignTask, getCampaignReward, type CampaignVisitId } from './explorationCampaignData';
-import { bindCampaignContacts, campaignEventVisible, campaignText, campaignVisitReady, campaignVisitStep, isCampaignDeliveryValid, campaignRunFinished, campaignRunSnapshot, defaultExplorationCampaign } from './explorationCampaignState';
+import { campaignVisits, getCampaignVisit, getCampaignTask, getCampaignReward, type CampaignKind, type CampaignVisitId } from './explorationCampaignData';
+import { bindCampaignContacts, campaignEventVisible, campaignText, campaignVisitReady, campaignVisitStep, isCampaignDeliveryValid, campaignRunFinished, campaignRunSnapshot, defaultExplorationCampaign, getCampaignState, withCampaignRun } from './explorationCampaignState';
+import { getGatheringSeason } from './gatheringSeasons';
 import { getQuarterKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, removeInventoryItem } from './items';
@@ -18,7 +19,7 @@ export const campaignCheckAction = (id: CampaignVisitId, step: number, choice = 
   check: { mode: 'story', skill: 'study' },
 });
 export const getCampaignStepPreview = (pet: PetState, id: CampaignVisitId) => {
-  const step = campaignVisitStep(pet.adventure.campaign, id);
+  const step = campaignVisitStep(getCampaignState(pet, id), id);
   return previewExplorationAction(pet, pet.adventure.active ?? { id: 'picnic', bag: {}, tool: false, rulesVersion: 11 }, campaignCheckAction(id, step), `picnic:${id}:${step}`, expeditionRegionForMap[campaignVisits[id].region]);
 };
 export const getCampaignStartReason = (pet: PetState, now = Date.now()) => {
@@ -45,8 +46,8 @@ export const startExplorationCampaign = (pet: PetState, neighbors: readonly Neig
   const history = previous.startedAt ? [...previous.history, campaignRunSnapshot(previous)] : previous.history;
   const removed = history.slice(0, Math.max(0, history.length - 80));
   const sumReward = (key: 'hearts' | 'apples') => removed.reduce((total, run) => total + Object.values(run.tasks).reduce((sum, record) => sum + (record?.reward?.[key] ?? 0), 0), 0);
-  const campaign = bindCampaignContacts({ ...defaultExplorationCampaign(), startedAt: now, quarter, lastOpenedQuarter: quarter,
-    runId: `picnic:${pet.createdAt}:${quarter}:${now}`, history: history.slice(-80),
+  const campaign = bindCampaignContacts({ ...defaultExplorationCampaign(), theme: getGatheringSeason(getEffectiveDailyDateKey(pet, now)), startedAt: now, quarter, lastOpenedQuarter: quarter,
+    runId: `picnic:${pet.createdAt}:${quarter}:${now}`, history: history.slice(-80), memories: previous.memories,
     archivedCount: previous.archivedCount + removed.length, archivedHearts: previous.archivedHearts + sumReward('hearts'), archivedApples: previous.archivedApples + sumReward('apples') }, neighbors, actorId);
   return { ...pet, adventure: { ...pet.adventure, campaign }, recentEvent: '聚餐的事记下了。有空先去溪谷的小桥那边看看。' };
 };
@@ -55,11 +56,11 @@ export const startExplorationCampaign = (pet: PetState, neighbors: readonly Neig
 export const advanceCampaignVisit = (pet: PetState, tripId: string, revision: number, expectedStep: number, choiceId: string, delivery: Inventory, neighbors: readonly NeighborIdentity[], now = Date.now()): PetState => {
   if (pet.timePause) return pet;
   const before = pet.adventure.active;
-  if (!before?.campaign || before.campaign.runId !== pet.adventure.campaign.runId || before.id !== tripId || before.revision !== revision || campaignVisitStep(pet.adventure.campaign, before.campaign.visitId) !== expectedStep) return pet;
+  if (!before?.campaign || before.campaign.runId !== getCampaignState(pet, before.campaign.visitId).runId || before.id !== tripId || before.revision !== revision || campaignVisitStep(getCampaignState(pet, before.campaign.visitId), before.campaign.visitId) !== expectedStep) return pet;
   pet = advancePet(pet, now);
   const trip = pet.adventure.active;
   if (!trip?.campaign || trip.id !== tripId || !campaignEventVisible(pet, trip) || pet.isSleeping || pet.partnerSchedule.active) return pet;
-  const id = trip.campaign.visitId, visit = campaignVisits[id], state = pet.adventure.campaign;
+  const id = trip.campaign.visitId, state = getCampaignState(pet, id), visit = getCampaignVisit(id, state.theme);
   if (!campaignVisitReady(state, id)) return pet;
   const step = visit.steps[expectedStep], option = step?.options.find(value => value.id === choiceId);
   if (!option) return pet;
@@ -70,34 +71,40 @@ export const advanceCampaignVisit = (pet: PetState, tripId: string, revision: nu
   const checked = applyExplorationCheck(pet, trip, action, `picnic:${id}:${expectedStep}`, expeditionRegionForMap[visit.region]);
   if (!checked) return pet;
   let campaign = { ...state, visits: { ...state.visits, [id]: [...(state.visits[id] ?? []), option.id] },
-    tasks: step.task && !state.tasks[step.task] ? { ...state.tasks, [step.task]: { completedAt: now, ...(step.delivery ? { delivery: { ...delivery } } : {}) } } : state.tasks };
+    tasks: step.task && !state.tasks[step.task] ? { ...state.tasks, [step.task]: { completedAt: now, ...(state.kind === 'spring-reunion' && step.task % 9 !== 0 ? { claimedAt: now, reward: { hearts: 0, apples: 0 } } : {}), ...(step.delivery ? { delivery: { ...delivery } } : {}) } } : state.tasks };
   campaign = bindCampaignContacts(campaign, neighbors, trip.actorId);
   const bag = Object.entries(delivery).reduce((stock, [item, count]) => count ? removeInventoryItem(stock, item, count) : stock, trip.bag);
-  return enforceAdventureHealth({ ...checked.pet, lastInteractionAt: now,
-    adventure: { ...checked.pet.adventure, campaign, active: { ...trip, bag, revision: revision + 1, checkState: checked.state,
+  let progressed = withCampaignRun(checked.pet, campaign);
+  if (campaign.kind === 'quarterly' && step.task === 30 && campaign.theme && !progressed.adventure.campaign.memories[campaign.theme]) {
+    progressed = { ...progressed, adventure: { ...progressed.adventure, campaign: { ...progressed.adventure.campaign, memories: { ...progressed.adventure.campaign.memories, [campaign.theme]: campaignRunSnapshot(campaign) } } } };
+  }
+  return enforceAdventureHealth({ ...progressed, lastInteractionAt: now,
+    adventure: { ...progressed.adventure, active: { ...trip, bag, revision: revision + 1, checkState: checked.state,
       energySpent: (trip.energySpent ?? 0) + checked.energySpent, healthLost: (trip.healthLost ?? 0) + checked.healthLost, paidActions: (trip.paidActions ?? 0) + 1 } },
-    recentEvent: campaignText(option.result, campaign, visit.region),
+    recentEvent: campaignText(option.result, campaign, visit.region, step.task),
   }, now);
 };
 
-export const getCampaignClaimReason = (pet: PetState, taskId: number, runId = pet.adventure.campaign.runId) => {
-  const task = getCampaignTask(taskId), record = pet.adventure.campaign.tasks[taskId];
-  const reward = getCampaignReward(taskId, pet.adventure.campaign.rewardVersion);
-  if (runId !== pet.adventure.campaign.runId) return '聚餐轮次已变化，请重新打开任务。';
+export const getCampaignClaimReason = (pet: PetState, taskId: number, runId = pet.adventure.campaign.runId, kind: CampaignKind = 'quarterly') => {
+  const state = getCampaignState(pet, kind), task = getCampaignTask(taskId, kind), record = state.tasks[taskId];
+  const reward = getCampaignReward(taskId, state.rewardVersion, kind);
+  if (runId !== state.runId) return '聚餐轮次已变化，请重新打开任务。';
   if (pet.timePause) return '恢复时间后再领取。';
   if (!task || !record) return '这件事还没完成。';
   if (record.claimedAt) return '已经领过了。';
+  if (reward.tickets && pet.goldenAppleGacha.tickets + reward.tickets > 9999) return '抽奖券已达容量上限，整份奖励会继续保留。';
   if ((pet.inventory.golden_apple ?? 0) + reward.apples > inventoryItemLimit) return '仓库里的金苹果已满，腾出位置后再领。';
   if (!Number.isFinite(pet.hearts + reward.hearts) || pet.hearts + reward.hearts > Number.MAX_SAFE_INTEGER) return '小心心暂时放不下，稍后再领。';
   return '';
 };
-export const claimCampaignTask = (pet: PetState, taskId: number, now = Date.now(), runId = pet.adventure.campaign.runId): PetState => {
-  const reason = getCampaignClaimReason(pet, taskId, runId);
+export const claimCampaignTask = (pet: PetState, taskId: number, now = Date.now(), runId = pet.adventure.campaign.runId, kind: CampaignKind = 'quarterly'): PetState => {
+  const reason = getCampaignClaimReason(pet, taskId, runId, kind);
   if (reason) return pet;
-  const definition = getCampaignTask(taskId)!, state = pet.adventure.campaign, record = state.tasks[taskId]!;
-  const task = { ...definition, ...getCampaignReward(taskId, state.rewardVersion) };
-  return recordEarnedHearts({ ...pet, hearts: pet.hearts + task.hearts, inventory: addInventoryItem(pet.inventory, 'golden_apple', task.apples),
-    adventure: { ...pet.adventure, campaign: { ...state, tasks: { ...state.tasks, [taskId]: { ...record, claimedAt: now, reward: { hearts: task.hearts, apples: task.apples } } } } },
-    recentEvent: `「${task.title}」的心意收到了：${task.hearts} 小心心、${task.apples} 个金苹果。`,
+  const definition = getCampaignTask(taskId, kind)!, state = getCampaignState(pet, kind), record = state.tasks[taskId]!;
+  const task = { ...definition, ...getCampaignReward(taskId, state.rewardVersion, kind) };
+  const updated = withCampaignRun(pet, { ...state, tasks: { ...state.tasks, [taskId]: { ...record, claimedAt: now, reward: { hearts: task.hearts, apples: task.apples, ...(task.tickets ? { tickets: task.tickets } : {}) } } } });
+  return recordEarnedHearts({ ...updated, hearts: pet.hearts + task.hearts, inventory: addInventoryItem(pet.inventory, 'golden_apple', task.apples),
+    goldenAppleGacha: { ...pet.goldenAppleGacha, tickets: pet.goldenAppleGacha.tickets + (task.tickets ?? 0) },
+    recentEvent: `「${task.title}」的心意收到了：${task.hearts} 小心心、${task.apples} 个金苹果${task.tickets ? `、${task.tickets} 张抽奖券` : ''}。`,
   }, task.hearts);
 };

@@ -16,7 +16,8 @@
 .community-activity-rules { margin-top: 16px; font-size: .85rem; line-height: 1.7; }
 .community-activity-rules summary { cursor: pointer; }
 .community-activity-rules p { margin: 5px 0; }
-.community-activity-themes { display: flex; flex-wrap: wrap; gap: 8px; }
+.community-activity-themes { display: flex; flex-wrap: wrap; margin: -4px; }
+.community-activity-themes > button { margin: 4px; min-width: 0; max-width: 100%; white-space: normal; }
 .community-activity-themes [aria-pressed="true"] { background: #eee0c5; border-color: #aa8052; color: #65441e; }
 .community-activity-steps { list-style: none; padding: 0; display: grid; gap: 12px; }
 .community-activity-steps > li { border: 1px solid #e3e6de; border-radius: 14px; padding: 14px; }

@@ -36,7 +36,7 @@ export const ShopModal = ({ pet, items, browse, onBrowseChange, itemIconMap, onC
     renderActions={(item, quantity) => {
       const quote = getItemPurchaseQuote(pet, item.id, quantity, now, item);
       const biscuit = item.id === 'emergency_biscuit' ? getDailyBiscuitClaimInfo(pet, now) : undefined;
-      const label = quote.reason === 'inventory_full' ? L('饼干库存空间不足', 'Not enough biscuit space') : quote.reason === 'daily_limit' ? t('ui.shop.claimedOut') : quote.reason === 'coins' ? L('金币不足', 'Not enough coins') : biscuit ? t('ui.shop.freeClaimBatch', { count: quantity }) : item.purchaseContents ? L(`购买 ${quantity} 箱`, `Buy ${quantity} boxes`) : L(`购买 ${quantity} 件`, `Buy ${quantity}`);
+      const label = quote.reason === 'inventory_full' ? L('库存空间不足', 'Not enough inventory space') : quote.reason === 'daily_limit' ? t('ui.shop.claimedOut') : quote.reason === 'coins' ? L('金币不足', 'Not enough coins') : biscuit ? t('ui.shop.freeClaimBatch', { count: quantity }) : item.purchaseContents ? L(`购买 ${quantity} 箱`, `Buy ${quantity} boxes`) : L(`购买 ${quantity} 件`, `Buy ${quantity}`);
       return <>
         <div className="storage-total"><span>{L('合计', 'Total')}</span><strong title={t('ui.shop.price', { price: quote.totalPrice })}><img src={currencyIcon} alt="" />{formatCompactNumber(quote.totalPrice)}</strong></div>
         {quote.discountApplied && <small className="storage-transaction-note">{L('首件享优惠，其余按原价。', 'First item discounted; the rest at regular price.')}</small>}

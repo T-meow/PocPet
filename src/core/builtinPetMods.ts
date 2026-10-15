@@ -56,8 +56,16 @@ import deepseekTiredImage from '../mods/mod-deepseek/pet/tired.png';
 import deepseekWorkFoodImage from '../mods/mod-deepseek/pet/work_food.png';
 import deepseekWorkPlantsImage from '../mods/mod-deepseek/pet/work_plants.png';
 import deepseekWorkoutImage from '../mods/mod-deepseek/pet/workout.png';
-import { builtinDeepSeekManifest, builtinDoroManifest, builtinMintManifest } from './builtinPetModManifests';
+import { builtinDeepSeekManifest, builtinDoroManifest, builtinFuroManifest, builtinMintManifest } from './builtinPetModManifests';
+import { goodEndingImage, petActivityImages, petStatusImages } from '../assets';
 import type { ActivePetMod } from './mod';
+
+export const builtinFuroMod: ActivePetMod = {
+  manifest: builtinFuroManifest,
+  petImageUrls: { ...petStatusImages, ...petActivityImages },
+  itemImageUrls: {},
+  cgImageUrls: { good_ending_year_1: goodEndingImage },
+};
 
 export const builtinDoroMod: ActivePetMod = {
   manifest: builtinDoroManifest,
@@ -133,7 +141,7 @@ export const builtinDeepSeekMod: ActivePetMod = {
   },
 };
 
-export const builtinPetMods: readonly ActivePetMod[] = [builtinDoroMod, builtinMintMod, builtinDeepSeekMod];
+export const builtinPetMods: readonly ActivePetMod[] = [builtinFuroMod, builtinDoroMod, builtinMintMod, builtinDeepSeekMod];
 
 export const getBuiltinPetMod = (modId?: string) =>
   builtinPetMods.find((mod) => mod.manifest.id === modId) ?? null;

@@ -8,6 +8,7 @@ import { hasSeasonalReward, type SeasonalAction } from '../core/seasonalStories'
 import { canSpendCompanionTime } from '../core/kitchen';
 import { getRecipe } from '../core/kitchenRecipes';
 import { FestivalArtwork } from './FestivalArtwork';
+import { isSpringReunionVisible } from '../core/springReunion';
 import porkDumplings from '../assets/icon/item_dish_dumplings_pork_cabbage.webp';
 import vegetableDumplings from '../assets/icon/item_dish_dumplings_vegetable.webp';
 import porkZongzi from '../assets/icon/item_dish_zongzi_braised_pork.webp';
@@ -16,9 +17,9 @@ import beanZongzi from '../assets/icon/item_dish_zongzi_red_bean.webp';
 const dishImages: Partial<Record<RecipeId, string>> = { dumplings_pork_cabbage: porkDumplings, dumplings_vegetable: vegetableDumplings, zongzi_braised_pork: porkZongzi, zongzi_red_bean: beanZongzi };
 interface SeasonalStoryProps {
   pet: PetState; festival: SeasonalFestivalId; run?: SeasonalRun; replay?: boolean; backToAlbum?: boolean; blocked?: boolean; now?: number;
-  onStart: () => void; onAction: (action: SeasonalAction) => void; onKitchen: (recipe: RecipeId) => void; onBack: () => void; onAlbum: () => void;
+  onStart: () => void; onAction: (action: SeasonalAction) => void; onKitchen: (recipe: RecipeId) => void; onBack: () => void; onAlbum: () => void; onOpenReunion?: () => void;
 }
-export const SeasonalStoryPage = ({ pet, festival, run, replay = false, backToAlbum = replay, blocked = false, now = Date.now(), onStart, onAction, onKitchen, onBack, onAlbum }: SeasonalStoryProps) => {
+export const SeasonalStoryPage = ({ pet, festival, run, replay = false, backToAlbum = replay, blocked = false, now = Date.now(), onStart, onAction, onKitchen, onBack, onAlbum, onOpenReunion }: SeasonalStoryProps) => {
   const [page, setPage] = useState(0);
   const script = seasonalScripts[festival];
   const window = run ? getFestivalWindow(festival, run.year) : getNextFestivalWindow(festival, now);
@@ -33,6 +34,7 @@ export const SeasonalStoryPage = ({ pet, festival, run, replay = false, backToAl
   const advance = (choice?: string) => { if (moment) onAction({ type: 'advance', stage: moment.id, ...(choice ? { choice } : {}) }); };
   return <section className="festival-page">
     <header className="v2-page-heading"><button className="icon-button" onClick={onBack} aria-label={backToAlbum ? '返回纪念册' : '返回小窝'}><ArrowLeft /></button><div><p className="eyebrow">{replay ? '重温回忆' : '节日故事'} · {festivalNames[festival]}</p><h2>{script.title}</h2></div></header>
+    {festival === 'spring-festival' && onOpenReunion && isSpringReunionVisible(pet, now) && <section className="festival-story-card"><h3>把这一桌坐满</h3><p>{pet.adventure.reunion.startedAt ? '那张写满伙伴名字的团圆邀请还在。准备进度和已经留下的回忆，都记在探索任务里。' : '红色邀请函里还夹着一张地图。有人提议：今年，把所有伙伴都请到同一张桌边。'}</p><button className="primary-button" disabled={blocked} onClick={onOpenReunion}>{pet.adventure.reunion.startedAt ? '看看团圆任务与回忆' : '展开这张团圆邀请'}</button></section>}
     <article className="festival-story-card">
       {run && <div className="festival-story-meta"><span><Sparkles size={16} />{run.year} · {run.actorName}</span><span>{replay ? `${pageIndex + 1} / ${history.length}` : '开始后可随时继续'}</span></div>}
       {moment?.id === 'ending' && <FestivalArtwork festival={festival} />}

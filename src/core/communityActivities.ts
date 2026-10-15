@@ -1,18 +1,23 @@
 import { getEffectiveDailyDateKey } from './gameClock';
 import { getWeekStartDateKey } from './dailyReset';
 import { projectIds } from './expeditionData';
-import { communityProjects, projectThemes, type ProjectTheme } from './communityProjectData';
+import type { ProjectTheme } from './communityProjectData';
+import { getProjectTheme, getProjectThemes, isProjectTheme } from './communityThemes';
+import { getGatheringSeason, seasonalGatherings } from './gatheringSeasons';
 import { getDish, getRecipeUnlockReason } from './kitchenRecipes';
-import { completedChapter, completedLandmark } from './landmarkProgress';
+import { completedChapter, completedLandmark, landmarkNames } from './landmarkProgress';
 import type { CommunityActivityBoard } from './communityTypes';
 import type { ProjectId } from './expeditionTypes';
 import type { PetState } from './petTypes';
 
-export const getProjectThemeReason = (pet: PetState, id: ProjectId, theme: ProjectTheme): string => {
+export const getProjectThemeReason = (pet: PetState, id: ProjectId, theme: ProjectTheme, now = Date.now()): string => {
+  if (!isProjectTheme(id, theme)) return '这个活动没有该主题';
+  const definition = getProjectTheme(id, theme);
+  if (definition.season && definition.season !== getGatheringSeason(getEffectiveDailyDateKey(pet, now))) return `${seasonalGatherings[definition.season].name}在 ${seasonalGatherings[definition.season].months}开放`;
   if (!((pet.adventure.completed.tutorial ?? 0) > 0)) return '先完成并结算新手踩点';
   if (id === 'riverside') {
     if (!pet.community.firstOrderDelivered) return '先给修渠邻居送出第一碗社区暖粥';
-    if (theme === 'journey' && !completedLandmark(pet.adventure, 'valley', 'story')) return '先完成溪谷旧温室地标';
+    if (definition.region && !completedLandmark(pet.adventure, definition.region, 'story')) return `先完成${landmarkNames[definition.region].story}地标`;
   }
   if (id === 'exhibition') {
     if (theme === 'garden' && !pet.community.facilities.fishing_hut.built) return '先建好钓鱼小屋';
@@ -20,7 +25,7 @@ export const getProjectThemeReason = (pet: PetState, id: ProjectId, theme: Proje
     if (theme === 'journey' && (!completedChapter(pet.adventure, 'forest') || !completedChapter(pet.adventure, 'coast'))) return '先完成林地与海岸各八个地标';
   }
   if (id === 'observatory' && (!completedChapter(pet.adventure, 'observatory') || pet.community.expedition.regions.station.base < 1)) return '先完成观测站八个地标，并建好一级休息基地';
-  const menu = communityProjects[id].meals[theme === 'journey' ? 1 : 0];
+  const menu = definition.meals;
   for (const item of Object.keys(menu)) {
     const dish = getDish(item);
     const reason = dish ? getRecipeUnlockReason(pet, dish.recipe.id, dish.recipe.variantKey) : '';
@@ -35,7 +40,7 @@ export const getCommunityActivityBoard = (pet: PetState, now = Date.now()): Comm
   if (pet.timePause) return current;
   const week = getWeekStartDateKey(getEffectiveDailyDateKey(pet, now));
   if (current.week >= week && current.project) return current;
-  const eligible = projectIds.filter(id => projectThemes.some(theme => !getProjectThemeReason(pet, id, theme)));
+  const eligible = projectIds.filter(id => getProjectThemes(id).some(theme => !getProjectThemeReason(pet, id, theme.id, now)));
   const previous = current.project ?? current.previousProject;
   const start = previous ? projectIds.indexOf(previous) + 1 : 0;
   const project = Array.from({ length: projectIds.length }, (_, i) => projectIds[(start + i) % projectIds.length]).find(id => eligible.includes(id));

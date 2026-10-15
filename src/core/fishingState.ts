@@ -2,7 +2,7 @@ import { fish, fishIds, waterIds } from './communityData';
 import type { CommunityState, FishingCatch, FishingPreferences, WaterId } from './communityTypes';
 import type { AdventureState } from './adventureTypes';
 import { completedChapter, completedLandmark } from './landmarkProgress';
-import { getFishingClicks, isGoldCrownFish } from './fishingRules';
+import { companionFishingCount, getFishingClicks, isGoldCrownFish } from './fishingRules';
 import { isTravelFood, normalizeRationReturn } from './explorationRations';
 import type { Inventory, PetState } from './petTypes';
 
@@ -24,6 +24,10 @@ const obj = (v: unknown): Record<string, any> => v && typeof v === 'object' && !
 const n = (v: unknown, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
 const stamp = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 const text = (v: unknown) => typeof v === 'string' ? v.slice(0, 128) : '';
+const companion = (raw: unknown) => {
+  const value = obj(raw), modId = text(value.modId), name = text(value.name);
+  return modId && name ? { modId, name } : undefined;
+};
 const catches = (raw: unknown): FishingCatch[] => (Array.isArray(raw) ? raw : []).slice(0, 32).flatMap(v => {
   const c = obj(v);
   return fishIds.includes(c.fish) ? [{ fish: c.fish, size: n(c.size, 200), newRecord: c.newRecord === true, newCrown: c.newCrown === true }] : [];
@@ -34,6 +38,7 @@ const normalizeFishingPreferences = (raw: unknown): FishingPreferences | undefin
   return {
     water: waterIds.includes(p.water) ? p.water : 'pond', bait: p.bait === 'river_bait' ? 'river_bait' : 'fishing_bait',
     strongRod: p.strongRod === true, float: p.float === true, net: p.net === true,
+    ...(p.inviteCompanion === true ? { inviteCompanion: true } : {}),
     mode: p.mode === 'idle' ? 'idle' : 'manual', hours: p.hours === 4 || p.hours === 8 ? p.hours : 2,
     rations: { autoFill: rations.autoFill !== false, food: Object.fromEntries(Object.entries(obj(rations.food)).filter(([id, count]) => isTravelFood(id) && n(count)).map(([id, count]) => [id, n(count, 8)])) },
   };
@@ -44,6 +49,7 @@ export const getFishingPreferences = (pet: PetState): FishingPreferences => {
     water: active?.water ?? pending?.water ?? 'pond', bait: active?.mode === 'idle' ? active.bait : 'fishing_bait',
     strongRod: active?.strongRod ?? (!(pet.inventory.fishing_rod ?? 0) && (pet.inventory.reinforced_rod ?? 0) > 0),
     float: false, net: active?.mode === 'manual' && active.landingNet === true,
+    ...(active?.mode === 'manual' && active.companion ? { inviteCompanion: true } : {}),
     mode: active?.mode ?? pending?.mode ?? 'manual', hours: active?.mode === 'idle' ? (active.endsAt - active.startedAt) / 3600000 as 2 | 4 | 8 : 2,
     rations: { food: {}, autoFill: true },
   };
@@ -67,7 +73,7 @@ export const normalizeFishingState = (raw: unknown, community: CommunityState): 
     const legacy = fishIds.includes(p.fish) && !p.items;
     const found: FishingCatch[] = legacy ? [{ fish: p.fish, size: n(p.size, 200), newRecord: false, newCrown: false }] : catches(p.catches);
     const items: Inventory = legacy ? { [p.fish]: 1 } : Object.fromEntries(Object.entries(obj(p.items)).filter(([id, count]) => (fishIds.includes(id as typeof fishIds[number]) || id === 'fishing_bait' || id === 'river_bait') && n(count)).map(([id, count]) => [id, n(count, 9999)]));
-    if (Object.keys(items).length || p.mode === 'idle' && stamp(p.at)) state.pending = { id: text(p.id), mode: p.mode === 'idle' ? 'idle' : 'manual', catches: found, items, water: waterIds.includes(p.water) ? p.water : found[0] ? fish[found[0].fish].water : 'pond', at: n(p.at), reason: ['return', 'health', 'supplies'].includes(p.reason) ? p.reason : 'complete', ...(normalizeRationReturn(p.rationReturn) ? { rationReturn: normalizeRationReturn(p.rationReturn) } : {}) };
+    if (Object.keys(items).length || p.mode === 'idle' && stamp(p.at)) state.pending = { id: text(p.id), mode: p.mode === 'idle' ? 'idle' : 'manual', catches: found, items, water: waterIds.includes(p.water) ? p.water : found[0] ? fish[found[0].fish].water : 'pond', at: n(p.at), reason: ['return', 'health', 'supplies'].includes(p.reason) ? p.reason : 'complete', ...(normalizeRationReturn(p.rationReturn) ? { rationReturn: normalizeRationReturn(p.rationReturn) } : {}), ...(p.mode !== 'idle' && companion(p.companion) ? { companion: companion(p.companion) } : {}) };
   }
   if (state.pending) return state;
   const a = obj(f.active);
@@ -79,7 +85,10 @@ export const normalizeFishingState = (raw: unknown, community: CommunityState): 
     state.active = { ...common, mode: 'idle', actorId: text(a.actorId), actorName: text(a.actorName), bait: a.bait === 'river_bait' ? 'river_bait' : 'fishing_bait', startedAt: a.startedAt, endsAt: a.endsAt, plannedCasts, settledCasts, reservedBait: n(a.reservedBait, plannedCasts - settledCasts), catches: catches(a.catches), rationPlan: { food: Object.fromEntries(Object.entries(obj(ration.food)).filter(([id, count]) => isTravelFood(id) && n(count)).map(([id, count]) => [id, n(count, 8)])), coins: n(ration.coins, 10000), purchased: n(ration.purchased, 8) } };
   } else if (fishIds.includes(a.fish) && (a.phase === 'waiting' || a.phase === 'reeling') && stamp(a.biteAt) && stamp(a.lastActionAt)) {
     const requiredClicks = a.mode === 'manual' ? Math.max(2, n(a.requiredClicks, 4)) : getFishingClicks(common.strongRod, a.landingNet === true);
-    state.active = { ...common, mode: 'manual', fish: a.fish, size: n(a.size, 200), phase: a.phase, biteAt: a.biteAt, lastActionAt: a.lastActionAt, requiredClicks, clicks: a.mode === 'manual' ? n(a.clicks, requiredClicks - 1) : Math.min(requiredClicks - 1, Math.floor(n(a.progress, 100) * requiredClicks / 100)), ...(a.landingNet === true ? { landingNet: true } : {}) };
+    const batch = catches(a.catches).filter(caught => fish[caught.fish].water === common.water).slice(0, companionFishingCount).map(({ fish, size }) => ({ fish, size }));
+    state.active = { ...common, mode: 'manual', fish: a.fish, size: n(a.size, 200), phase: a.phase, biteAt: a.biteAt, lastActionAt: a.lastActionAt, requiredClicks, clicks: a.mode === 'manual' ? n(a.clicks, requiredClicks - 1) : Math.min(requiredClicks - 1, Math.floor(n(a.progress, 100) * requiredClicks / 100)), ...(a.landingNet === true ? { landingNet: true } : {}),
+      ...(batch.length === companionFishingCount ? { catches: batch, companion: companion(a.companion) ?? { modId: 'generic-neighbor', name: '热心邻居' } } : {}),
+    };
   }
   return state;
 };

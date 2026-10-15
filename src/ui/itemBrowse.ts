@@ -54,7 +54,7 @@ export const getItemBrowseLimit = (pet: PetState, item: InventoryItemDefinition,
     if (!item.shop) return 0;
     if (item.id === 'emergency_biscuit') {
       const claim = getDailyBiscuitClaimInfo(pet, now);
-      return Math.min(batchLimit, Math.max(0, claim.limit - claim.claimed));
+      return Math.min(batchLimit, Math.max(0, claim.limit - claim.claimed), getPurchaseCapacity(pet, item));
     }
     return Math.min(batchLimit, getPurchaseCapacity(pet, item));
   }

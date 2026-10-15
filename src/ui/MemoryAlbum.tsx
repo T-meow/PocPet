@@ -8,6 +8,7 @@ import { createAlbumData, createCurrentReview, createReviewAlbumData } from './a
 import { CompanionMemories } from './CompanionMemories';
 import { FestivalMemories } from './FestivalStories';
 import { CommunityMemories } from './community/CommunityMemories';
+import { GatheringCampaignMemories } from './GatheringCampaignMemories';
 
 interface MemoryAlbumProps {
   pet: PetState;
@@ -71,6 +72,7 @@ export const MemoryAlbum = ({ pet, actorId, portrait, art, onBack, onOpenArt, on
         </section>
         <aside className="album-stories">
           <CommunityMemories pet={pet} />
+          <GatheringCampaignMemories pet={pet} />
           {onReplayFestival && <FestivalMemories pet={pet} onReplay={onReplayFestival} onContinue={onContinueFestival} />}
           <section className="v2-card"><CompanionMemories pet={pet} actorId={actorId} /></section>
           <section className="v2-card album-art">

@@ -13,6 +13,9 @@ export const communityUpgrades: Record<CommunityUpgradeId, CommunityUpgrade[]> =
   garden: [
     { name: '开垦第 2 块菜地', effect: '2 块菜地独立播种、照料与收获', region: 'valley', coins: 300, items: cost(6, 4, { bamboo_shoot: 4, creek_aquamarine: 1 }) },
     { name: '开垦第 3 块菜地', effect: '3 块菜地独立播种、照料与收获', region: 'hills', coins: 700, items: cost(10, 8, { wild_onion: 4, hill_sunstone: 1 }) },
+    { name: '开垦第 4 块菜地', effect: '4 块菜地独立播种、照料与收获', region: 'forest', coins: 1200, items: cost(14, 12, { pine_resin: 4, forest_emerald: 1 }) },
+    { name: '开垦第 5 块菜地', effect: '5 块菜地独立播种、照料与收获', region: 'coast', coins: 1800, items: cost(18, 16, { sea_glass: 4, tidal_pearl: 1 }) },
+    { name: '开垦第 6 块菜地', effect: '6 块菜地独立播种、照料与收获', region: 'station', coins: 2500, items: cost(22, 20, { observatory_part: 4, star_sapphire: 1 }) },
   ],
   coop: [
     { name: '扩建鸡舍 · Lv.2', effect: '饲料容量 5 份，待收鸡蛋容量 10 份', region: 'valley', coins: 240, items: cost(6, 3, { valley_mushroom: 4, creek_aquamarine: 1 }) },
@@ -34,6 +37,7 @@ export const communityUpgrades: Record<CommunityUpgradeId, CommunityUpgrade[]> =
   ],
 };
 export const upgradeRegionNames: Record<RegionId, string> = { valley: '溪谷', hills: '风车山丘', forest: '雾松林地', coast: '潮汐海岸', station: '旧观测站' };
+export const communityGardenPlotLimit = communityUpgrades.garden.length + 1;
 export const getCommunityUpgradeLevel = (pet: PetState, id: CommunityUpgradeId) => id === 'stall' ? pet.community.market.level : pet.community.upgrades[id];
 export const getAnimalCapacity = (community: CommunityState, id: AnimalId) => {
   const level = Math.max(1, Math.min(3, community.upgrades[id]));

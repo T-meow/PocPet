@@ -12,7 +12,7 @@ import {
   type PetModLibraryState,
   type PetModManifest,
 } from './mod';
-import { builtinMintManifest, getAvailableBuiltinPetModManifests, getBuiltinPetModManifest, isBuiltinPetModId, isProtectedPetModId } from './builtinPetModManifests';
+import { builtinFuroManifest, builtinPetModManifests, getAvailableBuiltinPetModManifests, getBuiltinPetModManifest, isBuiltinPetModId } from './builtinPetModManifests';
 
 const legacyActiveManifestStorageKey = 'pocpet.mod.active.v1';
 const libraryStorageKey = 'pocpet.mod.library.v1';
@@ -22,9 +22,11 @@ const modIdIndexName = 'modId';
 const databaseVersion = 2;
 
 export const petModLibraryLimit = 12;
+export const petModMinimumCount = 2;
+export const petModMinimumMessage = '至少保留两位伙伴，恢复默认角色或导入新角色后才能继续删除。';
 
 type ImageScope = 'pet' | 'item' | 'cg';
-type ObjectUrlOwner = 'active' | 'library';
+type ObjectUrlOwner = 'active' | 'library' | 'prepared';
 
 interface StoredImageRecord {
   key: string;
@@ -37,6 +39,7 @@ interface StoredImageRecord {
 const objectUrlsByOwner: Record<ObjectUrlOwner, Set<string>> = {
   active: new Set<string>(),
   library: new Set<string>(),
+  prepared: new Set<string>(),
 };
 
 const revokeObjectUrls = (owner: ObjectUrlOwner) => {
@@ -119,7 +122,12 @@ const replaceModRecords = async (modId: string, records: StoredImageRecord[]) =>
 
 const deleteModRecords = (modId: string) => replaceModRecords(modId, []);
 
-const emptyLibraryState = (): PetModLibraryState => ({ schemaVersion: 1, mods: [] });
+const emptyLibraryState = (): PetModLibraryState => ({ schemaVersion: 1, activeModId: builtinFuroManifest.id, mods: [], deletedBuiltinModIds: [] });
+
+export const getAvailablePetModManifests = (library: PetModLibraryState): readonly PetModManifest[] => [
+  ...getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds),
+  ...library.mods.map((mod) => mod.manifest),
+];
 
 const normalizeImportedAt = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
@@ -143,14 +151,17 @@ export const normalizePetModLibraryState = (value: unknown): PetModLibraryState 
   const mods = Array.from(modsById.values())
     .filter((mod) => !isBuiltinPetModId(mod.manifest.id))
     .slice(-petModLibraryLimit);
-  const deletedBuiltinModIds = Array.isArray(raw.deletedBuiltinModIds)
-    ? [...new Set(raw.deletedBuiltinModIds.filter((id): id is string => typeof id === 'string' && isBuiltinPetModId(id) && !isProtectedPetModId(id)))]
+  let deletedBuiltinModIds = Array.isArray(raw.deletedBuiltinModIds)
+    ? [...new Set(raw.deletedBuiltinModIds.filter((id): id is string => typeof id === 'string' && isBuiltinPetModId(id)))]
     : [];
-  const builtinIds = new Set(getAvailableBuiltinPetModManifests(deletedBuiltinModIds).map((mod) => mod.id));
-  const activeModId = typeof raw.activeModId === 'string'
-    ? builtinIds.has(raw.activeModId) || mods.some((mod) => mod.manifest.id === raw.activeModId)
-      ? raw.activeModId : builtinMintManifest.id
-    : undefined;
+  // 损坏的角色库也要保留至少两位可选伙伴。
+  for (const builtin of builtinPetModManifests) {
+    if (getAvailableBuiltinPetModManifests(deletedBuiltinModIds).length + mods.length >= petModMinimumCount) break;
+    deletedBuiltinModIds = deletedBuiltinModIds.filter((id) => id !== builtin.id);
+  }
+  const available = getAvailablePetModManifests({ schemaVersion: 1, mods, deletedBuiltinModIds });
+  const requestedId = typeof raw.activeModId === 'string' ? raw.activeModId : builtinFuroManifest.id;
+  const activeModId = available.find((mod) => mod.id === requestedId)?.id ?? available[0].id;
   return { schemaVersion: 1, activeModId, mods, deletedBuiltinModIds };
 };
 
@@ -169,9 +180,10 @@ const readLegacyManifest = () => {
 
 const readPetModLibraryState = (): PetModLibraryState => {
   let library = emptyLibraryState();
+  let hasLibrary = false;
   try {
     const raw = window.localStorage.getItem(libraryStorageKey);
-    if (raw) library = normalizePetModLibraryState(JSON.parse(raw));
+    if (raw) { library = normalizePetModLibraryState(JSON.parse(raw)); hasLibrary = true; }
   } catch {
     library = emptyLibraryState();
   }
@@ -180,7 +192,7 @@ const readPetModLibraryState = (): PetModLibraryState => {
   if (legacyManifest && !isBuiltinPetModId(legacyManifest.id) && !library.mods.some((mod) => mod.manifest.id === legacyManifest.id)) {
     library = {
       ...library,
-      activeModId: library.activeModId ?? legacyManifest.id,
+      activeModId: hasLibrary ? library.activeModId : legacyManifest.id,
       mods: [...library.mods, { manifest: legacyManifest, importedAt: Date.now() }].slice(-petModLibraryLimit),
     };
   }
@@ -236,35 +248,60 @@ export const installPetMod = async (mod: ParsedPetMod) => {
 
 export const setActivePetMod = (modId?: string) => {
   const library = getPetModLibraryState();
-  const builtinAvailable = getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds).some((mod) => mod.id === modId);
-  const activeModId = modId && (builtinAvailable || library.mods.some((mod) => mod.manifest.id === modId))
-    ? modId
-    : undefined;
+  const available = getAvailablePetModManifests(library);
+  const requestedId = modId ?? builtinFuroManifest.id;
+  const activeModId = available.find((mod) => mod.id === requestedId)?.id ?? library.activeModId ?? available[0].id;
   writeLibraryState({ ...library, activeModId });
-  if (!activeModId) revokeObjectUrls('active');
 };
 
+let deletingPetMod = false;
 export const deletePetMod = async (modId: string) => {
-  if (isProtectedPetModId(modId)) throw new Error('Mint 是保留角色，不能删除。');
-  const library = getPetModLibraryState();
-  const builtin = isBuiltinPetModId(modId);
-  if (!builtin && !library.mods.some((mod) => mod.manifest.id === modId)) return;
-  const wasActive = library.activeModId === modId;
-  if (!builtin) await deleteModRecords(modId);
-  writeLibraryState({
-    ...library,
-    activeModId: wasActive ? builtinMintManifest.id : library.activeModId,
-    mods: library.mods.filter((mod) => mod.manifest.id !== modId),
-    deletedBuiltinModIds: builtin ? [...new Set([...(library.deletedBuiltinModIds ?? []), modId])] : library.deletedBuiltinModIds,
-  });
-  if (wasActive) revokeObjectUrls('active');
-  revokeObjectUrls('library');
+  if (deletingPetMod) throw new Error('正在删除角色，请稍候。');
+  deletingPetMod = true;
+  try {
+    const library = getPetModLibraryState();
+    const available = getAvailablePetModManifests(library);
+    if (!available.some((mod) => mod.id === modId)) return;
+    if (available.length <= petModMinimumCount) throw new Error(petModMinimumMessage);
+    const builtin = isBuiltinPetModId(modId);
+    const wasActive = library.activeModId === modId;
+    const next = {
+      ...library,
+      activeModId: wasActive ? available.find((mod) => mod.id !== modId)!.id : library.activeModId,
+      mods: library.mods.filter((mod) => mod.manifest.id !== modId),
+      deletedBuiltinModIds: builtin ? [...new Set([...(library.deletedBuiltinModIds ?? []), modId])] : library.deletedBuiltinModIds,
+    };
+    // A failed catalog write must never destroy the only stored image copies.
+    writeLibraryState(next);
+    if (!builtin) {
+      try {
+        await deleteModRecords(modId);
+      } catch (error) {
+        // IndexedDB deletes are transactional; on failure the image records remain.
+        // Restore this entry without discarding any other intervening library changes.
+        const current = readPetModLibraryState(), entry = library.mods.find((mod) => mod.manifest.id === modId)!;
+        const mods = [...current.mods];
+        if (!mods.some((mod) => mod.manifest.id === modId)) mods.splice(Math.min(library.mods.indexOf(entry), mods.length), 0, entry);
+        writeLibraryState({ ...current, mods, activeModId: wasActive && current.activeModId === next.activeModId ? modId : current.activeModId });
+        throw error;
+      }
+    }
+    if (wasActive) revokeObjectUrls('active');
+    revokeObjectUrls('library');
+  } finally {
+    deletingPetMod = false;
+  }
 };
 
 export const restoreBuiltinPetMod = (modId: string) => {
   if (!isBuiltinPetModId(modId)) throw new Error('找不到这个内置角色。');
   const library = getPetModLibraryState();
   writeLibraryState({ ...library, deletedBuiltinModIds: (library.deletedBuiltinModIds ?? []).filter((id) => id !== modId) });
+};
+
+export const restoreBuiltinPetMods = () => {
+  const library = getPetModLibraryState();
+  writeLibraryState({ ...library, deletedBuiltinModIds: [] });
 };
 
 export const listInstalledPetMods = async (): Promise<InstalledPetModSummary[]> => {
@@ -284,13 +321,13 @@ export const listInstalledPetMods = async (): Promise<InstalledPetModSummary[]> 
   })];
 };
 
-export const loadPetMod = async (modId: string): Promise<ActivePetMod | null> => {
+const loadPetModResources = async (modId: string, owner: ObjectUrlOwner): Promise<ActivePetMod | null> => {
   const library = getPetModLibraryState();
   if (isBuiltinPetModId(modId)) {
     if (!getAvailableBuiltinPetModManifests(library.deletedBuiltinModIds).some((mod) => mod.id === modId)) return null;
     const { getBuiltinPetMod } = await import('./builtinPetMods');
     const builtinMod = getBuiltinPetMod(modId);
-    revokeObjectUrls('active');
+    revokeObjectUrls(owner);
     return builtinMod;
   }
   const manifest = library.mods.find((mod) => mod.manifest.id === modId)?.manifest;
@@ -308,21 +345,30 @@ export const loadPetMod = async (modId: string): Promise<ActivePetMod | null> =>
   const cgRecordKeys = modCgImageKeys.map((key) => getImageRecordKey(manifest.id, 'cg', key));
   const records = await getRecords([...petRecordKeys, ...itemRecordKeys, ...cgRecordKeys]);
   const recordsByKey = new Map(records.flatMap((record) => record ? [[record.key, record] as const] : []));
-  revokeObjectUrls('active');
+  revokeObjectUrls(owner);
 
   petKeys.forEach((key) => {
     const blob = recordsByKey.get(getImageRecordKey(manifest.id, 'pet', key))?.blob;
-    if (blob) petImageUrls[key as PetImageKey] = createTrackedObjectUrl('active', blob);
+    if (blob) petImageUrls[key as PetImageKey] = createTrackedObjectUrl(owner, blob);
   });
   itemKeys.forEach((key) => {
     const blob = recordsByKey.get(getImageRecordKey(manifest.id, 'item', key))?.blob;
-    if (blob) itemImageUrls[key] = createTrackedObjectUrl('active', blob);
+    if (blob) itemImageUrls[key] = createTrackedObjectUrl(owner, blob);
   });
   modCgImageKeys.forEach((key) => {
     const blob = recordsByKey.get(getImageRecordKey(manifest.id, 'cg', key))?.blob;
-    if (blob) cgImageUrls[key] = createTrackedObjectUrl('active', blob);
+    if (blob) cgImageUrls[key] = createTrackedObjectUrl(owner, blob);
   });
   return { manifest, petImageUrls, itemImageUrls, cgImageUrls };
+};
+
+export const loadPetMod = (modId: string) => loadPetModResources(modId, 'active');
+export const preparePetMod = (modId: string) => loadPetModResources(modId, 'prepared');
+export const discardPreparedPetMod = () => revokeObjectUrls('prepared');
+export const adoptPreparedPetMod = () => {
+  revokeObjectUrls('active');
+  for (const url of objectUrlsByOwner.prepared) objectUrlsByOwner.active.add(url);
+  objectUrlsByOwner.prepared.clear();
 };
 
 export const loadActivePetMod = async () => {

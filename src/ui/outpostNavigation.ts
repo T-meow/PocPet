@@ -5,7 +5,8 @@ import type { LandmarkNode } from '../core/landmarkProgress';
 
 export type OutpostRequest =
   | { view: 'idle' | 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode; museumVisit?: import('../core/museumData').MuseumVisitId }
-  | { view: 'journal' };
+  | { view: 'journal' }
+  | { view: 'tasks'; kind?: import('../core/explorationCampaignData').CampaignKind };
 
 export { expeditionRegionForMap, mapRegionForExpedition } from '../core/landmarkProgress';
 

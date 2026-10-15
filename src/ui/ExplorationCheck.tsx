@@ -25,6 +25,7 @@ export const ExplorationChoiceDetails = ({ pet, preview: p, definition: d, resea
 
 export const ExplorationCheckSummary = ({ result: r }: { result?: ExplorationCheckResult }) => !r ? null : <div className="exploration-check-result" data-outcome={r.outcome} role="status">
   <strong>{r.title} · {explorationOutcomeNames[r.outcome]}</strong>
+  {r.harvestCount !== undefined && <span>本次消耗 {r.harvestCount} 次采集机会 · {r.harvestCount} 倍采集收益</span>}
   <span>饱食 −{number(r.hunger)} · 体力 −{number(r.energy)} · {r.healthLoss ? `健康 −${number(r.healthLoss)}` : '健康无损'}{r.moodChange ? ` · 心情 ${signed(r.moodChange)}` : ''}</span>
   {Object.keys(r.finds).length > 0 && <span className="exploration-action-benefit">取得 {Object.entries(r.finds).map(([id, n]) => `${name(id)} ×${number(n)}`).join(' · ')}</span>}
   {r.researchId && <span className="exploration-action-benefit">{name(r.researchId)}调查进度 +{number(r.researchPoints)}</span>}

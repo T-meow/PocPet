@@ -138,7 +138,7 @@ export const GardenPage = ({ pet, itemIconMap, onBack, backLabel = t('ui.garden.
         )}
         <HelpButton {...orchardHelp} />
         {blockedReason && <p className="garden-practice-hint" role="status">{blockedReason}</p>}
-        {!blockedReason && manageBlockedReason && <p className="garden-practice-hint">邻居可以代办种植、照料和收获；解锁、清树、回收树苗与工具升级要等伙伴空闲。</p>}
+        {!blockedReason && manageBlockedReason && <p className="garden-practice-hint">解锁、清树、回收与工具升级需伙伴空闲。</p>}
         <div className="garden-plot-grid">
           {view.garden.slots.map((plot) => {
             const plotView = view.slotViews[plot.slotIndex];

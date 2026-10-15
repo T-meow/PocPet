@@ -40,7 +40,9 @@ export interface ExpeditionReceipt {
 }
 export interface RegionalTreasureFind { region: RegionId; item: import('./regionalTreasures').RegionalTreasureId; at: number; guaranteed: boolean }
 export interface CommunityProject {
-  completed: number; stage: number; theme?: 'garden' | 'journey';
+  completed: number; stage: number; theme?: import('./communityProjectData').ProjectTheme;
+  lastTheme?: import('./communityProjectData').ProjectTheme;
+  memories?: Partial<Record<import('./communityProjectData').ProjectTheme, import('./communityThemes').CommunityThemeMemory>>;
   lastDay: string; firstAt?: number; actorId?: string; actorName?: string;
   invitationId?: string;
   reward?: import('./communityProjectData').CommunityProjectReward;

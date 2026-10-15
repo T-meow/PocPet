@@ -3,6 +3,28 @@ import type { PetState } from './petTypes';
 import { getExplorationRoll } from './explorationChecks';
 import { getToolUsesLeft } from './toolDurability';
 import { hashString } from './utils';
+import { adventureGatherMultipliers, type AdventureGatherMultiplier } from './adventureTypes';
+import type { CommunityRoute } from './communityTypes';
+import type { CampaignVisitId } from './explorationCampaignData';
+import type { MuseumVisitId } from './museumData';
+import { campaignDestination, campaignVisitAt } from './explorationCampaignState';
+import { isLandmarkId } from './landmarkProgress';
+import { getLandmarkGatherCount } from './landmarkData';
+import { getExplorationBudget } from './explorationBudget';
+
+export const normalizeAdventureGatherMultiplier = (value: unknown): AdventureGatherMultiplier =>
+  adventureGatherMultipliers.find(multiplier => multiplier === value) ?? 1;
+
+export const getAdventureCompanionQuote = (pet: PetState, purpose: CommunityRoute | undefined, selected: AdventureGatherMultiplier = 1, campaignVisit?: CampaignVisitId, museumVisit?: MuseumVisitId) => {
+  const visit = campaignVisit ?? campaignVisitAt(pet, purpose);
+  const available = !museumVisit && isLandmarkId(purpose) && getLandmarkGatherCount(purpose) > 0 && !(visit && pet.adventure.landmarks.includes(campaignDestination(visit)));
+  const multiplier = available ? normalizeAdventureGatherMultiplier(selected) : 1;
+  const cost = (multiplier - 1) * 10;
+  return { available, multiplier, cost, reason: pet.hearts < cost ? `同行需要 ${cost} 小心心，还差 ${Math.ceil(cost - pet.hearts)} 小心心。` : '' };
+};
+
+export const getAdventureGatherCount = (pet: PetState, base = 1, now = pet.lastUpdatedAt) => base > 0
+  ? Math.min(base * normalizeAdventureGatherMultiplier(pet.adventure.active?.gatherMultiplier), getExplorationBudget(pet, now)?.available ?? 0) : 0;
 
 export interface AdventureStageChoice extends AdventureChoice {
   sourceChoiceId?: string;

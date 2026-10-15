@@ -12,7 +12,7 @@ import { itemIcons } from '../assets';
 import type { PetState } from '../core/pet';
 import { isHostedMiniGameSession, type PlayMode } from '../core/companionActivityTypes';
 import { sessionId } from '../minigames/shared/state';
-import { MiniGameEntrance } from './play/MiniGameEntrance';
+import { MiniGameEntrance, MiniGameHelp } from './play/MiniGameEntrance';
 import { playSfx } from '../core/audio';
 import './play/miniGameHub.css';
 
@@ -58,6 +58,7 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
     <header className="activity-header">
       <div className="activity-heading"><span className="activity-icon"><Gamepad2 /></span><div><small>陪伴小日常</small><h2 id="play-title">{playing ? gameName(active.game) : tab === 'memories' ? L('共同回忆', 'Memories') : L('一起游戏', 'Games together')}</h2></div></div>
       <div className="activity-header-actions">
+        <MiniGameHelp game={playing ? active.game : undefined} />
         {playing && <button className="icon-button" onClick={backToGames} aria-label={hosted ? '返回游戏列表并保存进度' : L('暂停', 'Pause')}>{hosted ? <ArrowLeft size={20} /> : <Pause size={20} />}</button>}
         {!playing && tab === 'memories' && <button className="icon-button" onClick={() => { playSfx('tap'); setTab('games'); }} aria-label="返回游戏列表"><ArrowLeft size={20} /></button>}
         <button className="icon-button" onClick={onClose} aria-label={L('关闭游戏', 'Close games')}><X /></button>

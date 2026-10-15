@@ -19,6 +19,8 @@ export interface ManualFishingSession {
   mode: 'manual'; id: string; water: WaterId; fish: FishId; size: number; phase: 'waiting' | 'reeling';
   biteAt: number; lastActionAt: number; clicks: number; requiredClicks: number; revision: number;
   strongRod: boolean; landingNet?: boolean; hutLevel: number;
+  catches?: Pick<FishingCatch, 'fish' | 'size'>[];
+  companion?: import('./petTypes').NeighborIdentity;
 }
 export interface FishingCatch { fish: FishId; size: number; newRecord: boolean; newCrown: boolean }
 export interface IdleFishingSession {
@@ -33,11 +35,13 @@ export interface FishingReceipt {
   id: string; mode: 'manual' | 'idle'; catches: FishingCatch[]; items: import('./petTypes').Inventory;
   water: WaterId; at: number; reason: 'complete' | 'return' | 'health' | 'supplies';
   rationReturn?: import('./explorationRations').RationReturn;
+  companion?: import('./petTypes').NeighborIdentity;
 }
 export interface FishingJournalEntry { count: number; firstAt: number; largest: number; goldCrown?: boolean }
 export interface FishingPreferences {
   water: WaterId; bait: 'fishing_bait' | 'river_bait'; strongRod: boolean; float: boolean; net: boolean;
   mode: 'manual' | 'idle'; hours: 2 | 4 | 8; rations: import('./explorationRations').RationSelection;
+  inviteCompanion?: boolean;
 }
 export interface MarketListing { id: number; slotIndex: number; itemId: string; quantity: number; unitPrice: number; basePrice: number; bonus: number; collector: boolean }
 export type MarketCustomer = 'ordinary' | 'foodie' | 'collector' | 'generous';

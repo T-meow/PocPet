@@ -20,9 +20,9 @@ export const CommunityFishing = ({ pet, update, onAdventure, onFishing, registry
   return <>
     <HelpButton {...fishingHelp} />
     {(view === 'all' || view === 'management') && <section className="community-card">
-      <h3>钓鱼小屋 · Lv.{level}</h3><p>手动每竿体力 {effects.energy}、饱食 {effects.hunger}，基础等待 {effects.waitSeconds} 秒。所有已开放水域通用；手动和挂机每条鱼另得 {fishingCatchHearts} 心心，随鱼获领取。</p>
+      <h3>钓鱼小屋 · Lv.{level}</h3><p>每竿体力 −{effects.energy} · 饱食 −{effects.hunger} · 等待 {effects.waitSeconds} 秒 · 每条鱼 {fishingCatchHearts} 心心</p>
       <CommunityUpgradeTask pet={pet} update={update} id="fishing_hut" registry={registry} itemIconMap={itemIconMap} />
-      <h3>水域开放</h3><p>钓鱼小屋建成后，已通关的对应水域永久直通，无需另交金币或建材。</p>
+      <h3>水域开放</h3>
       {waterIds.map(id => {
         const open = isWaterOpen(pet, id), water = waters[id];
         return <article className="community-card" key={id}><b>{water.name} · {open ? '已永久直通' : '待通关开放'}</b><p>{water.discovery}</p>{open && onFishing && <button className="primary-button" onClick={() => onFishing(id)}>去{water.name}钓鱼</button>}</article>;

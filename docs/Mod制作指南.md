@@ -173,7 +173,7 @@ pet/
 | `texts.favoriteFood` | 可选，偏好提示，最多 160 字符；`{amount}` 替换为偏好加成值 |
 | `texts.status` | 可选，键为 7 个状态名，每条最多 24 字符 |
 
-食物偏好使用固定 ID 列表，不支持“所有含米饭的料理”这类自动匹配条件。厨房料理 ID 来自 [kitchenRecipes.ts](../src/core/kitchenRecipes.ts) 的 `allDishes`，基础物品白名单来自 `mod.ts` 的 `itemImageKeys`。`dish_plain_rice` 是成品白米饭，`plain_rice` 是食谱 ID，`rice` 是原材料，不能混用。
+食物偏好使用固定 ID 列表，不支持“所有含米饭的料理”这类自动匹配条件。厨房料理 ID 来自 [kitchenRecipes.ts](../src/core/kitchenRecipes.ts) 的 `allDishes`，也支持该文件的 `kitchenMaterials`、社区已注册食物和 `mod.ts` 的基础物品白名单 `itemImageKeys`。`dish_plain_rice` 是成品白米饭，`plain_rice` 是食谱 ID，`rice` 是原材料，不能混用。
 
 示例选取米饭、盖饭、焖饭、饭团和便当；没有把生米、粥、米香煎饼或糯米甜点自动算进去。具体范围按角色设定确认，新增食谱后需要更新清单。菜名与配方可查询[食材与料理数值表](食材与料理数值表.md)。
 
@@ -228,7 +228,7 @@ Compress-Archive -Path '.\output\mods\blue-whale-maid\*' -DestinationPath '.\out
 
 在「设置 → Mod 管理 → 导入 Mod」选择 ZIP，导入后确认当前角色。相同 `id` 的再次导入会替换库中对应包，不会另占一个位置；当前 Mod 库最多保存 12 个导入包。
 
-Doro、Mint、DeepSeek 为随游戏提供的内置 Mod，也会出现在 Mod 管理中。Doro 和 DeepSeek 可以从本机角色列表删除，删除状态在重启后保留，可在同一页面点击「恢复内置角色」重新加入。Mint 是不可删除的保留角色。内置资源随游戏安装包提供，列表删除不会改写游戏安装文件；同 ID 的外部 ZIP 不覆盖内置角色。DeepSeek 保留原试作包的 `local.blue-whale-maid` ID，以延续按角色 ID 保存的回忆。
+Furo、Doro、Mint、DeepSeek 为随游戏提供的内置 Mod，和导入角色统一显示在 Mod 管理中。所有角色都可删除，但角色库至少保留两位；只剩两位时需要先恢复或导入角色。内置角色的删除状态在重启后保留，可逐位点击「恢复内置角色」，也可点击「恢复默认四位伙伴」全部找回；恢复不会切换当前伙伴。删除当前角色后会切换到仍可用的伙伴，已有存档和背包保留。内置资源随游戏安装包提供，列表删除不会改写游戏安装文件；同 ID 的外部 ZIP 不覆盖内置角色。DeepSeek 保留原试作包的 `local.blue-whale-maid` ID，以延续按角色 ID 保存的回忆。
 
 画面验收由用户进行：检查正常状态、睡觉、三种进食、阅读、工作、升级和给心心；尤其注意透明边缘、脸部清晰度、尾巴与爱心是否完整，以及动作切换时角色是否明显跳位或忽大忽小。触摸互动可以检查 `give_heart.png`，实际生日和喂食偏好也应在游戏内确认。
 

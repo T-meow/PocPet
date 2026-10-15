@@ -6,6 +6,8 @@ export type AdventureDestinationId = AdventureRegionId | 'tutorial';
 export type AdventureTreasureId = 'coin_hoard' | 'valley_amber' | 'ancient_gold_bar';
 export type AdventureItemId = 'trail_mix' | 'berry_bait' | 'trail_rope' | 'map_handbook' | AdventureTreasureId;
 export type AdventureRulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export const adventureGatherMultipliers = [1, 3, 6, 9] as const;
+export type AdventureGatherMultiplier = typeof adventureGatherMultipliers[number];
 
 export interface AdventureTrip {
   id: string;
@@ -20,6 +22,8 @@ export interface AdventureTrip {
   loot: Inventory;
   tool: boolean;
   neighborId?: string;
+  neighborName?: string;
+  gatherMultiplier?: AdventureGatherMultiplier;
   shopStock: Inventory;
   purchases: number;
   transportedCount: number;
@@ -73,6 +77,7 @@ export interface AdventureResult {
 export interface AdventureState {
   schemaVersion: 10;
   campaign: import('./explorationCampaignState').ExplorationCampaignState;
+  reunion: import('./explorationCampaignState').SpringReunionState;
   landmarks: import('./landmarkProgress').LandmarkId[];
   backpackLevel: number;
   valleyCompleted: import('./valleyQuests').ValleyQuestId[];

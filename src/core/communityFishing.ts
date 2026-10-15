@@ -7,11 +7,12 @@ import { toolDefinitions, type DurableToolId } from './fieldEquipmentData';
 import { addInventoryItem, removeInventoryItem } from './items';
 import { canSpendCompanionTime } from './kitchen';
 import { getPetStatCap, updatePetSatiety } from './petStats';
-import type { Inventory, PetState } from './petTypes';
+import type { Inventory, NeighborIdentity, PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getFishingLevelEffects } from './communityUpgradeData';
 import { getDecorationEffects } from './decorationEffects';
-import { fishingIntervalMs, getFishingClicks, getFishingHeartReward, isGoldCrownFish, sampleFishingCatch } from './fishingRules';
+import { fishingIntervalMs, getFishingClicks, getFishingHeartReward, getManualFishingCost, isGoldCrownFish, sampleFishingCatch } from './fishingRules';
+import { selectNeighborReference } from './neighbors';
 import { eatReturningRations, rationReturnLines } from './expeditionRationReturn';
 import { quoteFishingRations } from './fishingRations';
 import type { RationSelection } from './explorationRations';
@@ -19,6 +20,7 @@ import { advancePet } from './petLifecycle';
 import { recordMuseumEvent } from './museumEvents';
 
 type Bait = 'fishing_bait' | 'river_bait';
+interface ManualFishingGear { float?: boolean; net?: boolean; inviteCompanion?: boolean }
 const withFishing = (pet: PetState, changes: Partial<PetState['community']['fishing']>): PetState => ({ ...pet, community: { ...pet.community, fishing: { ...pet.community.fishing, ...changes } } });
 export const isIdleFishing = (pet: PetState) => pet.community.fishing.active?.mode === 'idle';
 export const getFishingWaitMs = (pet: PetState, useFloat = false) => Math.round((getFishingLevelEffects(pet.community.upgrades.fishing_hut).waitSeconds - (useFloat ? 2 : 0)) * 1000 * (1 - getDecorationEffects(pet).pearl_lamp / 100));
@@ -31,11 +33,13 @@ const preparationReason = (pet: PetState, water: WaterId, bait: Bait) => {
   if (!['fishing_bait', 'river_bait'].includes(bait) || bait === 'river_bait' && !pet.community.facilities.upstream.built) return '先通关溪谷风声观景台，再使用溪流鱼饵';
   return '';
 };
-export const getManualFishingReason = (pet: PetState, water: WaterId, bait: Bait, strong: boolean, gear: { float?: boolean; net?: boolean } = {}) => {
+export const getManualFishingReason = (pet: PetState, water: WaterId, bait: Bait, strong: boolean, gear: ManualFishingGear = {}) => {
   const reason = preparationReason(pet, water, bait);
   if (reason) return reason;
   const effects = getFishingLevelEffects(pet.community.upgrades.fishing_hut);
-  if (!(pet.inventory[bait] ?? 0)) return '鱼饵不足，去商店补充';
+  const cost = getManualFishingCost(gear.inviteCompanion);
+  if ((pet.inventory[bait] ?? 0) < cost.count) return `本轮需要鱼饵 ${cost.count} 份，现有 ${pet.inventory[bait] ?? 0} 份`;
+  if (pet.hearts < cost.hearts) return `邀请伙伴需要 ${cost.hearts} 小心心，现有 ${Math.floor(pet.hearts)} 颗`;
   if (!(pet.inventory[strong ? 'reinforced_rod' : 'fishing_rod'] ?? 0)) return '所选钓竿不足，去商店补充';
   if (gear.float && !(pet.inventory.fishing_float ?? 0) || gear.net && !(pet.inventory.landing_net ?? 0)) return '所选附件不足，请调整钓具';
   if (pet.energy < effects.energy || pet.hunger < effects.hunger) return '需要体力 ' + effects.energy + '、饱食 ' + effects.hunger;
@@ -51,19 +55,27 @@ export const recordFishingCatch = (pet: PetState, caught: { fish: keyof typeof f
   return { pet: recordMuseumEvent(recordCommunityCatch(next, fish[caught.fish].water, fish[caught.fish].rare, now), `fish:${fish[caught.fish].water}`, 1, now), caught: result };
 };
 
-export const startCommunityFishing = (pet: PetState, water: WaterId, bait: Bait, strongRod: boolean, now = Date.now(), gear: { float?: boolean; net?: boolean } = {}): PetState => {
+export const startCommunityFishing = (pet: PetState, water: WaterId, bait: Bait, strongRod: boolean, now = Date.now(), gear: ManualFishingGear = {}, company?: { actorId: string; neighbors: readonly NeighborIdentity[] }): PetState => {
   if (pet.timePause || !Number.isFinite(now) || now < pet.lastUpdatedAt || pet.community.fishing.active || pet.community.fishing.pending) return pet;
   const reason = getManualFishingReason(pet, water, bait, strongRod, gear);
   if (reason) return { ...pet, recentEvent: reason };
   const hutLevel = pet.community.upgrades.fishing_hut, effects = getFishingLevelEffects(hutLevel);
   const equipment: DurableToolId[] = [strongRod ? 'reinforced_rod' : 'fishing_rod', ...(gear.float ? ['fishing_float' as const] : []), ...(gear.net ? ['landing_net' as const] : [])];
   for (const id of equipment) pet = spendToolUse(pet, id)!.pet;
-  const cast = pet.community.fishing.casts + 1, caught = sampleFishingCatch(pet.createdAt, cast, water, bait), waitMs = getFishingWaitMs(pet, gear.float);
+  const cost = getManualFishingCost(gear.inviteCompanion);
+  const catches = Array.from({ length: cost.count }, (_, index) => sampleFishingCatch(pet.createdAt, pet.community.fishing.casts + index + 1, water, bait));
+  const cast = pet.community.fishing.casts + cost.count, caught = catches[0], waitMs = getFishingWaitMs(pet, gear.float);
+  const candidates = company?.neighbors.filter(neighbor => neighbor.modId !== company.actorId) ?? [];
+  const reference = selectNeighborReference(`${pet.createdAt}:fishing:${cast}`, candidates);
+  const companion = gear.inviteCompanion
+    ? reference.kind === 'mod' ? candidates.find(neighbor => neighbor.modId === reference.modId)! : { modId: 'generic-neighbor', name: '热心邻居' }
+    : undefined;
   return updatePetSatiety({ ...withFishing(pet, { casts: cast, active: {
     mode: 'manual', id: 'fish:' + pet.createdAt + ':' + cast, water, ...caught, phase: 'waiting', biteAt: now + waitMs,
     lastActionAt: now, clicks: 0, requiredClicks: getFishingClicks(strongRod, gear.net), revision: 0, strongRod, landingNet: gear.net === true, hutLevel,
-  } }), hunger: pet.hunger - effects.hunger, energy: pet.energy - effects.energy, inventory: removeInventoryItem(pet.inventory, bait), lastInteractionAt: now,
-    recentEvent: '抛出鱼竿，静候鱼儿上钩。鱼饵与所选钓具耐久各消耗 1 次。' });
+    ...(companion ? { companion, catches } : {}),
+  } }), hearts: pet.hearts - cost.hearts, hunger: pet.hunger - effects.hunger, energy: pet.energy - effects.energy, inventory: removeInventoryItem(pet.inventory, bait, cost.count), lastInteractionAt: now,
+    recentEvent: companion ? `花费 ${cost.hearts} 小心心邀请${companion.name}一起钓鱼，本轮 ${cost.count} 条。已使用 ${cost.count} 份鱼饵，钓具耐久各消耗 1 次。` : '抛出鱼竿，静候鱼儿上钩。鱼饵与所选钓具耐久各消耗 1 次。' });
 };
 
 export const actCommunityFishing = (pet: PetState, id: string, revision: number, action: 'hook' | 'reel' | 'slack', now = Date.now()): PetState => {
@@ -73,9 +85,16 @@ export const actCommunityFishing = (pet: PetState, id: string, revision: number,
   if (action !== 'reel' && action !== 'hook' || action === 'hook' && session.phase !== 'waiting') return pet;
   const clicks = session.clicks + 1;
   if (clicks < session.requiredClicks) return { ...withFishing(pet, { active: { ...session, phase: 'reeling', clicks, revision: revision + 1, lastActionAt: now } }), lastInteractionAt: now };
-  const result = recordFishingCatch(pet, session, now);
-  return { ...withFishing(result.pet, { active: undefined, pending: { id, mode: 'manual', water: session.water, at: now, reason: 'complete', items: { [session.fish]: 1 }, catches: [result.caught] } }), lastInteractionAt: now,
-    recentEvent: '钓到了' + fish[session.fish].name + '，' + session.size + ' 厘米！' + (result.caught.newCrown ? '获得金冠！' : result.caught.newRecord ? '刷新长度纪录！' : '') };
+  const items: Inventory = {}, catches: FishingCatch[] = [];
+  let next = pet;
+  for (const caught of session.catches ?? [session]) {
+    const result = recordFishingCatch(next, caught, now);
+    next = result.pet;
+    catches.push(result.caught);
+    items[caught.fish] = (items[caught.fish] ?? 0) + 1;
+  }
+  return { ...withFishing(next, { active: undefined, pending: { id, mode: 'manual', water: session.water, at: now, reason: 'complete', items, catches, ...(session.companion ? { companion: session.companion } : {}) } }), lastInteractionAt: now,
+    recentEvent: (session.companion ? `和${session.companion.name}一起钓到了 ${catches.length} 条鱼！` : '钓到了' + fish[session.fish].name + '，' + session.size + ' 厘米！') + (catches.some(caught => caught.newCrown) ? '获得金冠！' : catches.some(caught => caught.newRecord) ? '刷新长度纪录！' : '') };
 };
 
 export const quoteIdleFishing = (pet: PetState, water: WaterId, bait: Bait, strongRod: boolean, hours: number, rations?: RationSelection) => {
@@ -145,7 +164,7 @@ export const cancelCommunityFishing = (pet: PetState, id: string, now = Date.now
     pet = advancePet(pet, now);
     return pet.community.fishing.active?.id === id ? finishIdleFishing(pet, 'return', now) : pet;
   }
-  return { ...withFishing(pet, { active: undefined }), recentEvent: '收起鱼竿。已用鱼饵和耐久不返还。' };
+  return { ...withFishing(pet, { active: undefined }), recentEvent: `收起鱼竿。已用鱼饵、耐久${pet.community.fishing.active.companion ? '和邀请费' : ''}不返还。` };
 };
 export const claimCommunityFish = (pet: PetState, id: string): PetState => {
   const pending = pet.community.fishing.pending;

@@ -12,7 +12,7 @@ import '../../styles/outpost.css';
 import '../../styles/valley-loop.css';
 
 export const ExpeditionPanel = (props: ExpeditionProps & PreparationResources & {
-  request: Exclude<OutpostRequest, { view: 'journal' }>; onClose: () => void;
+  request: Exclude<OutpostRequest, { view: 'journal' | 'tasks' }>; onClose: () => void;
   onNavigate: (request: OutpostRequest) => void; onMap: (region: RegionId) => void;
 }) => {
   const { pet, request, onClose, onNavigate, onMap } = props;

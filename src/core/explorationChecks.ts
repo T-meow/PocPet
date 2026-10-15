@@ -31,6 +31,7 @@ export interface ExplorationCheckAction {
   check: ExplorationCheckDefinition;
   mealItem?: string;
   campEnergy?: number;
+  rewardMultiplier?: number;
   research?: { id: string; points: number; progress: number; required: number; yield: number };
 }
 export interface ExplorationCheckContext {
@@ -61,6 +62,7 @@ export interface ExplorationCheckResult extends Omit<ExplorationCheckOutcome, 'p
   researchId?: string;
   coins?: number;
   hearts?: number;
+  harvestCount?: number;
   recovery?: { hunger: number; energy: number; health: number; mood: number; cleanliness: number };
 }
 
@@ -119,6 +121,7 @@ export const getExplorationCheckPreview = (pet: PetState, action: ExplorationChe
   const toolHunger = protectedTool && d.tool === 'trail_rope' ? .8 : 1, camp = modern ? action.campEnergy ?? 1 : 1;
   const energyReduction = modern ? Math.max(.3, skillEnergy * toolEnergy * camp * meal) : meal;
   const hungerReduction = modern ? Math.max(.6, skillHunger * toolHunger) : 1;
+  const rewardMultiplier = Math.max(0, Math.min(9, Math.floor(action.rewardMultiplier ?? 1)));
   const outcomes = probabilities.map(([outcome, probability]): ExplorationCheckOutcome => {
     const energy = action.energy > 0 ? Math.max(1, Math.round(action.energy * route * mood.energy * outcomeEnergy[outcome] * energyReduction)) : 0;
     const hunger = action.hunger > 0 ? Math.max(1, Math.round(action.hunger * hungerReduction)) : 0;
@@ -126,8 +129,9 @@ export const getExplorationCheckPreview = (pet: PetState, action: ExplorationChe
     const healthLoss = round1(injury * mood.injury * (d.tool === 'trail_rope' && context.toolAvailable ? .5 : 1));
     const finds = adjustFinds(action.finds ?? {}, outcome, action.primaryItem);
     if (protectedTool && d.tool === 'harvest_sickle') { const main = action.primaryItem ?? Object.keys(finds)[0]; if (main) finds[main] = (finds[main] ?? 0) + 1; }
+    for (const id of Object.keys(finds)) finds[id] *= rewardMultiplier;
     const r = action.research;
-    const researchPoints = r ? outcome === 'excellent' ? r.points + 1 : outcome === 'partial' ? Math.max(0, r.points - 1) : outcome === 'setback' ? 0 : r.points : 0;
+    const researchPoints = r ? (outcome === 'excellent' ? r.points + 1 : outcome === 'partial' ? Math.max(0, r.points - 1) : outcome === 'setback' ? 0 : r.points) * rewardMultiplier : 0;
     if (r && researchPoints) {
       const completed = Math.floor(((r.progress % r.required) + researchPoints) / r.required);
       if (completed) finds[r.id] = (finds[r.id] ?? 0) + completed * r.yield;
@@ -171,7 +175,8 @@ export const normalizeExplorationCheckResult = (raw: unknown): ExplorationCheckR
   const r = object(v.recovery);
   return { outcome: v.outcome as ExplorationOutcome, choiceId: label(v.choiceId), node: label(v.node), title: label(v.title),
     ...(skill ? { skill } : {}), skillLevel: Math.floor(amount(v.skillLevel, 10)), difficulty: Math.floor(amount(v.difficulty, 10)), chance: amount(v.chance, 100), xp: Math.floor(amount(v.xp, 1)),
-    hunger: amount(v.hunger), energy: amount(v.energy), healthLoss: amount(v.healthLoss), moodChange: amount(v.moodChange, 10000, -10000), finds, researchPoints: Math.floor(amount(v.researchPoints, 10)),
+    hunger: amount(v.hunger), energy: amount(v.energy), healthLoss: amount(v.healthLoss), moodChange: amount(v.moodChange, 10000, -10000), finds, researchPoints: Math.floor(amount(v.researchPoints, 90)),
+    ...(amount(v.harvestCount, 9) ? { harvestCount: Math.floor(amount(v.harvestCount, 9)) } : {}),
     ...(label(v.mealItem) ? { mealItem: label(v.mealItem) } : {}),
     ...(label(v.researchId) ? { researchId: label(v.researchId) } : {}),
     ...(amount(v.coins) ? { coins: amount(v.coins) } : {}), ...(amount(v.hearts) ? { hearts: amount(v.hearts) } : {}),

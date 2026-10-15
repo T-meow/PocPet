@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Backpack, Check, Compass, Search, ShieldCheck, ShoppingBag, Truck, Wrench } from 'lucide-react';
 import type { ItemId, PetState } from '../core/petTypes';
-import type { DurableToolId } from '../core/fieldEquipmentData';
 import { advanceAdventure, canUseAdventureService, getAdventureChoicePreview, getAdventureChoiceReason } from '../core/adventure';
 import { getAdventureSteps, adventureJourneyName } from '../core/adventureData';
 import { getAdventureStageChoices, type AdventureStageChoice } from '../core/adventureGathering';
@@ -24,14 +23,9 @@ import { campaignEventVisible } from '../core/explorationCampaignState';
 import type { InstalledPetModSummary } from '../core/mod';
 import { CampaignJourney } from './CampaignJourney';
 import { MuseumJourney } from './MuseumJourney';
+import { getAdventureGatherCount } from '../core/adventureGathering';
+import { CompanionDuty } from './community/CompanionDuty';
 
-const toolDescriptions: Partial<Record<DurableToolId, string>> = {
-  trail_rope: '保证通过，健康无损；体力减少 50%、饱食减少 20%。',
-  harvest_sickle: '稳定采收，主产物额外 +1；体力减少 25%。',
-  prospector_pick: '珍宝调查稳定增加 2 点进度，同时带回当地副产物。',
-  survey_lens: '定向取得所选食材、材料或种子；研究食材调查进度 +2。',
-  camp_kit: '使用营具恢复状态。',
-};
 const lensTarget = (choice: AdventureStageChoice) => choice.research?.id ?? choice.id.split(':')[1];
 const lensTargetName = (choice: AdventureStageChoice) => getInventoryItem(lensTarget(choice) as ItemId)?.name ?? choice.label;
 
@@ -61,7 +55,7 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
   const details = (choice: AdventureStageChoice) => {
     const reason = getAdventureChoiceReason(pet, choice), preview = getAdventureChoicePreview(pet, choice);
     return preview && choice.check
-      ? <ExplorationChoiceDetails pet={pet} preview={preview} definition={choice.check} reason={reason} harvest={choice.harvest} research={Boolean(choice.research)} hideFinds={choice.randomGather} item={choice.item} />
+      ? <ExplorationChoiceDetails pet={pet} preview={preview} definition={choice.check} reason={reason} harvest={getAdventureGatherCount(pet, choice.harvest ?? 0)} research={Boolean(choice.research)} hideFinds={choice.randomGather} item={choice.item} />
       : <span className="exploration-check-details"><span className="exploration-action-costs">饱食 <b>−{formatInteger(choice.hunger)}</b> · 体力 <b>−{formatInteger(choice.energy)}</b></span>{reason && <strong className="exploration-check-warning">{reason}</strong>}</span>;
   };
   const card = (choice: AdventureStageChoice) => {
@@ -69,8 +63,7 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
     const guaranteed = getAdventureChoicePreview(pet, choice)?.chance === 100;
     return <article className={`exploration-choice-card exploration-choice-card--${tool ? 'tool' : guaranteed ? 'safe' : 'check'}`} key={choice.id}>
       <button className="exploration-choice-action" disabled={busy || Boolean(reason)} onClick={() => act(choice)}>
-        <span className="exploration-choice-heading">{tool ? <Wrench size={20} aria-hidden="true" /> : <Compass size={20} aria-hidden="true" />}<strong>{choice.label}</strong>{guaranteed && <span className="exploration-choice-guarantee"><ShieldCheck size={14} aria-hidden="true" />稳妥完成</span>}</span>
-        <span className="exploration-choice-description">{tool && trip.rulesVersion >= 11 ? toolDescriptions[tool] ?? choice.detail : choice.detail}</span>
+        <span className="exploration-choice-heading">{tool ? <Wrench size={20} aria-hidden="true" /> : <Compass size={20} aria-hidden="true" />}<strong>{choice.label}{choice.harvest ? ` ×${getAdventureGatherCount(pet, choice.harvest)}` : ''}</strong>{guaranteed && <span className="exploration-choice-guarantee"><ShieldCheck size={14} aria-hidden="true" />稳妥完成</span>}</span>
         {details(choice)}
       </button>
     </article>;
@@ -78,19 +71,18 @@ export const AdventureJourneyView = ({ pet, portrait, neighbor, update, move, bu
   return <div className="exploration-journey-layout"><div className="exploration-journey">
     <section className="exploration-panel exploration-journey-hero"><ol className="exploration-stage-steps" aria-label="探险阶段">{steps.map((stage,index) => <li key={`${trip.id}:${index}`} className={index < trip.choices.length ? 'is-complete' : index === trip.choices.length ? 'is-current' : ''} aria-current={index === trip.choices.length ? 'step' : undefined}><span>{index < trip.choices.length ? <Check size={15} /> : index+1}</span><strong title={stage.title}>{stage.title}</strong></li>)}</ol><AdventureLandscape region={region} node={getAdventureRouteNode(trip.purpose)} portrait={portrait} label={adventureJourneyName(trip.region,trip.purpose)} /></section>
     <ExplorationCheckSummary result={trip.checkState?.last} /><ExplorationCheckBuffs state={trip.checkState} />
-    {choices.some(choice => choice.harvest) && <p className="exploration-collect-pay">每次有效采集：<strong>金币 +{harvestPay.coins} · 基础心心 +{harvestPay.hearts}</strong>，返程领取。物产、研究与概率宝物另计。</p>}
+    {choices.some(choice => choice.harvest) && <p className="exploration-collect-pay">本次采集 {getAdventureGatherCount(pet)} 次：<strong>金币 +{harvestPay.coins * getAdventureGatherCount(pet)} · 心心 +{harvestPay.hearts * getAdventureGatherCount(pet)}</strong> · 返程领取</p>}
     <section className="exploration-current-event"><div className="help-heading"><h3>{step?.title ?? '本次探查已完成'}</h3><ExplorationHelp pet={pet} purpose={trip.purpose} destination={trip.region} choices={choices} /></div><p>{step?.story ?? '带着发现返回前哨，领取收获并选择下一站。'}</p></section>
     <ExplorationSupport key={trip.id} pet={pet} system="adventure" update={update} move={move} busy={busy} />
     {getCommunityTasks(pet).filter(task => commissionDefinitions[task.template]?.deliveryItem && !task.found).map(task => <div className="community-note" key={task.id}><p>{commissionDefinitions[task.template].name}：到指定地标交接阶段送达行囊便当。</p><button disabled={!canDeliverCommunityParcel(pet, task)} onClick={() => update(p => deliverCommunityParcel(p, task.id, trip.id, trip.revision))}>交付行囊便当</button></div>)}
-    {services && neighbor && <section className="exploration-encounter" aria-label="途中伙伴"><img src={neighbor.portrait} alt="" /><div><h3>{neighbor.name} · 路上遇见你</h3><p>先歇歇脚吧！我带了些随身补给，也能帮你从仓库送来物资。</p><div className="exploration-inline-actions"><button onClick={() => onStorage('shop')}><ShoppingBag size={18} aria-hidden="true" />伙伴商店</button><button onClick={() => onStorage('delivery')}><Truck size={18} aria-hidden="true" />从仓库送来 · 每份 2 心心</button></div></div></section>}
+    {services && neighbor && <section className="exploration-encounter" aria-label="途中伙伴"><CompanionDuty actor={neighbor} label={(trip.gatherMultiplier ?? 1) > 1 ? '同行中' : '途中相遇'} className="exploration-escort-portrait" /><div><h3>{neighbor.name} · {(trip.gatherMultiplier ?? 1) > 1 ? `${trip.gatherMultiplier} 倍采集同行` : '路上遇见你'}</h3><div className="exploration-inline-actions"><button onClick={() => onStorage('shop')}><ShoppingBag size={18} aria-hidden="true" />伙伴商店</button><button onClick={() => onStorage('delivery')}><Truck size={18} aria-hidden="true" />从仓库送来 · 每份 2 心心</button></div></div></section>}
     {getAdventureBagCount(trip.loot) > 0 ? <button className="primary-button" onClick={() => onStorage('loot')}>整理待拾取物资 · {getAdventureBagCount(trip.loot)} 份</button> : <div className="adventure-choices">
       {choices.filter(choice => choice.check?.tool !== 'survey_lens' && choice.id !== 'gather:leave').map(card)}
       {selectedLens && <article className="exploration-choice-card exploration-choice-card--tool exploration-lens-card">
-        <div className="exploration-choice-heading"><Search size={20} aria-hidden="true" /><h4>放大镜 · 定向查找</h4><span className="exploration-choice-guarantee"><ShieldCheck size={14} aria-hidden="true" />{selectedLens.research ? '调查 +2' : '保证找到'}</span></div>
-        <p className="exploration-choice-description">{toolDescriptions.survey_lens}</p>
+        <div className="exploration-choice-heading"><Search size={20} aria-hidden="true" /><h4>放大镜 · 定向查找</h4><span className="exploration-choice-guarantee"><ShieldCheck size={14} aria-hidden="true" />稳妥完成</span></div>
         <div className="exploration-lens-targets" role="group" aria-label="选择放大镜目标">{availableLens.map(choice => <button key={choice.id} aria-pressed={choice.id === selectedLens.id} disabled={busy} onClick={() => setLensSelection({ tripId: trip.id, step: trip.choices.length, id: choice.id })}>{lensTargetName(choice)}</button>)}</div>
         {details(selectedLens)}
-        <button className="exploration-lens-submit" disabled={busy || Boolean(getAdventureChoiceReason(pet, selectedLens))} onClick={() => act(selectedLens)}>使用放大镜 · {lensTargetName(selectedLens)}</button>
+        <button className="exploration-lens-submit" disabled={busy || Boolean(getAdventureChoiceReason(pet, selectedLens))} onClick={() => act(selectedLens)}>使用放大镜 · {lensTargetName(selectedLens)} ×{getAdventureGatherCount(pet, selectedLens.harvest ?? 0)}</button>
       </article>}
       {choices.filter(choice => choice.id === 'gather:leave').map(card)}
       {!step && <button className="primary-button" onClick={onReturn}>完成探查，返回前哨</button>}

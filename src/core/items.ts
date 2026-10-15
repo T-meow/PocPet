@@ -16,7 +16,44 @@ export const dailyHeartExchangeLimit = 3;
 
 export const heartExchangeCooldownMs = 200;
 
-export const favoriteFoodIds: readonly ItemId[] = ['pig_trotter', 'strawberry_cake', 'ad_milk'];
+// Furo 喜欢猪蹄、草莓和奶制品，也包括使用这些食材制成的料理。
+export const favoriteFoodIds: readonly ItemId[] = [
+  'pig_trotter',
+  'strawberry_cake',
+  'ad_milk',
+  'strawberry_milk',
+  'farm_milk',
+  'strawberry',
+  'dish_berry_milk',
+  'dish_milk_custard',
+  'dish_banana_shake',
+  'dish_biscuit_cup',
+  'dish_milk_cookies',
+  'dish_fruit_pudding',
+  'dish_fruit_pudding_banana',
+  'dish_apple_pie',
+  'dish_biscuit_layer_cake',
+  'dish_pork_rice_bowl',
+  'dish_mashed_potato',
+  'dish_corn_chowder',
+  'dish_cream_matsutake',
+  'dish_cheese_vegetables',
+  'dish_pumpkin_perch_soup',
+  'dish_strawberry_cheese_cup',
+  'dish_chestnut_milk_cake',
+  'dish_lotus_milk_soup',
+  'dish_honey_milk',
+  'dish_highland_potato_gratin',
+  'dish_orange_nut_shake',
+  'dish_berry_jam_shake',
+  'dish_double_berry_cup',
+  'dish_lotus_trotter_soup',
+  'dish_honey_milk_tea',
+  'dish_strawberry_watermelon_juice',
+  'dish_banana_strawberry_juice',
+  'dish_cheesy_corn_fritter',
+  'dish_potato_cake',
+];
 
 export const favoriteFoodIdSet = new Set<ItemId>(favoriteFoodIds);
 
@@ -444,10 +481,10 @@ export const isKnownUsableItem = (registry: ItemRegistry, id: ItemId | string) =
 
 export const getInventoryCount = (inventory: Inventory, id: ItemId | string) => inventory[id] ?? 0;
 
-export const getPurchaseCapacity = (pet: Pick<PetState, 'inventory'>, item: Pick<ItemDefinition, 'purchaseContents'>) =>
+export const getPurchaseCapacity = (pet: Pick<PetState, 'inventory'>, item: Pick<ItemDefinition, 'id' | 'purchaseContents'>) =>
   item.purchaseContents?.length
     ? Math.min(...item.purchaseContents.map(({ itemId, amount }) => Math.max(0, Math.floor((inventoryItemLimit - getInventoryCount(pet.inventory, itemId)) / amount))))
-    : Infinity;
+    : Math.max(0, inventoryItemLimit - getInventoryCount(pet.inventory, item.id));
 
 export const deliverPurchasedItems = (inventory: Inventory, item: Pick<ItemDefinition, 'id' | 'purchaseContents'>, quantity: number) =>
   (item.purchaseContents ?? [{ itemId: item.id, amount: 1 }]).reduce((next, content) => addInventoryItem(next, content.itemId, content.amount * quantity), inventory);

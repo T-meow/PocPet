@@ -1,5 +1,6 @@
 import { normalizePetBirthday } from './dateRewards';
-import { allDishes } from './kitchenRecipes';
+import { allDishes, kitchenMaterials } from './kitchenRecipes';
+import { communityFindItems, communityShopItems } from './communityItems';
 import type {
   BuiltinItemId,
   InventoryItemDefinition,
@@ -188,7 +189,12 @@ const allowedPetPaths = new Map<string, PetImageKey>([
 const allowedItemPaths = new Map<string, ItemImageKey>(itemImageKeys.map((key) => ['items/' + key + '.png', key] as const));
 const allowedCgPaths = new Map<string, ModCgImageKey>(modCgImageKeys.map((key) => ['cg/' + key + '.png', key] as const));
 const itemIdSet = new Set<ItemImageKey>(itemImageKeys);
-const favoriteFoodIdSet = new Set<ItemId>([...itemImageKeys, ...allDishes.map((dish) => dish.id)]);
+const favoriteFoodIdSet = new Set<ItemId>([
+  ...itemImageKeys,
+  ...allDishes.map((dish) => dish.id),
+  ...kitchenMaterials.map((item) => item.id),
+  ...[...communityShopItems, ...communityFindItems].filter((item) => item.kind === 'food').map((item) => item.id),
+]);
 const builtinItemIdSet = new Set<BuiltinItemId>([...itemImageKeys, 'birthday_cake']);
 const statusSet = new Set<PetStatus>(petStatusImageKeys);
 const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;

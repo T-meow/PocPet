@@ -1,11 +1,16 @@
 import type { AdventureRegionId } from './adventureTypes';
 import type { LandmarkNode } from './landmarkProgress';
 import type { ItemId } from './petTypes';
+import { springReunionVisitIds, springReunionVisits, springReunionTasks, springReunionChapters } from './springReunionData';
+import { seasonalGatherings, type GatheringSeason } from './gatheringSeasons';
+
+export type CampaignKind = 'quarterly' | 'spring-reunion';
 
 export const campaignTitle = '去山上吃顿饭';
 export const campaignChapterIds = ['valley', 'windmill', 'forest', 'coast', 'observatory'] as const;
 export type CampaignChapterId = typeof campaignChapterIds[number];
-export const campaignVisitIds = ['valley_bridge', 'valley_chairs', 'hill_honey', 'hill_sign', 'hill_lamps', 'forest_basket', 'forest_cloth', 'forest_meet', 'coast_boxes', 'coast_glass', 'station_room', 'station_path', 'station_dinner'] as const;
+export const quarterlyCampaignVisitIds = ['valley_bridge', 'valley_chairs', 'hill_honey', 'hill_sign', 'hill_lamps', 'forest_basket', 'forest_cloth', 'forest_meet', 'coast_boxes', 'coast_glass', 'station_room', 'station_path', 'station_dinner'] as const;
+export const campaignVisitIds = [...quarterlyCampaignVisitIds, ...springReunionVisitIds] as const;
 export type CampaignVisitId = typeof campaignVisitIds[number];
 export interface CampaignDelivery { items: ItemId[]; amount: number }
 export interface CampaignOption { id: string; label: string; result: string }
@@ -56,15 +61,18 @@ const taskRows: [string, string, string, number, number][] = [
   ['开饭吧', '一起吃饭，收拾好桌子后去穹顶看看星星。', '凳子、灯和桌布都派上了用场。饭后大家去看了一会儿星星，再结伴回家。', 4000, 20],
 ];
 export const campaignTasks: CampaignTask[] = taskRows.map(([title, goal, outcome, hearts, apples], i) => ({ id: i + 1, chapter: campaignChapterIds[Math.floor(i / 6)], title, goal, outcome, hearts, apples }));
-export const getCampaignTask = (id: number) => campaignTasks.find(task => task.id === id);
+export const getCampaignTasks = (kind: CampaignKind = 'quarterly', theme?: GatheringSeason) => kind === 'spring-reunion' ? springReunionTasks : campaignTasks.map(task => theme && task.id === 30 ? { ...task, outcome: seasonalGatherings[theme].ending } : task);
+export const getCampaignTask = (id: number, kind: CampaignKind = 'quarterly', theme?: GatheringSeason) => getCampaignTasks(kind, theme).find(task => task.id === id);
 const quarterlyHearts = [100, 100, 150, 150, 150, 350, 150, 150, 150, 150, 250, 650, 150, 150, 250, 250, 300, 900, 200, 200, 250, 250, 350, 900, 250, 350, 400, 500, 500, 1350];
-export const getCampaignReward = (id: number, version: 1 | 2) => version === 1
-  ? { hearts: getCampaignTask(id)?.hearts ?? 0, apples: getCampaignTask(id)?.apples ?? 0 }
+export const getCampaignReward = (id: number, version: 1 | 2, kind: CampaignKind = 'quarterly'): { hearts: number; apples: number; tickets?: number } => kind === 'spring-reunion'
+  ? { hearts: id > 0 && id <= 45 && id % 9 === 0 ? 200 : 0, apples: id > 0 && id <= 45 && id % 9 === 0 ? 6 : 0, tickets: id === 45 ? 100 : 0 }
+  : version === 1 ? { hearts: getCampaignTask(id)?.hearts ?? 0, apples: getCampaignTask(id)?.apples ?? 0 }
   : { hearts: quarterlyHearts[id - 1] ?? 0, apples: id < 1 || id > 30 ? 0 : ({ 6: 2, 12: 2, 18: 3, 24: 3, 30: 5 } as Record<number, number>)[id] ?? 1 };
 const step = (title: string, story: string, label: string, result: string, task?: number, delivery?: CampaignDelivery): CampaignStep => ({ title, story, options: [{ id: 'continue', label, result }], task, delivery });
 const meal = (amount: number): CampaignDelivery => ({ items: ['bento', 'dish_herb_porridge'], amount });
 const give = (item: ItemId, amount: number): CampaignDelivery => ({ items: [item], amount });
 export const campaignVisits: Record<CampaignVisitId, CampaignVisit> = {
+  ...springReunionVisits,
   valley_bridge: { region: 'valley', node: 'crossing', requires: [], steps: [
     step('去旧桥碰个面', '{neighbor}在桥边等你：“地方就选观测站吧。吃的大家各带一点，先看看哪里能借到凳子。”', '坐下来商量一会儿', '先把要借的东西记了下来。', 1),
     step('饭盒落在桥下', '刚准备走，{neighbor}发现饭盒不见了。桥墩旁的小路上露着一个盒角，沿岸边走过去就能拿到。', '沿小路捡回饭盒', '盒盖卡在草里，捡起来擦干净就能用。', 2),
@@ -135,4 +143,16 @@ export const campaignVisits: Record<CampaignVisitId, CampaignVisit> = {
   ] },
 };
 export const isCampaignVisitId = (id: unknown): id is CampaignVisitId => typeof id === 'string' && (campaignVisitIds as readonly string[]).includes(id);
-export const getTaskVisitId = (task: number) => campaignVisitIds.find(id => campaignVisits[id].steps.some(step => step.task === task))!;
+export const campaignKindForVisit = (id: CampaignVisitId): CampaignKind => id.startsWith('reunion_') ? 'spring-reunion' : 'quarterly';
+export const getCampaignVisitIds = (kind: CampaignKind = 'quarterly'): readonly CampaignVisitId[] => kind === 'spring-reunion' ? springReunionVisitIds : quarterlyCampaignVisitIds;
+export const getCampaignChapters = (kind: CampaignKind = 'quarterly') => kind === 'spring-reunion' ? springReunionChapters : campaignChapters;
+export const getTaskVisitId = (task: number, kind: CampaignKind = 'quarterly') => getCampaignVisitIds(kind).find(id => campaignVisits[id].steps.some(step => step.task === task))!;
+export const getCampaignVisit = (id: CampaignVisitId, theme?: GatheringSeason): CampaignVisit => {
+  const visit = campaignVisits[id];
+  if (!theme || campaignKindForVisit(id) === 'spring-reunion') return visit;
+  const seasonal = seasonalGatherings[theme];
+  return { ...visit, steps: visit.steps.map((step, index) => ({ ...step,
+    story: id === 'station_dinner' ? seasonal.dinner[index] ?? step.story : index === 0 ? seasonal.atmosphere + '\n\n' + step.story : step.story,
+    options: step.task === 30 ? step.options.map(option => ({ ...option, result: seasonal.ending })) : step.options,
+  })) };
+};

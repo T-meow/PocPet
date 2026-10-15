@@ -1660,7 +1660,7 @@
       "workBonus": " 心情不错，额外赚到 {coins} 金币。"
     },
     "buy": {
-      "inventoryFull": "苏打饼干库存空间不足，腾出空间后再购买整箱吧。",
+      "inventoryFull": "库存空间不足，请先腾出足够空间再购买。",
       "bundle": "购买了 {count} 箱苏打饼干，到账 {biscuits} 块，共花费 {price} 金币。",
       "missing": "这个商品不存在。",
       "biscuitClaimedOut": "今天的苏打饼干已经领完了，明天再来吧。",

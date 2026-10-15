@@ -7,7 +7,8 @@ import { updatePetSatiety } from './petStats';
 import { projectIds } from './expeditionData';
 import { withExpedition } from './expeditionReturn';
 import { advanceCommunityActivities, getCommunityActivityBoard, getProjectThemeReason } from './communityActivities';
-import { communityProjects, getCommunityGiftItems, projectThemes, type ProjectTheme, type CommunityGiftKind } from './communityProjectData';
+import { communityProjects, getCommunityGiftItems, type ProjectTheme, type CommunityGiftKind } from './communityProjectData';
+import { getProjectTheme, isProjectTheme } from './communityThemes';
 import { inventoryItemLimit } from './saveMetadata';
 import { hashString } from './utils';
 import type { ProjectId, CommunityProject } from './expeditionTypes';
@@ -26,10 +27,10 @@ export const getProjectReason = (pet: PetState, id: ProjectId, theme: ProjectThe
   if (p.theme) return '先完成已经接下的筹备';
   if (board.project !== id) return '等待这项活动的下一轮邀请';
   if (board.accepted) return '本周邀请已经接取，下次轮到时再来';
-  return getProjectThemeReason(pet, id, theme);
+  return getProjectThemeReason(pet, id, theme, now);
 };
 export const startCommunityProject = (pet: PetState, id: ProjectId, theme: ProjectTheme, invitationId: string, now = Date.now()): PetState => {
-  if (pet.timePause || !projectIds.includes(id) || !projectThemes.includes(theme)) return pet;
+  if (pet.timePause || !projectIds.includes(id) || !isProjectTheme(id, theme)) return pet;
   pet = advanceCommunityActivities(advancePet(pet, now), now);
   const board = pet.community.activityBoard;
   if (board.invitationId !== invitationId || getProjectReason(pet, id, theme, now)) return pet;
@@ -38,8 +39,8 @@ export const startCommunityProject = (pet: PetState, id: ProjectId, theme: Proje
     recentEvent: '已接下社区活动邀请。主题已经记好，跨周也能继续，每一步交付都会保留。' };
 };
 export const getProjectDelivery = (pet: PetState, id: ProjectId): Inventory => {
-  const p = pet.community.expedition.projects[id], data = communityProjects[id], index = p.theme === 'journey' ? 1 : 0;
-  return p.stage === 0 ? data.supplies[index] : p.stage === 1 ? data.meals[index] : {};
+  const p = pet.community.expedition.projects[id], data = getProjectTheme(id, p.theme);
+  return p.stage === 0 ? data.supplies : p.stage === 1 ? data.meals : {};
 };
 export const getProjectContributionReason = (pet: PetState, id: ProjectId) => {
   const p = pet.community.expedition.projects[id];
@@ -72,10 +73,13 @@ export const finishCommunityProject = (pet: PetState, id: ProjectId, invitationI
   const roll = hashString(`${pet.saveMetadata.id}:${id}:${invitationId}:neighbor-gift-v1`) % 100;
   const gift: CommunityGiftKind = roll < 50 ? 'apples' : roll < 85 ? 'garden' : 'surprise';
   const name = actorName.trim().slice(0, 32) || pet.name;
+  const theme = p.theme!, previousMemory = p.memories?.[theme];
+  const memory = previousMemory ? { ...previousMemory, completed: previousMemory.completed + 1 } : { completed: 1, firstAt: now, actorId: actorId.slice(0, 128), actorName: name };
   return updatePetSatiety({ ...changeProject(pet, id, { ...p, stage: 0, theme: undefined, invitationId,
+    lastTheme: theme, memories: { ...p.memories, [theme]: memory },
     completed: p.completed + 1, lastDay: getEffectiveDailyDateKey(pet, now),
     ...(first ? { firstAt: now, actorId: actorId.slice(0, 128), actorName: name } : {}),
-    reward: { version: 1, id: invitationId, hearts: data.hearts * (first ? 2 : 1), gift, items: getCommunityGiftItems(id, gift), first, at: now, actorName: name },
+    reward: { version: 1, id: invitationId, theme, hearts: data.hearts * (first ? 2 : 1), gift, items: getCommunityGiftItems(id, gift), first, at: now, actorName: name },
   }), hunger: pet.hunger - 4, energy: pet.energy - 4,
     recentEvent: `「${data.name}」圆满完成。${first ? '永久回忆已收藏，体力上限 +3。' : ''}邻居们的回礼已经备好。` });
 };

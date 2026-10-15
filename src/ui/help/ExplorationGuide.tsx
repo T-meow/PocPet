@@ -8,9 +8,10 @@ import { adventureJourneyDetail, adventureTutorialRewardText } from '../../core/
 import { isLandmarkId } from '../../core/landmarkProgress';
 import { HelpButton, type HelpContent } from './HelpButton';
 import { getLandmarkHelp } from './landmarkHelp';
+import { gatheringCompanionHelp } from './explorationHelp';
 import { backpackHelp, campHelp, rescueHelp, neighborHelp, explorationHelp, getExplorationPreparationHelp, getBudgetHelp, getRationsHelp, rationRules, rationCalculationRules, treasureFindingHelp } from './explorationHelp';
 export const ExplorationHandbookNavigation = createContext<(() => void) | undefined>(undefined);
-export const ExplorationHandbook = ({ pet }: { pet: PetState }) => <div className="exploration-handbook">{[getExplorationPreparationHelp(pet), getBudgetHelp(pet), backpackHelp, campHelp, rescueHelp, neighborHelp, { title: '挂机食物', overview: rationRules, details: rationCalculationRules }, treasureFindingHelp].map(section => <details key={section.title}><summary>{section.title}</summary>{section.overview}{section.details}</details>)}</div>;
+export const ExplorationHandbook = ({ pet }: { pet: PetState }) => <div className="exploration-handbook">{[getExplorationPreparationHelp(pet), gatheringCompanionHelp, getBudgetHelp(pet), backpackHelp, campHelp, rescueHelp, neighborHelp, { title: '挂机食物', overview: rationRules, details: rationCalculationRules }, treasureFindingHelp].map(section => <details key={section.title}><summary>{section.title}</summary>{section.overview}{section.details}</details>)}</div>;
 
 export const ExplorationHelp = ({ pet, purpose, destination, mode = 'manual', choices, rations }: {
   pet: PetState; purpose?: CommunityRoute; destination?: AdventureDestinationId; mode?: 'manual' | 'idle';
@@ -18,6 +19,7 @@ export const ExplorationHelp = ({ pet, purpose, destination, mode = 'manual', ch
 }) => {
   const openHandbook = useContext(ExplorationHandbookNavigation);
   const sections: HelpContent[] = [];
+  if (mode === 'manual') sections.push(gatheringCompanionHelp);
   if (purpose) {
     const landmark = isLandmarkId(purpose) ? getLandmarkHelp(purpose) : undefined;
     sections.push({ title: landmark?.title ?? '本次任务', overview: <>{landmark?.overview}<p>{adventureJourneyDetail(purpose)}</p></> });

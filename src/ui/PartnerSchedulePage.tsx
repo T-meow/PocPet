@@ -76,7 +76,7 @@ const WorkOfferDialog = ({ pet, offerId, portrait, activityImages, itemIconMap, 
       {preview.categoryReward && <div className="community-category-alternative"><small>完成后，也可以把整份报酬换成这份谢礼</small><RewardList reward={preview.categoryReward} icons={itemIconMap} /></div>}
       <h3 className="community-work-detail-title">出发前，留一点力气</h3>
       <div className="community-work-costs"><span><Zap size={16} />{L('体力', 'Energy')} <strong>−{preview.energyCost}</strong></span><span>{L('饱腹', 'Fullness')} <strong>−{amount(preview.hungerCost)}</strong></span><span>{L('心情', 'Mood')} <strong>−{amount(preview.moodCost)}</strong></span></div>
-      <p className="community-work-reminder">消耗随工作进度扣除。累了可以提前回家，按完成比例领取基础报酬；完成全程另有谢礼。</p>
+      <HelpButton {...getWorkOfferHelp(getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors), preview)} />
       {!check.canStart && <p className="community-work-blocked" role="status">{t(`ui.partnerSchedule.blocked.${check.reason}`)}</p>}
     </div>
     <footer className="community-work-dialog-footer"><button type="button" className="secondary-button" onClick={onClose}>{L('再看看', 'Keep browsing')}</button><button type="button" className="primary-button" disabled={!check.canStart} onClick={() => { onStart(offer.id); onClose(); }}>{check.canStart ? L('出发帮忙', 'Start helping') : t(`ui.partnerSchedule.blocked.${check.reason}`)}<ArrowRight size={17} /></button></footer>

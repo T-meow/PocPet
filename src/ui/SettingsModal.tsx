@@ -4,7 +4,8 @@ import { Check, RefreshCw, Trash2 } from 'lucide-react';
 import { ChevronRight, Cloud, Copy, FileImage, Heart, Play, Share2 } from 'lucide-react';
 import { authorFollowGiftTickets, defaultPetBirthday, getPetBirthdayMaxDay, type PetBirthday, type PetCalendarDate } from '../core/pet';
 import type { ActivePetMod, InstalledPetModSummary } from '../core/mod';
-import { builtinPetModManifests, isProtectedPetModId } from '../core/builtinPetModManifests';
+import { builtinFuroManifest, builtinPetModManifests } from '../core/builtinPetModManifests';
+import { petModMinimumCount, petModMinimumMessage } from '../core/modStorage';
 import { cloudSaveMaxEncodedLength, type CloudSaveManifestV1 } from '../core/cloudSave';
 import { acknowledgementsGiftCoins } from '../core/acknowledgementsGift';
 import { languages, list, t, type LanguageCode } from '../i18n';
@@ -81,7 +82,7 @@ interface SettingsModalProps {
   onClose: () => void;
   onSaveProfile: () => void;
   onReset: () => void;
-  onClearMod: () => void;
+  onRestoreDefaultMods: () => void;
   onActivateMod: (modId: string) => void;
   onDeleteMod: (modId: string) => void;
   onRestoreBuiltinMod: (modId: string) => void;
@@ -146,7 +147,7 @@ export const SettingsModal = ({
   onClose,
   onSaveProfile,
   onReset,
-  onClearMod,
+  onRestoreDefaultMods,
   onActivateMod,
   onDeleteMod,
   onRestoreBuiltinMod,
@@ -177,6 +178,8 @@ export const SettingsModal = ({
   const activeModSummary = activeMod
     ? t('ui.settings.mod.current', { name: activeMod.manifest.name, version: activeMod.manifest.version })
     : t('ui.settings.mod.currentDefault');
+  const missingBuiltinMods = builtinPetModManifests.filter((mod) => !installedMods.some((installed) => installed.manifest.id === mod.id));
+  const cannotDeleteMod = installedMods.length <= petModMinimumCount;
   const birthdayMonth = draftBirthday?.month ?? defaultPetBirthday.month;
   const birthdayMaxDay = getPetBirthdayMaxDay(birthdayMonth);
   const birthdayDay = Math.min(draftBirthday?.day ?? defaultPetBirthday.day, birthdayMaxDay);
@@ -293,10 +296,11 @@ export const SettingsModal = ({
                 <span>{activeModSummary}</span>
               </div>
               {modMessage && <p className="settings-message">{modMessage}</p>}
+              {cannotDeleteMod && <p className="settings-message">{petModMinimumMessage}</p>}
               {features.importMod && <input ref={modFileInputRef} className="file-input" type="file" accept=".zip,application/zip" onChange={onModFileChange} />}
               <div className="settings-mod-list" aria-label={t('ui.settings.mod.libraryAria')}>
                 {installedMods.map((mod) => {
-                  const isActive = activeMod?.manifest.id === mod.manifest.id;
+                  const isActive = (activeMod?.manifest.id ?? builtinFuroManifest.id) === mod.manifest.id;
                   return (
                     <div className="settings-mod-row" key={mod.manifest.id}>
                       {mod.contentImageUrl
@@ -313,15 +317,16 @@ export const SettingsModal = ({
                           {t('ui.settings.mod.activate')}
                         </button>
                       )}
-                      {isProtectedPetModId(mod.manifest.id) ? <small>保留角色 · 不可删除</small> : <button
+                      <button
                         type="button"
                         className="icon-button"
+                        disabled={cannotDeleteMod}
                         onClick={() => onDeleteMod(mod.manifest.id)}
                         aria-label={t('ui.settings.mod.delete', { name: mod.manifest.name })}
-                        title={t('ui.settings.mod.delete', { name: mod.manifest.name })}
+                        title={cannotDeleteMod ? petModMinimumMessage : t('ui.settings.mod.delete', { name: mod.manifest.name })}
                       >
                         <Trash2 size={17} aria-hidden="true" />
-                      </button>}
+                      </button>
                     </div>
                   );
                 })}
@@ -329,7 +334,7 @@ export const SettingsModal = ({
                   ? <p className="settings-mod-list__empty">{t('ui.settings.mod.libraryEmpty')}</p>
                   : null}
               </div>
-              {builtinPetModManifests.filter((mod) => !installedMods.some((installed) => installed.manifest.id === mod.id)).map((mod) => (
+              {missingBuiltinMods.map((mod) => (
                 <button key={mod.id} type="button" className="text-button" onClick={() => onRestoreBuiltinMod(mod.id)}>
                   <RotateCcw size={16} aria-hidden="true" />恢复内置角色 {mod.name}
                 </button>
@@ -339,8 +344,8 @@ export const SettingsModal = ({
                   <Upload size={18} aria-hidden="true" />
                   {t('ui.settings.mod.import')}
                 </button>
-                <button type="button" className="text-button settings-action" onClick={onClearMod}>
-                  {t('ui.settings.mod.useBuiltin')}
+                <button type="button" className="text-button settings-action" disabled={!missingBuiltinMods.length} onClick={onRestoreDefaultMods}>
+                  恢复默认四位伙伴
                 </button>
               </div>
             </section>
@@ -353,10 +358,9 @@ export const SettingsModal = ({
             <section className="settings-section settings-save-section" aria-label={t('ui.settings.save.sectionAria')}>
               {modMessage && <p className="settings-message">{modMessage}</p>}
               <div className="v2-card settings-save-format">
-                <h3>{t('ui.settings.save.formatV2')}</h3>
-                <p>{t(pet.saveMetadata.compensation === 'pending' ? 'ui.settings.save.migrationPending' : pet.saveMetadata.origin === 'legacy' ? 'ui.settings.save.migrationComplete' : 'ui.settings.save.newProgress')}</p>
+                <h3>存档兼容说明</h3>
+                <p>仅兼容 1.9.0 及以后版本的存档。更早的存档请先下载 1.9.0，导入后重新导出。</p>
                 {Object.keys(pet.saveMetadata.pendingItems).length > 0 && <p>{t('pet.reward.saveMigrationPending')}</p>}
-                <p>{t('ui.editionNotice.backupAdvice')} {t('ui.editionNotice.formatTimeline')}</p>
               </div>
               <BackupPanel controller={backupController} onRestore={onRestoreBackup} onExport={onExportBackup} />
               <h3 className="save-section-title">{t('ui.backup.exportTitle')}</h3>
