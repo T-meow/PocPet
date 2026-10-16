@@ -6,6 +6,7 @@ import coinHoard from './assets/icon/item_coin_hoard.webp';
 import valleyAmber from './assets/icon/item_valley_amber.webp';
 import ancientGoldBar from './assets/icon/item_ancient_gold_bar.webp';
 import { kitchenItemIcons } from './companionActivityAssets';
+import { handcraftItemIcons } from './handcraftAssets';
 import goodEndingCg1 from './assets/CG1.png';
 import iconAdMilk from './assets/icon/icon_ADmilk.webp';
 import iconBeltedBell from './assets/icon/icon_belted_bell.webp';
@@ -77,6 +78,7 @@ export const goodEndingImage = goodEndingCg1;
 export const treeStageImages = [tree1, tree2, tree3, tree4, tree5] as const;
 
 export const itemIcons: Record<BuiltinItemId, string> = {
+  ...handcraftItemIcons,
   ...communityItemIcons,
   ...expeditionItemIcons,
   trail_mix: trailMix,

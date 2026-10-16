@@ -2,7 +2,7 @@ import type { CommunityState, CommissionTemplate, MarketReceipt } from './commun
 import { commissionTemplates, facilityIds, normalizeAnimalName } from './communityData';
 import { getCommunitySale, marketPricingVersion } from './communityEconomy';
 import { defaultExpeditionState, normalizeExpeditionState } from './expeditionState';
-import { marketSlotCount, marketStackLimit } from './communityMarketRules';
+import { marketLegacyStackLimit, marketMaxLevel, marketRemovedExpansionCoins, marketSlotCount, marketSlotLimitVersion, marketStackLimit } from './communityMarketRules';
 import { cropIds, wildIngredientIds } from './foodCatalog';
 import { durableToolIds, toolDefinitions } from './fieldEquipmentData';
 import { communityDecorationIds, regionalTreasureIds } from './regionalTreasures';
@@ -23,7 +23,7 @@ export const defaultCommunityState = (): CommunityState => ({ schemaVersion: 16,
   facilities: { coop: { found: false, work: 0, built: false }, barn: { found: false, work: 0, built: false }, fishing_hut: { found: false, work: 0, built: false }, upstream: { found: false, work: 0, built: false }, stall: { found: false, work: 0, built: false } },
   animals: { coop: { feed: 0, stock: 0, cycleMs: 21600000, cared: false, revision: 0 }, barn: { feed: 0, stock: 0, cycleMs: 28800000, cared: false, revision: 0 } },
   fishing: { casts: 0, nextIdleId: 1, journal: {} },
-  market: { pricingVersion: marketPricingVersion, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, lastBuyoutDay: '', listings: [], reserve: {}, revenue: 0, sessionRevenue: 0, premium: 0, sold: 0, log: [] },
+  market: { pricingVersion: marketPricingVersion, slotLimitVersion: marketSlotLimitVersion, slotRefundCoins: 0, slotRefundTotal: 0, level: 0, open: false, lastVisitAt: 0, visitors: 0, nextListingId: 1, seed: 0, nextVisitAt: undefined, remainingVisitMs: undefined, lastBuyoutDay: '', listings: [], reserve: {}, revenue: 0, sessionRevenue: 0, premium: 0, sold: 0, log: [] },
 });
 const day = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
@@ -107,7 +107,12 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
   state.fishing = normalizeFishingState(v.fishing, state);
   const m = object(v.market), market = state.market;
   market.pricingVersion = n(m.pricingVersion, marketPricingVersion);
-  market.level = state.facilities.stall.built ? Math.max(1, n(m.level, 3)) : 0;
+  const previousLevel = state.facilities.stall.built ? Math.max(1, n(m.level, 3)) : 0;
+  const oldSlots = n(m.slotLimitVersion, marketSlotLimitVersion) < marketSlotLimitVersion;
+  market.level = Math.min(previousLevel, marketMaxLevel);
+  market.slotLimitVersion = marketSlotLimitVersion;
+  market.slotRefundCoins = n(m.slotRefundCoins);
+  market.slotRefundTotal = Math.max(n(m.slotRefundTotal), market.slotRefundCoins);
   market.open = market.level > 0 && m.open === true;
   market.lastVisitAt = n(m.lastVisitAt); market.visitors = n(m.visitors); market.revenue = n(m.revenue); market.premium = n(m.premium, market.revenue); market.sold = n(m.sold);
   // Older saves have no opening checkpoint; preserve their lifetime revenue without guessing a session from the short receipt log.
@@ -117,9 +122,9 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
   // Preserve an already scheduled wait, including the previous 20-minute maximum.
   if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, 20 * 60_000);
   market.reserve = Object.fromEntries(Object.entries(object(m.reserve)).filter(([id]) => getCommunitySale(id)).map(([id, value]) => [id, n(value, 9999)]));
-  const listingIds = new Set<number>(), slots = new Set<number>(), capacity = marketSlotCount(market.level);
+  const listingIds = new Set<number>(), slots = new Set<number>(), capacity = oldSlots && previousLevel > 0 ? 3 + previousLevel * 3 : marketSlotCount(market.level);
   market.listings = (Array.isArray(m.listings) ? m.listings : []).slice(0, 12).flatMap((rawListing: unknown) => {
-    const listing = object(rawListing), sale = getCommunitySale(listing.itemId), id = n(listing.id), quantity = n(listing.quantity, marketStackLimit);
+    const listing = object(rawListing), sale = getCommunitySale(listing.itemId), id = n(listing.id), quantity = n(listing.quantity, oldSlots ? marketLegacyStackLimit : marketStackLimit);
     if (!sale || sale.exchangeOnly || !quantity || !id || listingIds.has(id) || slots.size >= capacity) return [];
     const savedSlot = listing.slotIndex;
     const slotIndex = Number.isInteger(savedSlot) && savedSlot >= 0 && savedSlot < capacity && !slots.has(savedSlot) ? savedSlot
@@ -132,12 +137,23 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
     return [{ id, slotIndex, itemId: listing.itemId, quantity, basePrice, bonus, unitPrice, collector: sale.collector }];
   }).sort((a, b) => a.slotIndex - b.slotIndex);
   market.nextListingId = Math.max(1, n(m.nextListingId), ...market.listings.map(listing => listing.id + 1));
+  if (oldSlots) {
+    const limit = marketSlotCount(market.level);
+    const removedValue = market.listings.reduce((sum, listing) => sum + listing.unitPrice * (listing.slotIndex >= limit ? listing.quantity : Math.max(0, listing.quantity - marketStackLimit)), 0);
+    const refund = 2 * ((previousLevel > marketMaxLevel ? marketRemovedExpansionCoins : 0) + removedValue);
+    market.listings = market.listings.filter(listing => listing.slotIndex < limit).map(listing => ({ ...listing, quantity: Math.min(marketStackLimit, listing.quantity) }));
+    if (refund) {
+      market.slotRefundCoins = Math.min(Number.MAX_SAFE_INTEGER, market.slotRefundCoins + refund);
+      market.slotRefundTotal = Math.min(Number.MAX_SAFE_INTEGER, market.slotRefundTotal + refund);
+      market.nextListingId++;
+    }
+  }
   market.log = (Array.isArray(m.log) ? m.log : []).slice(0, 8).flatMap((rawEntry: unknown): MarketReceipt[] => {
     const entry = object(rawEntry);
     if (!stamp(entry.at)) return [];
     const legacy = !Array.isArray(entry.items);
     const items = (legacy ? [entry] : entry.items).slice(0, 12).flatMap((rawItem: unknown): MarketReceipt['items'] => {
-      const item = object(rawItem), quantity = n(item.quantity, 12 * marketStackLimit);
+      const item = object(rawItem), quantity = n(item.quantity, 12 * marketLegacyStackLimit);
       return typeof item.itemId === 'string' && getCommunitySale(item.itemId) && quantity ? [{ itemId: item.itemId, quantity, coins: n(item.coins) }] : [];
     });
     if (!items.length) return [];

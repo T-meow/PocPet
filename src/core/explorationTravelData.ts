@@ -15,5 +15,5 @@ export const getRegionActionCost = (region: RegionId, step: number, version = 12
   const cost = version < 12 && region in legacyManualCosts ? legacyManualCosts[region as keyof typeof legacyManualCosts] : p;
   return { hunger: splitTravelCost(cost.hunger, p.actions, step), energy: splitTravelCost(cost.energy, p.actions, step) };
 };
-export const explorationBackpackCapacities = [24, 36, 48, 72] as const;
-export const normalizeBackpackLevel = (level: unknown) => typeof level === 'number' && Number.isInteger(level) ? Math.max(0, Math.min(3, level)) : 0;
+export const explorationBackpackCapacities = [24, 36, 48, 72, 100] as const;
+export const normalizeBackpackLevel = (level: unknown) => typeof level === 'number' && Number.isInteger(level) ? Math.max(0, Math.min(explorationBackpackCapacities.length - 1, level)) : 0;

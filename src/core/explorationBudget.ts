@@ -3,7 +3,7 @@ import { clampCoins, getPetStatScale } from './petStats';
 import type { Inventory, PetState } from './petTypes';
 import type { RegionId } from './expeditionTypes';
 import { explorationTravel } from './explorationTravelData';
-import { adventureTreasureIds, adventureTreasureValues } from './adventureItems';
+import { adventureTreasureIds, adventureTreasureValues, commonTreasureMeanValue, getCommonTreasureFromRoll } from './adventureItems';
 import { hashString } from './utils';
 import { wildIngredientIds } from './foodCatalog';
 import { getExplorationRoll } from './explorationChecks';
@@ -143,7 +143,8 @@ export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: 
   return { pet: setBudget(pet, loop), coins, hearts };
 };
 const ordinaryGatherIds = new Set(['creek_herb', 'valley_mushroom', 'hill_honey', 'forest_berry', 'pine_resin', 'coast_kelp', 'sea_glass', 'observatory_part', ...wildIngredientIds]);
-export const commonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum + adventureTreasureValues[id], 0) / adventureTreasureIds.length;
+const legacyCommonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum + adventureTreasureValues[id], 0) / adventureTreasureIds.length;
+export const commonLootMeanValue = commonTreasureMeanValue;
 export const manualTreasureChance = 5;
 export const commonLootPityLimit = 8;
 export const getCommonLootChance = (pet: PetState, kind: 'manual' | 'hour', region: RegionId) => {
@@ -175,11 +176,12 @@ export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manua
       voucher.lootUsed = next;
       }
       const modern = loop.version === 2;
-      const chance = modern ? getCommonLootChance(pet, kind, region) / 100 : expected / commonLootMeanValue;
+      const chance = modern ? getCommonLootChance(pet, kind, region) / 100 : expected / legacyCommonLootMeanValue;
       const commonWon = modern && (loop.commonLootMisses ?? 0) >= commonLootPityLimit - 1 || getExplorationRoll(hashString(seed), 'common', 'hit') < chance;
       if (modern) loop.commonLootMisses = commonWon ? 0 : (loop.commonLootMisses ?? 0) + 1;
       if (commonWon) {
-        const item = adventureTreasureIds[Math.floor(getExplorationRoll(hashString(seed), 'common', 'kind') * adventureTreasureIds.length)];
+        const roll = getExplorationRoll(hashString(seed), 'common', 'kind');
+        const item = modern ? getCommonTreasureFromRoll(roll) : adventureTreasureIds[Math.floor(roll * adventureTreasureIds.length)];
         finds[item] = (finds[item] ?? 0) + 1;
       }
       if (treasure && getExplorationRoll(hashString(seed), 'regional', 'hit') < manualTreasureChance / 100) {

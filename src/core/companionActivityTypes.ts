@@ -1,5 +1,6 @@
 import { isHubGameId, type HubGameId } from '../minigames/catalog';
 import type { MiniGamesSave } from '../minigames/types';
+import type { KitchenHandcraftState } from './handcraftData';
 
 export type CookingMethod = 'mix' | 'pan' | 'blender' | 'oven';
 export type RecipeId = 'plain_rice' | 'biscuit_layer_cake' | 'fruit_salad' | 'banana_shake' | 'watermelon_juice' | 'biscuit_cup' | 'egg_rice' | 'carrot_rice' | 'fruit_pancake' | 'milk_cookies' | 'carrot_omelet' | 'rice_pancake' | 'fruit_pudding' | 'apple_pie' | 'tomato_egg_bowl' | 'pork_rice_bowl'
@@ -31,6 +32,7 @@ export interface KitchenState {
   tasted: Record<string, Partial<Record<DishId, number>>>;
   recentOperationIds: string[];
   plating: 'plain' | 'flower' | 'stars';
+  handcraft: KitchenHandcraftState;
   lastCraft?: { id: string; dishId: DishId; quantity: number; hearts: number; baseHearts?: number; skillHearts?: number; skillLevel?: number; skillXp?: number; at: number; milk?: MilkChoice };
 }
 export type LegacyMiniGameId = 'matching' | 'catch' | 'bubbles';

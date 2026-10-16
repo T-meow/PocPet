@@ -25,6 +25,7 @@ import { RecipeProgress } from './kitchen/RecipeProgress';
 import { RecipeNotes } from './kitchen/RecipeNotes';
 import { RecipeIngredientChoice } from './kitchen/RecipeIngredientChoice';
 import { FoodProcessingPanel } from './kitchen/FoodProcessingPanel';
+import { HandcraftPanel, type HandcraftView } from './kitchen/HandcraftPanel';
 import '../styles/food-production.css';
 import { getItemSourceLabel } from './itemSourceLabel';
 import { FavoriteButton } from './Favorite';
@@ -33,21 +34,27 @@ import { HelpButton } from './help/HelpButton';
 import { kitchenHelp } from './help/productionHelp';
 import { QuantityStepper } from './QuantityStepper';
 
+type KitchenTab = 'book' | 'processing' | 'handcraft' | 'equipment' | 'memories';
+type RecipeParent = { recipeId: RecipeId; banana: boolean; quantity: number; milk: MilkChoice; variantKey?: string };
+export interface KitchenViewState { tab: KitchenTab; milk: MilkChoice; variantKey?: string; isRecipeOpen: boolean; recipeParents: RecipeParent[]; handcraft: HandcraftView }
 interface Props {
   pet: PetState; actorId: string; portrait: string; workingPortrait: string; icons: Record<string, string>; registry: ItemRegistry;
   recipeId: RecipeId; onRecipe: (id: RecipeId) => void; banana: boolean; onBanana: (value: boolean) => void; quantity: number; onQuantity: (quantity: number) => void;
-  update: (action: (pet: PetState) => PetState) => void; onClose: () => void; onShop: () => void; onFeed: (id: ItemId) => void;
+  update: (action: (pet: PetState) => PetState) => void; onClose: () => void; onShop: (view: KitchenViewState) => void; onFeed: (id: ItemId) => void;
   favoriteFoodIds?: readonly ItemId[]; onOpenOutpost?: (request: OutpostRequest) => void;
   onToggleRecipeFavorite: (id: RecipeId) => void;
   initialRecipeOpen?: boolean;
+  initialView?: KitchenViewState;
 }
-export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds, onOpenOutpost, onToggleRecipeFavorite, initialRecipeOpen = false }: Props) => {
-  const [tab, setTab] = useState<'book' | 'processing' | 'equipment' | 'memories'>('book');
-  const [milk, setMilk] = useState<MilkChoice>(() => (pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk');
-  const [variantKey, setVariantKey] = useState<string>();
-  const [isRecipeOpen, setRecipeOpen] = useState(initialRecipeOpen);
+export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds, onOpenOutpost, onToggleRecipeFavorite, initialRecipeOpen = false, initialView }: Props) => {
+  const [tab, setTab] = useState<KitchenTab>(initialView?.tab ?? 'book');
+  const [milk, setMilk] = useState<MilkChoice>(() => initialView?.milk ?? ((pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk'));
+  const [variantKey, setVariantKey] = useState<string | undefined>(initialView?.variantKey);
+  const [isRecipeOpen, setRecipeOpen] = useState(initialView?.isRecipeOpen ?? initialRecipeOpen);
   const [craftRequest, setCraftRequest] = useState<KitchenCraftRequest>();
-  const [recipeParents, setRecipeParents] = useState<{ recipeId: RecipeId; banana: boolean; quantity: number; milk: MilkChoice; variantKey?: string }[]>([]);
+  const [recipeParents, setRecipeParents] = useState<RecipeParent[]>(initialView?.recipeParents ?? []);
+  const [handcraftView, setHandcraftView] = useState<HandcraftView>(initialView?.handcraft ?? { selected: 'eggshell_sticker_roly_poly', quantity: 1, open: false });
+  const openShop = () => onShop({ tab, milk, variantKey, isRecipeOpen, recipeParents, handcraft: handcraftView });
   const recipe = getRecipe(recipeId, variantKey) ?? getRecipe(recipeId)!;
   const ingredients = getRecipeIngredientEntries(recipe, banana, milk);
   const recipeCount = kitchenRecipeCount(pet);
@@ -79,14 +86,15 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
     setCraftRequest({ id: crypto.randomUUID(), recipeId, banana, quantity, milk, variantKey: recipe.variantKey });
   };
   return <><DialogShell className="activity-modal kitchen-modal" backdropClassName="activity-backdrop" labelId="kitchen-title" onClose={onClose}>
-    <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><div><small>MADE WITH LOVE</small><h2 id="kitchen-title">{L('一起下厨', 'Our little kitchen')}</h2></div></div><div className="activity-header-actions"><span className="activity-wallet">🪙 {pet.coins}</span><button className="icon-button" onClick={onShop} aria-label={L('去商店补充食材', 'Buy ingredients')}><ShoppingBag size={20} /></button><button className="icon-button" onClick={onClose} aria-label={L('关闭厨房', 'Close kitchen')}><X /></button></div></header>
-    <nav className="activity-tabs" aria-label={L('厨房内容', 'Kitchen sections')}>{([['book', L('食谱本', 'Recipes')], ['processing', '加工台'], ['equipment', L('厨具', 'Kitchen tools')], ['memories', L('试吃留言', 'Memories')]] as const).map(([id, label]) => <button key={id} aria-pressed={tab === id} className={tab === id ? 'selected' : ''} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    <header className="activity-header"><div className="activity-heading"><span className="activity-icon"><ChefHat /></span><div><small>MADE WITH LOVE</small><h2 id="kitchen-title">{L('一起下厨', 'Our little kitchen')}</h2></div></div><div className="activity-header-actions"><span className="activity-wallet">🪙 {pet.coins}</span><button className="icon-button" onClick={openShop} aria-label={L('去商店补充食材', 'Buy ingredients')}><ShoppingBag size={20} /></button><button className="icon-button" onClick={onClose} aria-label={L('关闭厨房', 'Close kitchen')}><X /></button></div></header>
+    <nav className="activity-tabs" aria-label={L('厨房内容', 'Kitchen sections')}>{([['book', L('食谱本', 'Recipes')], ['processing', '加工台'], ['handcraft', '手工台'], ['equipment', L('厨具', 'Kitchen tools')], ['memories', L('试吃留言', 'Memories')]] as const).map(([id, label]) => <button key={id} aria-pressed={tab === id} className={tab === id ? 'selected' : ''} onClick={() => setTab(id)}>{label}</button>)}</nav>
     <div className="activity-body">
-      <div className="kitchen-scene"><div className="kitchen-scene-copy"><small>{L('不着急，慢慢来', 'TAKE YOUR TIME')}</small><h3>{L('今天想一起做点什么？', 'What shall we make today?')}</h3><p>{L(`发现 ${recipeCount} / ${recipes.length} 道食谱 · 累计制作 ${kitchenMadeCount(pet)} 份`, `${recipeCount} / ${recipes.length} recipes · ${kitchenMadeCount(pet)} dishes made`)}</p></div><img className="companion-portrait" src={portrait} alt={pet.name} /><div className="kitchen-counter" aria-hidden="true"><img src={kitchenSceneImages.servingBowl} alt="" draggable={false} /><img src={kitchenSceneImages.servingGlass} alt="" draggable={false} /><img src={kitchenSceneImages.cookingSpoon} alt="" draggable={false} /><img src={kitchenSceneImages.kitchenPlant} alt="" draggable={false} /></div></div>
+      {tab !== 'handcraft' && <div className="kitchen-scene"><div className="kitchen-scene-copy"><small>{L('不着急，慢慢来', 'TAKE YOUR TIME')}</small><h3>{L('今天想一起做点什么？', 'What shall we make today?')}</h3><p>{L(`发现 ${recipeCount} / ${recipes.length} 道食谱 · 累计制作 ${kitchenMadeCount(pet)} 份`, `${recipeCount} / ${recipes.length} recipes · ${kitchenMadeCount(pet)} dishes made`)}</p></div><img className="companion-portrait" src={portrait} alt={pet.name} /><div className="kitchen-counter" aria-hidden="true"><img src={kitchenSceneImages.servingBowl} alt="" draggable={false} /><img src={kitchenSceneImages.servingGlass} alt="" draggable={false} /><img src={kitchenSceneImages.cookingSpoon} alt="" draggable={false} /><img src={kitchenSceneImages.kitchenPlant} alt="" draggable={false} /></div></div>}
       {!canCook && <p className="activity-info">{L('伙伴正在休息或忙碌，可以先看食谱，等空闲再一起做。', 'Your companion is resting or busy. Browse recipes and cook together later.')}</p>}
-      {tab !== 'processing' && <HelpButton {...kitchenHelp} />}
+      {tab !== 'processing' && tab !== 'handcraft' && <HelpButton {...kitchenHelp} />}
       {tab === 'book' && <RecipeBook pet={pet} favoriteFoodIds={favoriteFoodIds} favoriteIds={pet.favorites.recipeIds} kitchen={pet.kitchen} actorId={actorId} icons={icons} selected={recipeId} onSelect={(id, key) => { playSfx('open'); setRecipeParents([]); onRecipe(id); setVariantKey(key); onBanana(false); onQuantity(1); setMilk((pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk'); setRecipeOpen(true); }} />}
       {tab === 'processing' && <FoodProcessingPanel pet={pet} update={update} registry={registry} icons={icons} />}
+      {tab === 'handcraft' && <HandcraftPanel pet={pet} update={update} registry={registry} icons={icons} view={handcraftView} onViewChange={setHandcraftView} onShop={openShop} />}
       {tab === 'equipment' && <section><div className="equipment-grid">{cookingMethods.map((entry) => <article className="equipment-card" key={entry.id}><img src={kitchenEquipmentImages[entry.id].image} alt="" draggable={false} /><h3>{L(entry.name, entry.en)}</h3><p>{pet.kitchen.equipment.includes(entry.id) ? L('已经摆在厨房里了', 'Ready in your kitchen') : L(`做过 ${entry.requiredRecipes} 种料理后 · ${entry.price} 金币`, `Make ${entry.requiredRecipes} recipes · ${entry.price} coins`)}</p><button className="activity-primary" disabled={pet.kitchen.equipment.includes(entry.id) || recipeCount < entry.requiredRecipes || pet.coins < entry.price} onClick={() => update((current) => buyKitchenEquipment(current, entry.id))}>{pet.kitchen.equipment.includes(entry.id) ? L('已拥有', 'Owned') : L('添置厨具', 'Get this tool')}</button></article>)}</div></section>}
       {tab === 'memories' && <CompanionMemories pet={pet} actorId={actorId} />}
       {result && tab !== 'memories' && <button className="kitchen-last-craft" onClick={() => { const dish = getDish(result.dishId); if (dish) { playSfx('open'); setRecipeParents([]); onRecipe(dish.recipe.id); onBanana(dish.banana); onQuantity(result.quantity); setVariantKey(dish.recipe.variantKey); setMilk(result.milk ?? 'farm_milk'); setCraftRequest({ id: result.id, recipeId: dish.recipe.id, banana: dish.banana, quantity: result.quantity, milk: result.milk, variantKey: dish.recipe.variantKey }); } }}><img src={icons[result.dishId]} alt="" /><span>{L('查看最近出炉', 'View the last dish')}<strong>{dishName(result.dishId)} × {result.quantity}</strong></span><span aria-hidden="true">›</span></button>}
@@ -113,7 +121,7 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
           <p className="activity-heart"><Heart size={16} /> {L(`本次 ${reward.heartsPerServing * quantity} 心心`, `${reward.heartsPerServing * quantity} hearts`)}</p>
           <button className="activity-primary" disabled={!canCook || !equipmentReady || quantity > limit} onClick={craft}>{getRecipeUnlockReason(pet, recipeId, recipe.variantKey) || L('一起制作', 'Make it together')}</button>
           {!equipmentReady && <button className="activity-link" onClick={() => { closeRecipe(); setTab('equipment'); }}>{L('先添置需要的厨具', 'Get the required kitchen tool')}</button>}
-          {ingredients.some(({ id, quantity: amount }) => !getDish(id) && (pet.inventory[id] ?? 0) < amount * quantity) && <button className="activity-link" onClick={onShop}>{L('去商店补充食材', 'Shop for ingredients')}</button>}
+          {ingredients.some(({ id, quantity: amount }) => !getDish(id) && (pet.inventory[id] ?? 0) < amount * quantity) && <button className="activity-link" onClick={openShop}>{L('去商店补充食材', 'Shop for ingredients')}</button>}
     </div>
   </DialogShell>}</>;
 };

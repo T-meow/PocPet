@@ -6,6 +6,22 @@ import { hashString } from './utils';
 export const coinHoardValue = 360;
 export const adventureTreasureValues: Record<AdventureTreasureId, number> = { coin_hoard: coinHoardValue, valley_amber: 600, ancient_gold_bar: 1000 };
 export const adventureTreasureIds = ['coin_hoard', 'valley_amber', 'ancient_gold_bar'] as const;
+export const commonTreasureDistribution = [
+  { id: 'coin_hoard', name: '金币堆', percent: 70 },
+  { id: 'valley_amber', name: '琥珀', percent: 25 },
+  { id: 'ancient_gold_bar', name: '金条', percent: 5 },
+] as const;
+export const commonTreasureMeanValue = commonTreasureDistribution.reduce((sum, entry) => sum + adventureTreasureValues[entry.id] * entry.percent / 100, 0);
+export const getCommonTreasureFromRoll = (roll: number): AdventureTreasureId => {
+  if (!Number.isFinite(roll) || roll < 0) return 'coin_hoard';
+  let threshold = 0;
+  for (const entry of commonTreasureDistribution) {
+    threshold += entry.percent;
+    if (roll * 100 < threshold) return entry.id;
+  }
+  return 'ancient_gold_bar';
+};
+export const commonTreasureDistributionText = () => commonTreasureDistribution.map(entry => `${entry.name} ${entry.percent}%`).join('、');
 export const getAdventureTripTreasure = (tripId: string) => adventureTreasureIds[hashString(tripId + ':treasure') % adventureTreasureIds.length];
 export const isAdventureTreasure = (id: string): id is AdventureTreasureId => Object.prototype.hasOwnProperty.call(adventureTreasureValues, id);
 export const getAdventureTreasureValue = (id: string) => isAdventureTreasure(id) ? adventureTreasureValues[id] : 0;

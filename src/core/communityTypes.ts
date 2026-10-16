@@ -51,6 +51,7 @@ export interface MarketReceipt {
 }
 export interface CommunityMarket {
   pricingVersion: number;
+  slotLimitVersion: number; slotRefundCoins: number; slotRefundTotal: number;
   level: number; open: boolean; lastVisitAt: number; visitors: number; nextListingId: number;
   seed: number; nextVisitAt?: number; remainingVisitMs?: number;
   lastBuyoutDay: string;

@@ -14,6 +14,26 @@
 .kitchen-quantity-control .quantity-stepper__button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; flex: none; }
 .kitchen-quantity-control .quantity-stepper__input { box-sizing: border-box; width: 64px; min-width: 0; height: 44px; min-height: 44px; flex: 1 1 auto; padding: 8px 4px; border: 0; border-radius: 0; }
 .kitchen-quantity-presets { flex-wrap: wrap; }
+.kitchen-modal .activity-tabs { flex-wrap: wrap; gap: 0; }
+.kitchen-modal .activity-tabs > button { flex: 1 1 70px; margin: 3px; }
+.handcraft-panel { min-width: 0; }
+.handcraft-panel > p, .handcraft-detail-modal p { line-height: 1.6; }
+.handcraft-panel .help-heading h3 { display: flex; align-items: center; }
+.handcraft-panel .help-heading h3 > svg { margin-right: 8px; }
+.handcraft-materials { display: flex; flex-wrap: wrap; margin: 12px -4px; }
+.handcraft-materials > div { display: flex; align-items: center; min-width: 0; flex: 1 1 180px; margin: 4px; padding: 12px; border: 1px solid #e5dfd1; border-radius: 12px; background: #fffaf0; }
+.handcraft-materials img { width: 48px; height: 48px; object-fit: contain; margin-right: 10px; flex: none; }
+.handcraft-materials strong, .handcraft-materials small { display: block; line-height: 1.6; }
+.handcraft-materials small { color: #697565; }
+.handcraft-pending { margin: 12px 0; padding: 12px; border: 1px solid #e5dcca; border-radius: 12px; background: #fff6e7; }
+.handcraft-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.handcraft-grid .handcraft-card { min-width: 0; justify-content: flex-start; }
+.handcraft-grid .handcraft-card > img { width: 100%; max-width: 112px; height: 112px; object-fit: contain; }
+.handcraft-card strong, .handcraft-card small { max-width: 100%; word-wrap: break-word; line-height: 1.5; }
+.handcraft-preview { display: block; width: 184px; max-width: 100%; height: 184px; object-fit: contain; margin: 0 auto 12px; }
+.handcraft-pricing { margin: 12px 0; padding: 10px; border: 1px solid #e5dfd1; border-radius: 10px; font-size: 12px; }
+.handcraft-pricing summary { cursor: pointer; }
+@media (max-width: 560px) { .handcraft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .kitchen-recipe-book .recipe-card { gap: 10px; padding: 14px 10px; justify-content: flex-start; }
 .kitchen-recipe-book .recipe-card img { width: min(100%, 160px); height: auto; aspect-ratio: 1; }

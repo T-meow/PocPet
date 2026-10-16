@@ -304,7 +304,7 @@ export const parseSaveFileText = (text: string, now = Date.now(), fallbackName?:
   const imported = decodeSaveSnapshot(text, fallbackName);
   const savedAt = imported.exportedAt ? Date.parse(imported.exportedAt) : imported.pet.lastUpdatedAt;
   const pet = resetImportedTimeBaseline(imported.pet, now, savedAt);
-  return { ...imported, pet: clearRestoredGachaHistory(pet.community.market.pricingVersion < marketPricingVersion ? advanceCommunityMarket(pet, now) : pet) };
+  return { ...imported, pet: clearRestoredGachaHistory(pet.community.market.pricingVersion < marketPricingVersion || pet.community.market.slotRefundCoins > 0 ? advanceCommunityMarket(pet, now) : pet) };
 };
 
 export const loadStoredPetJson = (

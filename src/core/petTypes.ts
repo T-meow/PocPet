@@ -5,6 +5,7 @@ import type { FestivalStoryState } from './festivalStories';
 import type { AdventureItemId, AdventureState } from './adventureTypes';
 import type { CommunityItemId, CommunityState } from './communityTypes';
 import type { FavoritesState } from './favorites';
+import type { HandcraftId, HandcraftMaterialId } from './handcraftData';
 
 export type PetStatus = 'content' | 'hungry' | 'sad' | 'dirty' | 'tired' | 'sick' | 'sleeping';
 
@@ -13,6 +14,8 @@ export type BuiltinItemId =
   | AdventureItemId
   | DishId
   | KitchenMaterialId
+  | HandcraftId
+  | HandcraftMaterialId
   | 'emergency_biscuit'
   | 'soda_biscuit_box'
   | 'bento'

@@ -529,7 +529,7 @@ async function verifySavesAndErrors() {
     });
 
     await check('批量播种收获与饲料加工的满仓、暂停和陈旧请求恢复', async () => {
-      const { plantCommunityCrops, harvestCommunityCrops } = await import('../src/core/community.ts');
+      const { plantCommunityCrops, harvestCommunityCrops, careCommunityCrops } = await import('../src/core/community.ts');
       const { processFood } = await import('../src/core/foodProcessing.ts');
       const { getCommunitySale } = await import('../src/core/communityEconomy.ts');
       const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
@@ -549,6 +549,26 @@ async function verifySavesAndErrors() {
       assert.equal(state.community.plots[1].crop, undefined, 'insufficient seeds leave the remaining plot empty');
       assert.equal(state.community.plots[1].lastCrop, 'carrot');
       assert.equal(plantCommunityCrops(state, seeds, now), state, 'duplicate requests do not consume more seeds');
+      const careSource = restore({ ...initial, inventory: { ...initial.inventory, nutrient_compost: 2, field_watering_can: 1 }, community: { ...initial.community,
+        toolWear: { field_watering_can: 15 }, plots: initial.community.plots.map(plot => plot.id <= 4 ? { ...plot, crop: {
+          id: 'carrot', plantedAt: now - 4 * 3600000, readyAt: plot.id === 1 ? now + 60_000 : plot.id === 3 ? now : now + 4 * 3600000,
+          ...(plot.id === 4 ? { watered: true, fertilized: true } : {}),
+        } } : plot),
+      } });
+      const careTargets = [2, 1, 1, 3, 4].map(id => ({ id, plantedAt: now - 4 * 3600000 }));
+      const cared = restore(careCommunityCrops(careSource, careTargets, now));
+      assert.equal(cared.inventory.nutrient_compost ?? 0, 0);
+      assert.equal(cared.inventory.field_watering_can ?? 0, 0);
+      assert.equal(cared.community.plots[0].crop.readyAt, now, 'watering can mature the crop after its fertilizer is applied');
+      assert.equal(cared.community.plots[0].crop.fertilized, true);
+      assert.equal(cared.community.plots[0].crop.watered, true);
+      assert.equal(cared.community.plots[1].crop.fertilized, true, 'fertilizer can still be used after the watering can is exhausted');
+      assert.equal(Boolean(cared.community.plots[1].crop.watered), false);
+      assert.equal(Boolean(cared.community.plots[2].crop.fertilized), false, 'mature crops are skipped');
+      const restockedCare = { ...cared, inventory: { ...cared.inventory, nutrient_compost: 2, field_watering_can: 1 } };
+      assert.equal(careCommunityCrops(restockedCare, [{ id: 1, plantedAt: now - 4 * 3600000 }, { id: 4, plantedAt: now - 4 * 3600000 }, { id: 2, plantedAt: now - 1 }], now), restockedCare, 'completed and stale crop snapshots cannot spend supplies after reload');
+      const frozenCare = { ...careSource, timePause: { schemaVersion: 1, pausedAt: now } };
+      assert.equal(careCommunityCrops(frozenCare, careTargets, now), frozenCare);
       const ripeAt = now + 8 * 3600000;
       const sickleSource = restore({ ...initial, inventory: { ...initial.inventory, carrot: inventoryItemLimit - 3, wheat: 0, harvest_sickle: 1 },
         community: { ...initial.community, toolWear: { harvest_sickle: 19 }, plots: initial.community.plots.map(plot => plot.id <= 3
@@ -884,6 +904,119 @@ async function verifySavesAndErrors() {
       assert.deepEqual([newAction.hunger, newAction.energy], [50, 50]);
     });
 
+    await check('百份背包扩容的五区交付、保存与重复请求防重', async () => {
+      const { getBackpackUpgradeQuote, getExplorationBagCapacity, upgradeExplorationBackpack } = await import('../src/core/explorationBackpack.ts');
+      const { regionIds } = await import('../src/core/expeditionData.ts');
+      const ready = createDefaultPet(now);
+      ready.adventure.backpackLevel = 3;
+      ready.coins = 8000;
+      for (const id of regionIds) ready.community.expedition.regions[id].surveyed = true;
+      const quote = getBackpackUpgradeQuote(ready);
+      assert.equal(quote.capacity, 72, 'existing backpacks retain their old capacity');
+      assert.equal(quote.nextCapacity, 100);
+      for (const id of ['creek_aquamarine', 'hill_sunstone', 'forest_emerald', 'tidal_pearl', 'star_sapphire']) assert.equal(quote.items[id], 1);
+      for (const id of ['valley_mushroom', 'hill_honey', 'forest_berry', 'coast_kelp', 'observatory_part', 'pine_resin', 'sea_glass']) assert.equal(quote.items[id], 8);
+      ready.inventory = Object.fromEntries(Object.entries(quote.items).map(([id, amount]) => [id, amount + 2]));
+      assert.equal(upgradeExplorationBackpack(ready, 2), ready, 'a stale level cannot spend materials');
+      const missing = { ...ready, inventory: { ...ready.inventory, star_sapphire: 0 } };
+      assert.equal(upgradeExplorationBackpack(missing, 3), missing, 'all five regional treasures must be present before anything is spent');
+      const locked = structuredClone(ready);
+      locked.community.expedition.regions.station.surveyed = false;
+      assert.equal(upgradeExplorationBackpack(locked, 3), locked);
+      const upgraded = upgradeExplorationBackpack(ready, 3);
+      assert.equal(getExplorationBagCapacity(upgraded), 100);
+      assert.equal(upgraded.coins, 0);
+      for (const id of Object.keys(quote.items)) assert.equal(upgraded.inventory[id], 2);
+      const restored = parseSaveFileText(createSaveFileText(upgraded, null, now), now).pet;
+      assert.equal(getExplorationBagCapacity(restored), 100);
+      assert.equal(restored.adventure.backpackLevel, 4);
+      assert.deepEqual(restored.inventory, upgraded.inventory);
+      assert.equal(upgradeExplorationBackpack(restored, 3), restored);
+      assert.equal(getBackpackUpgradeQuote(restored).coins, undefined);
+    });
+
+    await check('手工台副产物、批量制作与售卖的存档恢复防重', async () => {
+      const { craftRecipe } = await import('../src/core/kitchen.ts');
+      const { craftHandcraft } = await import('../src/core/handcraft.ts');
+      const { claimHandcraftMaterials } = await import('../src/core/handcraftState.ts');
+      const { handcraftRecipes } = await import('../src/core/handcraftData.ts');
+      const { getCommunitySale, isHighValueProduct } = await import('../src/core/communityEconomy.ts');
+      const { getInventoryItem } = await import('../src/core/items.ts');
+      const { getMarketListingOffer, getMarketQuote, listCommunityGoods } = await import('../src/core/communityMarket.ts');
+      const { mapRegions, landmarkNodes, landmarkId } = await import('../src/core/landmarkProgress.ts');
+      const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      const initial = createDefaultPet(now);
+      initial.adventure.landmarks = mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node)));
+      initial.inventory = { carrot: 30, egg: 30, clam: 4, coast_kelp: 4, ginger: 4, dish_egg_rice: 1 };
+      let state = reload(craftRecipe(initial, 'carrot_omelet', false, 2, 'shell-eggs-a', now));
+      assert.equal(state.kitchen.handcraft.remainders.egg_shell, 2);
+      assert.equal(state.inventory.egg_shell ?? 0, 0);
+      state = craftRecipe(state, 'carrot_omelet', false, 1, 'shell-eggs-b', now);
+      assert.equal(state.inventory.egg_shell, 1);
+      assert.equal(state.kitchen.handcraft.remainders.egg_shell, 0);
+      assert.equal(craftRecipe(state, 'carrot_omelet', false, 1, 'shell-eggs-b', now), state);
+      const batched = craftRecipe(initial, 'carrot_omelet', false, 3, 'shell-eggs-batch', now);
+      assert.deepEqual(batched.kitchen.handcraft.remainders, state.kitchen.handcraft.remainders);
+      assert.equal(batched.inventory.egg_shell, state.inventory.egg_shell, 'batching does not create extra shell materials');
+      state = reload(craftRecipe(state, 'clam_kelp_soup', false, 1, 'shell-clam-a', now));
+      assert.equal(state.kitchen.handcraft.remainders.clean_shell, 1);
+      state = craftRecipe(state, 'clam_kelp_soup', false, 1, 'shell-clam-b', now);
+      assert.equal(state.inventory.clean_shell, 1);
+      assert.equal(state.kitchen.handcraft.remainders.clean_shell, 0);
+      const prepared = craftRecipe(state, 'carrot_rice', false, 1, 'shell-prepared', now);
+      assert.deepEqual(prepared.kitchen.handcraft, state.kitchen.handcraft, 'prepared food cannot yield its raw ingredients a second time');
+      const fullMaterials = { ...initial, inventory: { ...initial.inventory, egg_shell: 9999 } };
+      const pending = reload(craftRecipe(fullMaterials, 'carrot_omelet', false, 9, 'shell-full', now));
+      assert.equal(pending.kitchen.handcraft.pending.egg_shell, 3);
+      assert.equal(claimHandcraftMaterials(pending), pending, 'full storage keeps all byproducts pending');
+      const partial = reload(claimHandcraftMaterials({ ...pending, inventory: { ...pending.inventory, egg_shell: 9998 } }));
+      assert.equal(partial.inventory.egg_shell, 9999);
+      assert.equal(partial.kitchen.handcraft.pending.egg_shell, 2);
+      const claimed = reload(claimHandcraftMaterials({ ...partial, inventory: { ...partial.inventory, egg_shell: 9997 } }));
+      assert.equal(claimed.inventory.egg_shell, 9999);
+      assert.equal(claimed.kitchen.handcraft.pending.egg_shell ?? 0, 0);
+      assert.equal(claimHandcraftMaterials(claimed), claimed);
+      const stocked = createDefaultPet(now);
+      stocked.inventory = { shiny_sticker: 2000, community_wood: 2000, flour: 2000 };
+      const revision = stocked.kitchen.handcraft.revision;
+      assert.equal(craftHandcraft(stocked, 'sticker_pinwheel', 1000, revision, now), stocked);
+      const made = craftHandcraft(stocked, 'sticker_pinwheel', 999, revision, now);
+      assert.equal(made.inventory.sticker_pinwheel, 999);
+      assert.equal(made.inventory.shiny_sticker, 1001);
+      assert.equal(made.hearts, stocked.hearts, 'crafting a gift material does not grant gift hearts');
+      assert.equal(made.mood, stocked.mood);
+      assert.equal(made.coins, stocked.coins, 'material valuation is not an extra fee or an immediate sale');
+      const restored = reload(made);
+      assert.equal(restored.kitchen.handcraft.made.sticker_pinwheel, 999);
+      assert.deepEqual(restored.inventory, made.inventory);
+      assert.equal(craftHandcraft(restored, 'sticker_pinwheel', 999, revision, now), restored);
+      const fullOutput = { ...stocked, inventory: { ...stocked.inventory, sticker_pinwheel: 9999 } };
+      assert.equal(craftHandcraft(fullOutput, 'sticker_pinwheel', 1, revision, now), fullOutput);
+      const frozen = { ...stocked, timePause: { schemaVersion: 1, pausedAt: now } };
+      assert.equal(craftHandcraft(frozen, 'sticker_pinwheel', 1, revision, now), frozen);
+      assert.equal(getCommunitySale('egg_shell'), undefined);
+      assert.equal(getCommunitySale('clean_shell'), undefined);
+      assert.deepEqual(handcraftRecipes.map(recipe => getCommunitySale(recipe.id).base), [73, 95, 86, 128, 608, 804, 1016, 1257, 1843]);
+      const decorated = structuredClone(stocked);
+      decorated.community.market.level = 2;
+      decorated.partnerSchedule.skills.study.level = 10;
+      decorated.community.decorations = ['golden_sign'];
+      decorated.community.decorationLevels.golden_sign = 10;
+      assert.equal(getMarketQuote(decorated, 'creek_shell_wind_chime').price, 943, '820 coins plus 15% must not lose one coin to floating-point rounding');
+      for (const recipe of handcraftRecipes) {
+        assert.equal(isHighValueProduct(recipe.id), true, recipe.name + ' qualifies for the value badge');
+        assert.equal(getInventoryItem(recipe.id).usable, false);
+      }
+      const shop = { ...restored, community: { ...restored.community, facilities: { ...restored.community.facilities, stall: { built: true, found: true, work: 2 } }, market: { ...restored.community.market, level: 2 } } };
+      assert.equal(getMarketListingOffer(shop, 'sticker_pinwheel').quantityLimit, 10);
+      const listed = reload(listCommunityGoods(shop, 'sticker_pinwheel', 10, shop.community.market.nextListingId, now));
+      assert.equal(listed.community.market.listings[0].itemId, 'sticker_pinwheel');
+      assert.equal(listed.community.market.listings[0].quantity, 10);
+      assert.equal(listed.inventory.sticker_pinwheel, 989);
+      const old = structuredClone(initial); delete old.kitchen.handcraft;
+      assert.deepEqual(reload(old).kitchen.handcraft, { revision: 0, made: {}, pending: {}, remainders: { egg_shell: 0, clean_shell: 0 } });
+    });
+
     await check('固定料理、烤鱼与小吃套餐存档往返、上架和无效制作恢复', async () => {
       const { craftRecipe, recordDishTaste, normalizeKitchenState } = await import('../src/core/kitchen.ts');
       const { getDish, getRecipe, getDishId } = await import('../src/core/kitchenRecipes.ts');
@@ -1217,14 +1350,14 @@ async function verifySavesAndErrors() {
       const { advanceExplorationBudget, spendExplorationHarvest, settleExplorationLoot } = await import('../src/core/explorationBudget.ts');
       const { regionalTreasures } = await import('../src/core/regionalTreasures.ts');
       const reload = state => parseSaveFileText(createSaveFileText(state, null, now), now).pet;
-      // Fixed identity: the first two harvests find gems; the first also finds a gold bar.
+      // Fixed identity: the first two harvests find gems; the reweighted common draw now yields coins.
       const initial = advanceExplorationBudget(normalizePet({ ...pet, saveMetadata: { ...pet.saveMetadata, id: 'save:regional-fixture-121498' },
         adventure: { ...pet.adventure, completed: { tutorial: 1 } } }, now), now);
       const harvest = (state, region = 'valley', count = 1, kind = 'manual') => settleExplorationLoot(spendExplorationHarvest(state, count, now), count, kind, region, now);
       const original = JSON.stringify(initial);
       for (const [item, { region }] of Object.entries(regionalTreasures)) {
         const result = harvest(initial, region);
-        assert.deepEqual(result.finds, { ancient_gold_bar: 1, [item]: 1 }, 'regional and existing common rolls are independent');
+        assert.deepEqual(result.finds, { coin_hoard: 1, [item]: 1 }, 'regional and weighted common rolls are independent');
         const restored = harvest(reload(initial), region);
         assert.deepEqual(restored.finds, result.finds, 'saving before consumption cannot reroll');
         assert.deepEqual(restored.pet.community.expedition.loop, result.pet.community.expedition.loop);
@@ -1236,7 +1369,7 @@ async function verifySavesAndErrors() {
       }
       assert.equal(JSON.stringify(initial), original, 'settlement must not mutate the input snapshot');
       const twice = harvest(initial, 'valley', 2);
-      assert.deepEqual(twice.finds, { ancient_gold_bar: 1, creek_aquamarine: 2 });
+      assert.deepEqual(twice.finds, { coin_hoard: 1, creek_aquamarine: 2 });
       assert.deepEqual(twice.pet.community.expedition.loop.vouchers, [], 'new rewards have no daily voucher allowance');
       const first = harvest(initial), second = harvest(reload(first.pet));
       assert.equal(first.finds.creek_aquamarine + second.finds.creek_aquamarine, 2);
@@ -1245,7 +1378,7 @@ async function verifySavesAndErrors() {
       partial.community.expedition.loop.vouchers = [{ day: partial.community.expedition.loop.day, slot: 0, face: 150, paid: 100, rewardsVersion: 1, lootUsed: 99 }];
       const last = harvest(reload(partial), 'valley', 2);
       assert.deepEqual(last.finds, twice.finds, 'retained legacy fields cannot limit rewards after migration');
-      assert.deepEqual(harvest(initial, 'valley', 1, 'hour').finds, { ancient_gold_bar: 1 }, 'hourly gathering keeps its existing common loot only');
+      assert.deepEqual(harvest(initial, 'valley', 1, 'hour').finds, { coin_hoard: 1 }, 'hourly gathering uses the same weighted common loot pool');
       assert.deepEqual(harvest({ ...initial, timePause: { schemaVersion: 1, pausedAt: now } }).finds, {});
       assert.deepEqual(settleExplorationLoot(initial, 0, 'manual', 'valley', now).finds, {});
       const nearMiss = structuredClone(initial);
@@ -1295,7 +1428,7 @@ async function verifySavesAndErrors() {
       let state = act(reload(ready), choice.id);
       assert.deepEqual(state.adventure.active, act(ready, choice.id).adventure.active);
       assert.equal(state.adventure.active.loot.creek_aquamarine, 1);
-      assert.equal(state.adventure.active.loot.ancient_gold_bar, 1);
+      assert.equal(state.adventure.active.loot.coin_hoard, 1);
       assert.equal(state.community.treasureResearch.creek_aquamarine, 2, 'only the tool advances research');
       assert.equal(state.community.expedition.collection.creek_aquamarine, 1);
       const trip = ready.adventure.active;
@@ -2168,6 +2301,69 @@ async function verifySavesAndErrors() {
       assert.deepEqual(parseSaveFileText(createSaveFileText(repriced, null, now), now).pet.community.market, repriced.community.market);
     });
 
+    await check('九栏十件小摊补偿、满钱包待领与存档恢复防重', async () => {
+      const { advanceCommunityMarket, getMarketCapacity, listCommunityGoods, upgradeCommunityMarket } = await import('../src/core/communityMarket.ts');
+      const { marketSlotLimitVersion } = await import('../src/core/communityMarketRules.ts');
+      const legacy = JSON.parse(text);
+      legacy.pet.coins = 1000;
+      legacy.pet.community.facilities.stall = { found: true, work: 2, built: true };
+      const market = legacy.pet.community.market;
+      Object.assign(market, { level: 3, open: false, lastVisitAt: now, nextListingId: 13, revenue: 500, sessionRevenue: 120,
+        listings: Array.from({ length: 12 }, (_, slotIndex) => ({ id: slotIndex + 1, slotIndex, itemId: 'apple', quantity: 20, basePrice: 40, unitPrice: 50 + slotIndex, bonus: 25, collector: false })) });
+      delete market.slotLimitVersion; delete market.slotRefundCoins; delete market.slotRefundTotal;
+      const restored = parseSaveFileText(JSON.stringify(legacy), now).pet;
+      const refund = 17920; // 2 × (500 expansion + 4860 excess stack value + 3600 removed shelf value).
+      assert.equal(restored.community.market.level, 2);
+      assert.equal(getMarketCapacity(restored), 9);
+      assert.equal(restored.coins, 1000 + refund);
+      assert.equal(restored.community.market.slotRefundTotal, refund);
+      assert.equal(restored.community.market.slotRefundCoins, 0);
+      assert.equal(restored.community.market.slotLimitVersion, marketSlotLimitVersion);
+      assert.equal(restored.community.market.listings.length, 9);
+      assert.deepEqual(restored.community.market.listings.map(entry => [entry.slotIndex, entry.quantity, entry.unitPrice]), market.listings.slice(0, 9).map(entry => [entry.slotIndex, 10, entry.unitPrice]));
+      assert.equal(restored.community.market.revenue, 500, 'refunds are not market sales');
+      assert.equal(restored.community.market.sessionRevenue, 120);
+      const reopened = parseSaveFileText(createSaveFileText(restored, null, now), now).pet;
+      assert.equal(reopened.coins, restored.coins);
+      assert.equal(advanceCommunityMarket(reopened, now).coins, reopened.coins, 'repeated updates cannot repeat compensation');
+      assert.equal(upgradeCommunityMarket(reopened, 2, now), reopened, 'nine shelves are the final expansion');
+      assert.equal(listCommunityGoods(reopened, 'apple', 1, market.nextListingId, now), reopened, 'old listing requests are invalidated by the capacity change');
+      const unaffected = structuredClone(legacy);
+      unaffected.pet.community.market.level = 2;
+      unaffected.pet.community.market.listings = unaffected.pet.community.market.listings.slice(0, 9).map(entry => ({ ...entry, quantity: 10 }));
+      assert.equal(parseSaveFileText(JSON.stringify(unaffected), now).pet.coins, 1000, 'shops already within both limits receive no reduction refund');
+      const alreadyNine = structuredClone(legacy);
+      alreadyNine.pet.coins = 9200;
+      Object.assign(alreadyNine.pet.community.market, { level: 2, slotLimitVersion: 1, slotRefundCoins: 0, slotRefundTotal: 8200,
+        listings: market.listings.slice(0, 9), log: [{ at: now - 1, visit: 1, customer: 'generous', buyout: true, coins: 13320, items: [{ itemId: 'apple', quantity: 240, coins: 13320 }] }] });
+      const stacked = parseSaveFileText(JSON.stringify(alreadyNine), now).pet;
+      assert.equal(stacked.coins, 18920, 'version-one shops receive only the extra stack compensation');
+      assert.equal(stacked.community.market.slotRefundTotal, refund);
+      assert.equal(stacked.community.market.log[0].items[0].quantity, 240, 'historical sales are not truncated to the new stack limit');
+      const emptyShelf = { ...reopened, inventory: { ...reopened.inventory, apple: 40 }, community: { ...reopened.community, market: { ...reopened.community.market, listings: [], nextListingId: 100 } } };
+      assert.equal(listCommunityGoods(emptyShelf, 'apple', 11, 100, now), emptyShelf);
+      const fullShelf = listCommunityGoods(emptyShelf, 'apple', 10, 100, now);
+      assert.equal(fullShelf.community.market.listings[0].quantity, 10);
+      assert.equal(fullShelf.inventory.apple, 30);
+      const frozen = structuredClone(legacy);
+      frozen.pet.timePause = { schemaVersion: 1, pausedAt: now };
+      const paused = parseSaveFileText(JSON.stringify(frozen), now).pet;
+      assert.equal(paused.coins, 1000);
+      assert.equal(paused.community.market.slotRefundCoins, refund);
+      assert.equal(advanceCommunityMarket({ ...paused, timePause: undefined }, now).coins, 1000 + refund);
+      const full = structuredClone(legacy);
+      full.pet.coins = Number.MAX_SAFE_INTEGER;
+      const blocked = parseSaveFileText(JSON.stringify(full), now).pet;
+      assert.equal(blocked.community.market.slotRefundCoins, refund, 'a full wallet retains every compensation coin');
+      const partial = advanceCommunityMarket({ ...blocked, coins: Number.MAX_SAFE_INTEGER - 1000 }, now);
+      assert.equal(partial.community.market.slotRefundCoins, refund - 1000);
+      const savedPartial = parseSaveFileText(createSaveFileText(partial, null, now), now).pet;
+      assert.equal(savedPartial.community.market.slotRefundCoins, refund - 1000);
+      const received = advanceCommunityMarket({ ...savedPartial, coins: 0 }, now);
+      assert.equal(received.coins, refund - 1000);
+      assert.equal(received.community.market.slotRefundCoins, 0);
+    });
+
     await check('摆摊本次收入存档往返、离线结算与重复开关店保护', async () => {
       const { advanceCommunityMarket, getMarketQuote, listCommunityGoods, setCommunityMarketOpen } = await import('../src/core/communityMarket.ts');
       const reload = (state, at) => parseSaveFileText(createSaveFileText(state, null, at), at).pet;
@@ -2205,7 +2401,7 @@ async function verifySavesAndErrors() {
         const state = { ...initial, inventory: { ...initial.inventory, matsutake: 20 }, community: { ...initial.community,
           decorations, decorationLevels: Object.fromEntries(decorations.map(id => [id, 10])),
         } };
-        return setCommunityMarketOpen(listCommunityGoods(state, 'matsutake', 20, state.community.market.nextListingId, now), true, now);
+        return setCommunityMarketOpen(listCommunityGoods(state, 'matsutake', 10, state.community.market.nextListingId, now), true, now);
       };
       const plain = stockedShop([]), decorated = stockedShop(['golden_sign', 'amber_lantern', 'creek_fountain']);
       assert.equal(decorated.community.market.nextVisitAt - now, (plain.community.market.nextVisitAt - now) / 2);
@@ -2234,7 +2430,7 @@ async function verifySavesAndErrors() {
       const ready = (state, at) => ({ ...state, community: { ...state.community,
         facilities: { ...state.community.facilities, stall: { found: true, built: true, work: 2 } },
         market: { ...state.community.market, level: 1, open: true, seed, visitors: 0, lastVisitAt: at - 1, nextVisitAt: at, remainingVisitMs: undefined,
-          listings: [{ id: 1, slotIndex: 0, itemId: 'apple', quantity: 20, unitPrice: 10, basePrice: 8, bonus: 20, collector: false }], nextListingId: 2 },
+          listings: [{ id: 1, slotIndex: 0, itemId: 'apple', quantity: 10, unitPrice: 10, basePrice: 8, bonus: 20, collector: false }], nextListingId: 2 },
       } });
       const reload = (state, at) => parseSaveFileText(createSaveFileText(state, null, at), at).pet;
       const first = advanceCommunityMarket(ready(createDefaultPet(beforeReset), beforeReset), beforeReset);

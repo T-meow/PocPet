@@ -5,8 +5,12 @@ import { communityCrops, wildIngredients } from '../core/foodCatalog';
 import { fish, waters } from '../core/communityData';
 import { regions } from '../core/expeditionData';
 import { getDish } from '../core/kitchenRecipes';
+import { getHandcraftRecipe } from '../core/handcraftData';
 
 export const getItemSourceLabel = (id: string): string => {
+  if (id === 'egg_shell') return '料理实耗鸡蛋，每 3 个回收 1 份；手工台可补领';
+  if (id === 'clean_shell') return '料理实耗蛤蜊，每 2 份回收 1 份；手工台可补领';
+  if (getHandcraftRecipe(id)) return '厨房手工台制作';
   const wild = Object.prototype.hasOwnProperty.call(wildIngredients, id) ? wildIngredients[id as keyof typeof wildIngredients] : undefined;
   const treasure = regionalTreasures[id as keyof typeof regionalTreasures];
   const region = wild?.region ?? treasure?.region ?? (id === 'forest_berry_seed' ? 'forest' : regionIds.find(region => regions[region].product === id || regions[region].alternative === id));

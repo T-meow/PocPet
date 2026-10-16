@@ -1,6 +1,6 @@
 import type { AdventureRegionId } from './adventureTypes';
 import type { ItemId, PetState } from './petTypes';
-import { adventureTreasureIds } from './adventureItems';
+import { adventureTreasureIds, commonTreasureDistributionText } from './adventureItems';
 import { getIdleExplorationTargets, idleExplorationFocusWeight } from './explorationResources';
 import { commonLootPityLimit, getCommonLootChance, getExplorationBudget } from './explorationBudget';
 import { formatProbabilityPercent } from './displayNumbers';
@@ -49,7 +49,7 @@ export const getAdventureMapResources = (pet: PetState, region: AdventureRegionI
     }
   }
   if (chanceFinds) for (const id of adventureTreasureIds) add(id, budget?.version === 2
-    ? `每次采集有 ${formatProbabilityPercent(getCommonLootChance(pet, mode === 'idle' ? 'hour' : 'manual', r))} 概率发现一种通用宝物，三种等概率；连续未掉落 ${budget.commonLootMisses ?? 0}／${commonLootPityLimit - 1} 次，第 ${commonLootPityLimit} 次保底`
+    ? `每次采集有 ${formatProbabilityPercent(getCommonLootChance(pet, mode === 'idle' ? 'hour' : 'manual', r))} 概率发现一种通用宝物；抽中后按${commonTreasureDistributionText()}分配。连续未掉落 ${budget.commonLootMisses ?? 0}／${commonLootPityLimit - 1} 次，第 ${commonLootPityLimit} 次保底`
     : '采集时有概率发现');
   return [...result].map(([id, hints]) => ({ id, hint: [...hints].join('；') }));
 };

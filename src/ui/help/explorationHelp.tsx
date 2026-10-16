@@ -7,6 +7,7 @@ import { explorationSkillNames, getExplorationMoodEffects } from '../../core/exp
 import { getPetStatRatio } from '../../core/petStats';
 import { explorationCapacity, explorationRefillMs, getExplorationBudget, getExplorationTier, getExplorationHarvestPay, manualTreasureChance, getExplorationRefillMs, commonLootPityLimit } from '../../core/explorationBudget';
 import { formatInteger as number, formatMultiplierPercent, formatProbabilityPercent } from '../numberFormat';
+import { commonTreasureDistributionText } from '../../core/adventureItems';
 
 export const gatheringCompanionHelp: HelpContent = {
   title: '同行与加倍采集',
@@ -25,8 +26,8 @@ export const getExplorationPreparationHelp = (pet: PetState): HelpContent => ({
 });
 export const backpackHelp: HelpContent = {
   title: '旅行背包',
-  overview: <><p>从仓库的食物、护理分类选择物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可在「营地与成长」永久扩容至 24／36／48／72 份。挂机食物按全程配餐上限计算，途中收获全部保留待领。</p><p>工具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现保留待处理，可部分收取、使用、兑换珍宝或确认丢弃。返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
-  details: <p>扩容依次需要：600 金币、木料 8、石料 4、溪光海蓝宝 ×1；1800 金币、木料 16、石料 10、风丘日光石 ×1；4200 金币、木料 24、石料 16、雾松祖母绿或月潮珍珠 ×1。需先完成对应地区故事，并结束行程、收好回执。</p>,
+  overview: <><p>从仓库的食物、护理分类选择物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可在「营地与成长」永久扩容至 24／36／48／72／100 份。挂机食物按全程配餐上限计算，途中收获全部保留待领。</p><p>工具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现保留待处理，可部分收取、使用、兑换珍宝或确认丢弃。返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
+  details: <><p>扩容依次需要：600 金币、木料 8、石料 4、溪光海蓝宝 ×1；1800 金币、木料 16、石料 10、风丘日光石 ×1；4200 金币、木料 24、石料 16、雾松祖母绿或月潮珍珠 ×1。</p><p>最终100份扩容需要完成五区故事，交付8000金币、木料32、石料24、五区珍宝各1、溪谷野菇／蜂蜜／林莓／海藻／观测零件各8，以及松香树脂8、潮汐海玻璃8。升级前需结束行程并收好回执。</p></>,
 };
 export const campHelp: HelpContent = {
   title: '营具与休整',
@@ -42,7 +43,7 @@ export const neighborHelp: HelpContent = {
   overview: <><p>前哨空闲时最多有 3 位邻居歇脚，每个游戏日轮换，点击可以聊天。普通 1 倍探索通常每趟约 67% 偶遇伙伴；溪谷首次教学偶遇保留，新手踩点无商店。</p><p>普通偶遇需完成越障、整理待拾取物资后使用商店，行程结束时关闭。付费 3／6／9 倍同行从出发至返程全程开放，待拾取物资不阻挡服务。</p><p>伙伴商店本趟售完不补；仓库送货每份 2 心心，受行囊空位和原送货额度限制。</p></>,
   details: <p>伙伴与库存由出发行程固定，重新打开或读档不会重抽、补货。其他地区的偶遇从新出发行程生效，已有行程保留原来的伙伴和库存。</p>,
 };
-export const commonTreasureRules = <p>每次实际采集分别结算固定货币、目标物品和随机宝物。金币堆、琥珀与金条的总掉落率在原概率翻倍后，手动最低 15%、挂机最低 12%，最高 75%；命中后三种等概率。连续 {commonLootPityLimit - 1} 次未掉落，第 {commonLootPityLimit} 次保底，手动、挂机和各地图共用计数，跨日保留。它们的兑换价值与固定金币分开展示，不影响当地珍宝的独立保底。</p>;
+export const commonTreasureRules = <p>每次实际采集分别结算固定货币、目标物品和随机宝物。通用宝物的总掉落率按加权均价计算，手动最低 15%、挂机最低 12%，最高 75%；命中后按{commonTreasureDistributionText()}分配。连续 {commonLootPityLimit - 1} 次未掉落，第 {commonLootPityLimit} 次保底，手动、挂机和各地图共用计数，跨日保留。它们的兑换价值与固定金币分开展示，不影响当地珍宝的独立保底。</p>;
 export const manualTreasureRules = <p>手动每次实际消耗采集机会，独立以 {manualTreasureChance}% 概率发现当地珍宝。与手镐研究、挂机保底分别计算；免费观察不产生采集奖励。</p>;
 export const getBudgetHelp = (pet: PetState): HelpContent => {
   const loop = getExplorationBudget(pet), tier = getExplorationTier(pet), reserved = pet.community.expedition.active?.reservedHarvests ?? 0;

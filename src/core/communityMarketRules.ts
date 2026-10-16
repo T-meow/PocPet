@@ -1,9 +1,13 @@
 import type { MarketCustomer } from './communityTypes';
 
-export const marketStackLimit = 20;
+export const marketStackLimit = 10;
+export const marketLegacyStackLimit = 20;
+export const marketMaxLevel = 2;
+export const marketSlotLimitVersion = 2;
+export const marketRemovedExpansionCoins = 500;
 export const marketMinVisitMs = 4 * 60_000;
 export const marketMaxVisitMs = 8 * 60_000;
-export const marketSlotCount = (level: number) => level > 0 ? 3 + level * 3 : 0;
+export const marketSlotCount = (level: number) => level > 0 ? 3 + Math.min(marketMaxLevel, Math.floor(level)) * 3 : 0;
 
 export const getMarketBuyoutBonusForLevels = (cookingLevel: number, signLevel: number) => {
   const cooking = Math.max(0, Math.min(9, Math.floor(cookingLevel) - 1)) * 5;

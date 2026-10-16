@@ -12,6 +12,7 @@ import { cookingMethods, kitchenMaterials } from '../src/core/kitchenRecipes';
 import { gardenTreeSaplingItemIds } from '../src/core/garden';
 import { valleyQuestIds } from '../src/core/valleyQuests';
 import { createSaveFileText, parseSaveFileText } from '../src/core/saveCodec';
+import { explorationBackpackCapacities } from '../src/core/explorationTravelData';
 
 const now = Date.now();
 let pet = createDefaultPet(now);
@@ -19,7 +20,7 @@ pet.name = '全设施测试';
 pet.coins = 100_000;
 pet.hearts = 1_000;
 pet.adventure = { ...pet.adventure, completed: { tutorial: 1, valley: 1 },
-  landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))), valleyCompleted: [...valleyQuestIds], starterClaimed: true, starterMealsClaimed: true, backpackLevel: 3 };
+  landmarks: mapRegions.flatMap(region => landmarkNodes.map(node => landmarkId(region, node))), valleyCompleted: [...valleyQuestIds], starterClaimed: true, starterMealsClaimed: true, backpackLevel: explorationBackpackCapacities.length - 1 };
 pet.community = { ...pet.community, gardenBuilt: true, irrigationFound: true,
   herbDiscovered: true, repairStep: 2, firstOrderDelivered: true,
   upgrades: { garden: 6, coop: 3, barn: 3, fishing_hut: 5 },
@@ -27,7 +28,7 @@ pet.community = { ...pet.community, gardenBuilt: true, irrigationFound: true,
   waterAccess: { forest_pool: { found: true, built: true }, coast_pier: { found: true, built: true } },
 };
 for (const id of facilityIds) pet.community.facilities[id] = { found: true, work: 2, built: true };
-pet.community.market = { ...pet.community.market, level: 3, lastVisitAt: now };
+pet.community.market = { ...pet.community.market, level: 2, lastVisitAt: now };
 for (const id of regionIds) pet.community.expedition.regions[id] = {
   ...pet.community.expedition.regions[id], surveyed: true, base: 2, storyAt: now,
 };

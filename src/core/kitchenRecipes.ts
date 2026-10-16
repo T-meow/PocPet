@@ -127,9 +127,15 @@ export const getRecipeIngredients = (recipe: RecipeDefinition, banana = false, m
 export const getRecipeIngredientEntries = (recipe: RecipeDefinition, banana = false, milk?: MilkChoice) => getRecipeIngredients(recipe, banana, milk).map((id, index) => ({ id, quantity: recipe.ingredientAmounts?.[recipe.ingredients[index]] ?? 1 }));
 export const allDishes = recipes.flatMap(base => getRecipeVariants(base).flatMap(recipe => [false, ...(recipe.fruitVariant ? [true] : [])].map(banana => ({ recipe, banana, id: getDishId(recipe, banana) }))));
 export const getDish = (id: string) => allDishes.find((dish) => dish.id === id);
-export const getRecipeEffect = (recipe: RecipeDefinition, banana = false): ItemEffect => recipe.fruitVariant && banana
-  ? { ...recipe.effect, hunger: (recipe.effect.hunger ?? 0) + 2, mood: (recipe.effect.mood ?? 0) - 2, energy: (recipe.effect.energy ?? 0) + 2 }
-  : recipe.effect;
+export const cookedMoodBasePercent = 40;
+export const cookedMoodBaseCap = 33;
+export const getRecipeEffect = (recipe: RecipeDefinition, banana = false): ItemEffect => {
+  const effect = recipe.fruitVariant && banana
+    ? { ...recipe.effect, hunger: (recipe.effect.hunger ?? 0) + 2, mood: (recipe.effect.mood ?? 0) - 2, energy: (recipe.effect.energy ?? 0) + 2 }
+    : { ...recipe.effect };
+  if ((effect.mood ?? 0) > 0) effect.mood = Math.min(cookedMoodBaseCap, Math.max(1, Math.round(effect.mood! * cookedMoodBasePercent / 100)));
+  return effect;
+};
 export const dishName = (id: string) => {
   const dish = getDish(id);
   return dish ? recipeName(dish.recipe) + (dish.recipe.variantLabel ? ` · ${dish.recipe.variantLabel}` : dish.recipe.fruitVariant ? activityText(dish.banana ? ' · 香蕉' : ' · 苹果', dish.banana ? ' · Banana' : ' · Apple') : '') : id;

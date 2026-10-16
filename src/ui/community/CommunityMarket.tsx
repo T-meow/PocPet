@@ -60,6 +60,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
   const visitorQuantity = visitor?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
   return <>
     <HelpButton {...marketHelp} />
+    {m.slotRefundTotal > 0 && <p className="community-note">货架调整双倍补偿：已返还 {m.slotRefundTotal - m.slotRefundCoins} 金币{m.slotRefundCoins > 0 ? `，剩余 ${m.slotRefundCoins} 金币待入账` : ''}。超出 9 栏或每栏 {marketStackLimit} 件的货品已按原挂牌价计入补偿。</p>}
     <section className="community-production-scene community-market-scene" data-production-scene="market" data-open={m.open} aria-label="溪畔小摊场景">
       <header className="community-production-heading"><div><small>溪畔小摊 · Lv.{m.level}</small><h3>{m.open ? '把今天的好东西，摆出来' : '小摊在这里，等你开张'}</h3></div><span className="community-scene-status"><i />{m.open ? '开门迎客' : '收摊休息'}</span></header>
       <div className="community-production-view"><CommunityMarketArt market={m} iconFor={icon} nameFor={name} visitor={visitor} />

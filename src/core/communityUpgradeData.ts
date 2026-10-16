@@ -27,7 +27,6 @@ export const communityUpgrades: Record<CommunityUpgradeId, CommunityUpgrade[]> =
   ],
   stall: [
     { name: '小摊扩建至 9 格', effect: '增加 3 格货架，新上架加价率 +5 个百分点；已有货品保持原价', region: 'valley', coins: 300, items: cost(4, 2, { valley_mushroom: 4, creek_aquamarine: 1 }) },
-    { name: '小摊扩建至 12 格', effect: '增加 3 格货架，新上架加价率 +5 个百分点；已有货品保持原价', region: 'coast', coins: 500, items: cost(4, 2, { sea_glass: 3, tidal_pearl: 1 }) },
   ],
   fishing_hut: [
     { name: '钓鱼小屋 · Lv.2', effect: '每竿体力 3／饱食 1，基础等待 7 秒', region: 'hills', water: 'upstream', coins: 300, items: cost(6, 4, { hill_sunstone: 1 }) },

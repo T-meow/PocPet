@@ -66,6 +66,21 @@ export const careCommunityCrop = (pet: PetState, plotId: number, plantedAt: numb
   if (action !== 'fertilize' || crop.fertilized || !(pet.inventory.nutrient_compost ?? 0)) return pet;
   return finishFarmNeighborAction({ ...setPlotCrop(pet, plotId, { ...crop, fertilized: true }), inventory: removeInventoryItem(pet.inventory, 'nutrient_compost'), recentEvent: `第 ${plotId} 块菜地施入营养堆肥 ×1，本轮收获 +1 份。` }, '施肥', now, neighbors);
 };
+export const careCommunityCrops = (pet: PetState, plots: { id: number; plantedAt: number }[], now = Date.now(), neighbors?: FarmNeighborCandidates): PetState => {
+  if (!Number.isFinite(now) || !canDoFarmWork(pet, now)) return pet;
+  let watered = 0, fertilized = 0;
+  const cared = new Set<number>();
+  for (const { id, plantedAt } of [...plots].sort((a, b) => a.id - b.id)) {
+    // Fertilize before watering, since watering can make this crop mature immediately.
+    const fed = careCommunityCrop(pet, id, plantedAt, 'fertilize', now, null);
+    if (fed !== pet) { fertilized++; cared.add(id); }
+    pet = fed;
+    const wet = careCommunityCrop(pet, id, plantedAt, 'water', now, null);
+    if (wet !== pet) { watered++; cared.add(id); }
+    pet = wet;
+  }
+  return cared.size ? finishFarmNeighborAction({ ...pet, recentEvent: `一键照料 ${cared.size} 块菜地：施肥 ${fertilized} 块、浇水 ${watered} 块，消耗堆肥 ×${fertilized}、水壶耐久 ${watered} 次。工具或堆肥不足的地块可补充后继续照料。` }, '照料', now, neighbors) : pet;
+};
 export const getCommunityCropYield = (pet: PetState, plotId: number) => {
   const crop = pet.community.plots.find(plot => plot.id === plotId)?.crop;
   return crop ? communityCrops[crop.id].yield + Number(Boolean(crop.fertilized)) + Number(getToolUsesLeft(pet, 'harvest_sickle') > 0) : 0;

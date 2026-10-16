@@ -7,6 +7,7 @@ import { activityText, allDishes, dishName, getRecipeEffect, kitchenMaterials } 
 import { inventoryItemLimit } from './saveMetadata';
 import { adventureItems, adventureLootItems } from './adventureItems';
 import { communityShopItems, communityFindItems } from './communityItems';
+import { handcraftMaterialIds, handcraftMaterials, handcraftRecipes } from './handcraftData';
 
 export const dailyBiscuitClaimLimit = 3;
 
@@ -345,6 +346,8 @@ export const shopItems: readonly ShopItem[] = [
 export const specialItems: readonly ShopItem[] = [
   ...adventureLootItems,
   ...communityFindItems,
+  ...handcraftMaterialIds.map((id): ShopItem => ({ id, name: handcraftMaterials[id].name, kind: 'item', price: 0, effect: {}, usable: false, tags: ['craft_material'], summary: handcraftMaterials[id].source + '用于手工台制作玩具，满仓时可在手工台补领。' })),
+  ...handcraftRecipes.map((recipe): ShopItem => ({ id: recipe.id, name: recipe.name, kind: 'item', price: 0, effect: {}, usable: false, tags: ['handcraft', recipe.rarity, recipe.collector ? 'collector' : 'basic'], summary: recipe.description + '手工商品，可在小摊出售。' })),
   ...allDishes.map(({ recipe, id, banana }): ShopItem => ({ id, name: dishName(id), kind: 'food', price: 0, effect: getRecipeEffect(recipe, banana), tags: ['homemade', recipe.category, recipe.rarity, recipe.demand], summary: activityText('一起做的料理。喂给伙伴，留下属于你们的试吃留言。', 'A homemade dish. Share it with your companion and keep a tasting memory.') })),
   {
     id: 'birthday_cake',

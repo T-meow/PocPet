@@ -10,6 +10,7 @@ import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
 import { inventoryItemLimit } from './saveMetadata';
+import { applyCookingByproducts, defaultHandcraftState, normalizeHandcraftState, planCookingByproducts } from './handcraftState';
 
 export const kitchenBatchLimit = 999;
 const kitchenFirstRecipeXp = 5;
@@ -29,7 +30,7 @@ export const getKitchenHeartReward = (pet: PetState, recipeId: RecipeId, banana 
   const heartsPerServing = scaleBudget(chainHearts) - inputBudgets.reduce((sum, input) => sum + scaleBudget(input.hearts) * input.quantity, 0);
   return { baseHearts, skillLevel, skillBonusPercent, skillHearts: heartsPerServing - baseHearts, heartsPerServing };
 };
-export const defaultKitchenState = (): KitchenState => ({ schemaVersion: 1, starterClaimed: false, equipment: ['mix', 'pan'], made: {}, firstMadeAt: {}, tasted: {}, recentOperationIds: [], plating: 'plain' });
+export const defaultKitchenState = (): KitchenState => ({ schemaVersion: 1, starterClaimed: false, equipment: ['mix', 'pan'], made: {}, firstMadeAt: {}, tasted: {}, recentOperationIds: [], plating: 'plain', handcraft: defaultHandcraftState() });
 export const normalizeKitchenState = (raw: unknown): KitchenState => {
   const value = raw && typeof raw === 'object' ? raw as Partial<KitchenState> : {};
   const next = defaultKitchenState();
@@ -50,6 +51,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   }
   next.recentOperationIds = Array.isArray(value.recentOperationIds) ? [...new Set(value.recentOperationIds.filter((id) => typeof id === 'string').slice(-32).map((id) => id.slice(0, 128)))] : [];
   next.plating = value.plating === 'flower' || value.plating === 'stars' ? value.plating : 'plain';
+  next.handcraft = normalizeHandcraftState(value.handcraft);
   const result = value.lastCraft;
   if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= kitchenBatchLimit && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
     next.lastCraft = { id: result.id.slice(0, 128), dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
@@ -85,6 +87,9 @@ export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolea
 export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, operationId: string, now = Date.now(), milk?: MilkChoice, variantKey?: string): PetState => {
   const recipe = getRecipe(recipeId, variantKey);
   if (!recipe || !operationId || pet.kitchen.recentOperationIds.includes(operationId) || !canCraftRecipe(pet, recipeId, banana, quantity, milk, variantKey)) return pet;
+  const consumed = getRecipeIngredientEntries(recipe, banana, milk).reduce<Record<string, number>>((stock, entry) => ({ ...stock, [entry.id]: (stock[entry.id] ?? 0) + entry.quantity * quantity }), {});
+  const byproducts = planCookingByproducts(pet.kitchen.handcraft, consumed);
+  if (!byproducts) return pet;
   const dishId = getDishId(recipe, banana);
   const first = !pet.kitchen.made[recipeId];
   let next: PetState = { ...pet, lastInteractionAt: now, kitchen: { ...pet.kitchen, made: { ...pet.kitchen.made, [recipeId]: (pet.kitchen.made[recipeId] ?? 0) + quantity }, firstMadeAt: first ? { ...pet.kitchen.firstMadeAt, [recipeId]: now } : pet.kitchen.firstMadeAt, recentOperationIds: [...pet.kitchen.recentOperationIds, operationId].slice(-32) } };
@@ -101,6 +106,7 @@ export const craftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, 
   next.recentActivityUntil = now + 3000;
   next.recentEvent = activityText(`一起做好了 ${quantity} 份${dishName(dishId)}，收获 ${hearts} 颗心心。`, `Made ${quantity} × ${dishName(dishId)} together and earned ${hearts} hearts.`);
   if (skillXp > 0) next.recentEvent += ` ${formatPracticeSkillXp('cooking', skillXp)}`;
+  next = applyCookingByproducts(next, byproducts);
   if (recipeId === 'herb_porridge') next = recordCommunityTaskEvent(next, 'cook_porridge', now);
   return recordMuseumEvent(recordEarnedHearts(next, hearts), `cook:${recipeId}`, quantity, now);
 };

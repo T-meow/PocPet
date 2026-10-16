@@ -7,7 +7,7 @@ import { clampCoins } from './petStats';
 import type { PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import type { CommunityMarket, MarketReceipt } from './communityTypes';
-import { createMarketSeed, getMarketBuyoutBonusForLevels, getMarketVisit, marketRandom, marketSlotCount, marketStackLimit } from './communityMarketRules';
+import { createMarketSeed, getMarketBuyoutBonusForLevels, getMarketVisit, marketMaxLevel, marketRandom, marketSlotCount, marketStackLimit } from './communityMarketRules';
 import { getCommunityUpgradeQuote } from './communityUpgradeData';
 import { getDailyResetDateKey } from './dailyReset';
 
@@ -22,12 +22,12 @@ export const getMarketTrafficBonus = (pet: Pick<PetState, 'community'>) => {
 };
 export const getMarketQuote = (pet: PetState, id: string) => {
   const sale = getCommunitySale(id);
-  const knowledge = Math.min(10, Math.floor(pet.partnerSchedule.skills.study.level / 2) * 2), building = Math.max(0, pet.community.market.level - 1) * 5;
+  const knowledge = Math.min(10, Math.floor(pet.partnerSchedule.skills.study.level / 2) * 2), building = Math.max(0, Math.min(marketMaxLevel, pet.community.market.level) - 1) * 5;
   const bonus = 20 + knowledge + building;
   if (!sale) return undefined;
   const original = sale.exchangeOnly ? sale.base : Math.floor(sale.base * (100 + bonus) / 100);
   const decoration = sale.exchangeOnly ? 0 : getDecorationEffects(pet).golden_sign;
-  const price = Math.floor(original * (1 + decoration / 100));
+  const price = Math.floor(original * (1000 + Math.round(decoration * 10)) / 1000);
   return { ...sale, knowledge, building, bonus: bonus + Math.round((price - original) / sale.base * 100), decoration, decorationCoins: price - original, price };
 };
 // Old saves may retain reserve entries; explicit listing uses current stock.
@@ -52,6 +52,14 @@ export const getMarketListingOffer = (pet: PetState, itemId: string) => {
 
 // Coins have no gameplay cap; keep all monetary arithmetic within exact integers.
 const walletRoom = (coins: number) => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, clampCoins(Number.MAX_SAFE_INTEGER)) - coins);
+const refundRemovedMarketSlots = (pet: PetState): PetState => {
+  const market = pet.community.market;
+  if (pet.timePause || !(market.slotRefundCoins > 0)) return pet;
+  const coins = Math.min(market.slotRefundCoins, walletRoom(pet.coins));
+  if (!coins) return pet;
+  return { ...pet, coins: pet.coins + coins, community: { ...pet.community, market: { ...market, slotRefundCoins: market.slotRefundCoins - coins } },
+    recentEvent: `小摊已调整为最多 9 栏、每栏 ${marketStackLimit} 件，双倍金币补偿到账 ${coins} 金币。${market.slotRefundCoins > coins ? '剩余补偿保留，金币空间足够后继续入账。' : '容量内的货品继续保留。'}` };
+};
 const syncMarketClock = (pet: PetState, market: CommunityMarket, coins: number, now: number, anchor = now): CommunityMarket => {
   const seed = market.seed || createMarketSeed(`market:${pet.saveMetadata.id}:${pet.createdAt}`);
   const running = market.open && market.listings.some(listing => listing.unitPrice <= walletRoom(coins));
@@ -147,6 +155,7 @@ export const migrateCommunityMarketPricing = (pet: PetState): PetState => {
 };
 export const advanceCommunityMarket = (pet: PetState, now: number): PetState => {
   if (!Number.isFinite(now)) return pet;
+  pet = refundRemovedMarketSlots(pet);
   if (pet.timePause) return migrateCommunityMarketPricing(pet);
   if (now < pet.community.market.lastVisitAt) return pet;
   return migrateCommunityMarketPricing(settleCommunityMarket(pet, now));
@@ -186,5 +195,5 @@ export const upgradeCommunityMarket = (pet: PetState, expectedLevel: number, now
   pet = advanceCommunityMarket(pet, now);
   const m = pet.community.market, { coins, items } = quote.task;
   const market = syncMarketClock(pet, { ...m, level: m.level + 1, nextListingId: m.nextListingId + 1 }, pet.coins - coins, now);
-  return { ...pet, coins: pet.coins - coins, inventory: Object.entries(items).reduce((inventory, [item, quantity]) => removeInventoryItem(inventory, item, quantity), pet.inventory), community: { ...pet.community, market }, recentEvent: '小摊扩建了：增加 3 个栏位，每格最多 20 份；新上架增值 +5 个百分点，已有栏位保持原价。' };
+  return { ...pet, coins: pet.coins - coins, inventory: Object.entries(items).reduce((inventory, [item, quantity]) => removeInventoryItem(inventory, item, quantity), pet.inventory), community: { ...pet.community, market }, recentEvent: `小摊扩建了：增加 3 个栏位，每格最多 ${marketStackLimit} 件；新上架增值 +5 个百分点，已有栏位保持原价。` };
 };
