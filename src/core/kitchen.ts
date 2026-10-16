@@ -9,7 +9,9 @@ import { recordMuseumEvent } from './museumEvents';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
 import { isExpeditionAway } from './expeditionData';
+import { inventoryItemLimit } from './saveMetadata';
 
+export const kitchenBatchLimit = 999;
 const kitchenFirstRecipeXp = 5;
 const kitchenHeartBaseMultiplier = 1.25;
 export const getKitchenSkillXpReward = (pet: PetState, recipeId: RecipeId) => pet.partnerSchedule.skills.cooking.level >= partnerScheduleMaxSkillLevel
@@ -49,7 +51,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
   next.recentOperationIds = Array.isArray(value.recentOperationIds) ? [...new Set(value.recentOperationIds.filter((id) => typeof id === 'string').slice(-32).map((id) => id.slice(0, 128)))] : [];
   next.plating = value.plating === 'flower' || value.plating === 'stars' ? value.plating : 'plain';
   const result = value.lastCraft;
-  if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= 99 && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
+  if (result && typeof result.id === 'string' && getDish(result.dishId) && Number.isInteger(result.quantity) && result.quantity > 0 && result.quantity <= kitchenBatchLimit && Number.isFinite(result.hearts) && result.hearts >= 0 && Number.isFinite(result.at)) {
     next.lastCraft = { id: result.id.slice(0, 128), dishId: result.dishId, quantity: result.quantity, hearts: result.hearts, at: result.at };
     if (result.milk === 'farm_milk' || result.milk === 'ad_milk') next.lastCraft.milk = result.milk;
     if (typeof result.skillXp === 'number' && Number.isInteger(result.skillXp) && result.skillXp >= 0 && result.skillXp <= practiceSkillXp + kitchenFirstRecipeXp) next.lastCraft.skillXp = result.skillXp;
@@ -74,7 +76,7 @@ export const getCraftLimit = (pet: PetState, recipeId: RecipeId, banana = false,
   if (getRecipeUnlockReason(pet, recipeId, variantKey)) return 0;
   const recipe = getRecipe(recipeId, variantKey);
   if (!recipe) return 0;
-  return Math.max(0, Math.min(99, 9999 - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana, milk).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
+  return Math.max(0, Math.min(kitchenBatchLimit, inventoryItemLimit - (pet.inventory[getDishId(recipe, banana)] ?? 0), ...getRecipeIngredientEntries(recipe, banana, milk).map(({ id, quantity }) => Math.floor((pet.inventory[id] ?? 0) / quantity))));
 };
 export const canCraftRecipe = (pet: PetState, recipeId: RecipeId, banana: boolean, quantity: number, milk?: MilkChoice, variantKey?: string) => {
   const recipe = getRecipe(recipeId, variantKey);

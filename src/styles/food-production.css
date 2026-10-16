@@ -2,6 +2,18 @@
 .recipe-filters label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .85rem; }
 .recipe-filters select, .food-processing input { min-width: 0; max-width: 100%; padding: .6rem; border: 1px solid #b8bba5; border-radius: .7rem; color: inherit; background: var(--panel-bg, #fffaf0); }
 .recipe-filters select { width: 100%; min-height: 44px; padding-inline: 6px; font-size: 13px; }
+.recipe-search { min-width: 0; margin-top: 16px; }
+.recipe-search > label { display: block; margin-bottom: 6px; font-size: 13px; }
+.recipe-search-controls { display: flex; align-items: center; min-width: 0; border: 1px solid #b8bba5; border-radius: 10px; background: #fffaf0; }
+.recipe-search-controls > svg { flex: none; margin-left: 12px; color: #697565; }
+.recipe-search-controls input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; flex: 1 1 auto; padding: 10px; border: 0; background: transparent; color: inherit; font: inherit; }
+.recipe-search-controls button { display: flex; align-items: center; justify-content: center; width: 44px; min-width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #697565; }
+.kitchen-quantity-control { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-width: 0; margin-top: 16px; font-size: 13px; }
+.kitchen-quantity-control > span { margin: 0 12px 8px 0; }
+.kitchen-quantity-control .quantity-stepper { width: 164px; max-width: 100%; min-width: 0; height: 44px; flex: none; margin-bottom: 8px; }
+.kitchen-quantity-control .quantity-stepper__button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; flex: none; }
+.kitchen-quantity-control .quantity-stepper__input { box-sizing: border-box; width: 64px; min-width: 0; height: 44px; min-height: 44px; flex: 1 1 auto; padding: 8px 4px; border: 0; border-radius: 0; }
+.kitchen-quantity-presets { flex-wrap: wrap; }
 .kitchen-recipe-book .recipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .kitchen-recipe-book .recipe-card { gap: 10px; padding: 14px 10px; justify-content: flex-start; }
 .kitchen-recipe-book .recipe-card img { width: min(100%, 160px); height: auto; aspect-ratio: 1; }

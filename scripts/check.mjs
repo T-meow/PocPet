@@ -320,7 +320,7 @@ async function verifySavesAndErrors() {
       current = finishMiniGameHub(current, 'hub-match3', actor, premature, now);
       assert.ok(current.hearts > hearts);
       assert.equal(current.miniGames.lastResult.score, board.score, 'scores come from saved rules state, not the callback');
-      assert.equal(current.miniGames.lastResult.baseHearts, Math.floor(games.getMiniGameBaseHearts(10, 'match3') * board.score / 1000));
+      assert.equal(current.miniGames.lastResult.baseHearts, Math.floor(games.getMiniGameBaseHearts(10, 'match3') * board.score / 500));
       assert.equal(current.miniGames.records['match3:normal'].completed, 1);
       assert.equal(current.miniGames.lastResult.pending, false, 'the module keeps its own replay screen');
       assert.equal(current.miniGames.active.id, 'hub-match3');
@@ -355,7 +355,7 @@ async function verifySavesAndErrors() {
       assert.equal(endMiniGameHub(busy, 'early-blocks', actor, latest, now), busy);
       const ended = endMiniGameHub(scoring, 'early-blocks', actor, latest, now);
       assert.equal(ended.miniGames.lastResult.score, 1250, 'early settlement uses the latest snapshot before the debounced save');
-      assert.equal(ended.miniGames.lastResult.baseHearts, 8, 'Lv.10 gives floor(7 * 1250 / 1000) base hearts');
+      assert.equal(ended.miniGames.lastResult.baseHearts, 17, 'Lv.10 gives floor(7 * 1250 / 500) base hearts');
       assert.equal(ended.miniGames.lastResult.pending, true);
       assert.equal(ended.miniGames.active, undefined);
       assert.notEqual(ended.miniGames.hub.games.blocks.id, earlyRound);
@@ -365,6 +365,21 @@ async function verifySavesAndErrors() {
       assert.ok(ended.miniGames.hub.reportedSessions.includes(earlyRound));
       assert.equal(endMiniGameHub(ended, 'early-blocks', actor, latest, now), ended, 'double clicks cannot settle twice');
       assert.equal(saveMiniGameHub(ended, 'early-blocks', actor, latest, now), ended, 'unmount cannot restore a settled board');
+      const highScore = 1_000_000_500, highState = structuredClone(scoring);
+      for (const game of ['blocks', 'fruit', 'match3']) {
+        highState.miniGames.hub.games[game].score = highScore;
+        highState.miniGames.hub.games[game].best = highScore;
+      }
+      const highRestored = games.resumeMiniGame(parseSaveFileText(createSaveFileText(highState, null, now), now).pet, actor, now);
+      for (const game of ['blocks', 'fruit', 'match3']) {
+        assert.equal(highRestored.miniGames.hub.games[game].score, highScore, 'high scores survive reload without the old billion-point ceiling');
+        assert.equal(highRestored.miniGames.hub.games[game].best, highScore);
+      }
+      const highEnded = endMiniGameHub(highRestored, 'early-blocks', actor, highRestored.miniGames.hub, now);
+      assert.equal(highEnded.miniGames.lastResult.baseHearts, 14_000_007, 'high-score rewards remain proportional to the full round');
+      const highEndedRestored = parseSaveFileText(createSaveFileText(highEnded, null, now), now).pet;
+      assert.equal(highEndedRestored.miniGames.lastResult.baseHearts, 14_000_007);
+      assert.equal(endMiniGameHub(highEndedRestored, 'early-blocks', actor, highRestored.miniGames.hub, now), highEndedRestored, 'large rewards also remain settled after reload');
       const earlyRestored = parseSaveFileText(createSaveFileText(ended, null, now), now).pet;
       assert.equal(earlyRestored.miniGames.lastResult.pending, true);
       assert.deepEqual(earlyRestored.miniGames.hub, ended.miniGames.hub);
@@ -571,6 +586,12 @@ async function verifySavesAndErrors() {
       assert.equal(processFood(state, 'corn_feed', 1, state.community.processing.revision, ripeAt), state, 'a whole batch must fit before spending ingredients');
       const paused = { ...materials, timePause: { schemaVersion: 1, pausedAt: ripeAt } };
       assert.equal(processFood(paused, 'wheat_feed', 1, revision, ripeAt), paused);
+      const bulkMaterials = { ...materials, inventory: { ...materials.inventory, wheat: 1998, animal_feed: 0 } };
+      assert.equal(processFood(bulkMaterials, 'wheat_feed', 1000, revision, ripeAt), bulkMaterials, 'processing rejects batches above 999 without spending materials');
+      const bulkProcessed = restore(processFood(bulkMaterials, 'wheat_feed', 999, revision, ripeAt), ripeAt);
+      assert.equal(bulkProcessed.inventory.animal_feed, 3996);
+      assert.equal(bulkProcessed.inventory.wheat, 999);
+      assert.equal(processFood(bulkProcessed, 'wheat_feed', 999, revision, ripeAt), bulkProcessed, 'large processing batches cannot repeat after reload');
     });
 
     await check('社区旧筹备兼容、回礼往返与满仓原子领取', async () => {
@@ -931,6 +952,19 @@ async function verifySavesAndErrors() {
       assert.equal(craftRecipe(restored, 'grilled_fish', false, 1, 'collector', now, undefined, 'golden_koi'), restored, 'collection fish cannot be substituted');
       assert.equal(craftRecipe(restored, 'carrot_apple_orange_juice', false, 2, 'short-stock', now), restored, 'an outdated quantity must not partially consume ingredients');
       assert.equal(craftRecipe(restored, 'egg_rice', false, 1, 'wrong-recipe', now, undefined, 'bluefin_bream'), restored, 'a variant belongs only to its recipe');
+      const bulkReady = { ...createDefaultPet(now), inventory: { carrot: 1998, egg: 1998 } };
+      assert.equal(craftRecipe(bulkReady, 'carrot_omelet', false, 1000, 'oversized-batch', now), bulkReady, 'cooking rejects batches above 999 without spending materials');
+      const bulkCraft = craftRecipe(bulkReady, 'carrot_omelet', false, 999, 'large-batch', now);
+      assert.equal(bulkCraft.inventory.dish_carrot_omelet, 999);
+      assert.equal(bulkCraft.inventory.carrot, 999);
+      assert.equal(bulkCraft.inventory.egg, 999);
+      assert.equal(normalizeKitchenState(bulkCraft.kitchen).lastCraft.quantity, 999, 'large cooking results survive runtime normalization');
+      const bulkRestored = parseSaveFileText(createSaveFileText(bulkCraft, null, now), now).pet;
+      assert.deepEqual(bulkRestored.inventory, bulkCraft.inventory);
+      assert.equal(bulkRestored.kitchen.made.carrot_omelet, 999);
+      assert.equal(craftRecipe(bulkRestored, 'carrot_omelet', false, 999, 'large-batch', now), bulkRestored, 'large batches cannot spend or award twice after reload');
+      const fullDish = { ...bulkReady, inventory: { ...bulkReady.inventory, dish_carrot_omelet: 9001 } };
+      assert.equal(craftRecipe(fullDish, 'carrot_omelet', false, 999, 'over-capacity-batch', now), fullDish, 'the whole batch must fit before any ingredient is consumed');
     });
 
     await check('挂机地区保底跨存档、提前返回与结算重复恢复', async () => {

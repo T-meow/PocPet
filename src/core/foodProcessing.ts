@@ -1,6 +1,6 @@
 import type { BuiltinItemId, PetState } from './petTypes';
 import { addInventoryItem, removeInventoryItem } from './items';
-import { canSpendCompanionTime } from './kitchen';
+import { canSpendCompanionTime, kitchenBatchLimit } from './kitchen';
 import { inventoryItemLimit } from './saveMetadata';
 
 export const processingRecipes = [
@@ -29,8 +29,8 @@ export const getProcessingUnlockReason = (pet: PetState, id: ProcessingId) => {
 export const getProcessingLimit = (pet: PetState, id: ProcessingId) => {
   const r = processingRecipes.find(entry => entry.id === id);
   if (!r || getProcessingUnlockReason(pet, id)) return 0;
-  return Math.max(0, Math.min(99, Math.floor((inventoryItemLimit - (pet.inventory[r.output] ?? 0)) / r.quantity),
-    r.fee ? Math.floor(pet.coins / r.fee) : 99, ...Object.entries(r.inputs).map(([item, count]) => Math.floor((pet.inventory[item] ?? 0) / count))));
+  return Math.max(0, Math.min(kitchenBatchLimit, Math.floor((inventoryItemLimit - (pet.inventory[r.output] ?? 0)) / r.quantity),
+    r.fee ? Math.floor(pet.coins / r.fee) : kitchenBatchLimit, ...Object.entries(r.inputs).map(([item, count]) => Math.floor((pet.inventory[item] ?? 0) / count))));
 };
 /** A revision makes double clicks and stale batch previews atomic, including after reload. */
 export const processFood = (pet: PetState, id: ProcessingId, batches: number, revision: number, now = Date.now()): PetState => {

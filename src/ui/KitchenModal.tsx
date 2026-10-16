@@ -7,7 +7,7 @@ import { CompanionMemories } from './CompanionMemories';
 import type { PetState, ItemId, ItemRegistry } from '../core/pet';
 import type { RecipeId, MilkChoice } from '../core/companionActivityTypes';
 import { activityText as L, cookingMethods, dishName, getDish, getDishId, getRecipe, getRecipeIngredientEntries, getRecipeUnlockReason, recipeName, recipes } from '../core/kitchenRecipes';
-import { buyKitchenEquipment, canCraftRecipe, canSpendCompanionTime, getCraftLimit, getKitchenHeartReward, getKitchenSkillXpReward, kitchenMadeCount, kitchenRecipeCount } from '../core/kitchen';
+import { buyKitchenEquipment, canCraftRecipe, canSpendCompanionTime, getCraftLimit, getKitchenHeartReward, getKitchenSkillXpReward, kitchenBatchLimit, kitchenMadeCount, kitchenRecipeCount } from '../core/kitchen';
 import { formatPracticeSkillXp } from '../core/partnerSchedule';
 import { playSfx } from '../core/audio';
 import { KitchenCookingModal } from './kitchen/KitchenCookingModal';
@@ -31,6 +31,7 @@ import { FavoriteButton } from './Favorite';
 import { FoodPreference } from './FoodPreference';
 import { HelpButton } from './help/HelpButton';
 import { kitchenHelp } from './help/productionHelp';
+import { QuantityStepper } from './QuantityStepper';
 
 interface Props {
   pet: PetState; actorId: string; portrait: string; workingPortrait: string; icons: Record<string, string>; registry: ItemRegistry;
@@ -38,12 +39,13 @@ interface Props {
   update: (action: (pet: PetState) => PetState) => void; onClose: () => void; onShop: () => void; onFeed: (id: ItemId) => void;
   favoriteFoodIds?: readonly ItemId[]; onOpenOutpost?: (request: OutpostRequest) => void;
   onToggleRecipeFavorite: (id: RecipeId) => void;
+  initialRecipeOpen?: boolean;
 }
-export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds, onOpenOutpost, onToggleRecipeFavorite }: Props) => {
+export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, registry, recipeId, onRecipe, banana, onBanana, quantity, onQuantity, update, onClose, onShop, onFeed, favoriteFoodIds, onOpenOutpost, onToggleRecipeFavorite, initialRecipeOpen = false }: Props) => {
   const [tab, setTab] = useState<'book' | 'processing' | 'equipment' | 'memories'>('book');
-  const [milk, setMilk] = useState<MilkChoice>('farm_milk');
+  const [milk, setMilk] = useState<MilkChoice>(() => (pet.inventory.farm_milk ?? 0) > 0 || !(pet.inventory.ad_milk ?? 0) ? 'farm_milk' : 'ad_milk');
   const [variantKey, setVariantKey] = useState<string>();
-  const [isRecipeOpen, setRecipeOpen] = useState(false);
+  const [isRecipeOpen, setRecipeOpen] = useState(initialRecipeOpen);
   const [craftRequest, setCraftRequest] = useState<KitchenCraftRequest>();
   const [recipeParents, setRecipeParents] = useState<{ recipeId: RecipeId; banana: boolean; quantity: number; milk: MilkChoice; variantKey?: string }[]>([]);
   const recipe = getRecipe(recipeId, variantKey) ?? getRecipe(recipeId)!;
@@ -67,7 +69,7 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
     const dish = getDish(id);
     if (!dish) return;
     setRecipeParents((parents) => [...parents, { recipeId, banana, quantity, milk, variantKey: recipe.variantKey }]);
-    onRecipe(dish.recipe.id); onBanana(dish.banana); onQuantity(Math.max(1, Math.min(99, missing)));
+    onRecipe(dish.recipe.id); onBanana(dish.banana); onQuantity(Math.max(1, Math.min(kitchenBatchLimit, missing)));
     setVariantKey(dish.recipe.variantKey);
   };
   const craft = () => {
@@ -106,7 +108,8 @@ export const KitchenModal = ({ pet, actorId, portrait, workingPortrait, icons, r
           })}</div>
           {dishItem && <div className="item-recovery-preview"><p>每份成品效果：{getItemEffectBadges(getItemStatEffect(pet, dishItem)).map(effect => effect.label).join(' · ')}</p></div>}
           <RecipeNotes pet={pet} recipe={recipe} banana={banana} milk={milk} />
-          <label className="quantity-field">{L('制作份数', 'Quantity')}<input type="number" min={1} max={Math.max(1, limit)} value={quantity} onChange={(event) => onQuantity(Math.max(1, Math.min(99, Math.floor(Number(event.target.value)) || 1)))} /></label><div className="activity-choice">{[1, 5, 10].map((amount) => <button key={amount} disabled={amount > limit} onClick={() => onQuantity(amount)}>{amount}</button>)}<button disabled={!limit} onClick={() => onQuantity(limit)}>{L('最多', 'Max')}</button></div>
+          <div className="kitchen-quantity-control"><span>{L('制作份数', 'Quantity')}</span><QuantityStepper arrows label="制作份数" value={quantity} max={kitchenBatchLimit} onChange={onQuantity} /></div><div className="activity-choice kitchen-quantity-presets">{[1, 5, 10, 100].map((amount) => <button key={amount} disabled={amount > limit} onClick={() => onQuantity(amount)}>{amount}</button>)}<button disabled={!limit} onClick={() => onQuantity(limit)}>{L('最多', 'Max')}</button></div>
+          <p className="activity-muted">每批最多 {kitchenBatchLimit} 份 · 当前可制作 {limit} 份</p>
           <p className="activity-heart"><Heart size={16} /> {L(`本次 ${reward.heartsPerServing * quantity} 心心`, `${reward.heartsPerServing * quantity} hearts`)}</p>
           <button className="activity-primary" disabled={!canCook || !equipmentReady || quantity > limit} onClick={craft}>{getRecipeUnlockReason(pet, recipeId, recipe.variantKey) || L('一起制作', 'Make it together')}</button>
           {!equipmentReady && <button className="activity-link" onClick={() => { closeRecipe(); setTab('equipment'); }}>{L('先添置需要的厨具', 'Get the required kitchen tool')}</button>}

@@ -1,4 +1,4 @@
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 import { t } from '../i18n';
 
 interface QuantityStepperProps {
@@ -6,6 +6,8 @@ interface QuantityStepperProps {
   min?: number;
   max?: number;
   disabled?: boolean;
+  arrows?: boolean;
+  label?: string;
   onChange: (value: number) => void;
   onInputChange?: (value: number) => void;
 }
@@ -15,6 +17,8 @@ export const QuantityStepper = ({
   min = 1,
   max = 99,
   disabled = false,
+  arrows = false,
+  label,
   onChange,
   onInputChange,
 }: QuantityStepperProps) => {
@@ -22,7 +26,7 @@ export const QuantityStepper = ({
   const update = (next: number) => onChange(clamp(next));
 
   return (
-    <div className="quantity-stepper" aria-label={t('ui.quantity.aria')}>
+    <div className="quantity-stepper" role="group" aria-label={label ?? t('ui.quantity.aria')}>
       <button
         type="button"
         className="quantity-stepper__button"
@@ -31,7 +35,7 @@ export const QuantityStepper = ({
         aria-label={t('ui.quantity.decrease')}
         title={t('ui.quantity.decrease')}
       >
-        <Minus size={16} aria-hidden="true" />
+        {arrows ? <ChevronDown size={16} aria-hidden="true" /> : <Minus size={16} aria-hidden="true" />}
       </button>
       <input
         className="quantity-stepper__input"
@@ -43,7 +47,7 @@ export const QuantityStepper = ({
         value={value}
         disabled={disabled}
         onChange={(event) => (onInputChange ?? onChange)(clamp(Number(event.currentTarget.value)))}
-        aria-label={t('ui.quantity.value')}
+        aria-label={label ?? t('ui.quantity.value')}
       />
       <button
         type="button"
@@ -53,7 +57,7 @@ export const QuantityStepper = ({
         aria-label={t('ui.quantity.increase')}
         title={t('ui.quantity.increase')}
       >
-        <Plus size={16} aria-hidden="true" />
+        {arrows ? <ChevronUp size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
       </button>
     </div>
   );

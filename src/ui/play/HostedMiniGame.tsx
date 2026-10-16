@@ -32,7 +32,7 @@ export default function HostedMiniGame({ pet, session, portrait, happyPortrait, 
       if (snapshot.reportedSessions.includes(round.id) || pet.miniGames.hub?.reportedSessions.includes(round.id)) return null;
       const hearts = getMiniGameScoreHearts(session.baseHearts, round.score);
       return <section className="hosted-game-settlement" aria-label="本局结算">
-        <div><small>当前 {round.score} 分</small><strong>基础可得 ♥ {hearts}</strong><p>每 {miniGameScoreUnit} 分 · {session.baseHearts} 心心</p></div>
+        <div><small>当前 {round.score} 分</small><strong>基础可得 ♥ {hearts}</strong><p>每 {miniGameScoreUnit} 分 · {session.baseHearts} 心心 · 得分收益不封顶</p></div>
         <button type="button" className="hosted-settle-button" disabled={session.paused} onClick={event => { event.stopPropagation(); finish(); }}>结算并结束</button>
       </section>;
     },

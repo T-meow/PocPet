@@ -1,4 +1,4 @@
-import { clone, integer, object, readId, sessionId } from '../shared/state';
+import { clone, integer, object, readId, scoreInteger, sessionId } from '../shared/state';
 
 export type Cell = [number, number];
 export interface BlockPiece { shape: number; rotation: number; color: number; }
@@ -95,10 +95,10 @@ function readPosition(raw: unknown): BlockPosition | null {
     pieces.push({ shape: Number(item.shape), rotation: Number(item.rotation), color: Number(item.color) });
   }
   if (pieces.every(p => !p) || fullLines(v.grid as number[]).count) return null;
-  return { grid: (v.grid as number[]).slice(), pieces, score: integer(v.score), lines: integer(v.lines) };
+  return { grid: (v.grid as number[]).slice(), pieces, score: scoreInteger(v.score), lines: integer(v.lines) };
 }
 export function normalizeBlocks(raw: unknown): BlockState {
-  const v = object(raw), position = readPosition(v), best = Math.max(integer(v.best), position?.score ?? 0);
+  const v = object(raw), position = readPosition(v), best = Math.max(scoreInteger(v.best), position?.score ?? 0);
   if (!position) return createBlocks(best);
   const selected = Number.isInteger(v.selected) && Number(v.selected) >= 0 && Number(v.selected) < 3 && position.pieces[Number(v.selected)] ? Number(v.selected) : -1;
   return { ...position, id: readId(v.id), best, selected, history: (Array.isArray(v.history) ? v.history.slice(-50) : []).map(readPosition).filter((p): p is BlockPosition => Boolean(p)) };

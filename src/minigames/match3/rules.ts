@@ -1,4 +1,4 @@
-import { integer, object, readId, sessionId } from '../shared/state';
+import { integer, object, readId, scoreInteger, sessionId } from '../shared/state';
 
 export const MATCH3_SIZE = 7;
 export const MATCH3_KINDS = 5;
@@ -147,11 +147,11 @@ export function swapMatch3(state: Match3State, from: number, to: number): Match3
   };
 }
 export function normalizeMatch3(raw: unknown): Match3State {
-  const v = object(raw), best = Math.max(integer(v.best), integer(v.score));
+  const v = object(raw), best = Math.max(scoreInteger(v.best), scoreInteger(v.score));
   if (!Array.isArray(v.grid) || v.grid.length !== CELL_COUNT || !v.grid.every(n => Number.isInteger(n) && n >= 0 && n < MATCH3_KINDS) || findMatches(v.grid as number[]).length) return createMatch3(best);
   const movesLeft = integer(v.movesLeft, MATCH3_MOVES, MATCH3_MOVES), grid = (v.grid as number[]).slice(), seed = integer(v.seed, 0xffffffff, 1);
   const shuffled = movesLeft > 0 && !possibleMoves(grid).length;
   const board = shuffled ? shuffleBoard(grid, seed) : { grid, seed };
   const selected = !shuffled && movesLeft > 0 && Number.isInteger(v.selected) && Number(v.selected) >= 0 && Number(v.selected) < CELL_COUNT ? Number(v.selected) : -1;
-  return { id: readId(v.id), ...board, score: integer(v.score), best, movesLeft, bestCombo: integer(v.bestCombo, 20), cleared: integer(v.cleared), selected };
+  return { id: readId(v.id), ...board, score: scoreInteger(v.score), best, movesLeft, bestCombo: integer(v.bestCombo, 20), cleared: integer(v.cleared), selected };
 }

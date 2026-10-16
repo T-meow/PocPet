@@ -22,7 +22,7 @@ const presentation: Record<MiniGameId, { category: string; description: string; 
 
 export const MiniGameHelp = ({ game }: { game?: MiniGameId }) => <HelpButton title={game ? gameName(game) : '小游戏'}
   overview={<>{miniGameDefinitions.filter(entry => !game || entry.id === game).map(entry => <section key={entry.id}><h3>{gameName(entry.id)}</h3><p>{presentation[entry.id].description}</p><p>{presentation[entry.id].detail}</p></section>)}</>}
-  details={<><p>心心收益随伙伴等级成长，具体数值显示在游戏入口。计分游戏每 {miniGameScoreUnit} 分折算一份基础心心，向下取整；主动结算会结束本局，其他心心加成在结算时计算。</p><p>离开会暂停进度；方块、彩瓶、合成水果和三消可以分别保留进度。暂停中的一局仍属于开始时的伙伴，切回对应伙伴后继续。</p></>} />;
+  details={<><p>心心收益随伙伴等级成长，具体数值显示在游戏入口。计分游戏每 {miniGameScoreUnit} 分折算一份基础心心，按整局分数计算后向下取整，不要求凑满 {miniGameScoreUnit} 分；不设单局或每日心心上限。主动结算会结束本局，其他心心加成在结算时计算。</p><p>离开会暂停进度；方块、彩瓶、合成水果和三消可以分别保留进度。暂停中的一局仍属于开始时的伙伴，切回对应伙伴后继续。</p></>} />;
 
 interface Props {
   pet: PetState;

@@ -30,8 +30,9 @@ export const getMiniGameBaseHearts = (level: number, game: MiniGameId = 'matchin
   return hearts * (game === 'catch' ? 3 : 1);
 };
 export type ScoreMiniGameId = Exclude<HubGameId, 'water'>;
-export const miniGameScoreUnit = 1000;
+export const miniGameScoreUnit = 500;
 export const isScoreMiniGame = (game: MiniGameId): game is ScoreMiniGameId => game === 'blocks' || game === 'fruit' || game === 'match3';
+// Score rewards remain proportional to the entire round, with no per-round or daily cap.
 export const getMiniGameScoreHearts = (baseHearts: number, score: number) => Number.isFinite(baseHearts) && Number.isFinite(score)
   ? Math.floor(Math.max(0, baseHearts) * Math.max(0, Math.floor(score)) / miniGameScoreUnit) : 0;
 export const catchFlightMs = 450;
