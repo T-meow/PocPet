@@ -91,7 +91,10 @@ jobs:
       - name: Build requested revision
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmmirror.com/
+          SOURCE_REVISION: ${{ inputs.revision }}
         run: |
+          # The verified release tag can differ from the main commit running this workflow.
+          export GITHUB_SHA="$SOURCE_REVISION"
           npm ci
           npm run check:release
           npm run build
