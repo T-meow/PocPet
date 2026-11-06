@@ -19,6 +19,7 @@ import { DishValueBadge } from '../DishValueBadge';
 import type { CommunityPanelProps } from './types';
 import { resolveNeighborPortrait, type CompanionPortrait } from '../companionRoster';
 import { CompanionDuty } from './CompanionDuty';
+import { getLocalMarketLog } from '../../core/localPetHistory';
 
 const customerNames = { ordinary: '邻里客人', foodie: '美食客人', collector: '收藏客人', generous: '慷慨游客', legacy: '成交记录' };
 
@@ -34,6 +35,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
   const [browse, setBrowse] = useState(createItemBrowseState);
   const [visitor, setVisitor] = useState<MarketReceipt>();
   const m = pet.community.market, free = canDoFarmWork(pet);
+  const ledger = panel === 'ledger' ? getLocalMarketLog(pet) : [];
   const observed = useRef({ visitors: m.visitors, at: Date.now(), visible: false });
   useEffect(() => {
     const now = Date.now(), visible = document.visibilityState === 'visible', previous = observed.current;
@@ -114,7 +116,8 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
       }}>选定并上架 {item.displayName} ×{amount}</button></>} />}
     {panel === 'ledger' && <CommunityDetailDialog title="营业记事本" eyebrow="收益与访客" onClose={() => setPanel(null)}>
       <p>本次摆摊收入 {m.sessionRevenue} 金币，再次开店归零。</p><p>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 件 · 接待 {m.visitors} 位客人。</p>
-      <div className="community-market-details">{m.log.length ? <ul className="community-ledger">{m.log.map((entry, index) => <li key={`${entry.visit}:${entry.at}:${index}`}><span><strong>{entry.buyout ? '慷慨游客 · 全部买下' : customerNames[entry.customer]}</strong><span>{entry.items.map(item => `${name(item.itemId)} ×${item.quantity}`).join('、')}</span><small>{new Date(entry.at).toLocaleString('zh-CN', { hour12: false })}</small></span><b>+{entry.coins} 金币</b></li>)}</ul> : <p>还没有成交，备好商品开张吧。</p>}</div>
+      <p>最近成交记录保存在这台设备，累计收益随存档保留。</p>
+      <div className="community-market-details">{ledger.length ? <ul className="community-ledger">{ledger.map((entry, index) => <li key={`${entry.visit}:${entry.at}:${index}`}><span><strong>{entry.buyout ? '慷慨游客 · 全部买下' : customerNames[entry.customer]}</strong><span>{entry.items.map(item => `${name(item.itemId)} ×${item.quantity}`).join('、')}</span><small>{new Date(entry.at).toLocaleString('zh-CN', { hour12: false })}</small></span><b>+{entry.coins} 金币</b></li>)}</ul> : <p>本机还没有成交记录，备好商品开张吧。</p>}</div>
     </CommunityDetailDialog>}
     {panel === 'traffic' && <CommunityDetailDialog title="商品种类与客流" eyebrow={`当前有货 ${variety.count} 种 · 种类客流 ${Math.round(variety.multiplier * 100)}%`} onClose={() => setPanel(null)}>
       <p>至少摆出 6 种有货商品，客流恢复正常。相同商品摆在多个槽位只算一种，缺货槽位暂不计入。</p><p>1–6 种商品分别约为正常客流的 33%、47%、60%、73%、87%、100%。正常基础客流为每 4–8 分钟一位，无货时暂停来客。</p><p>装饰客流 +{traffic.total}%：铭牌 +{traffic.sign}%、叶影灯 +{traffic.lantern}%、水景 +{traffic.fountain}%，在种类客流上继续加成。包场机会加成 +{buyout.total}%。</p>

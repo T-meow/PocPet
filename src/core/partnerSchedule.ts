@@ -4,10 +4,13 @@ import { getBoostCardEffects } from './boostCards';
 import { getClassicTrophyEffects } from './classicTrophies';
 import { getDailyResetDateKey, normalizeLegacyDailyDateKey } from './dailyReset';
 import { getEffectiveDailyDateKey } from './gameClock';
-import { addInventoryItem } from './items';
-import { activityText } from './kitchenRecipes';
+import { communityCrops } from './foodCatalog';
+import { addInventoryItem, getInventoryItem, removeInventoryItem } from './items';
+import { defaultMasteryStatUpgrades, getMasteryGrowthProgress, masteryStatIncrease, masteryStatKeys, masteryStatNames, normalizeMasteryStatUpgrades } from './masteryGrowth';
+import { activityText, allDishes } from './kitchenRecipes';
 import { advancePet } from './petLifecycle';
 import { goldenAppleGachaDailyTicketLimit } from './goldenAppleGacha';
+import { inventoryItemLimit } from './saveMetadata';
 import {
   getPartnerScheduleCategoryEffects,
   getPartnerScheduleGlobalCoinBonusPercent,
@@ -15,11 +18,12 @@ import {
   partnerScheduleCategories,
   partnerScheduleDailyContributionTargetMs,
 } from './partnerScheduleEffects';
-import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetStatScale, getPetStatThreshold, scalePetStatDelta } from './petStats';
+import { clampCoins, clampCount, clampPetEnergy, clampPetHealth, clampPetHunger, clampPetStat, getPetEnergyCap, getPetStatCap, getPetStatScale, getPetStatThreshold, scalePetStatDelta, updatePetSatiety } from './petStats';
 import { getWorkSeasonCoinBonus } from './season';
 import type {
   ActivePartnerSchedule,
   BuiltinItemId,
+  MasteryStatKey,
   NeighborReference,
   PartnerScheduleCategory,
   PartnerScheduleCosts,
@@ -128,6 +132,52 @@ const sizeHearts: Record<PartnerScheduleSize, number> = { short: 20, standard: 6
 const legacySizeSkillXp: Record<PartnerScheduleSize, number> = { short: 10, standard: 23, long: 50 };
 const serviceRewardMultiplier = 0.9;
 
+const randomGiftChoices = ['category', 'category_2', 'category_3'] as const;
+const randomGiftAmountRanges: Record<PartnerScheduleSize, { minimum: number; maximum: number }> = {
+  short: { minimum: 1, maximum: 3 },
+  standard: { minimum: 2, maximum: 5 },
+  long: { minimum: 4, maximum: 8 },
+};
+const randomGiftPools: Partial<Record<PartnerScheduleCategory, readonly BuiltinItemId[]>> = {
+  garden: Array.from(new Set<BuiltinItemId>([
+    ...Object.values(communityCrops).map(crop => crop.product),
+    'orange', 'apple', 'banana', 'watermelon', 'golden_apple',
+  ])),
+  cooking: Array.from(new Set(allDishes.map(dish => dish.id))),
+};
+
+export const getPartnerScheduleRewardChoices = (
+  result: Pick<PartnerScheduleResult, 'category' | 'size' | 'outcome'>,
+): readonly PartnerScheduleRewardChoice[] => {
+  if (result.outcome === 'early') return [];
+  if (randomGiftPools[result.category]) return randomGiftChoices;
+  return result.size === 'short' ? [] : ['category'];
+};
+
+const getRandomGiftRoll = (result: PartnerScheduleResult, key: string) => {
+  // Mix each draw independently; the saved seed keeps all three gifts stable until claimed.
+  let roll = hashString(`${result.offerId}:${result.rewardSeed ?? result.completedAt}:${key}`);
+  roll = Math.imul(roll ^ (roll >>> 16), 0x21f0aaad);
+  roll = Math.imul(roll ^ (roll >>> 15), 0x735a2d97);
+  return ((roll ^ (roll >>> 15)) >>> 0) / 0x100000000;
+};
+
+const getRandomGift = (result: PartnerScheduleResult, choice: PartnerScheduleRewardChoice) => {
+  const pool = randomGiftPools[result.category];
+  if (!pool) return undefined;
+  const available = [...pool];
+  const range = randomGiftAmountRanges[result.size];
+  for (const candidate of randomGiftChoices) {
+    const index = Math.floor(getRandomGiftRoll(result, `${candidate}:item`) * available.length);
+    const [itemId] = available.splice(index, 1);
+    if (candidate === choice) return {
+      itemId,
+      itemAmount: range.minimum + Math.floor(getRandomGiftRoll(result, `${candidate}:amount`) * (range.maximum - range.minimum + 1)),
+    };
+  }
+  return undefined;
+};
+
 export const partnerScheduleDefinitions: readonly PartnerScheduleDefinition[] = categories.flatMap((category) =>
   sizes.map((size) => ({
     id: templateIds[category][size],
@@ -208,6 +258,7 @@ export const defaultPartnerScheduleState = (
     completedOfferIds: [],
     earlyEndedOfferIds: [],
     skills: defaultSkills(),
+    statUpgrades: defaultMasteryStatUpgrades(),
   };
 };
 
@@ -432,6 +483,7 @@ export const normalizePartnerScheduleState = (
     active,
     pendingResult,
     skills,
+    statUpgrades: normalizeMasteryStatUpgrades(raw.statUpgrades, skills),
   };
 };
 
@@ -637,38 +689,56 @@ export const getPartnerScheduleOfferPreview = (
   const storedSkillXp = effects.grantsMasterCompletion
     ? 0
     : Math.max(1, Math.round(getPartnerScheduleSkillXpReward(definition.size) * effects.skillXpMultiplier));
-  const fullCoins = Math.max(1, Math.round(storedCoinReward * trophyRewardMultiplier));
-  const fullXp = storedSkillXp > 0 ? Math.max(1, Math.round(storedSkillXp * trophyRewardMultiplier)) : 0;
   const costs = getScheduleCosts(definition, pet.level, skill);
+  const rewardResult: PartnerScheduleResult = {
+    offerId: 'preview', templateId: definition.id, category: definition.category, size: definition.size,
+    completedAt: now, coinReward: storedCoinReward, skillXp: storedSkillXp, trophyRewardMultiplier,
+    grantsMasterCompletion: effects.grantsMasterCompletion, energyCost: costs.energy, statScale: getPetStatScale(pet),
+  };
+  const coinReward = getPartnerScheduleClaimPreview(rewardResult, 'coins', 0, pet);
+  let categoryReward: PartnerScheduleClaimPreview | undefined;
+  if (getPartnerScheduleRewardChoices(definition).length > 0) {
+    categoryReward = getPartnerScheduleClaimPreview(rewardResult, 'category', 0, pet);
+    const pool = randomGiftPools[definition.category];
+    if (pool) {
+      const range = randomGiftAmountRanges[definition.size];
+      categoryReward = {
+        ...categoryReward, itemId: undefined, itemAmount: undefined,
+        randomGift: {
+          category: definition.category === 'garden' ? 'garden' : 'cooking',
+          minimum: Math.max(1, Math.round(range.minimum * trophyRewardMultiplier)),
+          maximum: Math.max(1, Math.round(range.maximum * trophyRewardMultiplier)),
+          choices: randomGiftChoices.length, poolSize: pool.length,
+        },
+      };
+    }
+  }
   return {
     durationMs: Math.max(minuteMs, Math.round(definition.durationMinutes * minuteMs * effects.durationMultiplier)),
     energyCost: costs.energy,
     hungerCost: costs.hunger,
     moodCost: costs.mood,
-    coinReward: fullCoins,
-    hearts: Math.round(sizeHearts[definition.size] * getPetStatScale(pet)),
-    skillXp: fullXp,
+    coinReward: coinReward.coins,
+    hearts: coinReward.hearts,
+    skillXp: coinReward.skillXp,
     trophyRewardMultiplier,
     grantsMasterCompletion: effects.grantsMasterCompletion,
     storedCoinReward,
     storedSkillXp,
-    baseCoins: Math.floor(fullCoins * 0.8),
-    baseSkillXp: Math.floor(fullXp * 0.8),
-    completionCoins: fullCoins - Math.floor(fullCoins * 0.8),
-    completionSkillXp: fullXp - Math.floor(fullXp * 0.8),
-    categoryReward: definition.size === 'short' ? undefined : getPartnerScheduleClaimPreview({
-      offerId: 'preview', templateId: definition.id, category: definition.category, size: definition.size,
-      completedAt: now, coinReward: storedCoinReward, skillXp: storedSkillXp, trophyRewardMultiplier,
-      grantsMasterCompletion: effects.grantsMasterCompletion, energyCost: costs.energy, statScale: getPetStatScale(pet),
-    }, 'category', 0, pet),
+    baseCoins: coinReward.baseCoins,
+    baseSkillXp: Math.floor(coinReward.skillXp * 0.8),
+    completionCoins: coinReward.bonusCoins,
+    completionSkillXp: coinReward.skillXp - Math.floor(coinReward.skillXp * 0.8),
+    categoryReward,
   };
 };
 
 export const getPartnerScheduleFullRewardPreview = (active: ActivePartnerSchedule, pet: PetState) => {
   const result = makeScheduleResult(active, active.endsAt, 'completed');
-  const coins = getPartnerScheduleClaimPreview(result, 'coins', 0, pet);
-  return { coins, category: getPartnerScheduleClaimPreview(result, 'category', 0, pet),
-    completionCoins: coins.coins - Math.floor(coins.coins * 0.8),
+  const extraRewardCopies = getPartnerScheduleExtraRewardCopies(pet, result);
+  const coins = getPartnerScheduleClaimPreview(result, 'coins', extraRewardCopies, pet);
+  return { coins, category: getPartnerScheduleClaimPreview(result, 'category', extraRewardCopies, pet),
+    completionCoins: coins.bonusCoins,
     completionSkillXp: coins.skillXp - Math.floor(coins.skillXp * 0.8) };
 };
 
@@ -733,7 +803,7 @@ export const startPartnerSchedule = (
     settledProgressMs: 0,
     legacyPrepaid: false,
     extraRewardChancePercent: getAchievementEffects(current).partnerScheduleExtraRewardChancePercent,
-    rewardSeed: now + preview.durationMs,
+    rewardSeed: Math.floor(Math.random() * 0x100000000),
     statScale: getPetStatScale(current),
   };
   return {
@@ -800,12 +870,33 @@ export const grantPracticeSkillXp = (pet: PetState, category: PartnerScheduleCat
   };
 };
 
+export const upgradeMasteryStat = (pet: PetState, key: MasteryStatKey, expectedUsed: number, now = Date.now()): PetState => {
+  if (pet.timePause || !masteryStatKeys.includes(key)) return pet;
+  const current = advancePet(pet, now);
+  const progress = getMasteryGrowthProgress(current);
+  if (progress.used !== expectedUsed) return current;
+  if (progress.available <= 0) return { ...current, recentEvent: '大师提升机会不足，继续完成大师工作吧。' };
+  if ((current.inventory.golden_apple ?? 0) < 1) return { ...current, recentEvent: '提升属性需要 1 个金苹果。' };
+  const statUpgrades = { ...current.partnerSchedule.statUpgrades, [key]: current.partnerSchedule.statUpgrades[key] + 1 };
+  const next = updatePetSatiety({ ...current,
+    [key]: current[key] + masteryStatIncrease,
+    inventory: removeInventoryItem(current.inventory, 'golden_apple', 1),
+    partnerSchedule: { ...current.partnerSchedule, statUpgrades },
+    lastInteractionAt: now,
+  });
+  const cap = key === 'energy' ? getPetEnergyCap(next) : getPetStatCap(next, key);
+  return { ...next, recentEvent: `消耗金苹果 ×1，${masteryStatNames[key]}上限永久 +${masteryStatIncrease}，当前上限 ${cap}；当前值同步 +${masteryStatIncrease}。` };
+};
+
 export interface PartnerScheduleClaimPreview {
   coins: number;
+  baseCoins: number;
+  bonusCoins: number;
   hearts: number;
   skillXp: number;
   itemId?: BuiltinItemId;
   itemAmount?: number;
+  randomGift?: { category: 'garden' | 'cooking'; minimum: number; maximum: number; choices: number; poolSize: number };
   energy?: number;
   health?: number;
   mood?: number;
@@ -820,8 +911,9 @@ export const getPartnerScheduleClaimPreview = (
   const fullHearts = result.heartReward ?? Math.round(sizeHearts[result.size] * (result.statScale ?? (pet ? getPetStatScale(pet) : 1)));
   if (result.outcome === 'early') {
     const ratio = Math.max(0, Math.min(1, result.progressRatio ?? 0));
+    const coins = Math.floor(Math.round(result.coinReward * result.trophyRewardMultiplier) * 0.8 * ratio);
     return {
-      coins: Math.floor(Math.round(result.coinReward * result.trophyRewardMultiplier) * 0.8 * ratio),
+      coins, baseCoins: coins, bonusCoins: 0,
       hearts: Math.floor(fullHearts * 0.8 * ratio),
       skillXp: Math.floor(Math.round(result.skillXp * result.trophyRewardMultiplier) * 0.8 * ratio),
     };
@@ -829,16 +921,17 @@ export const getPartnerScheduleClaimPreview = (
   const rewardMultiplier = result.trophyRewardMultiplier * (1 + Math.max(0, Math.floor(extraRewardCopies)));
   const scaleReward = (value: number) => value > 0 ? Math.max(1, Math.round(value * rewardMultiplier)) : 0;
   const scaleStat = (value: number) => result.statScale ? value * result.statScale : pet ? scalePetStatDelta(pet, value) : value;
-  if (choice === 'coins' || result.size === 'short') {
-    return { coins: scaleReward(result.coinReward), hearts: fullHearts, skillXp: scaleReward(result.skillXp) };
+  const fullCoins = scaleReward(result.coinReward);
+  const baseCoins = scaleReward(result.coinReward * 0.8);
+  if (choice === 'coins' || !getPartnerScheduleRewardChoices(result).includes(choice)) {
+    return { coins: fullCoins, baseCoins, bonusCoins: fullCoins - baseCoins, hearts: fullHearts, skillXp: scaleReward(result.skillXp) };
   }
-  const baseCoins = result.coinReward * 0.8;
   const baseSkillXp = result.skillXp * 1.5;
-  const base: PartnerScheduleClaimPreview = { coins: scaleReward(baseCoins), hearts: fullHearts, skillXp: scaleReward(baseSkillXp) };
+  const base: PartnerScheduleClaimPreview = { coins: baseCoins, baseCoins, bonusCoins: 0, hearts: fullHearts, skillXp: scaleReward(baseSkillXp) };
   const amount = result.size === 'long' ? 2 : 1;
   if (result.category === 'study') return { ...base, skillXp: scaleReward(result.skillXp * 2), mood: scaleStat(scaleReward(8 * amount)) };
-  if (result.category === 'cooking') return { ...base, itemId: 'bento', itemAmount: scaleReward(amount) };
-  if (result.category === 'garden') return { ...base, itemId: 'fruit_tree_sapling', itemAmount: scaleReward(amount) };
+  const gift = getRandomGift(result, choice);
+  if (gift) return { ...base, itemId: gift.itemId, itemAmount: scaleReward(gift.itemAmount) };
   const energy = result.legacyRewards ? scaleReward(10 * amount)
     : Math.min(10 * amount, Math.floor((result.energyCost ?? sizeRules[result.size].energyCost) / 2));
   return { ...base, energy, health: scaleStat(scaleReward(6 * amount)) };
@@ -878,9 +971,12 @@ export const claimPartnerScheduleResult = (
   if (current.timePause) return current;
   if (!result) return { ...current, recentEvent: t('pet.partnerSchedule.noResult') };
   const isComplete = result.outcome !== 'early';
-  const safeChoice = result.size === 'short' || !isComplete ? 'coins' : choice;
+  const safeChoice = getPartnerScheduleRewardChoices(result).includes(choice) ? choice : 'coins';
   const extraRewardCopies = getPartnerScheduleExtraRewardCopies(current, result);
   const reward = getPartnerScheduleClaimPreview(result, safeChoice, extraRewardCopies, current);
+  if (reward.itemId && (current.inventory[reward.itemId] ?? 0) + (reward.itemAmount ?? 1) > inventoryItemLimit) {
+    return { ...current, recentEvent: '仓库放不下这份回礼，基础工资与回礼会一起保留，整理后再领或改选其他回礼。' };
+  }
   const heartGain = applyHeartGain(current, reward.hearts);
   const rewardCoins = reward.coins;
   const rewardSkillXp = reward.skillXp;
@@ -892,6 +988,8 @@ export const claimPartnerScheduleResult = (
     ...current.partnerSchedule.skills,
     [result.category]: nextSkill,
   };
+  const newMasteryOpportunities = getMasteryGrowthProgress({ partnerSchedule: { ...current.partnerSchedule, skills } }).earned
+    - getMasteryGrowthProgress(current).earned;
   const inventory = reward.itemId
     ? addInventoryItem(current.inventory, reward.itemId, reward.itemAmount ?? 1)
     : current.inventory;
@@ -911,12 +1009,16 @@ export const claimPartnerScheduleResult = (
     health: clampPetHealth(current, current.health + (reward.health ?? 0)),
     mood: clampPetStat(current, current.mood + (reward.mood ?? 0)),
     recentEvent: [
-      t(isComplete ? `pet.partnerSchedule.claimed.${safeChoice}` : 'pet.partnerSchedule.claimedEarly', { coins: rewardCoins, xp: rewardSkillXp }),
+      isComplete
+        ? `领取基础工资 ${reward.baseCoins} 金币${reward.bonusCoins > 0 ? `与额外金币 ${reward.bonusCoins}` : ''}，获得 ${rewardSkillXp} 技能经验。`
+        : t('pet.partnerSchedule.claimedEarly', { coins: rewardCoins, xp: rewardSkillXp }),
       `收获 ${heartGain.amount} 颗心心。`,
+      reward.itemId ? `收下${getInventoryItem(reward.itemId)?.name ?? reward.itemId} ×${reward.itemAmount}。` : '',
       result.neighbor
         ? t(`pet.partnerSchedule.neighborClaimed.${neighborName ? 'named' : 'generic'}`, { neighbor: neighborName ?? '' })
         : '',
       isComplete && result.grantsMasterCompletion ? t('pet.partnerSchedule.masterCompletion', { count: nextSkill.masterCompletions }).trim() : '',
+      newMasteryOpportunities > 0 ? `获得大师属性提升机会 ×${newMasteryOpportunities}，可在社区工作中使用金苹果自选提升。` : '',
       extraRewardCopies > 0 ? t('pet.partnerSchedule.extraRewardTriggered', { count: extraRewardCopies }) : '',
       result.exhausted ? partnerScheduleExhaustedMessage : '',
     ].filter(Boolean).join(' '),

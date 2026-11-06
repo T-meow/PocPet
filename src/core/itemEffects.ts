@@ -20,7 +20,7 @@ export const getItemUsePlan = (pet: PetState, item: EffectItem, quantity = 1) =>
   const food = item.kind === 'food' && !special;
   const blocked = food && isPetOverfed(pet);
   const hungerPerItem = food ? getItemStatEffect(pet, item).hunger ?? 0 : 0;
-  const needed = hungerPerItem > 0 ? Math.ceil(Math.max(0, getPetStatCap(pet) - pet.hunger) / hungerPerItem) : requestedQuantity;
+  const needed = hungerPerItem > 0 ? Math.ceil(Math.max(0, getPetStatCap(pet, 'hunger') - pet.hunger) / hungerPerItem) : requestedQuantity;
   return { requestedQuantity, quantity: blocked ? 0 : Math.min(requestedQuantity, needed), blocked };
 };
 
@@ -39,7 +39,7 @@ export const getItemStatEffect = (pet: PetState, item: EffectItem): ItemEffect =
   const effect: ItemEffect = {};
   if (item.id === 'golden_apple') {
     for (const key of itemStatKeys) {
-      const cap = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet);
+      const cap = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet, key);
       effect[key] = Math.round(cap * goldenAppleRecoveryPercent / 100);
     }
     return effect;
@@ -57,7 +57,7 @@ export const getItemStatEffect = (pet: PetState, item: EffectItem): ItemEffect =
 
 export const applyItemHungerEffect = (pet: PetState, item: EffectItem, amount: number) => {
   if (item.kind !== 'food' || amount <= 0) return clampPetHunger(pet, pet.hunger + amount);
-  const normalRecovery = Math.min(amount, Math.max(0, getPetStatCap(pet) - pet.hunger));
+  const normalRecovery = Math.min(amount, Math.max(0, getPetStatCap(pet, 'hunger') - pet.hunger));
   return pet.hunger + normalRecovery + (amount - normalRecovery) * foodHungerOverflowRatio;
 };
 
@@ -71,10 +71,12 @@ export const getItemRecoveryPreview = (pet: PetState, item: EffectItem, quantity
   const actual: ItemEffect = {};
   const overflow: ItemEffect = {};
   for (const key of itemStatKeys) {
-    const cap = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet);
+    const cap = key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet, key);
     const amount = item.id === 'birthday_cake' ? Math.max(0, cap - pet[key]) : (effect[key] ?? 0) * count + (key === 'mood' && favorite ? 4 * count : 0);
-    const clamp = key === 'energy' ? clampPetEnergy : key === 'health' ? clampPetHealth : clampPetStat;
-    actual[key] = (key === 'hunger' ? applyItemHungerEffect(pet, item, amount) : clamp(pet, pet[key] + amount)) - pet[key];
+    const value = pet[key] + amount;
+    const recovered = key === 'hunger' ? applyItemHungerEffect(pet, item, amount)
+      : key === 'energy' ? clampPetEnergy(pet, value) : key === 'health' ? clampPetHealth(pet, value) : clampPetStat(pet, value, key);
+    actual[key] = recovered - pet[key];
     overflow[key] = Math.max(0, amount - actual[key]!);
   }
   return { actual, overflow, ...plan };

@@ -1,6 +1,7 @@
 import { normalizePet } from './petState';
 import type { PetState } from './petTypes';
 import { packDateKeys, unpackDateKeys, type PersistedDateKeys } from './persistedDates';
+import { campaignRunSnapshot, type ExplorationCampaignState } from './explorationCampaignState';
 
 // Older V2 readers reject unknown envelope fields. Keep this marker on every
 // compact save so they cannot silently discard packed dates or memory entries.
@@ -21,7 +22,7 @@ export const persistentPetKeys = [
 
 type PersistentBase = Pick<PetState, typeof persistentPetKeys[number]>;
 type Memory = PetState['companionMemories']['entries'][number];
-export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGacha' | 'kitchen' | 'miniGames' | 'achievements' | 'yearlyStats' | 'companionMemories' | 'community'> & {
+export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGacha' | 'kitchen' | 'miniGames' | 'achievements' | 'yearlyStats' | 'companionMemories' | 'community' | 'adventure'> & {
   garden: Omit<PetState['garden'], 'activeSlotIndex' | 'slots'> & { slots: Array<PetState['garden']['slots'][number] | { unlocked: boolean }> };
   goldenAppleGacha: Omit<PetState['goldenAppleGacha'], 'recentResults' | 'recentHeartResults' | 'recentGoldenResults'>;
   kitchen: Omit<PetState['kitchen'], 'plating' | 'lastCraft'>;
@@ -33,10 +34,24 @@ export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGa
   };
   yearlyStats: Omit<PetState['yearlyStats'], 'activeDateKeys'> & { activeDateKeys: PersistedDateKeys };
   companionMemories: { schemaVersion: 1; entries: Array<Omit<Memory, 'id' | 'mentionedAt'> & { id?: string }> };
-  community: PetState['community'];
+  adventure: Omit<PetState['adventure'], 'journal'>;
+  community: Omit<PetState['community'], 'market' | 'courtyard'> & {
+    market: Omit<PetState['community']['market'], 'log'>;
+    courtyard: Omit<PetState['community']['courtyard'], 'lastInteraction'>;
+  };
 };
 
 const memoryId = (entry: { actorId: string; kind: string; subject: string }) => `${entry.actorId}:${entry.kind}:${entry.subject}`.slice(0, 200);
+
+// The campaign reader already rebuilds missing seasonal memories from these runs.
+// Only omit an exact duplicate: an earlier snapshot or an archived run stays intact.
+const compactCampaign = (state: ExplorationCampaignState): ExplorationCampaignState => ({
+  ...state,
+  memories: Object.fromEntries(Object.entries(state.memories).filter(([theme, memory]) => {
+    const source = [...state.history, state].find(run => run.theme === theme && run.tasks[30]);
+    return !source || JSON.stringify(memory) !== JSON.stringify(campaignRunSnapshot(source));
+  })),
+});
 
 export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 => {
   const current = normalizePet(pet, now);
@@ -46,6 +61,9 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
   const { plating: _plating, lastCraft: _craft, ...kitchen } = current.kitchen;
   const { style: _style, lastResult, ...miniGames } = current.miniGames;
   const { pendingReviewNotice: _notice, ...achievements } = current.achievements;
+  const { journal: _journal, ...adventure } = current.adventure;
+  const { log: _log, ...market } = current.community.market;
+  const { lastInteraction: _courtyardInteraction, ...courtyard } = current.community.courtyard;
   return {
     ...base,
     garden: { ...garden, slots: garden.slots.map((slot) => slot.state === 'empty' && slot.dailyAdvancedFertilizerReductionMs === 0 ? { unlocked: slot.unlocked } : slot) },
@@ -56,7 +74,8 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
     yearlyStats: { ...current.yearlyStats, activeDateKeys: packDateKeys(current.yearlyStats.activeDateKeys) },
     companionMemories: { ...current.companionMemories, entries: current.companionMemories.entries.map(({ id, mentionedAt: _mentioned, ...entry }) =>
       id === memoryId(entry) ? entry : { ...entry, id }) },
-    community: current.community,
+    adventure: { ...adventure, campaign: compactCampaign(adventure.campaign) },
+    community: { ...current.community, market, courtyard },
     miniGames: { ...miniGames, lastSettledSessionId: miniGames.lastSettledSessionId || lastResult?.id || '', lastResult: lastResult?.pending ? lastResult : undefined },
   };
 };

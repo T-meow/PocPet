@@ -2,6 +2,7 @@ import { type NeighborEventContext, type PetState } from './pet';
 import { checksumText, createSaveFileText, decodeSaveSnapshot, loadStoredPetJson, readActiveModSummary, UnsupportedSaveVersionError, type SaveFailureStage, type PocPetSaveModSummary } from './saveCodec';
 import { migrationCompensationItems, prepareMigrationCompensation, type MigrationItemId, type SaveMetadata } from './saveMetadata';
 import { applyLocalPetPreferences, persistPetPreferences } from './petPreferences';
+import { persistLocalPetHistory } from './localPetHistory';
 import { t } from '../i18n';
 import { getStoredPetModManifest } from './modStorage';
 import { appBuild } from '../platform/edition';
@@ -186,6 +187,7 @@ const persistCurrentPet = (pet: PetState, identity?: PocPetSaveModSummary, now =
   expectedRaw = raw;
   persistedIdentity = identity;
   persistPetPreferences(next);
+  persistLocalPetHistory(next);
   if (migrationRecordInvalid) {
     if (!migrationRecordWarningShown && (pet.saveMetadata.compensation === 'pending' || Object.keys(pet.saveMetadata.pendingItems).length > 0)) {
       storageFeedback.push(t('pet.reward.saveMigrationRecordInvalid'));

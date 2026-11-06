@@ -358,6 +358,8 @@ export {
 } from './partnerSchedule';
 export { selectNeighborGift } from './neighborGifts';
 export { getNeighborIdentities, neighborGiftDailyLimit, resolveNeighborName, selectNeighborReference } from './neighbors';
+export { advanceCourtyard, claimCourtyardGifts, getCourtyardGreeting, getCourtyardInteractionReason, getCourtyardShareInfo, interactCourtyard, isCourtyardOpen } from './courtyard';
+export type { CourtyardContext, CourtyardNeighbor, CourtyardReceipt, CourtyardRequest, CourtyardState } from './courtyardTypes';
 export {
   getPartnerScheduleCategoryEffects,
   getPartnerScheduleCrossSystemEffects,

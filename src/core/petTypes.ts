@@ -336,7 +336,7 @@ export type PartnerScheduleCategory = 'study' | 'cooking' | 'garden' | 'exercise
 
 export type PartnerScheduleSize = 'short' | 'standard' | 'long';
 
-export type PartnerScheduleRewardChoice = 'coins' | 'category';
+export type PartnerScheduleRewardChoice = 'coins' | 'category' | 'category_2' | 'category_3';
 
 export interface PartnerScheduleOffer {
   id: string;
@@ -422,6 +422,9 @@ export interface PartnerScheduleResult {
   statScale?: number;
 }
 
+export type MasteryStatKey = 'hunger' | 'mood' | 'cleanliness' | 'energy' | 'health';
+export type MasteryStatUpgrades = Record<MasteryStatKey, number>;
+
 export interface PartnerScheduleState {
   schemaVersion: 7;
   boardDateKey: string;
@@ -437,6 +440,7 @@ export interface PartnerScheduleState {
   active?: ActivePartnerSchedule;
   pendingResult?: PartnerScheduleResult;
   skills: Record<PartnerScheduleCategory, PartnerScheduleSkill>;
+  statUpgrades: MasteryStatUpgrades;
 }
 
 export type AchievementId = string;

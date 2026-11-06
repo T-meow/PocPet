@@ -243,7 +243,7 @@ export const useAdventureSupply = (pet: PetState, tripId: string, revision: numb
   if ((trip[source][itemId] ?? 0) < quantity) return pet;
   const effect = getItemStatEffect(pet, item);
   const recovery = { hunger: applyItemHungerEffect(pet, item, (effect.hunger ?? 0) * quantity), energy: clampPetEnergy(pet, pet.energy + (effect.energy ?? 0) * quantity),
-    mood: clampPetStat(pet, pet.mood + (effect.mood ?? 0) * quantity), health: clampPetHealth(pet, pet.health + (effect.health ?? 0) * quantity), cleanliness: clampPetStat(pet, pet.cleanliness + (effect.cleanliness ?? 0) * quantity) };
+    mood: clampPetStat(pet, pet.mood + (effect.mood ?? 0) * quantity), health: clampPetHealth(pet, pet.health + (effect.health ?? 0) * quantity), cleanliness: clampPetStat(pet, pet.cleanliness + (effect.cleanliness ?? 0) * quantity, 'cleanliness') };
   if (!Object.entries(recovery).some(([key, value]) => value > pet[key as keyof typeof recovery])) return fail(pet, L('当前不需要这份恢复补给。', 'You do not need this recovery supply right now.'));
   let next: PetState = { ...pet, ...recovery, adventure: { ...pet.adventure, active: { ...trip, energySpent: Math.max(0, (trip.energySpent ?? 0) - Math.max(0, recovery.energy - pet.energy)), healthLost: Math.max(0, (trip.healthLost ?? 0) - Math.max(0, recovery.health - pet.health)), revision: revision + 1, [source]: removeInventoryItem(trip[source], itemId, quantity) } },
     recentEvent: L(`使用了${item.name} ×${quantity}。`, `Used ${item.name} ×${quantity}.`) + (quantity < plan.requestedQuantity ? ' 已吃饱，其余未消耗。' : '') };

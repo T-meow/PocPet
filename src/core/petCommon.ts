@@ -138,7 +138,7 @@ export const applyActionStreak = (pet: PetState, key: CareActionKey, now: number
       actionStreak: resetStreak,
       hunger: clampPetHunger(base, base.hunger + hunger),
       mood: clampPetStat(base, base.mood + mood),
-      cleanliness: clampPetStat(base, base.cleanliness + cleanliness),
+      cleanliness: clampPetStat(base, base.cleanliness + cleanliness, 'cleanliness'),
       energy: clampPetEnergy(base, base.energy + (reaction.effect.energy ?? 0)),
       health: clampPetHealth(base, base.health + health),
     },

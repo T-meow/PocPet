@@ -806,7 +806,7 @@ export const incrementAchievementPartnerScheduleClaim = (
             [category]: (pet.achievements.counters.partnerScheduleLongClaimCountsByCategory[category] ?? 0) + 1,
           }
         : pet.achievements.counters.partnerScheduleLongClaimCountsByCategory,
-      partnerScheduleCategoryRewardClaimCount: pet.achievements.counters.partnerScheduleCategoryRewardClaimCount + (choice === 'category' ? 1 : 0),
+      partnerScheduleCategoryRewardClaimCount: pet.achievements.counters.partnerScheduleCategoryRewardClaimCount + (choice !== 'coins' ? 1 : 0),
     },
   },
 });

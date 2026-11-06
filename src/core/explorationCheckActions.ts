@@ -37,7 +37,7 @@ export const applyExplorationCheck = (pet: PetState, trip: CheckTrip, action: Ex
   if (action.mealItem) {
     const item = getInventoryItem(action.mealItem as ItemId)!;
     const effect = getItemStatEffect(next, item);
-    const recovery = { hunger: applyItemHungerEffect(next, item, effect.hunger ?? 0), energy: clampPetEnergy(next, next.energy + (effect.energy ?? 0)), health: clampPetHealth(next, next.health + (effect.health ?? 0)), mood: clampPetStat(next, next.mood + (effect.mood ?? 0)), cleanliness: clampPetStat(next, next.cleanliness + (effect.cleanliness ?? 0)) };
+    const recovery = { hunger: applyItemHungerEffect(next, item, effect.hunger ?? 0), energy: clampPetEnergy(next, next.energy + (effect.energy ?? 0)), health: clampPetHealth(next, next.health + (effect.health ?? 0)), mood: clampPetStat(next, next.mood + (effect.mood ?? 0)), cleanliness: clampPetStat(next, next.cleanliness + (effect.cleanliness ?? 0), 'cleanliness') };
     result.recovery = { hunger: recovery.hunger - next.hunger, energy: recovery.energy - next.energy, health: recovery.health - next.health, mood: recovery.mood - next.mood, cleanliness: recovery.cleanliness - next.cleanliness };
     next = updatePetSatiety(incrementAchievementItemUse({ ...next, ...recovery }, item.id));
   }

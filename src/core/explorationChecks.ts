@@ -142,7 +142,7 @@ export const getExplorationCheckPreview = (pet: PetState, action: ExplorationChe
   const energy = range(outcomes.map(o => o.energy)), healthLoss = range(outcomes.map(o => o.healthLoss));
   const finds = Object.fromEntries([...new Set(outcomes.flatMap(o => Object.keys(o.finds)))].map(id => [id, range(outcomes.map(o => o.finds[id] ?? 0))]));
   const hunger = range(outcomes.map(o => o.hunger));
-  const reason = context.blockedReason || (pet.timePause ? '时间已冻结，恢复后再行动。' : pet.health < getPetStatCap(pet) * .2 ? '健康过低，正在安全返程。' : d.tool && !context.toolAvailable ? '缺少对应工具或耐久。' : pet.hunger < hunger[1] ? '饱食不足，请先补充。' : pet.energy < energy[1] ? `至少需要 ${energy[1]} 体力，以承担本次行动的最坏消耗。` : '');
+  const reason = context.blockedReason || (pet.timePause ? '时间已冻结，恢复后再行动。' : pet.health < getPetStatCap(pet, 'health') * .2 ? '健康过低，正在安全返程。' : d.tool && !context.toolAvailable ? '缺少对应工具或耐久。' : pet.hunger < hunger[1] ? '饱食不足，请先补充。' : pet.energy < energy[1] ? `至少需要 ${energy[1]} 体力，以承担本次行动的最坏消耗。` : '');
   return { skill: d.skill, skillLevel, difficulty, chance, chanceCap, factors, mood, costFactors: { base: action.energy, route, meal, skillEnergy, skillHunger, toolEnergy, toolHunger, camp, hungerBase: action.hunger }, energy, hunger, healthLoss, finds, researchPoints: range(outcomes.map(o => o.researchPoints)), outcomes, reason };
 };
 export const resolveExplorationCheck = (pet: PetState, action: ExplorationCheckAction, context: ExplorationCheckContext, roll = getExplorationRoll(context.state.seed, context.node, action.id)): ExplorationCheckResult | undefined => {

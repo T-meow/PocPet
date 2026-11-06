@@ -218,7 +218,7 @@ export const applyTimedEvent = (pet: PetState, event: TimedEvent, now: number, p
     ...current,
     hunger: clampPetHunger(current, current.hunger + (scaledEffect.hunger ?? 0)),
     mood: clampPetStat(current, current.mood + (scaledEffect.mood ?? 0)),
-    cleanliness: clampPetStat(current, current.cleanliness + (scaledEffect.cleanliness ?? 0)),
+    cleanliness: clampPetStat(current, current.cleanliness + (scaledEffect.cleanliness ?? 0), 'cleanliness'),
     energy: clampPetEnergy(current, current.energy + (scaledEffect.energy ?? 0)),
     health: clampPetHealth(current, current.health + (scaledEffect.health ?? 0)),
     coins: clampCoins(current.coins + (event.coins ?? 0)),

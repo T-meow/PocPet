@@ -146,6 +146,7 @@ import { GoldenAppleGachaModal } from './GoldenAppleGachaModal';
 import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
 import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
+import { CommunityCourtyard } from './community/CommunityCourtyard';
 import { currentExpeditionRequest, type OutpostRequest } from './outpostNavigation';
 import type { CommunityRoute } from '../core/communityTypes';
 import { KitchenModal, type KitchenViewState } from './KitchenModal';
@@ -165,6 +166,7 @@ import { InventoryModal } from './InventoryModal';
 import { getStorageReturnTarget, type ItemBrowseCategory } from './itemBrowse';
 import { PomodoroOverlay } from './PomodoroOverlay';
 import { PartnerSchedulePage } from './PartnerSchedulePage';
+import { upgradeMasteryStat } from '../core/partnerSchedule';
 import { RolePicker } from './RolePicker';
 import { SettingsModal, type SettingsPage } from './SettingsModal';
 import { ShopModal } from './ShopModal';
@@ -1768,6 +1770,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           onClaim={handleClaimPartnerSchedule}
           onRefresh={handleRefreshPartnerSchedule}
           onQuickWork={() => handleAction('work')}
+          onUpgradeMasteryStat={(key, used) => activities.update(current => upgradeMasteryStat(current, key, used))}
         />
       ) : activePage === 'adventure' ? (
         <AdventurePage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
@@ -1775,6 +1778,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           update={activities.update} onBack={() => setActivePage(outpostRequest && 'museumVisit' in outpostRequest && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
           onKitchen={() => openKitchenFromLink()}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
+      ) : activePage === 'courtyard' ? (
+        <CommunityCourtyard pet={pet} actorId={actorId} installedMods={installedMods} update={activities.update} onBack={() => setActivePage('home')} registry={itemRegistry} itemIconMap={itemIconMap} />
       ) : activePage === 'community' ? (
         <CommunityPage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} favoriteFoodIds={getModFavoriteFoodIds(activeMod)} installedMods={installedMods} registry={itemRegistry} itemIconMap={itemIconMap} portrait={petStatusImageMap.content} update={activities.update} onBack={() => setActivePage('home')} tab={communityTab} onTabChange={setCommunityTab}
           place={communityPlace} onPlaceChange={place => { setCommunityPlace(place); if (place !== 'orchard') resetGardenClearConfirm(); }}
@@ -1829,6 +1834,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           actorId={actorId}
           adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending) || pet.adventure.commissions.some(task => task.status === 'ready'), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
+          onOpenCourtyard={() => setActivePage('courtyard')}
           onOpenMarket={handleOpenMarket}
           onOpenMuseum={() => handleOpenMuseum('home')}
           onOpenFishing={handleOpenFishing}

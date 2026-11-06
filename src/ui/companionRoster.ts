@@ -1,14 +1,14 @@
 import { resolvePetStatusImages } from '../assets';
 import type { InstalledPetModSummary } from '../core/mod';
-import type { NeighborReference } from '../core/petTypes';
+import type { ItemId, NeighborReference } from '../core/petTypes';
 
-export interface CompanionPortrait { id: string; name: string; portrait: string }
+export interface CompanionPortrait { id: string; name: string; portrait: string; favoriteFoodIds?: readonly ItemId[] }
 const fallbackPortrait = resolvePetStatusImages(null).content;
 export const genericNeighbor: CompanionPortrait = { id: 'generic-neighbor', name: '热心邻居', portrait: '' };
 
 export const getCompanionRoster = (mods: readonly InstalledPetModSummary[]): CompanionPortrait[] =>
   [...new Map([
-    ...mods.map(mod => ({ id: mod.manifest.id, name: mod.manifest.defaultPetName, portrait: mod.contentImageUrl ?? fallbackPortrait })),
+    ...mods.map(mod => ({ id: mod.manifest.id, name: mod.manifest.defaultPetName, portrait: mod.contentImageUrl ?? fallbackPortrait, favoriteFoodIds: mod.manifest.favoriteFoodIds })),
   ].map(actor => [actor.id, actor])).values()];
 
 export const resolveCompanionPortrait = (roster: readonly CompanionPortrait[], id: string, name?: string): CompanionPortrait => {

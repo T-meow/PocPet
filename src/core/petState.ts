@@ -321,12 +321,15 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   if (!claimedRewardIds.includes(upgradeHeartCurveRefundRewardId)) claimedRewardIds.push(upgradeHeartCurveRefundRewardId);
   const classicLegacyCoinCurveRefund = getClassicLegacyCoinCurveMigrationRefund(raw.classicEndgame);
   const classicEndgame = normalizeClassicEndgameState(raw.classicEndgame);
-  const statCap = getPetStatCap(level);
   const createdAt = isNumber(raw.createdAt) && raw.createdAt >= 0
     ? raw.createdAt
     : ageSeconds > 0
       ? Math.max(0, now - ageSeconds * 1000)
       : now;
+  const partnerSchedule = normalizePartnerScheduleState(
+    raw.partnerSchedule, { level, createdAt }, now, !options.preserveExpiredPartnerSchedule, currentDailyDateKey,
+  );
+  const statSource = { level, partnerSchedule };
   const metDate = normalizePetCalendarDate(raw.metDate) ?? getLocalCalendarDate(createdAt);
   const pendingYearReview = normalizeYearReview(raw.pendingYearReview);
   const latestYearReview = normalizeYearReview(raw.latestYearReview) ?? pendingYearReview;
@@ -339,8 +342,8 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     community.expedition.regions.valley = { ...community.expedition.regions.valley, surveyed: true, storyAt: now };
   }
   adventure = migrateLandmarks(adventure, { community }, ((raw.adventure as { schemaVersion?: number } | undefined)?.schemaVersion ?? 0) < 8);
-  const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community }, isNumber(raw.energy) ? raw.energy : fallback.energy);
-  const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, statCap);
+  const normalizedEnergy = clampPetEnergy({ level, classicEndgame, adventure, community, partnerSchedule }, isNumber(raw.energy) ? raw.energy : fallback.energy);
+  const normalizedHealth = clampHealth(isNumber(raw.health) ? raw.health : fallback.health, getPetStatCap(statSource, 'health'));
   const hunger = Math.max(0, isNumber(raw.hunger) ? raw.hunger : fallback.hunger);
   const normalizedIsSleeping = Boolean(raw.isSleeping);
   const hasValidSleepSnapshot = normalizedIsSleeping
@@ -422,13 +425,6 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     if (!slot.treeId || slot.harvestsUsed <= 0) return;
     gardenHarvestCountsByTreeId[slot.treeId] = Math.max(gardenHarvestCountsByTreeId[slot.treeId] ?? 0, 1);
   });
-  const partnerSchedule = normalizePartnerScheduleState(
-    raw.partnerSchedule,
-    { level, createdAt },
-    now,
-    !options.preserveExpiredPartnerSchedule,
-    currentDailyDateKey,
-  );
   const partnerScheduleClaimCountsByCategory = { ...countersWithMigration.partnerScheduleClaimCountsByCategory };
   const rawAchievementCounters = hasAchievementState ? (raw.achievements as Partial<AchievementState>).counters : undefined;
   const hasRecordedScheduleClaims = isNumber(rawAchievementCounters?.partnerScheduleClaimCount)
@@ -467,9 +463,9 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     saveMetadata: fallback.saveMetadata,
     level,
     hunger,
-    isOverfed: isPetOverfed({ level, hunger, isOverfed: raw.isOverfed === true }),
-    mood: clampStat(isNumber(raw.mood) ? raw.mood : fallback.mood, statCap),
-    cleanliness: clampStat(isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, statCap),
+    isOverfed: isPetOverfed({ ...statSource, hunger, isOverfed: raw.isOverfed === true }),
+    mood: clampStat(isNumber(raw.mood) ? raw.mood : fallback.mood, getPetStatCap(statSource, 'mood')),
+    cleanliness: clampStat(isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, getPetStatCap(statSource, 'cleanliness')),
     energy: normalizedEnergy,
     health: normalizedHealth,
     createdAt,
@@ -524,13 +520,13 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
     lastEnergyRecoveryAt: isNumber(raw.lastEnergyRecoveryAt) ? raw.lastEnergyRecoveryAt : now,
     sleepStartedAt: normalizedIsSleeping ? hasValidSleepSnapshot ? raw.sleepStartedAt as number : now : 0,
     sleepStartMood: normalizedIsSleeping
-      ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartMood) ? raw.sleepStartMood : isNumber(raw.mood) ? raw.mood : fallback.mood, statCap)
+      ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartMood) ? raw.sleepStartMood : isNumber(raw.mood) ? raw.mood : fallback.mood, getPetStatCap(statSource, 'mood'))
       : 0,
     sleepStartHunger: normalizedIsSleeping
       ? Math.max(0, hasValidSleepSnapshot && isNumber(raw.sleepStartHunger) ? raw.sleepStartHunger : hunger)
       : 0,
     sleepStartCleanliness: normalizedIsSleeping
-      ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartCleanliness) ? raw.sleepStartCleanliness : isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, statCap)
+      ? clampStat(hasValidSleepSnapshot && isNumber(raw.sleepStartCleanliness) ? raw.sleepStartCleanliness : isNumber(raw.cleanliness) ? raw.cleanliness : fallback.cleanliness, getPetStatCap(statSource, 'cleanliness'))
       : 0,
     lowCleanlinessSleepConfirmCount: Math.min(lowCleanlinessSleepConfirmClicks - 1, clampCount(isNumber(raw.lowCleanlinessSleepConfirmCount) ? raw.lowCleanlinessSleepConfirmCount : 0)),
     lastDreamTalkAt: normalizedIsSleeping && isNumber(raw.lastDreamTalkAt) ? raw.lastDreamTalkAt : 0,

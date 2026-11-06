@@ -102,7 +102,7 @@ export const quoteIdleFishing = (pet: PetState, water: WaterId, bait: Bait, stro
   const rod = strongRod ? 'reinforced_rod' : 'fishing_rod';
   const uses = getToolUsesLeft(pet, rod) + Math.max(0, (pet.inventory[rod] ?? 0) - 1) * toolDefinitions[rod].uses;
   const reason = preparationReason(pet, water, bait) || food.reason
-    || (pet.health < getPetStatCap(pet) * .4 ? '健康需达到上限的 40%，请先护理' : '')
+    || (pet.health < getPetStatCap(pet, 'health') * .4 ? '健康需达到上限的 40%，请先护理' : '')
     || ((pet.inventory[bait] ?? 0) < plannedCasts ? '全程需要鱼饵 ' + plannedCasts + ' 份' : '')
     || (uses < plannedCasts ? '全程需要钓竿耐久 ' + plannedCasts + ' 次，含备用竿现有 ' + uses + ' 次' : '');
   return { food, plannedCasts, uses, reason };
@@ -140,7 +140,7 @@ export const advanceCommunityFishing = (pet: PetState, now: number): PetState =>
   if (pet.timePause || !Number.isFinite(now)) return pet;
   let session = pet.community.fishing.active;
   if (!session || session.mode !== 'idle') return pet;
-  const unhealthy = pet.health < getPetStatCap(pet) * .2;
+  const unhealthy = pet.health < getPetStatCap(pet, 'health') * .2;
   const until = Math.min(session.endsAt, now - (unhealthy ? 1 : 0));
   const done = Math.max(session.settledCasts, Math.min(session.plannedCasts, Math.floor((until - session.startedAt) / fishingIntervalMs)));
   while (session.settledCasts < done) {

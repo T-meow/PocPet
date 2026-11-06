@@ -3,6 +3,7 @@ import { getClassicTrophyEffects } from './classicTrophies';
 import { getPartnerScheduleCrossSystemEffects } from './partnerScheduleEffects';
 import type { PetState } from './petTypes';
 import { getAdventureEnergyBonus } from './adventureGrowth';
+import { getMasteryStatBonus } from './masteryGrowth';
 
 export const lowEnergyThreshold = 10;
 
@@ -51,9 +52,13 @@ export const clampCount = (value: number) => Math.max(0, Math.floor(value));
 
 export const clampLevel = (value: number) => Math.max(1, Math.min(maxPetLevel, clampCount(value)));
 
-export const getPetStatCap = (petOrLevel: Pick<PetState, 'level'> | number) => {
+type StatCapPet = Pick<PetState, 'level'> & Partial<Pick<PetState, 'partnerSchedule'>>;
+
+// Omitting a stat keeps the level-only scale used by costs and heart rewards.
+export const getPetStatCap = (petOrLevel: StatCapPet | number, key?: ScaledPetStatKey) => {
   const level = typeof petOrLevel === 'number' ? petOrLevel : petOrLevel.level;
-  return baseStatCap + (clampLevel(level) - 1) * statCapPerLevel;
+  const bonus = typeof petOrLevel === 'number' || !key ? 0 : getMasteryStatBonus(petOrLevel, key);
+  return baseStatCap + (clampLevel(level) - 1) * statCapPerLevel + bonus;
 };
 
 export const getPetStatScale = (petOrLevel: Pick<PetState, 'level'> | number) =>
@@ -68,14 +73,14 @@ export const getPetStatThreshold = (petOrLevel: Pick<PetState, 'level'> | number
   scalePetStatDelta(petOrLevel, baseThreshold);
 
 export const getPetStatRatio = (pet: PetState, key: ScaledPetStatKey) => {
-  const statCap = getPetStatCap(pet);
+  const statCap = getPetStatCap(pet, key);
   return statCap > 0 ? Math.max(0, Math.min(1, pet[key] / statCap)) : 0;
 };
 
 export const overfedReleaseRatio = 0.95;
 
-export const isPetOverfed = (pet: Pick<PetState, 'level' | 'hunger'> & { isOverfed?: boolean }) => {
-  const cap = getPetStatCap(pet);
+export const isPetOverfed = (pet: StatCapPet & Pick<PetState, 'hunger'> & { isOverfed?: boolean }) => {
+  const cap = getPetStatCap(pet, 'hunger');
   return pet.hunger >= cap || (pet.isOverfed === true && pet.hunger > cap * overfedReleaseRatio);
 };
 
@@ -84,16 +89,16 @@ export const updatePetSatiety = (pet: PetState): PetState => {
   return pet.isOverfed === isOverfed ? pet : { ...pet, isOverfed };
 };
 
-export const clampPetStat = (pet: PetState, value: number) => clampStat(value, getPetStatCap(pet));
+export const clampPetStat = (pet: PetState, value: number, key: 'mood' | 'cleanliness' = 'mood') => clampStat(value, getPetStatCap(pet, key));
 
 // Non-food changes keep any stored fullness above the cap without adding more.
-export const clampPetHunger = (pet: Pick<PetState, 'level' | 'hunger'>, value: number) =>
-  clampStat(value, Math.max(getPetStatCap(pet), pet.hunger));
+export const clampPetHunger = (pet: StatCapPet & Pick<PetState, 'hunger'>, value: number) =>
+  clampStat(value, Math.max(getPetStatCap(pet, 'hunger'), pet.hunger));
 
-export const clampPetHealth = (pet: PetState, value: number) => clampHealth(value, getPetStatCap(pet));
+export const clampPetHealth = (pet: PetState, value: number) => clampHealth(value, getPetStatCap(pet, 'health'));
 
-export const getPetEnergyCap = (pet: Pick<PetState, 'level' | 'classicEndgame'> & Partial<Pick<PetState, 'adventure' | 'community'>>) =>
-  getPetStatCap(pet) + getClassicTrophyEffects(pet).energyCapBonus + getAdventureEnergyBonus(pet);
+export const getPetEnergyCap = (pet: Pick<PetState, 'level' | 'classicEndgame'> & Partial<Pick<PetState, 'adventure' | 'community' | 'partnerSchedule'>>) =>
+  getPetStatCap(pet) + getMasteryStatBonus(pet, 'energy') + getClassicTrophyEffects(pet).energyCapBonus + getAdventureEnergyBonus(pet);
 
 export const clampPetEnergy = (pet: Parameters<typeof getPetEnergyCap>[0], value: number) =>
   Math.round(clampStat(value, getPetEnergyCap(pet)));

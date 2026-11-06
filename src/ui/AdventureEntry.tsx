@@ -8,18 +8,18 @@ export type AdventureEntryState =
   | { status: 'locked'; onOpen?: never }
   | { status: 'available'; onOpen: () => void; traveling?: boolean; pending?: boolean };
 
-export const AdventureEntry = ({ entry, hasReward = false }: { entry: AdventureEntryState; hasReward?: boolean }) => (
+export const AdventureEntry = ({ entry, hasReward = false, compact = false }: { entry: AdventureEntryState; hasReward?: boolean; compact?: boolean }) => (
   <button
     type="button"
-    className="home-adventure"
+    className={`home-adventure${compact ? ' home-adventure--compact' : ''}`}
     disabled={entry.status === 'locked'}
     onClick={entry.status === 'available' ? entry.onOpen : undefined}
   >
     <img className="home-adventure-background" src={entry.status === 'available' && entry.traveling ? getAdventureNodeScene('valley', 'entrance') : adventureHallScene} alt="" aria-hidden="true" draggable={false} />
     <span className="home-adventure-icon"><Compass size={25} aria-hidden="true" /></span>
     <span className="home-adventure-copy">
-      <strong>{entry.status === 'available' && entry.traveling ? L('继续当前旅途', 'Continue scouting') : L('一起去冒险', 'Adventure together')}</strong>
-      <small>{entry.status === 'locked'
+      <strong>{entry.status === 'available' && entry.traveling ? compact ? '继续冒险' : L('继续当前旅途', 'Continue scouting') : compact ? '一起冒险' : L('一起去冒险', 'Adventure together')}</strong>
+      <small>{compact ? entry.status === 'locked' ? '远方的地图还在准备' : entry.traveling ? '旅途进行中，继续探索' : entry.pending ? '旅途物资待领取' : '地图探索、伙伴委托与日志' : entry.status === 'locked'
         ? L('远方的地图还在准备，期待下一次出发', 'New places are taking shape. A journey awaits.')
         : entry.traveling ? L('伙伴还在旅途中，行囊和进度都在', 'Your companion is traveling. Your bag and progress are saved.')
           : entry.pending ? L('已经回到前哨基地，收好旅途物资吧', 'Back at the outpost. Your travel supplies await collection.')

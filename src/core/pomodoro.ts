@@ -158,7 +158,7 @@ export const getPomodoroMoodRewardBlocks = (sessionFocusMs: number) =>
   Math.floor(Math.max(0, sessionFocusMs) / pomodoroMoodRewardBlockMs);
 
 export const getPomodoroBonusReward = (pet: PetState, hourlyBaseCoins = getPomodoroHourlyBaseCoins(pet.level)) => {
-  const statCap = getPetStatCap(pet);
+  const statCap = getPetStatCap(pet, 'mood');
   const moodRatio = statCap > 0 ? Math.max(0, Math.min(1, pet.mood / statCap)) : 0;
   const bonusChance = 0.05 + moodRatio * 0.4;
   if (Math.random() >= bonusChance) return 0;

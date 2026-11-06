@@ -17,6 +17,8 @@ import { ClaimNotice } from './ClaimNotice';
 import { getDecorationLevel } from '../core/decorationEffects';
 import { DecorationArt } from './community/TreasureDisplay';
 import { MuseumTrophyArt } from './museum/MuseumShared';
+import { isCourtyardOpen } from '../core/courtyard';
+import { courtyardArtwork } from '../courtyardAssets';
 import '../styles/decorations.css';
 
 interface Props extends HomePageProps {
@@ -31,6 +33,7 @@ interface Props extends HomePageProps {
   onOpenFestival?: (festival: FestivalId) => void;
   onOpenShop: () => void;
   onOpenCommunity?: () => void;
+  onOpenCourtyard: () => void;
   onOpenMarket: () => void;
   onOpenMuseum: () => void;
   onOpenFishing: () => void;
@@ -72,6 +75,8 @@ export const HomePageV2 = (props: Props) => {
   }) || dreamsUnlocked && isClassicEndgameComplete(pet) && pet.classicEndgame.legacyCoinsInvested >= getClassicLegacyLevelCoinCost(pet.classicEndgame.legacyLevel + 1) && (pet.inventory.golden_apple ?? 0) >= getClassicLegacyAppleCost(pet.classicEndgame.legacyLevel + 1);
   const festivalGiftReady = Object.values(pet.festivalStories.runs).some(run => run.stage === 'complete' && !hasFestivalReward(pet, run));
   const adventureGiftReady = Boolean(pet.adventure.pending) || pet.adventure.commissions.some(task => task.status === 'ready') || !pet.adventure.active && (!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed);
+  const courtyardUnlocked = isCourtyardOpen(pet);
+  const courtyardGiftReady = Object.keys(pet.community.courtyard.pendingGifts).length > 0;
   const today = !wish.claimed || Boolean(welcome) || Boolean(pet.partnerSchedule.pendingResult) || Boolean(props.gardenReminder) || friendGiftReady;
   const activeGame = pet.miniGames.active?.actorId === actorId ? pet.miniGames.active : undefined;
   const playLocked = pet.level < miniGameUnlockLevel;
@@ -92,7 +97,7 @@ export const HomePageV2 = (props: Props) => {
     </section><aside className="home-v2-sidebar">
       <section>
         <div className="home-section-title"><h3>{L('一起做点什么', 'A little time together')}</h3><small>{L('随时开始，慢慢来', 'At our own pace')}</small></div>
-        <div className="home-primary-grid">
+        <div className="home-primary-grid home-primary-grid--four">
           <button className="home-quick kitchen" disabled={Boolean(pet.adventure.active)} onClick={onOpenKitchen}>
             <span className="home-primary-icon"><ChefHat size={28} /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
             <strong>{L('一起做饭', 'Cook together')}</strong><small>{L('选一道菜，做点好吃的', 'Pick a recipe. Make something tasty.')}</small>
@@ -102,6 +107,12 @@ export const HomePageV2 = (props: Props) => {
             <span className="home-primary-icon"><Sprout size={28} /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
             <strong>溪畔农场</strong><small>{farmHint}</small>
             <ClaimNotice show={farmGiftReady} />
+          </button>
+          <AdventureEntry entry={props.adventure} hasReward={adventureGiftReady} compact />
+          <button className="home-quick courtyard" disabled={!courtyardUnlocked} onClick={props.onOpenCourtyard}>
+            <span className="home-primary-icon"><img src={courtyardArtwork.entry} alt="" /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
+            <strong>社区小院</strong><small>{!courtyardUnlocked ? '完成第一次踩点后开放' : courtyardGiftReady ? '邻居的回礼等你收下' : '聊聊天，和邻居相处一会儿'}</small>
+            <ClaimNotice show={courtyardGiftReady} />
           </button>
         </div>
         <nav className="home-tools" aria-label={L('常用工具', 'Everyday essentials')}>
@@ -122,7 +133,6 @@ export const HomePageV2 = (props: Props) => {
           <button className="home-quick music" onClick={props.onOpenMusic}><Headphones /><strong>音乐陪伴</strong><small>{props.musicActive ? '旋律还在，回来坐一会儿' : '听听音乐，和伙伴慢慢待着'}</small></button>
         </div>
         {props.onOpenFestival && <FestivalEntry pet={pet} onOpen={props.onOpenFestival} />}
-        <AdventureEntry entry={props.adventure} hasReward={adventureGiftReady} />
         {companionWish && <p className="home-companion-wish"><span>💭</span>{companionWish}</p>}
       </section>
       <section className="home-records">

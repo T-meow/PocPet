@@ -25,13 +25,13 @@ export const AdventureCompanionStatus = ({ pet, actor, compact = false, inlineSt
 }) => <section className={`exploration-companion-card${compact ? ' exploration-companion-card--compact' : ''}`} aria-label="同行伙伴状态">
   <div className="exploration-companion-identity"><img src={actor.portrait} alt="" /><div><small>同行伙伴</small><h3>{actor.name}</h3><p>{pet.adventure.active ? '和你一起，慢慢探索。' : '带好行囊，一起出发。'}</p></div></div>
   {inlineStats ? <div className="exploration-companion-stat-line">{[
-    { kind: 'hunger', label: '饱食', value: pet.hunger, max: getPetStatCap(pet), Icon: Utensils },
+    { kind: 'hunger', label: '饱食', value: pet.hunger, max: getPetStatCap(pet, 'hunger'), Icon: Utensils },
     { kind: 'energy', label: '体力', value: pet.energy, max: getPetEnergyCap(pet), Icon: Zap },
-    { kind: 'health', label: '健康', value: pet.health, max: getPetStatCap(pet), Icon: Heart },
+    { kind: 'health', label: '健康', value: pet.health, max: getPetStatCap(pet, 'health'), Icon: Heart },
   ].map(({ kind, label, value, max, Icon }) => <span key={kind} className={`exploration-stat-summary exploration-stat-summary--${kind}`} aria-label={`${label} ${formatInteger(value)} / ${formatInteger(max)}`} title={`${label} ${formatInteger(value)} / ${formatInteger(max)}`}><Icon size={15} aria-hidden="true" /><strong>{formatCompactNumber(value)}<small>/{formatCompactNumber(max)}</small></strong></span>)}</div> : <div className="exploration-companion-meters">
-    <AdventureStatMeter kind="hunger" label="饱食" value={pet.hunger} max={getPetStatCap(pet)} icon={<Utensils size={17} />} />
+    <AdventureStatMeter kind="hunger" label="饱食" value={pet.hunger} max={getPetStatCap(pet, 'hunger')} icon={<Utensils size={17} />} />
     <AdventureStatMeter kind="energy" label="体力" value={pet.energy} max={getPetEnergyCap(pet)} icon={<Zap size={17} />} />
-    <AdventureStatMeter kind="health" label="健康" value={pet.health} max={getPetStatCap(pet)} icon={<Heart size={17} />} />
+    <AdventureStatMeter kind="health" label="健康" value={pet.health} max={getPetStatCap(pet, 'health')} icon={<Heart size={17} />} />
   </div>}
   {children}
 </section>;

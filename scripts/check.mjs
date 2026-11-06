@@ -86,6 +86,7 @@ async function verifySavesAndErrors() {
   const now = Date.parse('2026-09-21T04:00:00.000Z');
   Date.now = () => now;
   const quiet = { neighbors: [], giftCandidates: [], random: () => 0 };
+  const marketProgress = ({ log: _localHistory, ...progress }) => progress;
   let passed = 0;
   const check = async (label, fn) => {
     try { await fn(); passed++; console.log(`✓ ${label}`); }
@@ -470,6 +471,269 @@ async function verifySavesAndErrors() {
       assert.equal(parseSaveFileText(createSaveFileText(restored, null, now), now).pet.inventory.berry_bait, 7);
     });
 
+    await check('小院来访固定、每日互动防重、跨日与时间冻结恢复', async () => {
+      const courtyard = await import('../src/core/courtyard.ts');
+      const { courtyardActions } = await import('../src/core/courtyardData.ts');
+      const { prepareTimePause, resumePetTime } = await import('../src/core/timePause.ts');
+      const context = { actorId: 'official.furo', neighbors: [
+        { modId: 'official.furo', name: '当前伙伴' },
+        ...Array.from({ length: 8 }, (_, i) => ({ modId: `fixture.neighbor${i}`, name: `邻居${i}`, favoriteFoodIds: ['dish_plain_rice'] })),
+      ] };
+      const initial = normalizePet({ ...pet, energy: 100, mood: 20, inventory: { ...pet.inventory, dish_plain_rice: 20 },
+        adventure: { ...pet.adventure, completed: { tutorial: 1 } } }, now);
+      let state = courtyard.advanceCourtyard(initial, context, now);
+      const batch = state.community.courtyard;
+      assert.equal(batch.visitorIds.length, 3);
+      assert.equal(new Set(batch.visitorIds).size, 3);
+      assert.ok(!batch.visitorIds.includes(context.actorId));
+      assert.equal(batch.nextRefreshAt, courtyard.getCourtyardWindow(now).endsAt);
+      assert.deepEqual(state.community.relationships, {}, 'a visit alone must not allocate relationship progress');
+      const loaded = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      assert.deepEqual(loaded.community.courtyard, state.community.courtyard);
+      const changed = { actorId: batch.visitorIds[0], neighbors: [...context.neighbors].reverse().concat({ modId: 'fixture.new', name: '新邻居' }) };
+      assert.equal(courtyard.advanceCourtyard(loaded, changed, now + 1000), loaded, 'role and library changes do not redraw a batch');
+      const request = action => ({ rotationId: batch.rotationId, day: batch.day, neighborId: batch.visitorIds[0], action, ...(action === 'share' ? { foodId: 'dish_plain_rice' } : {}) });
+      assert.equal(courtyard.interactCourtyard(state, changed, request('chat'), now), state, 'the current character cannot be their own visitor');
+      assert.equal(courtyard.interactCourtyard(state, { ...context, neighbors: [] }, request('chat'), now), state, 'uninstalled visitors cannot interact');
+      const sleeping = { ...state, isSleeping: true };
+      assert.equal(courtyard.interactCourtyard(sleeping, context, request('chat'), now), sleeping);
+      const exhausted = { ...state, energy: 4 };
+      assert.equal(courtyard.interactCourtyard(exhausted, context, request('help'), now), exhausted);
+      const hearts = state.hearts, energy = state.energy;
+      for (const action of courtyardActions) {
+        const next = courtyard.interactCourtyard(state, context, request(action), now);
+        assert.equal(next.community.courtyard.interactionsCount, state.community.courtyard.interactionsCount + 1);
+        state = next;
+        assert.equal(courtyard.interactCourtyard(state, context, request(action), now), state, action + ' cannot settle twice');
+      }
+      assert.equal(state.community.relationships[batch.visitorIds[0]].points, 23);
+      assert.equal(state.community.courtyard.dailyInteractions[batch.visitorIds[0]], 15);
+      assert.equal(state.energy, energy - 15);
+      assert.equal(state.mood, 30);
+      assert.equal(state.hearts, hearts + 10);
+      const restored = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+      assert.equal(restored.community.courtyard.lastInteraction, undefined, 'dialogue is not part of the portable save');
+      assert.deepEqual(restored.community.relationships, state.community.relationships);
+      for (const action of courtyardActions) assert.equal(courtyard.interactCourtyard(restored, context, request(action), now), restored);
+      assert.equal(courtyard.interactCourtyard(restored, context, request('chat'), batch.nextRefreshAt), restored, 'expired popup requests cannot consume or reward');
+      const refreshed = courtyard.advanceCourtyard(restored, context, batch.nextRefreshAt + 1);
+      assert.notEqual(refreshed.community.courtyard.rotationId, batch.rotationId);
+      assert.deepEqual(refreshed.community.courtyard.dailyInteractions, restored.community.courtyard.dailyInteractions, 'same-day refresh does not clear daily interactions');
+      const frozen = prepareTimePause(state, now);
+      assert.equal(courtyard.advanceCourtyard(frozen, context, now + 86400000), frozen);
+      assert.equal(courtyard.interactCourtyard(frozen, context, request('chat'), now), frozen);
+      const resumeAt = now + 8 * 3600000, resumed = resumePetTime(frozen, resumeAt);
+      assert.deepEqual(resumed.community.courtyard.visitorIds, batch.visitorIds);
+      assert.equal(resumed.community.courtyard.nextRefreshAt - resumeAt, batch.nextRefreshAt - now);
+      const importedLater = parseSaveFileText(createSaveFileText(state, null, now), resumeAt).pet;
+      assert.deepEqual(importedLater.community.courtyard.visitorIds, batch.visitorIds);
+      assert.equal(importedLater.community.courtyard.nextRefreshAt - resumeAt, batch.nextRefreshAt - now);
+
+      const boundary = new Date(now); boundary.setDate(boundary.getDate() + 1); boundary.setHours(5, 0, 0, 0);
+      const one = { ...context, neighbors: [context.neighbors[1]] }, beforeReset = boundary.getTime() - 1000;
+      let daily = courtyard.advanceCourtyard(initial, one, beforeReset);
+      const dailyRequest = { rotationId: daily.community.courtyard.rotationId, day: daily.community.courtyard.day, neighborId: one.neighbors[0].modId, action: 'chat' };
+      daily = courtyard.interactCourtyard(daily, one, dailyRequest, beforeReset);
+      const afterReset = courtyard.advanceCourtyard(daily, one, boundary.getTime());
+      assert.deepEqual(afterReset.community.courtyard.dailyInteractions, {});
+      assert.equal(courtyard.interactCourtyard(afterReset, one, dailyRequest, boundary.getTime()), afterReset);
+      assert.equal(courtyard.interactCourtyard(afterReset, one, { ...dailyRequest, rotationId: afterReset.community.courtyard.rotationId, day: afterReset.community.courtyard.day }, boundary.getTime()).community.relationships[dailyRequest.neighborId].points, 4);
+
+      let many = initial;
+      for (let round = 0; round < 2; round++) {
+        const at = round ? many.community.courtyard.nextRefreshAt + 1 : now;
+        const roster = { ...context, neighbors: context.neighbors.slice(1 + round * 3, 4 + round * 3) };
+        many = courtyard.advanceCourtyard(many, roster, at);
+        for (const neighborId of many.community.courtyard.visitorIds) {
+          many = courtyard.interactCourtyard(many, roster, { rotationId: many.community.courtyard.rotationId, day: many.community.courtyard.day, neighborId, action: 'share', foodId: 'dish_plain_rice' }, at);
+        }
+      }
+      assert.equal(many.community.courtyard.interactionsCount, 6, 'there is no global three-gift daily cap');
+      assert.equal(Object.keys(many.community.relationships).length, 6);
+    });
+
+    await check('小院料理喜好、回礼奖池、满仓与跨日领取防重', async () => {
+      const courtyard = await import('../src/core/courtyard.ts');
+      const { courtyardPremiumGifts } = await import('../src/core/courtyardData.ts');
+      const { createBuiltinItemRegistry } = await import('../src/core/items.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const neighbor = { modId: 'fixture.receiver', name: '邻居', favoriteFoodIds: ['dish_plain_rice', 'farm_milk'] };
+      const context = { actorId: 'official.furo', neighbors: [neighbor] };
+      const ready = courtyard.advanceCourtyard(normalizePet({ ...pet, inventory: { ...pet.inventory, dish_plain_rice: 2 }, adventure: { ...pet.adventure, completed: { tutorial: 1 } } }, now), context, now);
+      for (const [id, chance] of [['dish_egg_rice', 2], ['dish_fruit_pancake', 5], ['dish_carrot_rice', 10], ['dish_pork_rice_bowl', 20], ['dish_biscuit_layer_cake', 35]]) {
+        assert.equal(courtyard.getCourtyardShareInfo(id, neighbor).premiumChance, chance);
+      }
+      assert.deepEqual(courtyard.getCourtyardShareInfo('dish_plain_rice', neighbor), { rarity: 'legendary', favorite: true, premiumChance: 35, points: 12 });
+      assert.equal(courtyard.getCourtyardShareInfo('farm_milk', neighbor), undefined, 'favorite ingredients still are not finished dishes');
+      const variants = [...createBuiltinItemRegistry().keys()].filter(id => id.startsWith('dish_grilled_fish__'));
+      assert.ok(variants.length > 1);
+      for (const id of variants) assert.ok(courtyard.getCourtyardShareInfo(id, neighbor), 'selected fish variant is accepted: ' + id);
+      const ordinary = courtyard.getCourtyardOrdinaryGiftPools();
+      assert.ok(ordinary.dishes.length > 0 && ordinary.items.length === 8);
+      for (const id of [...ordinary.dishes, ...ordinary.items]) {
+        const value = courtyard.getCourtyardGiftValue(id);
+        assert.ok(value >= 50 && value <= 500, id + ' meets the single-item value range');
+        assert.ok(!courtyardPremiumGifts.includes(id));
+      }
+      const seen = new Set(), normalKinds = new Set();
+      for (let i = 0; i < 400 && (seen.size < 6 || normalKinds.size < 2); i++) {
+        const seeded = { ...ready, saveMetadata: { ...ready.saveMetadata, id: `save:courtyard-pool-${i}` } };
+        const gift = courtyard.getCourtyardGift(seeded, neighbor, 'dish_plain_rice', ready.community.courtyard.day);
+        if (gift.premium) seen.add(gift.itemId); else normalKinds.add(ordinary.dishes.includes(gift.itemId) ? 'dish' : 'item');
+        assert.deepEqual(courtyard.getCourtyardGift(seeded, neighbor, 'dish_plain_rice', ready.community.courtyard.day), gift, 'the same save/day/neighbor cannot redraw');
+      }
+      assert.deepEqual([...seen].sort(), [...courtyardPremiumGifts].sort(), 'all five regions and the golden apple are available immediately');
+      assert.equal(normalKinds.size, 2);
+      const request = { rotationId: ready.community.courtyard.rotationId, day: ready.community.courtyard.day, neighborId: neighbor.modId, action: 'share', foodId: 'dish_plain_rice' };
+      assert.equal(courtyard.interactCourtyard(ready, context, { ...request, foodId: 'farm_milk' }, now), ready);
+      assert.equal(courtyard.interactCourtyard(ready, context, { ...request, foodId: undefined }, now), ready);
+      const gift = courtyard.getCourtyardGift(ready, neighbor, request.foodId, request.day);
+      const full = { ...ready, inventory: { ...ready.inventory, [gift.itemId]: inventoryItemLimit } };
+      const sent = courtyard.interactCourtyard(full, context, request, now);
+      assert.equal(sent.inventory.dish_plain_rice, 1);
+      assert.equal(sent.community.courtyard.pendingGifts[gift.itemId], 1);
+      assert.equal(sent.community.relationships[neighbor.modId].points, 12);
+      const restored = parseSaveFileText(createSaveFileText(sent, null, now), now).pet;
+      assert.equal(courtyard.interactCourtyard(restored, context, request, now), restored);
+      assert.equal(courtyard.claimCourtyardGifts(restored), restored);
+      const nextDay = courtyard.advanceCourtyard(restored, { ...context, neighbors: [] }, now + 86400000);
+      assert.equal(nextDay.community.courtyard.pendingGifts[gift.itemId], 1);
+      const claimed = courtyard.claimCourtyardGifts({ ...nextDay, inventory: { ...nextDay.inventory, [gift.itemId]: inventoryItemLimit - 1 } });
+      assert.equal(claimed.inventory[gift.itemId], inventoryItemLimit);
+      assert.deepEqual(claimed.community.courtyard.pendingGifts, {});
+      assert.equal(courtyard.claimCourtyardGifts(claimed), claimed);
+      const variant = variants[0], variantState = { ...ready, inventory: { ...ready.inventory, [variant]: 2 } };
+      assert.equal(courtyard.interactCourtyard(variantState, context, { ...request, foodId: variant }, now).inventory[variant], 1);
+    });
+
+    await check('小院本机对话、写入失败、旧档初始化与降级保护', async () => {
+      const courtyard = await import('../src/core/courtyard.ts');
+      const { getLocalCourtyardHistory, persistLocalPetHistory } = await import('../src/core/localPetHistory.ts');
+      const { appBuild } = await import('../src/platform/edition.ts');
+      const context = { actorId: 'official.furo', neighbors: [{ modId: 'fixture.local', name: '邻居' }] };
+      const ready = courtyard.advanceCourtyard(normalizePet({ ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 } } }, now), context, now);
+      const raw = createSaveFileText(ready, null, now);
+      reset(raw);
+      const original = storage.getItem(primary), historyKey = `pocpet.pet-history.v1.${ready.saveMetadata.id}`;
+      const completed = courtyard.interactCourtyard(ready, context, { rotationId: ready.community.courtyard.rotationId, day: ready.community.courtyard.day, neighborId: 'fixture.local', action: 'chat' }, now);
+      storage.failWrite = primary;
+      assert.throws(() => disk.savePet(completed));
+      assert.equal(storage.getItem(primary), original);
+      assert.equal(storage.getItem(historyKey), null, 'failed primary writes must not reveal a successful chat or reward');
+      disk.savePet(completed);
+      const reopened = disk.loadPet(now, quiet).pet;
+      assert.equal(reopened.community.courtyard.lastInteraction, undefined);
+      assert.equal(reopened.community.relationships['fixture.local'].points, 2);
+      assert.equal(getLocalCourtyardHistory(reopened)[0].text, completed.community.courtyard.lastInteraction.text);
+      assert.ok(!createSaveFileText(reopened, null, now).includes(completed.community.courtyard.lastInteraction.text));
+      assert.deepEqual(getLocalCourtyardHistory({ ...reopened, saveMetadata: { ...reopened.saveMetadata, id: 'save:another' } }), []);
+      assert.deepEqual(getLocalCourtyardHistory(ready), [], 'restoring older progress ignores later local dialogue');
+      const history = JSON.parse(storage.getItem(historyKey));
+      history.courtyard = Array.from({ length: 205 }, (_, i) => ({ ...completed.community.courtyard.lastInteraction, id: `fixture:chat:${205 - i}`, sequence: 205 - i }));
+      storage.setItem(historyKey, JSON.stringify(history));
+      const longHistory = { ...reopened, community: { ...reopened.community, courtyard: { ...reopened.community.courtyard, interactionsCount: 205 } } };
+      persistLocalPetHistory(longHistory);
+      assert.equal(getLocalCourtyardHistory(longHistory).length, 200);
+      assert.equal(JSON.parse(storage.getItem(historyKey)).courtyard.length, 200);
+      storage.setItem(historyKey, '{broken');
+      storage.failWrite = historyKey;
+      assert.doesNotThrow(() => disk.savePet(completed), 'history failures do not block actual progress');
+      assert.equal(JSON.parse(storage.getItem(primary)).pet.community.relationships['fixture.local'].points, 2);
+      const envelope = JSON.parse(createSaveFileText(completed, null, now));
+      assert.equal(envelope.minimumReaderVersion, '2.5.0');
+      assert.ok(!('lastInteraction' in envelope.pet.community.courtyard));
+      const version = appBuild.version;
+      try { appBuild.version = '2.4.8'; assert.throws(() => parseSaveFileText(JSON.stringify(envelope), now), UnsupportedSaveVersionError); }
+      finally { appBuild.version = version; }
+      const old = structuredClone(envelope);
+      old.minimumReaderVersion = '1.9.0'; old.pet.community.schemaVersion = 16;
+      delete old.pet.community.courtyard; delete old.pet.community.relationships;
+      const imported = parseSaveFileText(JSON.stringify(old), now).pet;
+      assert.deepEqual(imported.community.relationships, {});
+      assert.equal(imported.community.courtyard.interactionsCount, 0);
+      assert.deepEqual(imported.inventory, completed.inventory);
+      const future = structuredClone(envelope); future.pet.community.courtyard.schemaVersion = 2;
+      assert.throws(() => parseSaveFileText(JSON.stringify(future), now), UnsupportedSaveVersionError);
+      reset();
+    });
+
+    await check('本机流水与关键进度分离、损坏缓存和保存失败', async () => {
+      const { getLocalAdventureJournal, getLocalMarketLog } = await import('../src/core/localPetHistory.ts');
+      const { getDailyResetDateKey } = await import('../src/core/dailyReset.ts');
+      const source = structuredClone(pet);
+      source.adventure.tripsStarted = 12;
+      source.adventure.completed.tutorial = 1;
+      source.adventure.journal = Array.from({ length: 8 }, (_, i) => ({
+        id: `history:${i}`, region: 'tutorial', actorId: 'official.furo', actorName: '伙伴', endedAt: now - i * 60000,
+        steps: 4, complete: true, first: i === 7, hearts: 20, coins: 50, items: { apple: 3 }, rewardsClaimed: true,
+      }));
+      source.adventure.pending = { ...source.adventure.journal[0], id: 'pending:history', items: { apple: 4 }, rewardsClaimed: false };
+      Object.assign(source.community.market, { visitors: 12, revenue: 360, sold: 24, lastBuyoutDay: getDailyResetDateKey(now),
+        log: Array.from({ length: 8 }, (_, i) => ({ visit: 12 - i, customer: 'ordinary', buyout: false, at: now - i * 60000, coins: 45,
+          items: [{ itemId: 'apple', quantity: 3, coins: 45 }] })) });
+      const state = normalizePet(source, now), original = JSON.stringify(state);
+      const portable = createSaveFileText(state, null, now), envelope = JSON.parse(portable);
+      assert.ok(!('journal' in envelope.pet.adventure));
+      assert.ok(!('log' in envelope.pet.community.market));
+      const imported = parseSaveFileText(portable, now).pet;
+      assert.deepEqual(imported.adventure.pending, state.adventure.pending, 'unclaimed cargo must travel with the save');
+      assert.deepEqual(imported.adventure.lastCompletedDay, state.adventure.lastCompletedDay, 'daily progress survives without receipts');
+      assert.deepEqual(imported.adventure.completed, state.adventure.completed);
+      for (const key of ['lastBuyoutDay', 'visitors', 'revenue', 'sold']) assert.equal(imported.community.market[key], state.community.market[key]);
+      assert.equal(JSON.stringify(state), original, 'export does not remove the live reading history');
+
+      reset(portable);
+      disk.savePet(state);
+      const historyKey = `pocpet.pet-history.v1.${state.saveMetadata.id}`;
+      const localRaw = storage.getItem(historyKey);
+      assert.ok(localRaw);
+      const reopened = disk.loadPet(now, quiet).pet;
+      assert.deepEqual(reopened.adventure.journal, [], 'cached history never enters authoritative state');
+      assert.deepEqual(reopened.community.market.log, []);
+      assert.deepEqual(getLocalAdventureJournal(reopened), state.adventure.journal);
+      assert.deepEqual(getLocalMarketLog(reopened), state.community.market.log);
+      disk.savePet(reopened);
+      assert.equal(storage.getItem(historyKey), localRaw, 'saving after reload retains local history');
+      assert.deepEqual(getLocalAdventureJournal({ ...reopened, saveMetadata: { ...reopened.saveMetadata, id: 'another-save' } }), []);
+      const earlier = { ...reopened, adventure: { ...reopened.adventure, tripsStarted: 0 }, community: { ...reopened.community, market: { ...reopened.community.market, visitors: 0 } } };
+      assert.deepEqual(getLocalAdventureJournal(earlier), []);
+      assert.deepEqual(getLocalMarketLog(earlier), []);
+      assert.ok(!getLocalAdventureJournal({ ...reopened, adventure: { ...reopened.adventure, active: { id: 'history:0' } } }).some(entry => entry.id === 'history:0'));
+      const current = structuredClone(state);
+      current.adventure.journal.unshift({ ...current.adventure.journal[0], id: 'history:new' });
+      assert.equal(getLocalAdventureJournal(current).length, 8);
+      storage.failWrite = primary;
+      assert.throws(() => disk.savePet(current));
+      assert.equal(storage.getItem(historyKey), localRaw, 'failed primary saves cannot publish new local records');
+      storage.setItem(historyKey, '{broken');
+      assert.deepEqual(getLocalAdventureJournal(reopened), []);
+      assert.deepEqual(getLocalMarketLog(reopened), []);
+      storage.failWrite = historyKey;
+      assert.doesNotThrow(() => disk.savePet(state), 'local cache failure cannot block saving progress');
+      assert.deepEqual(JSON.parse(storage.getItem(primary)).pet.adventure.pending, envelope.pet.adventure.pending);
+      reset();
+    });
+
+    await check('季度回忆去重保留独立快照和历史外的首次回忆', async () => {
+      const { campaignRunSnapshot } = await import('../src/core/explorationCampaignState.ts');
+      const campaign = { ...pet.adventure.campaign, runId: 'fixture:season-memory', theme: 'spring', quarter: '2026-Q3', startedAt: now - 60000,
+        tasks: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [i + 1, { completedAt: now - 2000, claimedAt: now - 1000, reward: { hearts: 10, apples: 1 } }])) };
+      campaign.memories = { spring: campaignRunSnapshot(campaign) };
+      const state = normalizePet({ ...pet, adventure: { ...pet.adventure, campaign } }, now);
+      const encoded = createSaveFileText(state, null, now);
+      assert.deepEqual(JSON.parse(encoded).pet.adventure.campaign.memories, {});
+      assert.deepEqual(parseSaveFileText(encoded, now).pet.adventure.campaign, state.adventure.campaign, 'duplicate memory is fully reconstructed');
+      const independent = structuredClone(state);
+      delete independent.adventure.campaign.memories.spring.tasks[30].claimedAt;
+      delete independent.adventure.campaign.memories.spring.tasks[30].reward;
+      const distinct = normalizePet(independent, now);
+      const distinctText = createSaveFileText(distinct, null, now);
+      assert.ok(JSON.parse(distinctText).pet.adventure.campaign.memories.spring);
+      assert.deepEqual(parseSaveFileText(distinctText, now).pet.adventure.campaign.memories, distinct.adventure.campaign.memories);
+      const archived = normalizePet({ ...state, adventure: { ...state.adventure, campaign: { ...pet.adventure.campaign, memories: state.adventure.campaign.memories } } }, now);
+      assert.deepEqual(parseSaveFileText(createSaveFileText(archived, null, now), now).pet.adventure.campaign.memories, archived.adventure.campaign.memories);
+    });
+
     await check('农牧旧档迁移、命名与堆肥待领恢复防重', async () => {
       const { advanceCommunityAnimals, collectCommunityAnimal, collectRanchCompost, getRanchCompost, renameCommunityAnimal } = await import('../src/core/communityFarm.ts');
       const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
@@ -483,7 +747,7 @@ async function verifySavesAndErrors() {
       for (const id of ['coop', 'barn']) legacy.community.facilities[id] = { found: true, built: true, work: 2 };
       legacy.community.animals.coop.stock = 2;
       const migrated = restore(legacy);
-      assert.equal(migrated.community.schemaVersion, 16);
+      assert.equal(migrated.community.schemaVersion, 17);
       assert.equal(migrated.community.ranchCompostCycles, 0, 'legacy stock does not retroactively earn compost');
       assert.equal(migrated.community.animals.coop.name, undefined);
       assert.equal(migrated.community.plots[0].lastCrop, 'carrot');
@@ -623,7 +887,7 @@ async function verifySavesAndErrors() {
       legacy.community.expedition.projects.riverside = { completed: 2, stage: 1, theme: 'journey', lastDay: '2026-09-01', firstAt: now - 86400000, actorId: 'old.partner', actorName: '旧伙伴' };
       Object.assign(legacy.inventory, actions.getProjectDelivery(legacy, 'riverside'));
       let state = parseSaveFileText(createSaveFileText(legacy, null, now), now).pet;
-      assert.equal(state.community.schemaVersion, 16);
+      assert.equal(state.community.schemaVersion, 17);
       assert.equal(state.community.expedition.projects.riverside.stage, 1);
       const cap = getPetEnergyCap(state), runId = actions.getProjectRunId(state, 'riverside');
       const frozen = { ...state, timePause: { schemaVersion: 1, pausedAt: now } };
@@ -981,7 +1245,7 @@ async function verifySavesAndErrors() {
         assert.equal(getInventoryItem(recipe.id).usable, false);
       }
       const shop = { ...restored, community: { ...restored.community, facilities: { ...restored.community.facilities, stall: { built: true, found: true, work: 2 } }, market: { ...restored.community.market, level: 2 } } };
-      assert.equal(getMarketListingOffer(shop, 'sticker_pinwheel').quantityLimit, 10);
+      assert.equal(getMarketListingOffer(shop, 'sticker_pinwheel').quantityLimit, 12);
       const listed = reload(listCommunityGoods(shop, 'sticker_pinwheel', 10, shop.community.market.nextListingId, now));
       assert.equal(listed.community.market.listings[0].itemId, 'sticker_pinwheel');
       assert.equal(listed.community.market.listings[0].quantity, 10);
@@ -1199,6 +1463,45 @@ async function verifySavesAndErrors() {
       const paid = advanceExplorationBudget({ ...reload(full), coins: 0, hearts: 0 }, now);
       assert.equal(paid.coins, compensation); assert.equal(paid.hearts, 22);
       assert.deepEqual(advanceExplorationBudget(reload(paid), now).community.expedition.loop.compensation, { coins: 0, hearts: 0 });
+    });
+
+    await check('大师属性提升支付防重、独立上限与存档往返', async () => {
+      const { upgradeMasteryStat } = await import('../src/core/partnerSchedule.ts');
+      const { getMasteryGrowthProgress, masteryStatKeys } = await import('../src/core/masteryGrowth.ts');
+      const { getPetStatCap, getPetEnergyCap, getPetStatScale, clampPetStat } = await import('../src/core/petStats.ts');
+      const { getInventoryItem } = await import('../src/core/items.ts');
+      const { getItemRecoveryPreview, getItemStatEffect } = await import('../src/core/itemEffects.ts');
+      let upgraded = createDefaultPet(now);
+      upgraded.partnerSchedule.skills.study = { level: 10, xp: 0, masterCompletions: 150 };
+      upgraded.inventory.golden_apple = 5;
+      for (const key of masteryStatKeys) upgraded[key] = 100;
+      for (const key of masteryStatKeys) {
+        const used = getMasteryGrowthProgress(upgraded).used;
+        upgraded = upgradeMasteryStat(upgraded, key, used, now);
+        const repeated = upgradeMasteryStat(upgraded, key, used, now);
+        assert.equal(repeated.inventory.golden_apple, upgraded.inventory.golden_apple, 'a stale click cannot consume a second apple');
+        assert.deepEqual(repeated.partnerSchedule.statUpgrades, upgraded.partnerSchedule.statUpgrades);
+        assert.equal(upgraded[key], 105);
+      }
+      assert.equal(upgraded.inventory.golden_apple ?? 0, 0);
+      assert.equal(getMasteryGrowthProgress(upgraded).available, 0);
+      assert.equal(upgraded.partnerSchedule.skills.study.masterCompletions, 150);
+      const restored = parseSaveFileText(createSaveFileText(upgraded, null, now), now).pet;
+      assert.deepEqual(restored.partnerSchedule.statUpgrades, upgraded.partnerSchedule.statUpgrades);
+      for (const key of masteryStatKeys) {
+        assert.equal(key === 'energy' ? getPetEnergyCap(restored) : getPetStatCap(restored, key), 105);
+        assert.equal(restored[key], 105, 'loading must preserve values above the former cap');
+      }
+      assert.equal(getPetStatScale(restored), 1, 'mastery capacity must not increase level-based costs or heart rewards');
+      assert.equal(clampPetStat(restored, 110, 'cleanliness'), 105);
+      const drained = { ...restored, hunger: 80, mood: 80, cleanliness: 80, energy: 80, health: 80 };
+      const cake = getItemRecoveryPreview(drained, getInventoryItem('birthday_cake'));
+      const apple = getItemStatEffect(drained, getInventoryItem('golden_apple'));
+      for (const key of masteryStatKeys) { assert.equal(cake.actual[key], 25); assert.equal(apple[key], 53); }
+      const noOpportunity = { ...restored, inventory: { ...restored.inventory, golden_apple: 1 } };
+      assert.equal(upgradeMasteryStat(noOpportunity, 'energy', 5, now).inventory.golden_apple, 1);
+      const noApple = { ...restored, partnerSchedule: { ...restored.partnerSchedule, skills: { ...restored.partnerSchedule.skills, study: { level: 10, xp: 0, masterCompletions: 180 } } } };
+      assert.equal(getMasteryGrowthProgress(upgradeMasteryStat(noApple, 'health', 5, now)).available, 1, 'a failed payment keeps the opportunity');
     });
 
     await check('工作心心离线结算、提前返回与重复领奖防重', async () => {
@@ -1750,7 +2053,7 @@ async function verifySavesAndErrors() {
       assert.equal(state.adventure.campaign.visits.forest_basket[1], 'detour');
       assert.deepEqual(state.adventure.campaign.tasks[28].delivery, { bento: 1, dish_herb_porridge: 1 });
       assert.equal(Object.keys(state.adventure.campaign.tasks).length, 30);
-      assert.equal(state.adventure.journal.length, 8, 'full campaign history is independent of the last eight travel receipts');
+      assert.equal(state.adventure.journal.length, 0, 'full campaign progress survives without local travel receipts');
       assert.deepEqual(state.adventure.landmarks, landmarks);
       assert.equal(state.community.expedition.loop?.used ?? 0, loopUsed);
       assert.deepEqual(state.community.expedition.collection, collection);
@@ -2283,7 +2586,7 @@ async function verifySavesAndErrors() {
       assert.deepEqual(split.community.market, lumped.community.market);
       assert.deepEqual(split.inventory, lumped.inventory);
       assert.equal(split.inventory.apple + split.community.market.listings[0].quantity + split.community.market.sold, 100);
-      assert.deepEqual(advanceCommunityMarket(reload(split, at), at).community.market, split.community.market);
+      assert.deepEqual(marketProgress(advanceCommunityMarket(reload(split, at), at).community.market), marketProgress(split.community.market));
       const paused = prepareTimePause(restocked, now + 5 * 60000);
       assert.equal(paused.community.market.nextRestockAt, undefined);
       const resumed = advanceCommunityMarket(resumePetTime(paused, now + 10 * 60000), now + 10 * 60000);
@@ -2313,7 +2616,7 @@ async function verifySavesAndErrors() {
       assert.deepEqual(offline.community.market, online.community.market);
       assert.equal(offline.community.market.sessionRevenue, price);
       assert.equal(offline.community.market.revenue, 500 + price);
-      assert.deepEqual(advanceCommunityMarket(reload(offline, saleAt), saleAt).community.market, offline.community.market);
+      assert.deepEqual(marketProgress(advanceCommunityMarket(reload(offline, saleAt), saleAt).community.market), marketProgress(offline.community.market));
       assert.equal(setCommunityMarketOpen(offline, true, saleAt).community.market.sessionRevenue, price, 'repeated opening must not clear an active session');
       const restocked = listCommunityGoods(offline, 'apple', 1, offline.community.market.nextListingId, saleAt);
       assert.equal(restocked.community.market.sessionRevenue, price, 'restocking keeps the same session');
@@ -2343,7 +2646,7 @@ async function verifySavesAndErrors() {
       const endAt = now + 3600000;
       const split = advanceCommunityMarket(reload(expensiveSale, firstVisitAt), endAt);
       const lumped = advanceCommunityMarket(reload(decorated, now), endAt);
-      assert.deepEqual(split.community.market, lumped.community.market, 'decorated traffic survives split offline settlement');
+      assert.deepEqual(marketProgress(split.community.market), marketProgress(lumped.community.market), 'decorated traffic survives split offline settlement');
       assert.equal(split.coins, lumped.coins);
       const oldWait = { ...initial, community: { ...initial.community, market: { ...initial.community.market, remainingVisitMs: 15 * 60000 } } };
       assert.equal(reload(oldWait, now).community.market.remainingVisitMs, 15 * 60000, 'legacy paused waits remain unchanged on reload');
@@ -2381,7 +2684,7 @@ async function verifySavesAndErrors() {
       const offline = advanceCommunityMarket(waiting, resetAt + 60000);
       assert.equal(offline.community.market.log[0].buyout, false, 'offline visits use their own date, not catch-up time');
       assert.equal(offline.community.market.log[0].items[0].quantity, getMarketVisit(seed, 0).quantity);
-      assert.deepEqual(advanceCommunityMarket(reload(advanceCommunityMarket(waiting, lateVisit), lateVisit), resetAt + 60000).community.market, offline.community.market);
+      assert.deepEqual(marketProgress(advanceCommunityMarket(reload(advanceCommunityMarket(waiting, lateVisit), lateVisit), resetAt + 60000).community.market), marketProgress(offline.community.market));
       const nextDay = advanceCommunityMarket(ready(reload(offline, resetAt + 60000), resetAt + 120000), resetAt + 120000);
       assert.equal(nextDay.community.market.log[0].buyout, true);
       assert.equal(nextDay.community.market.lastBuyoutDay, '2026-10-08');

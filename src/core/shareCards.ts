@@ -83,7 +83,6 @@ const getCollectionTag = (pet: PetState) => {
 };
 
 export const createPetProfileCardData = (pet: PetState, now = Date.now()): PetProfileCardData => {
-  const statCap = getPetStatCap(pet);
   const achievementCount = Object.keys(pet.achievements.unlockedAtById).length;
   const gachaDraws = pet.goldenAppleGacha.totalDraws + pet.goldenAppleGacha.heartGachaTotalDraws + pet.goldenAppleGacha.goldenGachaTotalDraws;
   const activeDays = new Set(
@@ -99,11 +98,11 @@ export const createPetProfileCardData = (pet: PetState, now = Date.now()): PetPr
     level: pet.level,
     companionDays: Math.max(1, Math.floor(Math.max(0, now - pet.createdAt) / 86400000) + 1),
     statuses: [
-      { key: 'hunger', label: t('ui.share.stats.hunger'), value: pet.hunger, max: statCap },
-      { key: 'mood', label: t('ui.share.stats.mood'), value: pet.mood, max: statCap },
-      { key: 'cleanliness', label: t('ui.share.stats.cleanliness'), value: pet.cleanliness, max: statCap },
+      { key: 'hunger', label: t('ui.share.stats.hunger'), value: pet.hunger, max: getPetStatCap(pet, 'hunger') },
+      { key: 'mood', label: t('ui.share.stats.mood'), value: pet.mood, max: getPetStatCap(pet, 'mood') },
+      { key: 'cleanliness', label: t('ui.share.stats.cleanliness'), value: pet.cleanliness, max: getPetStatCap(pet, 'cleanliness') },
       { key: 'energy', label: t('ui.share.stats.energy'), value: pet.energy, max: getPetEnergyCap(pet) },
-      { key: 'health', label: t('ui.share.stats.health'), value: pet.health, max: statCap },
+      { key: 'health', label: t('ui.share.stats.health'), value: pet.health, max: getPetStatCap(pet, 'health') },
     ],
     assets: [
       { key: 'coins', label: t('ui.share.assets.coins'), value: pet.coins },

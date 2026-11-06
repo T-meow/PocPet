@@ -11,13 +11,16 @@ import {
   partnerScheduleDailyContributionTargetMs, partnerScheduleMaxSkillLevel, selectNeighborReference,
   type ItemId, type NeighborIdentity, type PartnerScheduleCategory, type PartnerScheduleRewardChoice, type PetState, type RecentActivity,
 } from '../core/pet';
-import { partnerScheduleExhaustedMessage, type PartnerScheduleClaimPreview } from '../core/partnerSchedule';
+import { getPartnerScheduleExtraRewardCopies, getPartnerScheduleRewardChoices, partnerScheduleExhaustedMessage, type PartnerScheduleClaimPreview } from '../core/partnerSchedule';
+import { inventoryItemLimit } from '../core/saveMetadata';
 import { t } from '../i18n';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DialogShell } from './DialogShell';
 import { getPartnerScheduleDisplaySummary, getPartnerScheduleDisplayTitle } from './partnerScheduleText';
 import { HelpButton } from './help/HelpButton';
 import { getWorkHelp, getWorkOfferHelp } from './help/workHelp';
+import type { MasteryStatKey } from '../core/petTypes';
+import { MasteryGrowthPanel } from './MasteryGrowthPanel';
 
 const categories: readonly PartnerScheduleCategory[] = ['study', 'cooking', 'garden', 'exercise'];
 const categoryIcons: Record<PartnerScheduleCategory, LucideIcon> = { study: BookOpen, cooking: ChefHat, garden: Sprout, exercise: Dumbbell };
@@ -41,13 +44,20 @@ interface PartnerSchedulePageProps {
   onClaim: (choice: PartnerScheduleRewardChoice) => void;
   onRefresh: (boardKey: string) => void;
   onQuickWork: () => void;
+  onUpgradeMasteryStat: (key: MasteryStatKey, expectedUsed: number) => void;
 }
 
-const RewardList = ({ reward, icons }: { reward: PartnerScheduleClaimPreview; icons: Partial<Record<ItemId, string>> }) => <div className="community-rewards">
-  <span><img src={currencyIcon} alt="" />{reward.coins} {L('金币', 'coins')}</span>
-  <span><Heart size={16} />心心 +{reward.hearts}</span>
+const RewardList = ({ reward, icons, showCoins = true, showHearts = true }: {
+  reward: Omit<PartnerScheduleClaimPreview, 'baseCoins' | 'bonusCoins'>;
+  icons: Partial<Record<ItemId, string>>;
+  showCoins?: boolean;
+  showHearts?: boolean;
+}) => <div className="community-rewards">
+  {showCoins && <span><img src={currencyIcon} alt="" />{reward.coins} {L('金币', 'coins')}</span>}
+  {showHearts && <span><Heart size={16} />心心 +{reward.hearts}</span>}
   {reward.skillXp > 0 && <span><Sparkles size={16} />{L('技能经验', 'Skill XP')} +{reward.skillXp}</span>}
   {reward.itemId && <span>{icons[reward.itemId] && <img src={icons[reward.itemId]} alt="" />}{getItemName(reward.itemId)} ×{reward.itemAmount}</span>}
+  {reward.randomGift && <span><Gift size={16} />{reward.randomGift.category === 'garden' ? '随机种植产物' : '随机料理'} ×{reward.randomGift.minimum}–{reward.randomGift.maximum}</span>}
   {reward.energy ? <span><Zap size={16} />{L('体力', 'Energy')} +{reward.energy}</span> : null}
   {reward.health ? <span>{L('健康', 'Health')} +{amount(reward.health)}</span> : null}
   {reward.mood ? <span>{L('心情', 'Mood')} +{amount(reward.mood)}</span> : null}
@@ -71,9 +81,11 @@ const WorkOfferDialog = ({ pet, offerId, portrait, activityImages, itemIconMap, 
     <div className="community-work-dialog-body">
       <div className="community-work-letter"><img src={activityImages[definition.activity] ?? portrait} alt="" /><div><small>有空的话，来搭把手吧。</small><p>{getPartnerScheduleDisplaySummary(definition.id, neighbor, neighbors)}</p><div className="community-work-signature">—— {placeName(definition.category)}</div></div></div>
       <div className="community-work-location"><span><MapPin size={14} />{placeName(definition.category)}</span><span><Clock3 size={14} />{duration(preview.durationMs)}</span><span><Icon size={14} />{t(`ui.partnerSchedule.categories.${definition.category}`)}</span></div>
-      <h3 className="community-work-detail-title">做完这份工作，可以收下</h3>
-      <div className="community-work-pay"><RewardList reward={{ coins: preview.coinReward, hearts: preview.hearts, skillXp: preview.skillXp }} icons={itemIconMap} />{preview.grantsMasterCompletion && <span className="community-work-mastery"><Sparkles size={15} />大师次数 +1</span>}</div>
-      {preview.categoryReward && <div className="community-category-alternative"><small>完成后，也可以把整份报酬换成这份谢礼</small><RewardList reward={preview.categoryReward} icons={itemIconMap} /></div>}
+      <h3 className="community-work-detail-title">基础工资 · 完成后固定获得</h3>
+      <div className="community-work-pay"><RewardList reward={{ coins: preview.baseCoins, hearts: preview.hearts, skillXp: 0 }} icons={itemIconMap} />{preview.grantsMasterCompletion && <span className="community-work-mastery"><Sparkles size={15} />大师次数 +1</span>}</div>
+      <h3 className="community-work-detail-title">全程回礼{preview.categoryReward ? ' · 任选一份，基础工资照常领取' : ''}</h3>
+      <div className="community-category-alternative"><small>额外金币</small><RewardList reward={{ coins: preview.completionCoins, hearts: 0, skillXp: preview.skillXp }} icons={itemIconMap} showHearts={false} /></div>
+      {preview.categoryReward && <div className="community-category-alternative"><small>{preview.categoryReward.randomGift ? `${preview.categoryReward.randomGift.category === 'garden' ? '种植产物' : '料理'}回礼 · 完成后 ${preview.categoryReward.randomGift.choices} 选 1` : '分类回礼'}</small><RewardList reward={preview.categoryReward} icons={itemIconMap} showCoins={false} showHearts={false} />{preview.categoryReward.randomGift && <p>从 {preview.categoryReward.randomGift.poolSize} 种{preview.categoryReward.randomGift.category === 'garden' ? '种植产物中等概率抽取，最高可得金苹果' : '成品料理中等概率抽取，包含全部稀有度与口味'}。每份随机数量，三个候选品种不同，不受解锁进度限制。</p>}</div>}
       <h3 className="community-work-detail-title">出发前，留一点力气</h3>
       <div className="community-work-costs"><span><Zap size={16} />{L('体力', 'Energy')} <strong>−{preview.energyCost}</strong></span><span>{L('饱腹', 'Fullness')} <strong>−{amount(preview.hungerCost)}</strong></span><span>{L('心情', 'Mood')} <strong>−{amount(preview.moodCost)}</strong></span></div>
       <HelpButton {...getWorkOfferHelp(getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors), preview)} />
@@ -83,7 +95,7 @@ const WorkOfferDialog = ({ pet, offerId, portrait, activityImages, itemIconMap, 
   </DialogShell>;
 };
 
-export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap, neighbors, onBack, onStart, onCancel, onClaim, onRefresh, onQuickWork }: PartnerSchedulePageProps) => {
+export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap, neighbors, onBack, onStart, onCancel, onClaim, onRefresh, onQuickWork, onUpgradeMasteryStat }: PartnerSchedulePageProps) => {
   const [category, setCategory] = useState<PartnerScheduleCategory | 'all'>('all');
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const workStatusRef = useRef<HTMLElement>(null);
@@ -98,8 +110,13 @@ export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap
   const refresh = getPartnerScheduleRefreshPreview(pet, now);
   const work = getQuickWorkPreview(pet, now);
   const complete = result?.outcome !== 'early';
-  const coinClaim = result ? getPartnerScheduleClaimPreview(result, 'coins', 0, pet) : undefined;
-  const categoryClaim = result && complete && result.size !== 'short' ? getPartnerScheduleClaimPreview(result, 'category', 0, pet) : undefined;
+  const extraRewardCopies = result ? getPartnerScheduleExtraRewardCopies(pet, result) : 0;
+  const coinClaim = result ? getPartnerScheduleClaimPreview(result, 'coins', extraRewardCopies, pet) : undefined;
+  const categoryClaims = result ? getPartnerScheduleRewardChoices(result).map(choice => {
+    const reward = getPartnerScheduleClaimPreview(result, choice, extraRewardCopies, pet);
+    const canClaim = !reward.itemId || (pet.inventory[reward.itemId] ?? 0) + (reward.itemAmount ?? 1) <= inventoryItemLimit;
+    return { choice, reward, canClaim };
+  }) : [];
   const processedCount = schedule.completedOfferIds.length + schedule.earlyEndedOfferIds.length;
   const exhausted = schedule.offers.length > 0 && processedCount === schedule.offers.length;
   const visibleOffers = schedule.offers.filter((offer) => category === 'all' || getPartnerScheduleDefinition(offer.templateId)?.category === category);
@@ -113,7 +130,7 @@ export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap
   const contributionMinutes = Math.floor(schedule.dailyContributionMs / 60000);
   const contributionTargetMinutes = partnerScheduleDailyContributionTargetMs / 60000;
   const contributionRemainingMinutes = Math.max(0, Math.ceil((partnerScheduleDailyContributionTargetMs - schedule.dailyContributionMs) / 60000));
-  const endMessage = endPreview ? endPreview.result.outcome === 'completed' ? L('工作已经全程完成，回家后可领取完整报酬与谢礼。', 'The job is complete. Head home to collect your full reward and gift.') : L(
+  const endMessage = endPreview ? endPreview.result.outcome === 'completed' ? '工作已经全程完成，回家后可领取基础工资，并选择一份全程回礼。' : L(
     `已经帮忙 ${duration(endPreview.progress.progressMs)}，消耗体力 ${endPreview.consumed.energy}、饱腹 ${amount(endPreview.consumed.hunger)}、心情 ${amount(endPreview.consumed.mood)}。现在回家可领取 ${endPreview.reward.coins} 金币、${endPreview.reward.hearts} 心心和 ${endPreview.reward.skillXp} 技能经验。本项将标记为已结束，不获得全程谢礼。`,
     `You've helped for ${duration(endPreview.progress.progressMs)}, spending ${endPreview.consumed.energy} energy, ${amount(endPreview.consumed.hunger)} fullness and ${amount(endPreview.consumed.mood)} mood. Returning now earns ${endPreview.reward.coins} coins and ${endPreview.reward.skillXp} skill XP. This request will close without a completion gift.`,
   ) : '';
@@ -129,9 +146,10 @@ export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap
     {pet.adventure.active && <p className="community-refresh-hint">{L('伙伴正在溪谷探查，返回前哨基地后就能继续社区工作。', 'Your companion is scouting the valley. Return to the outpost before starting community work.')}</p>}
 
     {result && coinClaim && <section ref={workStatusRef} tabIndex={-1} className={`community-settlement partner-schedule-result${complete ? '' : ' community-settlement--early'}`} aria-label={L('工作结算', 'Work rewards')}>
-      <div className="community-settlement-heading"><span className="community-large-icon">{complete ? <Gift /> : <Home />}</span><div><span className="community-eyebrow">{complete ? L('谢谢你来帮忙', 'THANK YOU FOR HELPING') : L('今天先回家啦', 'A LITTLE HELP COUNTS')}</span><h3>{getPartnerScheduleDisplayTitle(result.templateId, result.neighbor, neighbors)}</h3><p>{complete ? L('这份工作已经完成，收下报酬与全程谢礼吧。', 'All done! Collect your pay and completion gift.') : L('已经做过的部分也有收获，领取后可以继续选择其他工作。', 'Collect the pay for your contribution, then choose another job.')}</p></div></div>
-      <div className="community-claim-options"><div><strong>{complete ? L('领取金币报酬', 'Take the coin reward') : L('领取本次报酬', 'Collect your pay')}</strong><RewardList reward={coinClaim} icons={itemIconMap} /><button type="button" className="primary-button" onClick={() => onClaim('coins')}>{L('收下报酬', 'Collect reward')}</button></div>
-        {categoryClaim && <div><strong>{L('选择社区谢礼', 'Choose a community gift')}</strong><RewardList reward={categoryClaim} icons={itemIconMap} /><button type="button" className="secondary-button" onClick={() => onClaim('category')}>{L('收下这份谢礼', 'Collect this gift')}</button></div>}
+      <div className="community-settlement-heading"><span className="community-large-icon">{complete ? <Gift /> : <Home />}</span><div><span className="community-eyebrow">{complete ? L('谢谢你来帮忙', 'THANK YOU FOR HELPING') : L('今天先回家啦', 'A LITTLE HELP COUNTS')}</span><h3>{getPartnerScheduleDisplayTitle(result.templateId, result.neighbor, neighbors)}</h3><p>{complete ? '基础工资和心心固定发放。选好下面一份回礼后，一起领取。' : L('已经做过的部分也有收获，领取后可以继续选择其他工作。', 'Collect the pay for your contribution, then choose another job.')}</p></div></div>
+      {complete && <><h4 className="community-work-detail-title">基础工资 · 无论选哪份回礼都会获得</h4><div className="community-work-pay"><RewardList reward={{ coins: coinClaim.baseCoins, hearts: coinClaim.hearts, skillXp: 0 }} icons={itemIconMap} /></div><h4 className="community-work-detail-title">回礼任选一份 · 经验随所选回礼结算</h4></>}
+      <div className="community-claim-options"><div><strong>{complete ? '额外金币' : L('领取本次报酬', 'Collect your pay')}</strong><RewardList reward={complete ? { ...coinClaim, coins: coinClaim.bonusCoins } : coinClaim} icons={itemIconMap} showHearts={!complete} /><button type="button" className="primary-button" onClick={() => onClaim('coins')}>{complete ? '领取工资与这份回礼' : L('收下报酬', 'Collect reward')}</button></div>
+        {categoryClaims.map(({ choice, reward, canClaim }, index) => <div key={choice}><strong>{categoryClaims.length > 1 ? `${result.category === 'garden' ? '农场收获' : '厨房料理'} · 回礼 ${index + 1}` : '分类回礼'}</strong><RewardList reward={reward} icons={itemIconMap} showCoins={false} showHearts={false} />{!canClaim && <p className="community-result-note">仓库空间不足，工资与回礼暂未领取；整理后可领，也可改选其他回礼。</p>}<button type="button" className="secondary-button" disabled={!canClaim} onClick={() => onClaim(choice)}>领取工资与这份回礼</button></div>)}
       </div>
       {complete && result.grantsMasterCompletion && <p className="community-result-note">{L('完整完成 · 大师次数 +1', 'Completed in full · Mastery +1')}</p>}
       {result.exhausted && <p className="community-result-note">{partnerScheduleExhaustedMessage}</p>}
@@ -140,7 +158,11 @@ export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap
     {active && endPreview && fullPreview && <section ref={workStatusRef} tabIndex={-1} className="community-active partner-schedule-active" data-category={active.category} aria-label={L('正在工作', 'Work in progress')}>
       <div className="community-active-heading"><span className="community-large-icon"><Clock3 /></span><div><span className="community-eyebrow">{L('伙伴正在帮忙', 'LENDING A HAND')}</span><h3>{getPartnerScheduleDisplayTitle(active.templateId, active.neighbor, neighbors)}</h3><p>{L('还需', 'Remaining')} <strong>{duration(endPreview.progress.remainingMs)}</strong> · {Math.floor(endPreview.progress.percent)}%</p></div><button type="button" className="secondary-button" onClick={() => setEndConfirmId(active.offerId)}><Home size={17} />{L('提前回家', 'Head home early')}</button></div>
       <progress className="community-progress" max={100} value={endPreview.progress.percent} aria-label={L('工作进度', 'Work progress')} />
-      <div className="community-active-facts"><div><small>{L('已经投入', 'Spent so far')}</small><strong>{L('体力', 'Energy')} −{endPreview.consumed.energy}</strong><span>{L('饱腹', 'Fullness')} −{amount(endPreview.consumed.hunger)} · {L('心情', 'Mood')} −{amount(endPreview.consumed.mood)}</span></div><div><small>{L('现在回家的报酬', 'Pay if you leave now')}</small><strong>{endPreview.reward.coins} {L('金币', 'coins')}</strong><span>心心 +{endPreview.reward.hearts}</span><span>{L('技能经验', 'Skill XP')} +{endPreview.reward.skillXp}</span></div><div><small>{L('做完全程可得', 'Full completion')}</small><strong>{fullPreview.coins.coins} {L('金币', 'coins')} · {fullPreview.coins.skillXp} XP</strong><span>心心 +{fullPreview.coins.hearts}</span>{active.size !== 'short' && <span>{L('或整份改选分类报酬', 'Or choose the category reward instead')}</span>}</div></div>
+      <div className="community-active-facts">
+        <div><small>{L('已经投入', 'Spent so far')}</small><strong>{L('体力', 'Energy')} −{endPreview.consumed.energy}</strong><span>{L('饱腹', 'Fullness')} −{amount(endPreview.consumed.hunger)} · {L('心情', 'Mood')} −{amount(endPreview.consumed.mood)}</span></div>
+        <div><small>{L('现在回家的报酬', 'Pay if you leave now')}</small><strong>{endPreview.reward.coins} {L('金币', 'coins')}</strong><span>心心 +{endPreview.reward.hearts}</span><span>{L('技能经验', 'Skill XP')} +{endPreview.reward.skillXp}</span></div>
+        <div><small>做完全程的基础工资</small><strong>{fullPreview.coins.baseCoins} {L('金币', 'coins')}</strong><span>心心 +{fullPreview.coins.hearts}</span><span>回礼：额外 {fullPreview.coins.bonusCoins} 金币{getPartnerScheduleRewardChoices(active).length > 0 ? '，或任选一份分类回礼' : ''}</span><span>金币回礼经验 +{fullPreview.coins.skillXp}{getPartnerScheduleRewardChoices(active).length > 0 ? ` · 分类回礼经验 +${fullPreview.category.skillXp}` : ''}</span></div>
+      </div>
     </section>}
 
     <div className="community-layout"><div className="community-main">
@@ -184,6 +206,7 @@ export const PartnerSchedulePage = ({ pet, portrait, activityImages, itemIconMap
       </section>
     </div><aside className="community-sidebar">
       <section className="community-contribution"><div className="community-sidebar-heading"><Sprout size={18} /><h3>{L('今天的小小贡献', "Today's contribution")}</h3></div><div className="community-contribution-value"><strong>{Math.min(contributionTargetMinutes, contributionMinutes)}</strong><span>/ {contributionTargetMinutes} {L('分钟', 'min')}</span></div><progress className="community-progress" max={partnerScheduleDailyContributionTargetMs} value={Math.min(partnerScheduleDailyContributionTargetMs, schedule.dailyContributionMs)} aria-label={L('今日工作贡献', "Today's work contribution")} /><strong className="community-ticket-state">{ticketClaimed ? <><CheckCircle2 size={17} />{L('今日扭蛋券已获得', "Today's ticket received")}</> : <><Ticket size={18} />{L('累计达标 · 扭蛋券 ×1', 'Reach the goal · 1 gacha ticket')}</>}</strong><p>{ticketClaimed ? '谢谢你，把温暖留在了社区。' : contributionRemainingMinutes > 0 ? `再积累 ${contributionRemainingMinutes} 分钟贡献，就能收下一份小惊喜。` : '今天的贡献已达标。'}</p></section>
+      <MasteryGrowthPanel pet={pet} icons={itemIconMap} onUpgrade={onUpgradeMasteryStat} />
       <section className="community-skills" aria-label={L('技能成长', 'Skill growth')}><div className="community-sidebar-heading"><Sparkles size={19} /><h3>{L('在帮忙中成长', 'Grow as you help')}</h3></div>{categories.map((id) => {
         const Icon = categoryIcons[id];
         const skill = schedule.skills[id];

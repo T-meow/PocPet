@@ -12,7 +12,7 @@ export const getPageBgmMode = (page: ActivePage, shopOpen: boolean, sleeping: bo
   if (page === 'community' && communityTab === 'fishing') return 'fishing';
   if (page === 'adventure') return 'adventure';
   if (isNightTime(now)) return 'night';
-  if (page === 'garden' || page === 'community') return 'garden';
+  if (page === 'garden' || page === 'community' || page === 'courtyard') return 'garden';
   if (page === 'partnerSchedule') return 'community';
   return 'room';
 };

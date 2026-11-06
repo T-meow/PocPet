@@ -19,7 +19,7 @@ export const ExplorationChoiceDetails = ({ pet, preview: p, definition: d, resea
   {research && <span className="exploration-action-benefit">调查进度 <b>+{range(p.researchPoints)}</b></span>}
   {p.skill && p.chance < 100 && <span className="exploration-action-skill">{explorationSkillNames[p.skill]} {p.skillLevel} 级 · 顺利以上 {formatProbabilityPercent(p.chance)}</span>}
   {d.tool && <span className="exploration-action-tool"><Wrench size={15} aria-hidden="true" />{name(d.tool)} · {toolDurabilityLabel(pet, d.tool, d.tool === 'trail_rope' && Boolean(pet.adventure.active?.tool))} · 本次耐久 −1</span>}
-  {pet.health - p.healthLoss[1] < getPetStatCap(pet) * .2 && <strong className="exploration-check-warning">本次伤害可能使健康不足，行动后将安全返程。</strong>}
+  {pet.health - p.healthLoss[1] < getPetStatCap(pet, 'health') * .2 && <strong className="exploration-check-warning">本次伤害可能使健康不足，行动后将安全返程。</strong>}
   {(reason || p.reason) && <strong className="exploration-check-warning">{reason || p.reason}</strong>}
 </span>;
 

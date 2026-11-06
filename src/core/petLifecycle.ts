@@ -411,7 +411,7 @@ const getLifecycleRates = (pet: PetState, time: number): LifecycleRates => {
     health: scalePetStatDelta(pet,
       pressure >= 2
         ? -4
-        : pressure === 0 && pet.health < getPetStatCap(pet)
+        : pressure === 0 && pet.health < getPetStatCap(pet, 'health')
           ? 1.5
           : 0),
   };
@@ -477,7 +477,7 @@ const advanceUnprotectedSlice = (
     ...pet,
     hunger: clampPetHunger(pet, pet.hunger + rates.hunger * elapsedHours),
     mood: clampPetStat(pet, pet.mood + rates.mood * elapsedHours),
-    cleanliness: clampPetStat(pet, pet.cleanliness + rates.cleanliness * elapsedHours),
+    cleanliness: clampPetStat(pet, pet.cleanliness + rates.cleanliness * elapsedHours, 'cleanliness'),
     health: clampPetHealth(pet, pet.health + rates.health * elapsedHours),
     ageSeconds: pet.ageSeconds + (to - from) / 1000,
     lastUpdatedAt: to,
@@ -620,7 +620,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
 
     if (!protectedBySchedule && rates) {
       if ((next.adventure.active || isIdleFishing(next)) && rates.health < 0) {
-        const distance = next.health - getPetStatCap(next) * adventureHealthRules.retreat;
+        const distance = next.health - getPetStatCap(next, 'health') * adventureHealthRules.retreat;
         // The first millisecond strictly below the line, including starting on it.
         sliceEndsAt = Math.min(sliceEndsAt, cursor + Math.max(1, Math.floor(distance / -rates.health * hourMs) + 1));
       }
@@ -757,7 +757,7 @@ export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetS
   if (Object.keys(delivered).length) pet = { ...pet, inventory: Object.fromEntries(Object.entries(pet.inventory).map(([id, quantity]) => [id, quantity - (delivered[id] ?? 0)])) };
   // Rods remain in the warehouse during idle fishing. Interleave their uses
   // with restocks so reserved durability is released only when actually used.
-  while (pet.community.market.open && pet.health >= getPetStatCap(pet) * .2) {
+  while (pet.community.market.open && pet.health >= getPetStatCap(pet, 'health') * .2) {
     const fishing = pet.community.fishing.active;
     if (!fishing || fishing.mode !== 'idle') break;
     const rod = fishing.strongRod ? 'reinforced_rod' : 'fishing_rod';

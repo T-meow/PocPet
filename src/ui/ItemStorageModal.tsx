@@ -110,7 +110,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
       <div className="storage-header-actions">{onSwitch && <button className="storage-switch" onClick={() => onSwitch && perform(onSwitch)}>{mode === 'shop' ? <PackageOpen size={17} /> : <ShoppingBag size={17} />}{context?.switchLabel ?? (mode === 'shop' ? L('去背包', 'Bag') : L('去商店', 'Shop'))}</button>}<button className="icon-button" onClick={() => perform(onClose)} aria-label={mode === 'shop' ? t('ui.shop.close') : t('ui.inventory.close')}><X size={20} /></button></div>
     </header>
     {mode === 'bag' && context?.showStats !== false && <div className="storage-stats" role="group" aria-label={t('ui.inventory.currentStats')}>{stats.map((key) => {
-      const max = Math.round(key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet));
+      const max = Math.round(key === 'energy' ? getPetEnergyCap(pet) : getPetStatCap(pet, key));
       const value = Math.max(0, Math.round(pet[key]));
       const filled = Math.min(max, value);
       return <div className={`storage-stat storage-stat--${key}`} key={key}><span>{t(`ui.stats.${key}`)}</span><strong>{value}<small>/{max}</small></strong><i role="progressbar" aria-label={t(`ui.stats.${key}`)} aria-valuemin={0} aria-valuemax={max} aria-valuenow={filled} aria-valuetext={`${value} / ${max}`}><b style={{ width: `${filled / max * 100}%` }} /></i></div>;
