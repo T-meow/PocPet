@@ -26,7 +26,7 @@ export const getBackpackUpgradeQuote = (pet: PetState, gem?: RegionalTreasureId)
   const unlocked = requiredRegions.length > 0 && requiredRegions.every(id => pet.community.expedition.regions[id].surveyed || id === 'valley' && pet.adventure.valleyCompleted.includes('valley_camp'));
   const items: Inventory = { ...q?.items };
   if (validGem) items[chosen] = (items[chosen] ?? 0) + 1;
-  const reason = !q ? '背包已升至最大容量' : pet.timePause ? '时间冻结中' : pet.adventure.active || pet.adventure.pending || pet.community.expedition.active || pet.community.expedition.pending ? '先结束行程并收好回执' : gems.length && !validGem ? '请选择对应地区珍宝' : !unlocked ? q.requiresAllRegions ? '先完成五个地区故事' : '先完成对应地区故事' : pet.coins < q.coins || Object.entries(items).some(([id, quantity]) => (pet.inventory[id] ?? 0) < quantity) ? '金币、建材、地区特产或珍宝不足' : '';
+  const reason = !q ? '背包已升至最大容量' : pet.timePause ? '时间冻结中' : pet.adventure.active || pet.adventure.pending ? '先结束行程并收好回执' : gems.length && !validGem ? '请选择对应地区珍宝' : !unlocked ? q.requiresAllRegions ? '先完成五个地区故事' : '先完成对应地区故事' : pet.coins < q.coins || Object.entries(items).some(([id, quantity]) => (pet.inventory[id] ?? 0) < quantity) ? '金币、建材、地区特产或珍宝不足' : '';
   return { level, capacity: getExplorationBagCapacity(pet), nextCapacity: explorationBackpackCapacities[Math.min(explorationBackpackCapacities.length - 1, level + 1)], coins: q?.coins, items, gems, gem: chosen, reason };
 };
 export const upgradeExplorationBackpack = (pet: PetState, expectedLevel: number, gem?: RegionalTreasureId): PetState => {

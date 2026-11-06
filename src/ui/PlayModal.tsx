@@ -5,7 +5,6 @@ import { CompanionMemories } from './CompanionMemories';
 import { MiniGameBoard } from './play/MiniGameBoard';
 import { activityText as L } from '../core/kitchenRecipes';
 import { acknowledgeMiniGameResult, gameName, miniGameUnlockLevel, pauseMiniGame, startMiniGame, type MiniGameAction } from '../core/miniGames';
-import { isExpeditionAway } from '../core/expeditionData';
 import { MiniGameResultModal } from './play/MiniGameResultModal';
 import { useMiniGameFeedback } from './play/useMiniGameFeedback';
 import { itemIcons } from '../assets';
@@ -25,7 +24,7 @@ export const PlayModal = ({ pet, actorId, portrait, happyPortrait, ballImage = i
   const feedback = useMiniGameFeedback(pet.miniGames, actorId);
   const active = pet.miniGames.active;
   const levelUnlocked = pet.level >= miniGameUnlockLevel;
-  const available = levelUnlocked && !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !isExpeditionAway(pet) && !pet.community.fishing.active && !pet.timePause;
+  const available = levelUnlocked && !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !pet.community.fishing.active && !pet.timePause;
   const playing = active && !active.paused && active.actorId === actorId && available;
   const hosted = active && isHostedMiniGameSession(active);
   const result = pet.miniGames.lastResult?.actorId === actorId ? pet.miniGames.lastResult : undefined;

@@ -1,0 +1,51 @@
+.adventure-commission-statuses { min-width: 0; padding: 12px; border: 1px solid #d9e1cb; border-radius: 14px; background: #fffdf3; }
+.adventure-commission-status-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.adventure-commission-status-heading > small { margin-left: 8px; color: #667363; }
+.exploration-app .adventure-commission-status { display: flex; align-items: center; width: 100%; min-width: 0; padding: 8px; border: 1px solid #d8e0cf; border-radius: 10px; color: #3e4c40; background: #f5f8ef; text-align: left; }
+.adventure-commission-status + .adventure-commission-status { margin-top: 7px; }
+.exploration-app .adventure-commission-status[data-ready="true"] { border-color: #b6cb91; background: #fafbea; }
+.adventure-commission-status > img { flex: none; width: 42px; height: 46px; object-fit: contain; margin-right: 10px; }
+.adventure-commission-status > span { flex: 1; min-width: 0; word-wrap: break-word; overflow-wrap: anywhere; }
+.adventure-commission-status strong, .adventure-commission-status small { display: block; }
+.adventure-commission-status small { margin-top: 3px; color: #667363; }
+.adventure-commission-status > svg { flex: none; margin-left: 10px; }
+.dialog-shell.exploration-sheet.adventure-commission-dialog { width: calc(100% - 24px); max-width: 520px; height: 550px; max-height: calc(100vh - 40px); max-height: calc(var(--viewport-height, 100vh) - 40px); min-height: 0; overflow: hidden; }
+.adventure-commission-dialog .adventure-commission-header { display: flex; flex: none; align-items: center; padding: 12px 16px; }
+.adventure-commission-header > h3 { flex: 1; min-width: 0; margin: 0; }
+.adventure-commission-header > button { flex: none; margin-left: 8px; }
+.adventure-commission-dialog .adventure-commission-body { min-height: 0; min-width: 0; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; }
+.adventure-commission-dialogue { display: flex; align-items: center; min-width: 0; padding: 12px; margin-bottom: 16px; border: 1px solid #e0dfcb; border-radius: 14px; background: #fffaf0; }
+.adventure-commission-dialogue > img { flex: none; width: 68px; height: 80px; object-fit: contain; margin-right: 12px; }
+.adventure-commission-dialogue > div { flex: 1; min-width: 0; word-wrap: break-word; overflow-wrap: anywhere; }
+.adventure-commission-dialogue strong { display: block; margin-bottom: 6px; color: #493f32; }
+.adventure-commission-dialogue p { margin: 0; }
+.adventure-commission-balance, .adventure-commission-destination { display: flex; justify-content: space-between; align-items: center; }
+.adventure-commission-balance > strong, .adventure-commission-destination > strong { margin-left: 12px; }
+.adventure-commission-region { display: block; margin-bottom: 12px; }
+.adventure-commission-region > span { display: block; margin-bottom: 6px; }
+.adventure-commission-region select { width: 100%; max-width: 100%; padding: 8px; border: 1px solid #cbd8bd; border-radius: 8px; background: #fff; color: #3e4c40; }
+.adventure-commission-quote { margin-top: 14px; }
+.adventure-commission-quote strong { margin-left: 5px; }
+.adventure-commission-quote svg, .adventure-commission-bonus svg { vertical-align: middle; margin-right: 5px; }
+.adventure-commission-task { padding: 12px; border: 1px solid #d8e0cf; border-radius: 12px; background: #f5f8ef; }
+.adventure-commission-task-status { font-weight: 700; color: #49623e; }
+.adventure-commission-task progress { width: 100%; height: 10px; accent-color: #739557; }
+.adventure-commission-items { display: flex; flex-wrap: wrap; list-style: none; padding: 0; margin: 0 -5px 8px; }
+.adventure-commission-items > li { display: flex; align-items: center; min-width: 0; max-width: 100%; padding: 7px; margin: 0 5px 8px; border: 1px solid #e0e5d7; border-radius: 8px; background: #fffef8; font-size: 12px; }
+.adventure-commission-items > li > img, .adventure-commission-items > li > svg { flex: none; width: 30px; height: 30px; object-fit: contain; margin-right: 7px; }
+.adventure-commission-items > li > span { min-width: 0; word-wrap: break-word; overflow-wrap: anywhere; }
+.adventure-commission-items b { display: block; }
+.adventure-commission-bonus { padding: 10px; margin-bottom: 12px; border: 1px solid #e5d3a2; border-radius: 10px; background: #fff6d8; }
+.adventure-commission-bonus > strong { display: block; margin-bottom: 10px; color: #80602c; }
+.adventure-commission-dialog .adventure-commission-footer { display: flex; flex: none; flex-wrap: wrap; padding: 10px 12px; }
+.adventure-commission-footer > button { margin: 4px; }
+.adventure-commission-footer > .primary-button { flex: 1; }
+.exploration-hall-neighbor.is-away > img { opacity: .5; }
+.exploration-hall-neighbor.is-away > span { background: #ecefe7; }
+.exploration-hall-neighbor > span > small { display: block; }
+@media (max-width: 480px) {
+  .adventure-commission-dialog .adventure-commission-header { padding: 10px 12px; }
+  .adventure-commission-dialog .adventure-commission-body { padding: 12px; }
+  .adventure-commission-dialogue { padding: 10px; }
+  .adventure-commission-dialogue > img { width: 56px; height: 68px; margin-right: 10px; }
+}

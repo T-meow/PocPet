@@ -8,7 +8,6 @@ import { activityText, cookingMethods, dishName, getDish, getDishId, getRecipe, 
 import { recordMuseumEvent } from './museumEvents';
 import { recordCommunityTaskEvent } from './communityCommissions';
 import { rememberTogether } from './companionMemories';
-import { isExpeditionAway } from './expeditionData';
 import { inventoryItemLimit } from './saveMetadata';
 import { applyCookingByproducts, defaultHandcraftState, normalizeHandcraftState, planCookingByproducts } from './handcraftState';
 
@@ -67,7 +66,7 @@ export const normalizeKitchenState = (raw: unknown): KitchenState => {
 };
 export const kitchenMadeCount = (pet: PetState) => Object.values(pet.kitchen.made).reduce((sum, count) => sum + (count ?? 0), 0);
 export const kitchenRecipeCount = (pet: PetState) => recipes.filter((recipe) => (pet.kitchen.made[recipe.id] ?? 0) > 0).length;
-export const canSpendCompanionTime = (pet: PetState) => !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !isExpeditionAway(pet) && !pet.community.fishing.active && (!pet.miniGames.active || pet.miniGames.active.paused);
+export const canSpendCompanionTime = (pet: PetState) => !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active && !pet.community.fishing.active && (!pet.miniGames.active || pet.miniGames.active.paused);
 export const claimKitchenStarter = (pet: PetState): PetState => {
   if (pet.kitchen.starterClaimed) return pet;
   const inventory = ['apple', 'orange', 'rice', 'egg'].reduce((stock, id) => addInventoryItem(stock, id as 'apple' | 'orange' | 'rice' | 'egg', 1), pet.inventory);

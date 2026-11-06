@@ -17,6 +17,7 @@ import {
   type PetState,
 } from '../../core/pet';
 import { playSfx, type SfxId } from '../../core/audio';
+import { advancePet } from '../../core/petLifecycle';
 import type { NeighborIdentity } from '../../core/petTypes';
 
 export type GardenClearConfirm = { slotIndex: number; kind: 'clear' | 'remove'; treeId: GardenTreeId; coins: number };
@@ -33,11 +34,12 @@ interface GardenControllerOptions {
 export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commitPet, playAfterUnlock, neighbors }: GardenControllerOptions) => {
   const [clearConfirm, setClearConfirm] = useState<GardenClearConfirm | null>(null);
 
-  const commitAction = (action: (current: PetState) => PetState, successSfx: SfxId = 'coin') => {
+  const commitAction = (action: (current: PetState, now: number) => PetState, successSfx: SfxId = 'coin') => {
     playAfterUnlock('tap');
     setPetWithFeedback((current) => {
-      const previousEvent = current.recentEvent;
-      const next = action(current);
+      const now = Date.now(), settled = advancePet(current, now);
+      const previousEvent = settled.recentEvent;
+      const next = action(settled, now);
       playSfx(next.recentEvent === previousEvent ? 'error' : successSfx);
       return commitPet(next);
     });
@@ -48,7 +50,7 @@ export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commit
     setPet((current) => selectGardenSlot(current, slotIndex));
   };
 
-  const clearSlot = (slotIndex: number) => commitAction((current) => clearWitheredTree(current, slotIndex), 'purchase');
+  const clearSlot = (slotIndex: number) => commitAction((current, now) => clearWitheredTree(current, slotIndex, now), 'purchase');
   const requestClear = (slotIndex: number) => {
     const current = petRef.current;
     const slot = current.garden.slots[slotIndex];
@@ -82,17 +84,17 @@ export const useGardenController = ({ petRef, setPet, setPetWithFeedback, commit
     clearConfirm,
     resetClearConfirm: () => setClearConfirm(null),
     selectSlot,
-    unlockSlot: (slotIndex: number) => commitAction((current) => unlockGardenSlot(current, slotIndex), 'purchase'),
-    plantTree: (slotIndex: number, treeId: GardenTreeId) => commitAction((current) => plantTree(current, slotIndex, treeId, Date.now(), neighbors), 'purchase'),
-    recycleSapling: (treeId: GardenTreeId) => commitAction((current) => recycleGardenSapling(current, treeId), 'coin'),
-    waterTree: (slotIndex: number) => commitAction((current) => waterTree(current, slotIndex, Date.now(), neighbors), 'tap'),
-    fertilizeTree: (slotIndex: number, fertilizerId: GardenFertilizerId, quantity = 1) => commitAction((current) => fertilizeTree(current, slotIndex, fertilizerId, Date.now(), quantity, neighbors), fertilizerId === 'heart' ? 'pet_heart' : 'purchase'),
-    useNutrient: (slotIndex: number) => commitAction((current) => useGardenNutrient(current, slotIndex, Date.now(), neighbors), 'purchase'),
-    harvestTree: (slotIndex: number) => commitAction((current) => harvestTree(current, slotIndex, Date.now(), neighbors), 'coin'),
+    unlockSlot: (slotIndex: number) => commitAction((current, now) => unlockGardenSlot(current, slotIndex, now), 'purchase'),
+    plantTree: (slotIndex: number, treeId: GardenTreeId) => commitAction((current, now) => plantTree(current, slotIndex, treeId, now, neighbors), 'purchase'),
+    recycleSapling: (treeId: GardenTreeId) => commitAction((current, now) => recycleGardenSapling(current, treeId, now), 'coin'),
+    waterTree: (slotIndex: number) => commitAction((current, now) => waterTree(current, slotIndex, now, neighbors), 'tap'),
+    fertilizeTree: (slotIndex: number, fertilizerId: GardenFertilizerId, quantity = 1) => commitAction((current, now) => fertilizeTree(current, slotIndex, fertilizerId, now, quantity, neighbors), fertilizerId === 'heart' ? 'pet_heart' : 'purchase'),
+    useNutrient: (slotIndex: number) => commitAction((current, now) => useGardenNutrient(current, slotIndex, now, neighbors), 'purchase'),
+    harvestTree: (slotIndex: number) => commitAction((current, now) => harvestTree(current, slotIndex, now, neighbors), 'coin'),
     requestClear,
     cancelClear,
     confirmClear,
-    upgradeTool: (toolId: GardenToolId) => commitAction((current) => upgradeGardenTool(current, toolId), 'purchase'),
+    upgradeTool: (toolId: GardenToolId) => commitAction((current, now) => upgradeGardenTool(current, toolId, now), 'purchase'),
     commitAction,
   };
 };

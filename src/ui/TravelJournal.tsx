@@ -3,8 +3,6 @@ import { BookOpen, Check, Compass, X } from 'lucide-react';
 import { adventureDiscoveryNames, adventureJourneyName, adventureTaskName, getAdventureStepCount } from '../core/adventureData';
 import { expeditionProducts, projectIds, regionIds, regions } from '../core/expeditionData';
 import { getInventoryItem } from '../core/items';
-import { rationReturnLines } from '../core/expeditionRationReturn';
-import type { RationReturn } from '../core/explorationRations';
 import { mapRegions, landmarkNodes, landmarkNames, regionNames, completedLandmark, landmarkId, mainStoryProgress } from '../core/landmarkProgress';
 import { landmarkSummary } from '../core/landmarkData';
 import { valleyObservationNames } from '../core/valleyExplorationData';
@@ -16,28 +14,18 @@ import { ExplorationCheckSummary } from './ExplorationCheck';
 import { adventureTreasureIds } from '../core/adventureItems';
 import { CommunityMemories } from './community/CommunityMemories';
 import { ExplorationHandbook } from './help/ExplorationGuide';
-import { formatProbabilityPercent } from './numberFormat';
 import readingPortrait from '../assets/pet/pet_reading_books.png';
 
 interface TravelRecord {
   id: string; at: number; title: string; status: string; detail?: string;
-  coins?: number; hearts?: number; items?: Inventory; lines?: string[]; pending?: 'adventure' | 'expedition';
+  coins?: number; hearts?: number; items?: Inventory; lines?: string[]; pending?: 'adventure';
   lastCheck?: ExplorationCheckResult;
 }
-const returnLabel = (reason: string) => reason === 'health' ? '安全返程' : reason === 'complete' ? '完成行程' : '提前返回';
-const recordLines = (entry: { journal: string[]; rationReturn?: RationReturn; treasureFinds?: import('../core/expeditionTypes').RegionalTreasureFind[]; treasureChance?: number }) => {
-  const treasureLines = [...(entry.treasureChance !== undefined ? [`每次珍宝判定随机概率 ${formatProbabilityPercent(entry.treasureChance)}`] : []), ...(entry.treasureFinds ?? []).map(find => `${getInventoryItem(find.item)?.name ?? find.item} ×1 · ${find.guaranteed ? '第 10 次保底获得' : '随机发现'}`)];
-  if (!entry.rationReturn) return [...entry.journal, ...treasureLines];
-  // Structured food counts also rebuild entries whose display text was shortened or omitted by saving.
-  const journal = entry.journal.filter(line => !line.startsWith('提前吃掉了：') && !line.startsWith('吃饱后，把剩余料理分给了路过的邻居 '));
-  return [...journal, ...rationReturnLines(entry.rationReturn), ...treasureLines];
-};
 const dateLabel = (at: number) => new Date(at).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 // Receipts can overlap the latest saved record while warehouse space is insufficient.
 export const getTravelRecords = (pet: PetState): TravelRecord[] => {
   const records = new Map<string, TravelRecord>();
-  const { expedition } = pet.community;
   for (const entry of [...pet.adventure.journal, ...(pet.adventure.pending ? [pet.adventure.pending] : [])]) {
     const pending = pet.adventure.pending?.id === entry.id;
     records.set(entry.id, { id: entry.id, at: entry.endedAt, title: `${entry.actorName} · ${adventureJourneyName(entry.region, entry.purpose)}`,
@@ -46,20 +34,11 @@ export const getTravelRecords = (pet: PetState): TravelRecord[] => {
       coins: entry.coins, hearts: entry.hearts, items: entry.items, lastCheck: entry.lastCheck, ...(pending ? { pending: 'adventure' as const } : {}),
     });
   }
-  if (expedition.lastReceipt) {
-    const entry = expedition.lastReceipt;
-    records.set(entry.id, { id: entry.id, at: entry.at, title: entry.route.map(id => regions[id].name).join(' → '), status: returnLabel(entry.reason), lines: recordLines(entry), lastCheck: entry.lastCheck });
-  }
-  if (expedition.pending) {
-    const entry = expedition.pending;
-    records.set(entry.id, { id: entry.id, at: entry.at, title: `${entry.route.map(id => regions[id].name).join(' → ')} · ${entry.mode === 'idle' ? '挂机探索' : '旧探索返程'}`,
-      status: returnLabel(entry.reason), coins: entry.coins, hearts: entry.hearts, items: entry.items, lines: recordLines(entry), lastCheck: entry.lastCheck, pending: 'expedition' });
-  }
   return [...records.values()].sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
 };
 
 export const TravelJournal = ({ pet, onClose, onMap, onReceipt, initialTab = 'records', embedded }: {
-  pet: PetState; onClose: () => void; onMap: () => void; onReceipt: (system: 'adventure' | 'expedition') => void; initialTab?: 'records' | 'discoveries' | 'help'; embedded?: boolean;
+  pet: PetState; onClose: () => void; onMap: () => void; onReceipt: (system: 'adventure') => void; initialTab?: 'records' | 'discoveries' | 'help'; embedded?: boolean;
 }) => {
   const [tab, setTab] = useState(initialTab);
   const records = getTravelRecords(pet), expedition = pet.community.expedition;

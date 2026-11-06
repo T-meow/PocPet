@@ -13,7 +13,7 @@ import { getExplorationBagCapacity } from './explorationBackpack';
 import { defaultCommunityState, normalizeCommunityState } from './communityState';
 import { openTutorialGarden } from './communityUpgradeData';
 import { enforceAdventureHealth } from './adventureReturn';
-import { settleExpeditionTime } from './expeditionReturn';
+import { advanceAdventureCommissions } from './adventureCommissionState';
 import { getUpgradeHeartCurveRefund, isPetOverfed } from './petStats';
 import { createNewSaveMetadata, normalizeSaveMetadata, type SaveMetadata } from './saveMetadata';
 import { defaultClassicEndgameState, getClassicLegacyCoinCurveMigrationRefund, normalizeClassicEndgameState } from './classicEndgame';
@@ -573,9 +573,9 @@ export const normalizePet = (value: unknown, now = Date.now(), options: Normaliz
   };
   // Legacy active trips are completed by the lifecycle migration before health or
   // offline simulation can turn them into an early-return receipt.
-  if (timePause || (adventure.active?.rulesVersion ?? 11) < 11 || (community.expedition.active?.rulesVersion ?? 6) < 6) return normalized;
+  if (timePause || (adventure.active?.rulesVersion ?? 11) < 11) return normalized;
   const settlementAt = isNumber(raw.lastUpdatedAt) ? Math.min(now, raw.lastUpdatedAt) : now;
-  return settleExpeditionTime(enforceAdventureHealth(normalized, settlementAt), settlementAt);
+  return advanceAdventureCommissions(enforceAdventureHealth(normalized, settlementAt), settlementAt);
 };
 
 

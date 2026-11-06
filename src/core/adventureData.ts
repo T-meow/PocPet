@@ -11,6 +11,7 @@ import { getValleyQuestCosts, isValleyQuest, valleyQuests } from './valleyQuests
 import { getRegionActionCost } from './explorationTravelData';
 import { isLandmarkId, parseLandmarkId, regionNames } from './landmarkProgress';
 import { getLandmarkSteps, landmarkCosts, landmarkFirstReward, landmarkSummary } from './landmarkData';
+import { explorationCapacity, explorationRefillMs } from './explorationBudget';
 
 export const getAdventureSteps = (version: AdventureRulesVersion = 9, destination: AdventureDestinationId = 'valley', purpose?: CommunityRoute, baseLevel = 0, bag?: Inventory): { title: string; story: string; choices: AdventureChoice[] }[] => {
   if (isLandmarkId(purpose)) return getLandmarkSteps(purpose, version);
@@ -59,7 +60,7 @@ export const adventureJourneyCost = (purpose: CommunityRoute) => {
   return `${valleyQuests[purpose].steps.length} 个阶段 · 预计饱食 −${cost.hunger.join('～')} · 体力 −${cost.energy.join('～')}`;
 };
 export const adventureTutorialRewardText = () => L(`固定发现：地图手册 ×1＋一堆金币 ×1（${adventureTreasureValues.coin_hoard} 金币）；通关后解锁大地图。`, `Guaranteed finds: 1 map handbook + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins). Complete the tutorial to unlock the world map.`) + '结算后免费开放第 1 块菜地（体力上限 +4）。';
-export const adventureTreasureRewardText = (version: AdventureRulesVersion = 11) => version >= 11 ? '每次有效采集结算固定货币与目标物品，概率获得额外宝物。采集每小时恢复 1 次、上限 72 次；首次奖励仅领一次。' : version >= 7 ? '探索酬谢与挂机共用；每日 22 基础小心心。采集机会每 3 小时恢复，首次入口宝藏与手账里程碑仅领一次。' : version >= 4
+export const adventureTreasureRewardText = (version: AdventureRulesVersion = 11) => version >= 11 ? `每次有效采集结算固定货币与目标物品，概率获得额外宝物。采集每小时恢复 1 次，最多储存 ${explorationCapacity} 次，相当于 ${explorationCapacity * explorationRefillMs / 86400000} 天；首次奖励仅领一次。` : version >= 7 ? '每日 22 基础小心心。采集机会每 3 小时恢复，首次入口宝藏与手账里程碑仅领一次。' : version >= 4
   ? L(`通关：22 基础小心心＋随机战利品 ×1（${Math.min(...Object.values(adventureTreasureValues))}～${Math.max(...Object.values(adventureTreasureValues))} 金币）`, `Completion: 22 base hearts + 1 random treasure (${Math.min(...Object.values(adventureTreasureValues))}–${Math.max(...Object.values(adventureTreasureValues))} coins)`)
   : L(`通关：22 基础小心心＋金币堆 ×1（${adventureTreasureValues.coin_hoard} 金币）`, `Completion: 22 base hearts + 1 coin hoard (${adventureTreasureValues.coin_hoard} coins)`);
 export const adventureDiscoveryNames = (destination: AdventureDestinationId = 'valley') => destination === 'tutorial'

@@ -72,6 +72,6 @@ export const getLandmarkHelp = (id: LandmarkId): HelpContent => {
   return {
     title: landmarkNames[region][node],
     overview: <><p>完成全部阶段后保存地标成果。可重访采集、调查和完成委托；首通奖励只领一次。</p><p>前置：{required.length ? required.join('、') : '本地区已开放'}。</p>{node === 'camp' && <p>完成本地区全部地标后，体力上限 +2，并可建设营地。{(region === 'forest' || region === 'coast') && '对应水域自动开放，可从钓鱼小屋直接前往。'}</p>}</>,
-    details: <>{explorationHelp.details}<p>首通小心心按基础值展示，领取时叠加有效奖励加成。完整探索还可领取一份当地积存酬谢，与挂机共用额度。</p></>,
+    details: <>{explorationHelp.details}<p>首通小心心按基础值展示，领取时叠加有效奖励加成。采集酬谢按本趟实际消耗的采集次数结算，伙伴委托另行计算。</p></>,
   };
 };

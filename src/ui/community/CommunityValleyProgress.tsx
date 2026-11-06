@@ -11,8 +11,8 @@ export const CommunityValleyProgress = ({ pet, onExplore, onKitchen, onOpenOutpo
     { title: '做一份溪谷料理', done: Boolean(pet.kitchen.made.herb_porridge || pet.kitchen.made.mushroom_rice), detail: '香草暖粥从第一段故事接入，野菇焖饭在温室故事后开放', label: '做香草暖粥', action: () => onKitchen('herb_porridge') },
     { title: '送出第一碗暖粥', done: c.firstOrderDelivered, detail: '交付暖粥 ×1，领取常驻故事酬谢与永久成长', label: '去交付暖粥', action: () => onOpen('board') },
     { title: '完成一次日常委托', done: c.commissionsCompleted + c.specialtyOrders.completed > 0, detail: `邻里交单 ${c.commissionsCompleted} 次 · 特产收购 ${c.specialtyOrders.completed} 次`, label: '看看邻里委托', action: () => onOpen('board') },
-    { title: '修好温室休息间', done: c.expedition.regions.valley.base >= 1, detail: `基地 ${c.expedition.regions.valley.base}/2 级 · 溪谷全部地标完成后建设，开放 2／4／8 小时挂机`, label: '去修基地', action: () => onOpenOutpost?.({ view: 'camp', region: 'valley' }) },
-    { title: '完成一次挂机探索', done: (c.expedition.loop?.idleCompleted ?? 0) > 0, detail: '预留口粮与机会，让伙伴把材料和酬谢带回来', label: '安排探索', action: () => onOpenOutpost?.({ view: 'idle', region: 'valley', target: 'valley_mushroom' }) },
+    { title: '修好温室休息间', done: c.expedition.regions.valley.base >= 1, detail: `基地 ${c.expedition.regions.valley.base}/2 级 · 溪谷全部地标完成后建设，1／2 级缩短当地伙伴委托耗时 10%／20%`, label: '去修基地', action: () => onOpenOutpost?.({ view: 'camp', region: 'valley' }) },
+    { title: '完成一次伙伴委托', done: pet.adventure.commissionsCompleted > 0, detail: '交给大厅邻居 1 个金苹果，让伙伴帮忙搜集当地素材', label: '去大厅委托', action: () => onOpenOutpost ? onOpenOutpost({ view: 'commissions' }) : onAdventure() },
     { title: '留下溪谷收藏', done: c.decorations.includes('creek_fountain'), detail: `海蓝宝勘探 ${(c.treasureResearch.creek_aquamarine ?? 0) % 6}/6 · 海蓝宝 1、石料 3 制作溪光水景`, label: '去溪谷勘探', action: () => onOpenOutpost?.({ view: 'manual', region: 'valley', target: 'aquamarine' }) },
   ];
   return <><section className="community-card valley-progress"><h3>溪谷生活进度</h3><p>已完成 {steps.filter(s => s.done).length}/{steps.length} 项 · 采集、生产、交单与收藏</p><progress aria-label="溪谷生活循环进度" max={steps.length} value={steps.filter(s => s.done).length} />

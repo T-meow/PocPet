@@ -6,7 +6,6 @@ import { getInventoryDefinitions } from '../core/items';
 import { getEffectiveBatchQuantity } from '../core/petActions';
 import { getItemRecoveryPreview, getItemUsePlan, overfedMessage } from '../core/itemEffects';
 import { isTravelFood } from '../core/explorationRations';
-import { isExpeditionAway } from '../core/expeditionData';
 import { allDishes, activityText as L } from '../core/kitchenRecipes';
 import type { Inventory, ItemId, ItemRegistry, PetState } from '../core/petTypes';
 import { QuantityStepper } from './QuantityStepper';
@@ -61,7 +60,7 @@ export const PreparationInventory = ({ pet, registry, icons, bag, capacity, onPa
   const requestedUseCount = selected?.id === 'golden_apple' || selected?.id === 'birthday_cake' ? 1 : getEffectiveBatchQuantity(pet, count);
   const usePlan = selected ? getItemUsePlan(pet, selected, requestedUseCount) : undefined;
   const useCount = usePlan?.quantity ?? 0;
-  const canUse = selected?.usable && useCount > 0 && selection?.source === 'warehouse' && amount >= useCount && !pet.timePause && !pet.adventure.active && !isExpeditionAway(pet) && !pet.partnerSchedule.active
+  const canUse = selected?.usable && useCount > 0 && selection?.source === 'warehouse' && amount >= useCount && !pet.timePause && !pet.adventure.active && !pet.partnerSchedule.active
     && Object.values(getItemRecoveryPreview(pet, selected, useCount, []).actual).some(value => value > 0);
   const transferItem = () => {
     if (!selected || !selection || amount < count) return;

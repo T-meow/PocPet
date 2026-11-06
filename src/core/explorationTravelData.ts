@@ -1,11 +1,11 @@
 import type { RegionId } from './expeditionTypes';
 
 export const explorationTravel = {
-  valley: { hunger: 90, energy: 50, actions: 6, idleHunger: 18, idleEnergy: 14, meals: 3, nutrition: 100, payPercent: 100 },
-  hills: { hunger: 108, energy: 60, actions: 6, idleHunger: 20, idleEnergy: 16, meals: 4, nutrition: 130, payPercent: 125 },
-  forest: { hunger: 240, energy: 240, actions: 8, idleHunger: 22, idleEnergy: 18, meals: 5, nutrition: 160, payPercent: 150 },
-  coast: { hunger: 400, energy: 400, actions: 10, idleHunger: 24, idleEnergy: 20, meals: 6, nutrition: 190, payPercent: 175 },
-  station: { hunger: 600, energy: 600, actions: 12, idleHunger: 26, idleEnergy: 22, meals: 7, nutrition: 225, payPercent: 220 },
+  valley: { hunger: 90, energy: 50, actions: 6, payPercent: 100 },
+  hills: { hunger: 108, energy: 60, actions: 6, payPercent: 125 },
+  forest: { hunger: 240, energy: 240, actions: 8, payPercent: 150 },
+  coast: { hunger: 400, energy: 400, actions: 10, payPercent: 175 },
+  station: { hunger: 600, energy: 600, actions: 12, payPercent: 220 },
 } as const;
 // Existing trips keep the costs they departed with.
 const legacyManualCosts = { forest: { hunger: 144, energy: 80 }, coast: { hunger: 180, energy: 100 }, station: { hunger: 216, energy: 120 } };

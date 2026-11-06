@@ -41,14 +41,11 @@ import { ensureYearlyStatsForDate, recordYearlyPomodoroFocus } from './yearlySta
 import { getWeatherForDate } from './weather';
 import { isNightTime } from './utils';
 import { adventureHealthRules, enforceAdventureHealth } from './adventureReturn';
-import { isExpeditionAway } from './expeditionData';
-import { settleExpeditionTime } from './expeditionReturn';
-import { getExpeditionCheckIntervalMs } from './expeditionTiming';
+import { advanceAdventureCommissions } from './adventureCommissionState';
 import { advanceExplorationBudget } from './explorationBudget';
 import { completeLegacyExploration } from './explorationMigration';
-import { explorationTravel } from './explorationTravelData';
 
-const travelStopsEnergyRecovery = (pet: PetState) => Boolean(isIdleFishing(pet) || (pet.adventure.active?.rulesVersion ?? 0) >= 8 || (pet.community.expedition.active?.rulesVersion ?? 0) >= 2 && !pet.community.expedition.active?.paused);
+const travelStopsEnergyRecovery = (pet: PetState) => Boolean(isIdleFishing(pet) || (pet.adventure.active?.rulesVersion ?? 0) >= 8);
 
 export const getEnergyRecoveryInfo = (pet: PetState, now = Date.now()) => {
   const current = normalizePet(pet, now);
@@ -404,7 +401,7 @@ const getLifecycleRates = (pet: PetState, time: number): LifecycleRates => {
   const weatherMoodModifier = pet.weather === 'sunny' ? 0.75 : 1;
   const weatherCleanlinessModifier = pet.weather === 'rainy' ? 1.3 : 1;
   return {
-    hunger: isIdleFishing(pet) ? 0 : pet.community.expedition.active && pet.community.expedition.active.rulesVersion >= 2 && pet.community.expedition.active.mode === 'idle' ? pet.community.expedition.active.rulesVersion >= 3 ? -explorationTravel[pet.community.expedition.active.route[0]].idleHunger / 2 : -3 : scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
+    hunger: isIdleFishing(pet) ? 0 : scalePetStatDelta(pet, pet.isSleeping ? -2 : -7),
     mood: scalePetStatDelta(pet, pet.isSleeping
       ? 2
       : -(pressure > 0 ? 5 : 2) * weatherMoodModifier * getMoodDecaySeasonModifier(time)),
@@ -476,14 +473,8 @@ const advanceUnprotectedSlice = (
   rates: LifecycleRates,
 ): PetState => {
   const elapsedHours = (to - from) / hourMs;
-  const trip = pet.community.expedition.active;
-  // Energy is an integer stat. Charge the cumulative elapsed cost, never round each frame.
-  const idleEnergy = trip && trip.rulesVersion >= 2 && trip.mode === 'idle'
-    ? Math.ceil(Math.max(0, Math.min(to, trip.endsAt) - trip.startedAt) / hourMs * (trip.rulesVersion >= 3 ? explorationTravel[trip.route[0]].idleEnergy / 2 : 3) - 1e-9) : undefined;
   const advanced: PetState = {
     ...pet,
-    ...(idleEnergy !== undefined && trip ? { community: { ...pet.community, expedition: { ...pet.community.expedition, active: { ...trip, energySpent: idleEnergy } } } } : {}),
-    energy: idleEnergy !== undefined ? clampPetEnergy(pet, pet.energy - Math.max(0, idleEnergy - (trip?.energySpent ?? 0))) : pet.energy,
     hunger: clampPetHunger(pet, pet.hunger + rates.hunger * elapsedHours),
     mood: clampPetStat(pet, pet.mood + rates.mood * elapsedHours),
     cleanliness: clampPetStat(pet, pet.cleanliness + rates.cleanliness * elapsedHours),
@@ -494,7 +485,7 @@ const advanceUnprotectedSlice = (
   let recovered = recoverEnergyUntil(advanced, to, from);
   const adventure = recovered.adventure.active;
   if (adventure) recovered = { ...recovered, adventure: { ...recovered.adventure, active: { ...adventure, energySpent: Math.max(0, (adventure.energySpent ?? 0) - Math.max(0, recovered.energy - pet.energy)), healthLost: Math.max(0, (adventure.healthLost ?? 0) - Math.max(0, recovered.health - pet.health)) } } };
-  return advanceCommunityFishing(settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(recovered), to), to), to);
+  return advanceCommunityFishing(enforceAdventureHealth(updatePetSatiety(recovered), to), to);
 };
 
 const advanceProtectedSlice = (pet: PetState, from: number, to: number): PetState => {
@@ -569,7 +560,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
   );
 
   const applyImmediateStateChanges = (time: number) => {
-    next = advanceCommunityFishing(settleExpeditionTime(next, time), time);
+    next = advanceCommunityFishing(next, time);
     next = withWeatherForTime(next, time);
     if (next.partnerSchedule.active && time >= next.partnerSchedule.active.endsAt) {
       next = advancePartnerSchedule(next, time);
@@ -581,7 +572,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     while (transitionCount < 3) {
       transitionCount += 1;
       const idleAtNight = isNightTime(time) && time - next.lastInteractionAt >= autoSleepIdleMs;
-      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && !isExpeditionAway(next) && !next.community.fishing.active && idleAtNight) {
+      if (!next.isSleeping && !next.pomodoro.isRunning && !next.adventure.active && !next.community.fishing.active && idleAtNight) {
         next = startSleepSnapshot({
           ...next,
           isSleeping: true,
@@ -616,8 +607,6 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     const protectedBySchedule = isScheduleProtectedAt(cursor);
     const rates = protectedBySchedule ? undefined : getLifecycleRates(next, cursor);
     let sliceEndsAt = Math.min(now, getNextCalendarBoundary(cursor));
-    const expedition = next.community.expedition.active;
-    if (expedition?.mode === 'idle') sliceEndsAt = Math.min(sliceEndsAt, expedition.startedAt + (expedition.settledParts + 1) * getExpeditionCheckIntervalMs(expedition), expedition.endsAt);
     const fishing = next.community.fishing.active;
     if (fishing?.mode === 'idle') sliceEndsAt = Math.min(sliceEndsAt, fishing.startedAt + (fishing.settledCasts + 1) * fishingIntervalMs, fishing.endsAt);
 
@@ -630,7 +619,7 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
     }
 
     if (!protectedBySchedule && rates) {
-      if ((next.adventure.active || isExpeditionAway(next) || isIdleFishing(next)) && rates.health < 0) {
+      if ((next.adventure.active || isIdleFishing(next)) && rates.health < 0) {
         const distance = next.health - getPetStatCap(next) * adventureHealthRules.retreat;
         // The first millisecond strictly below the line, including starting on it.
         sliceEndsAt = Math.min(sliceEndsAt, cursor + Math.max(1, Math.floor(distance / -rates.health * hourMs) + 1));
@@ -760,11 +749,27 @@ const advancePetInternal = (pet: PetState, now = Date.now(), eventContext?: Neig
 export const advancePet = (...args: Parameters<typeof advancePetInternal>): PetState => {
   const now = args[1] ?? Date.now();
   if (args[0].timePause !== undefined) return migrateCommunityMarketPricing(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }));
-  if ((args[0].adventure.active?.rulesVersion ?? 11) < 11 || (args[0].community.expedition.active?.rulesVersion ?? 6) < 6) args[0] = completeLegacyExploration(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }), now);
-  let pet = settleExpeditionTime(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
+  if ((args[0].adventure.active?.rulesVersion ?? 11) < 11) args[0] = completeLegacyExploration(normalizePet(args[0], now, { preserveExpiredPartnerSchedule: true, preserveMiniGameSession: true }), now);
+  let pet = advanceAdventureCommissions(enforceAdventureHealth(updatePetSatiety(advancePetInternal(...args)), now), now);
+  // Rewards delivered by this update enter the warehouse after historical
+  // commerce, so freshly completed work cannot supply yesterday's shelves.
+  const delivered = Object.fromEntries(Object.entries(pet.inventory).map(([id, quantity]) => [id, Math.max(0, quantity - (args[0].inventory[id] ?? 0))]).filter(([, quantity]) => Number(quantity) > 0)) as Record<string, number>;
+  if (Object.keys(delivered).length) pet = { ...pet, inventory: Object.fromEntries(Object.entries(pet.inventory).map(([id, quantity]) => [id, quantity - (delivered[id] ?? 0)])) };
+  // Rods remain in the warehouse during idle fishing. Interleave their uses
+  // with restocks so reserved durability is released only when actually used.
+  while (pet.community.market.open && pet.health >= getPetStatCap(pet) * .2) {
+    const fishing = pet.community.fishing.active;
+    if (!fishing || fishing.mode !== 'idle') break;
+    const rod = fishing.strongRod ? 'reinforced_rod' : 'fishing_rod';
+    if (!pet.community.market.listings.some(slot => slot.autoRestock && slot.itemId === rod)) break;
+    const at = fishing.startedAt + (fishing.settledCasts + 1) * fishingIntervalMs;
+    if (at > now || at > fishing.endsAt) break;
+    pet = advanceCommunityFishing(advanceCommunityMarket(pet, at), at);
+  }
   pet = advanceCommunityFishing(pet, now);
   pet = advanceCommunityAnimals(pet, now);
   pet = advanceCommunityMarket(pet, now);
+  if (Object.keys(delivered).length) pet = { ...pet, inventory: Object.fromEntries([...new Set([...Object.keys(pet.inventory), ...Object.keys(delivered)])].map(id => [id, (pet.inventory[id] ?? 0) + (delivered[id] ?? 0)])) };
   return advanceMuseumWeek(advanceExplorationBudget(advanceCommunityActivities(advanceCommunityBoard(pet, now), now), now), now);
 };
 

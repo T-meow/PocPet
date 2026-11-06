@@ -1,19 +1,17 @@
-import type { AdventureRegionId } from '../core/adventureTypes';
 import type { RegionId } from '../core/expeditionTypes';
 import type { PetState } from '../core/petTypes';
 import type { LandmarkNode } from '../core/landmarkProgress';
 
 export type OutpostRequest =
-  | { view: 'idle' | 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode; museumVisit?: import('../core/museumData').MuseumVisitId }
+  | { view: 'manual' | 'camp'; region: RegionId; target?: string; node?: LandmarkNode; museumVisit?: import('../core/museumData').MuseumVisitId }
   | { view: 'journal' }
+  | { view: 'commissions' }
   | { view: 'tasks'; kind?: import('../core/explorationCampaignData').CampaignKind };
 
 export { expeditionRegionForMap, mapRegionForExpedition } from '../core/landmarkProgress';
 
 export const currentExpeditionRequest = (pet: PetState): OutpostRequest | undefined => {
-  const { active, pending } = pet.community.expedition;
-  if (pending) return { view: 'idle', region: pending.route[0] };
-  if (active) return { view: 'idle', region: active.route[0], target: active.target };
+  if (pet.adventure.commissions.some(commission => commission.status === 'ready')) return { view: 'commissions' };
 };
 
 export const initialOutpostRequest = (pet: PetState, requested?: OutpostRequest) =>

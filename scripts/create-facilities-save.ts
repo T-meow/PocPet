@@ -80,7 +80,7 @@ for (const importedAt of [now, now + 180 * 86_400_000]) {
   assert.ok(Object.values(loaded.pet.partnerSchedule.skills).every(skill => skill.level === 1 && skill.xp === 0));
   for (const id of durableToolIds) assert.equal(loaded.pet.inventory[id], 2, id);
   assert.equal(loaded.pet.adventure.active, undefined);
-  assert.equal(loaded.pet.community.expedition.active, undefined);
+  assert.deepEqual(loaded.pet.adventure.commissions, []);
 }
 const destination = new URL('../output/test-saves/full-facilities.pocpet.json', import.meta.url);
 await mkdir(new URL('.', destination), { recursive: true });

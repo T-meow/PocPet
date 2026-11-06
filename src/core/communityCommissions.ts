@@ -128,7 +128,7 @@ export const canClaimCommunityTask = (pet: PetState, task: CommunityTask) => {
 };
 export const claimCommunityTask = (pet: PetState, id: string): PetState => {
   const task = getCommunityTasks(pet).find(task => task.id === id);
-  if (pet.timePause || !task || pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active || !canClaimCommunityTask(pet, task)) return pet;
+  if (pet.timePause || !task || pet.adventure.active || pet.community.fishing.active || !canClaimCommunityTask(pet, task)) return pet;
   const def = commissionDefinitions[task.template];
   const rewardCoins = getCommunityTaskRewardCoins(task);
   const rewardItems = convertBuildingMaterialRewards(def.reward ?? {}).items;

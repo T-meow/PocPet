@@ -13,7 +13,7 @@ export const CommunitySpecialtyOrders = ({ pet, update, onOpenOutpost, itemIconM
   const candidates = getSpecialtyCandidates(pet);
   const orders = active ? [active, ...candidates.filter(order => order.id !== active.id)] : candidates;
   const order = orders.find(value => value.id === selected);
-  const busy = Boolean(pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active);
+  const busy = Boolean(pet.adventure.active || pet.community.fishing.active);
   const frozen = pet.timePause !== undefined;
   const accepted = Boolean(order && order.id === active?.id);
   const have = order ? pet.inventory[order.item] ?? 0 : 0;

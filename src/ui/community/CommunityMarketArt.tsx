@@ -28,9 +28,10 @@ export const CommunityMarketArt = ({ market, iconFor, nameFor, visitor }: Props)
         <rect x="2" y="2" width="130" height={rowHeight - 5} rx="5" fill={listing ? '#f9eed7' : '#c5a27a'} />
         <path d={`M5 ${rowHeight - 4}h124`} stroke="#8e6d4c" strokeWidth="5" />
         {listing ? <>
-          <image href={iconFor(listing.itemId)} x={(134 - size) / 2} y={(rowHeight - size) / 2 - 3} width={size} height={size} preserveAspectRatio="xMidYMid meet" />
-          <rect x="91" y={rowHeight - 28} width="36" height="22" rx="8" fill={listing.quantity === marketStackLimit ? '#835f83' : '#715644'} />
-          <text x="109" y={rowHeight - 12} textAnchor="middle" fill="#fffaf2" fontSize="17" fontWeight="600" fontFamily="sans-serif">{listing.quantity}</text>
+          <image href={iconFor(listing.itemId)} x={(134 - size) / 2} y={(rowHeight - size) / 2 - 3} width={size} height={size} opacity={listing.quantity ? 1 : .4} preserveAspectRatio="xMidYMid meet" />
+          <rect x="85" y={rowHeight - 28} width="42" height="22" rx="8" fill={!listing.quantity ? '#9c634d' : listing.quantity === marketStackLimit ? '#835f83' : '#715644'} />
+          <text x="106" y={rowHeight - 12} textAnchor="middle" fill="#fffaf2" fontSize={listing.quantity ? 17 : 14} fontWeight="600" fontFamily="sans-serif">{listing.quantity || '缺货'}</text>
+          {listing.autoRestock && <g><circle cx="15" cy="15" r="10" fill="#50766a" /><text x="15" y="20" textAnchor="middle" fill="#fff" fontSize="14">↻</text></g>}
         </> : <path d={`M60 ${rowHeight / 2}h14m-7-7v14`} stroke="#97734f" strokeWidth="3" strokeLinecap="round" opacity=".65" />}
       </g>;
     })}
@@ -41,7 +42,14 @@ export const CommunityMarketArt = ({ market, iconFor, nameFor, visitor }: Props)
     <path d="M291 150h412" stroke="#a67e63" strokeWidth="6" strokeLinecap="round" />
     <g transform="translate(497 190)"><rect x="-68" y="-20" width="136" height="38" rx="7" fill="#fff7e7" stroke="#ddbc96" strokeWidth="2" /><text textAnchor="middle" y="5" fill="#976653" fontSize="17" fontFamily="sans-serif" letterSpacing="3">溪畔小摊</text></g>
     <g transform="translate(239 396) rotate(-7)"><path d="M-28-9 0-57 32-9m-28-45 3-38" fill="none" stroke="#9c7b5b" strokeWidth="5" /><rect x="-34" y="-58" width="68" height="57" rx="4" fill="#567b79" stroke="#bc9c71" strokeWidth="5" /><text textAnchor="middle" y="-34" fill="#fff4dd" fontSize="12" fontFamily="sans-serif">{market.open ? '正在营业' : '歇一会儿'}</text><path d="M-16-19h32" stroke="#d0ddd0" strokeWidth="2" /></g>
-    <g transform="translate(755 521)"><path d="M-25-14h49l-5 44h-38Z" fill="#d9b095" /><path d="M0-12v-58m0 27q-37-26-29-37 24-6 29 26m0-11q20-34 31-26 3 22-30 32" fill="#9fb599" stroke="#839d7d" strokeWidth="3" /><circle cx="-4" cy="-78" r="12" fill="#e7bf9a" /></g>
+    <g transform="translate(780 542)" role="img" aria-label="伙伴的小木凳">
+      <ellipse cy="53" rx="53" ry="9" fill="#85654426" />
+      <path d="M-25 4l-4 37M25 4l4 37M-28 27h56" fill="none" stroke="#92704d" strokeWidth="7" strokeLinecap="round" />
+      <path d="M-34 9l-6 42M34 9l6 42M-38 37h76" fill="none" stroke="#ae865a" strokeWidth="8" strokeLinecap="round" />
+      <path d="M-47-1v9c0 17 94 17 94 0v-9Z" fill="#b88e60" stroke="#94704b" strokeWidth="3" />
+      <ellipse cy="-1" rx="47" ry="13" fill="#dfbc87" stroke="#94704b" strokeWidth="3" />
+      <path d="M-29-4q27-7 57 0M-24 3q24 5 48 0" fill="none" stroke="#c59e6c" strokeWidth="2" strokeLinecap="round" />
+    </g>
     {visitor && <g transform="translate(218 510)" data-market-visitor={visitor.customer}><g className="community-market-visitor">
       <ellipse cy="65" rx="49" ry="10" fill="#73543325" />
       <path d="m-12 32-4 29m29-29 4 29" stroke="#716780" strokeWidth="13" strokeLinecap="round" />

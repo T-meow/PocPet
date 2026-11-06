@@ -23,7 +23,7 @@ export const AdventureEntry = ({ entry, hasReward = false }: { entry: AdventureE
         ? L('远方的地图还在准备，期待下一次出发', 'New places are taking shape. A journey awaits.')
         : entry.traveling ? L('伙伴还在旅途中，行囊和进度都在', 'Your companion is traveling. Your bag and progress are saved.')
           : entry.pending ? L('已经回到前哨基地，收好旅途物资吧', 'Back at the outpost. Your travel supplies await collection.')
-            : L('前哨基地 · 地图探索、挂机与旅行日志', 'Visit the outpost and prepare to scout the valley.')}</small>
+            : L('前哨基地 · 地图探索、伙伴委托与旅行日志', 'Visit the outpost and prepare to scout the valley.')}</small>
     </span>
     <span className="home-adventure-status">{entry.status === 'locked'
       ? <><LockKeyhole size={13} aria-hidden="true" />{L('筹备中', 'Coming later')}</>

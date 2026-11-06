@@ -1,39 +1,45 @@
+import { useState } from 'react';
 import { ArrowRight, Backpack, BookOpen, ClipboardList, Compass, Gift, Map, ShoppingBag } from 'lucide-react';
-import type { PetState } from '../core/petTypes';
-import { completedLandmark, landmarkId, landmarkNames, landmarkNodes, mainStoryProgress, mapRegionForExpedition, nextLandmarks, regionNames } from '../core/landmarkProgress';
+import type { ItemRegistry, PetState } from '../core/petTypes';
+import { completedLandmark, landmarkId, landmarkNames, landmarkNodes, mainStoryProgress, nextLandmarks, regionNames } from '../core/landmarkProgress';
 import { getAdventureRouteNode } from '../core/valleyQuests';
 import { landmarkSummary } from '../core/landmarkData';
 import { isAdventureMapUnlocked } from '../core/adventureState';
 import { getEffectiveDailyDateKey } from '../core/gameClock';
-import { AdventureHall, type AdventureCompanion } from './AdventureCompanions';
+import { AdventureHall, getAdventureHallVisitors, resolveAdventureCompanion, type AdventureCompanion } from './AdventureCompanions';
 import { AdventureCompanionStatus, AdventureLandscape } from './AdventurePresentation';
+import { AdventureCommissions } from './AdventureCommissions';
+import '../styles/adventure-commissions.css';
 
-export const AdventureHome = ({ pet, actor, roster, primaryLabel, onPrimary, onMap, onJournal, onTasks, onSupplies, onStarter }: {
+export const AdventureHome = ({ pet, actor, roster, registry, icons, update, primaryLabel, onPrimary, onMap, onJournal, onTasks, onSupplies, onStarter }: {
   pet: PetState; actor: AdventureCompanion; roster: readonly AdventureCompanion[]; primaryLabel: string;
+  registry: ItemRegistry; icons: Record<string, string>; update: (fn: (pet: PetState) => PetState) => void;
   onPrimary: () => void; onMap: () => void; onJournal: () => void; onSupplies: () => void; onStarter: () => void;
   onTasks: () => void;
 }) => {
+  const [selectedId, setSelectedId] = useState<string>();
+  const visitors = getAdventureHallVisitors(actor.id, roster, getEffectiveDailyDateKey(pet));
+  const selectedTask = pet.adventure.commissions.find(task => task.actorId === selectedId);
+  const selected = selectedId ? visitors.find(visitor => visitor.id === selectedId) ?? resolveAdventureCompanion(roster, selectedId, selectedTask?.actorName) : undefined;
   const story = mainStoryProgress(pet.adventure), next = nextLandmarks(pet.adventure)[0];
   const unlocked = isAdventureMapUnlocked(pet.adventure);
-  const traveling = Boolean(pet.adventure.active || pet.community.expedition.active);
-  const pending = Boolean(pet.adventure.pending || pet.community.expedition.pending);
-  const trip = pet.adventure.active, expedition = pet.community.expedition, idle = expedition.active;
+  const traveling = Boolean(pet.adventure.active);
+  const pending = Boolean(pet.adventure.pending);
+  const trip = pet.adventure.active;
   const recent = [
     ...[...pet.adventure.journal, ...(pet.adventure.pending ? [pet.adventure.pending] : [])].map(entry => ({
       at: entry.endedAt, region: entry.region === 'tutorial' ? 'valley' as const : entry.region, node: getAdventureRouteNode(entry.purpose),
     })),
-    ...[expedition.lastReceipt, expedition.pending].flatMap(entry => entry ? [{
-      at: entry.at, region: mapRegionForExpedition[entry.route[entry.route.length - 1] ?? 'valley'], node: 'camp' as const,
-    }] : []),
   ].sort((a, b) => b.at - a.at)[0];
-  const region = trip ? trip.region === 'tutorial' ? 'valley' : trip.region : idle ? mapRegionForExpedition[idle.route[idle.leg] ?? idle.route[0] ?? 'valley'] : recent?.region ?? next?.region ?? 'valley';
-  const node = trip ? getAdventureRouteNode(trip.purpose) : idle ? 'camp' : recent?.node ?? next?.node ?? 'camp';
+  const region = trip ? trip.region === 'tutorial' ? 'valley' : trip.region : recent?.region ?? next?.region ?? 'valley';
+  const node = trip ? getAdventureRouteNode(trip.purpose) : recent?.node ?? next?.node ?? 'camp';
   const count = landmarkNodes.filter(id => completedLandmark(pet.adventure, region, id)).length;
   const nextTitle = !unlocked ? '新手踩点' : next ? landmarkNames[next.region][next.node] : '下一段旅途';
   const nextCaption = !unlocked ? '从第一步开始，熟悉行囊与探索。' : next ? landmarkSummary(landmarkId(next.region,next.node)).name : '五地的故事已经记下，再去看看新的发现。';
   return <div className="exploration-home-layout">
     <div className="exploration-home-main">
-      <AdventureHall actor={actor} roster={roster} day={getEffectiveDailyDateKey(pet)} traveling={traveling} />
+      <AdventureHall actor={actor} visitors={visitors} onSelect={setSelectedId} awayIds={pet.adventure.commissions.filter(task => task.status === 'active').map(task => task.actorId)} />
+      <AdventureCommissions pet={pet} selected={selected} canStart={visitors.some(visitor => visitor.id === selectedId)} roster={roster} registry={registry} icons={icons} update={update} onSelect={setSelectedId} onClose={() => setSelectedId(undefined)} />
       <button className="exploration-starter campaign-home-entry" onClick={onTasks}><ClipboardList size={24} /><span><strong>去山上吃顿饭</strong><small>{pet.adventure.campaign.tasks[30] ? '聚餐结束了，翻翻一起准备的那些事' : Object.values(pet.adventure.campaign.tasks).some(record => record && !record.claimedAt) ? '有办妥的事，去收下伙伴的心意' : pet.adventure.campaign.startedAt ? `聚餐准备 ${Object.keys(pet.adventure.campaign.tasks).length} / 30 · 看看接下来做什么` : '邻居们想聚餐，来一起准备吧'}</small></span><ArrowRight size={20} /></button>
       {(!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed) && <button className="exploration-starter" onClick={onStarter}><Gift size={22} /><span><strong>领取入门补给</strong><small>备好第一趟旅途的料理 ×4</small></span><ArrowRight size={20} /></button>}
     </div>

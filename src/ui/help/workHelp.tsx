@@ -3,7 +3,6 @@ import { getPartnerScheduleFullRewardPreview, getPartnerScheduleOfferPreview, pa
 import { getPartnerScheduleMasteryNextThreshold, partnerScheduleCategories } from '../../core/partnerScheduleEffects';
 import { getKitchenHeartReward } from '../../core/kitchen';
 import { getMarketBuyoutBonus } from '../../core/communityMarket';
-import { formatExpeditionInterval, getIdleExplorationTiming } from '../../core/expeditionTiming';
 import { communityTaskHearts, specialtyOrderHearts } from '../../core/activityHearts';
 import { communityConfig } from '../../core/community';
 import { specialtyRegularMultiplier, specialtyUrgentMultiplier } from '../../core/communitySpecialtyOrders';
@@ -35,7 +34,7 @@ export const getWorkHelp = (pet: PetState, offers: readonly HelpContent[] = []):
 };
 export const communityOrdersHelp: HelpContent = {
   title: '邻里接单',
-  overview: <><p>每日 5 点换新：普通委托有 3 份候选，每天最多接 2 单，同时保留 2 单。</p><p>特产收购每天公布 2 份，另接 1 单，同时保留 1 单。特产可以手动采集或挂机取得，也可以用现有库存交货。</p><p>已接委托和收购单不过期。放弃不会返还接单次数，已经交出的物品不退还。</p></>,
+  overview: <><p>每日 5 点换新：普通委托有 3 份候选，每天最多接 2 单，同时保留 2 单。</p><p>特产收购每天公布 2 份，另接 1 单，同时保留 1 单。特产可以手动采集或委托大厅伙伴搜集，也可以用现有库存交货。</p><p>已接委托和收购单不过期。放弃不会返还接单次数，已经交出的物品不退还。</p></>,
   details: <><p>普通委托完成后另得 {communityTaskHearts} 心心，特产收购另得 {specialtyOrderHearts} 心心。特产按参考价 {specialtyRegularMultiplier} 倍收购，每 3 天有一份 {specialtyUrgentMultiplier} 倍急单，急单同样给 {specialtyOrderHearts} 心心。</p><p>接取时锁定金币价格和装饰加成，旧单保留原金币报价，小心心按当前奖励领取。收购价不叠加小摊加价。</p><p>首次给修渠邻居送暖粥可得 {communityConfig.orderCoins} 金币、{communityConfig.orderHearts} 心心和永久体力上限 +3，只领取一次，不占每日接单额度。</p></>,
 };
 const getSkillHelp = (pet: PetState, id: PartnerScheduleCategory): HelpContent => {
@@ -43,6 +42,6 @@ const getSkillHelp = (pet: PetState, id: PartnerScheduleCategory): HelpContent =
   return {
     title: t('ui.partnerSchedule.categories.' + id) + '成长',
     overview: <><p>完成对应的工作与日常活动可以积累经验，逐步解锁技能效果。</p>{([2, 4, 5, 7, 8, 9, 10] as const).map(level => <p key={level}>{skill.level >= level ? '✓ ' : ''}{t('ui.partnerSchedule.passives.level' + level)}</p>)}{master && <p>{t('ui.partnerSchedule.masterPassives.' + id + '.' + (skill.masterCompletions >= 60 ? 'advanced' : 'base'))}</p>}</>,
-    details: <>{id === 'cooking' && <><p>{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet, 'plain_rice').skillBonusPercent })}</p><p>烹饪技能从 Lv.2 起每级提高小摊包场成交机会 5%，最高 +45%；当前提供 +{getMarketBuyoutBonus(pet).cooking}%，可与鎏金社区铭牌的加成相加。</p></>}{id === 'exercise' && <p>运动从 Lv.2 起每级缩短挂机探索判定间隔 2%，最高 18%，与星辉穹顶相乘。当前新行程每 {formatExpeditionInterval(getIdleExplorationTiming(pet, 2).intervalMs)} 判定一次。</p>}{master ? <p>{next ? t('ui.partnerSchedule.mastery.next' + next, { count: skill.masterCompletions, target: next }) : t('ui.partnerSchedule.mastery.complete', { count: skill.masterCompletions })}</p> : <p>满级后完整完成对应工作，可累计大师次数。</p>}</>,
+    details: <>{id === 'cooking' && <><p>{t('ui.partnerSchedule.kitchenHearts', { percent: getKitchenHeartReward(pet, 'plain_rice').skillBonusPercent })}</p><p>烹饪技能从 Lv.2 起每级提高小摊包场成交机会 5%，最高 +45%；当前提供 +{getMarketBuyoutBonus(pet).cooking}%，可与鎏金社区铭牌的加成相加。</p></>}{master ? <p>{next ? t('ui.partnerSchedule.mastery.next' + next, { count: skill.masterCompletions, target: next }) : t('ui.partnerSchedule.mastery.complete', { count: skill.masterCompletions })}</p> : <p>满级后完整完成对应工作，可累计大师次数。</p>}</>,
   };
 };

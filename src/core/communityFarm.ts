@@ -2,7 +2,7 @@ import { animals, normalizeAnimalName, ranchCompostCycleCount } from './communit
 import { getProductionHeartReward, grantActivityHearts } from './activityHearts';
 import type { AnimalId } from './communityTypes';
 import { addInventoryItem, removeInventoryItem } from './items';
-import { canDoFarmWork, finishFarmNeighborAction, getFarmAnimalCareEnergy, type FarmNeighborCandidates } from './farmNeighbor';
+import { canDoFarmWork, finishFarmNeighborAction, getFarmAnimalCareEnergy, getFarmNeighborStatus, type FarmNeighborCandidates } from './farmNeighbor';
 import type { PetState } from './petTypes';
 import { inventoryItemLimit } from './saveMetadata';
 import { getEffectiveDailyDateKey } from './gameClock';
@@ -77,8 +77,21 @@ export const collectCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevi
   const harvested = grantActivityHearts({ ...pet, inventory: addInventoryItem(pet.inventory, item, state.stock), community: { ...pet.community, ranchDay: { ...getRanchDay(pet, now), collected: true }, animals: { ...pet.community.animals,
     [id]: { ...state, stock: 0, revision: state.revision + 1, cycleMs: state.nextAt === undefined ? getAnimalCycleMs(pet, id) : state.cycleMs, nextAt: state.nextAt ?? (state.feed ? Math.max(now, pet.lastUpdatedAt) + getAnimalCycleMs(pet, id) : undefined) } } }, recentEvent: `收好${animals[id].name} ×${state.stock}，获得 ${hearts} 颗小心心。有余粮时继续下一轮生产。` }, hearts);
   const recorded = recordMuseumEvent(harvested, `animal:${item}`, state.stock, now);
-  const next = collectRanchCompost(recorded, now, null);
-  return finishFarmNeighborAction({ ...next, recentEvent: harvested.recentEvent + (next !== recorded ? next.recentEvent : '') + (getRanchCompost(next).ready ? '堆肥仓库已满，剩余堆肥留在牧场等你。' : '') }, '收获', now, neighbors);
+  let next = collectRanchCompost(recorded, now, null);
+  let message = harvested.recentEvent + (next !== recorded ? next.recentEvent : '') + (getRanchCompost(next).ready ? '堆肥仓库已满，剩余堆肥留在牧场等你。' : '');
+  if (getFarmNeighborStatus(next, now).active) {
+    const room = getAnimalCapacity(next.community, id).feed - next.community.animals[id].feed;
+    const quantity = Math.min(room, next.inventory.animal_feed ?? 0);
+    if (quantity > 0) {
+      next = feedCommunityAnimal(next, id, next.community.animals[id].revision, quantity, now, null);
+      message += `邻居顺手补充饲料 ×${quantity}。`;
+    }
+    if (quantity < room) message += '仓库饲料不足，食槽尚未补满。';
+    const cared = careCommunityAnimal(next, id, next.community.animals[id].revision, now, null);
+    if (cared !== next) message += '邻居已完成本轮照料，不消耗伙伴体力。';
+    next = cared;
+  }
+  return finishFarmNeighborAction({ ...next, recentEvent: message }, '收获', now, neighbors);
 };
 export const careCommunityAnimal = (pet: PetState, id: AnimalId, expectedRevision: number, now = Date.now(), neighbors?: FarmNeighborCandidates): PetState => {
   if (pet.timePause) return pet;

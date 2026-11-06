@@ -24,8 +24,8 @@ export const FarmNeighborHelp = ({ pet, neighbors, update }: {
       <div className="farm-neighbor-body">
         <div className="farm-neighbor-price">{status.active ? <><CalendarDays size={20} /><strong>剩余 {status.remainingDays} 天</strong></> : <><Heart size={20} /><strong>{farmNeighborCost} 心心</strong><span>/ {farmNeighborDays} 个游戏日</span></>}</div>
         <p className="farm-neighbor-expiry">服务至 {status.active ? status.expiresDay : expiresDay} 05:00</p>
-        <p>代办菜地、果园、鸡舍和牛棚的日常农务，伙伴忙碌时也能播种、照料和收获。</p>
-        <ul><li>动物照料不扣伙伴体力，材料与耐久照常消耗。</li><li>建设升级、厨房、钓鱼及货架操作仍需伙伴空闲。</li></ul>
+        <p>代办菜地、果园、鸡舍和牛棚的日常农务，伙伴忙碌时也能点击播种、照料、收获和管理小摊。</p>
+        <ul><li>动物收获后顺手用仓库饲料补满食槽并照料；饲料不足时尽量补入，不自动购买。</li><li>动物照料不扣伙伴体力，材料与耐久照常消耗。</li><li>小摊可按槽开启自动补货，营业时每 5 分钟补满，离线也有效。</li><li>建设升级、厨房和钓鱼仍需伙伴空闲。</li></ul>
         <p className="farm-neighbor-note">购买当天计第 1 天，05:00 换日；离线与冻结期间照常计日，到期后可重新雇佣。</p>
         {!status.active && <div className="farm-neighbor-balance"><span>现有 <Heart size={13} />{Math.floor(pet.hearts)}</span><span role="status">{pet.timePause ? '恢复时间后可雇佣' : shortfall > 0 ? `还差 ${shortfall} 心心` : ''}</span></div>}
       </div>

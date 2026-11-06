@@ -8,7 +8,7 @@ export const decorationEffects = {
   sun_weather_vane: { label: '牧场生产周期缩短', unit: '%', values: [5, 10, 20], treasure: 'hill_sunstone', place: '牧场屋顶' },
   emerald_pendant: { label: '普通采集额外一份概率', unit: '%', values: [10, 20, 35], treasure: 'forest_emerald', place: '旅途小路的树上' },
   pearl_lamp: { label: '咬钩等待时间缩短', unit: '%', values: [10, 20, 30], treasure: 'tidal_pearl', place: '首页小窝与钓鱼码头' },
-  star_dome: { label: '挂机珍宝概率增加', unit: '个百分点', values: [1, 3, 6], treasure: 'star_sapphire', place: '首页小窝' },
+  star_dome: { label: '伙伴委托额外珍宝概率增加', unit: '个百分点', values: [1, 3, 6], treasure: 'star_sapphire', place: '首页小窝' },
 } as const satisfies Record<CommunityDecorationId, { label: string; unit: string; values: readonly number[]; treasure: RegionalTreasureId; place: string }>;
 
 export const getDecorationLevel = (pet: Pick<PetState, 'community'>, id: CommunityDecorationId) => {
@@ -25,7 +25,7 @@ export const getDecorationEffects = (pet: Pick<PetState, 'community'>) => Object
 const marketTrafficPerLevel: Partial<Record<CommunityDecorationId, number>> = { golden_sign: 5, amber_lantern: 3, creek_fountain: 2 };
 export const getDecorationMarketTrafficBonus = (id: CommunityDecorationId, level: number) =>
   (marketTrafficPerLevel[id] ?? 0) * Math.max(0, Math.min(10, Math.floor(level)));
-export const getDecorationIdleTimeReduction = (level: number) => {
+export const getDecorationCommissionTimeReduction = (level: number) => {
   if (level <= 0) return 0;
   return Math.round((level <= 5 ? 5 + 5 * (level - 1) / 4 : 10 + 10 * (Math.min(10, level) - 5) / 5) * 10) / 10;
 };

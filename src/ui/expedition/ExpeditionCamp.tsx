@@ -10,8 +10,8 @@ import type { ExpeditionProps } from './types';
 import { AdventureLandscape } from '../AdventurePresentation';
 import { mapRegionForExpedition } from '../../core/landmarkProgress';
 
-export const ExpeditionCamp = ({ pet, update, region, onMap, onShop, onIdle }: Pick<ExpeditionProps, 'pet' | 'update'> & {
-  region: RegionId; onMap: () => void; onShop: () => void; onIdle: () => void;
+export const ExpeditionCamp = ({ pet, update, region, onMap, onShop, onCommissions }: Pick<ExpeditionProps, 'pet' | 'update'> & {
+  region: RegionId; onMap: () => void; onShop: () => void; onCommissions: () => void;
 }) => {
   const [confirm, setConfirm] = useState(false);
   const progress = pet.community.expedition.regions[region], place = regions[region];
@@ -25,7 +25,8 @@ export const ExpeditionCamp = ({ pet, update, region, onMap, onShop, onIdle }: P
   return <section className="outpost-camp">
     <AdventureLandscape region={mapRegionForExpedition[region]} node="camp" label={`${place.name} · 营地 Lv.${progress.base}`} />
     <div className="outpost-section-heading"><img className="outpost-location-icon" src={expeditionLandmarkIcons[region].camp} alt="" /><div><small>{place.name} · 营地 {progress.base}/2 级</small><h3>{place.base}</h3></div></div>
-    <p>{progress.base >= 2 ? '营地与往返步道已建成，可以安排挂机探索。' : upgrade.benefit}</p>
+    <p>{progress.base >= 2 ? '营地与往返步道已建成，前往本地区的伙伴委托耗时缩短 20%。' : upgrade.benefit}</p>
+    <p>地区解锁后即可在大厅委托伙伴；营地 1／2 级分别缩短当地委托耗时 10%／20%，与星辉穹顶加成相乘。</p>
     <ol className="outpost-camp-steps">{['完成全部地标', '修好休息基地', '修通往返步道'].map((name, i) => <li key={name} data-done={i === 0 ? progress.surveyed : progress.base >= i}><Check size={16} />{name}</li>)}</ol>
     {progress.base < 2 && <>
       <div className="outpost-costs"><span>金币 <b>{pet.coins}/{upgrade.coins}</b></span><span>木料 <b>{pet.inventory.community_wood ?? 0}/{upgrade.wood}</b></span><span>石料 <b>{pet.inventory.community_stone ?? 0}/{upgrade.stone}</b></span></div>
@@ -33,6 +34,6 @@ export const ExpeditionCamp = ({ pet, update, region, onMap, onShop, onIdle }: P
       <button className="exp-primary" onClick={() => setConfirm(true)}>查看建设方案</button>
       {confirm && <DialogShell role="alertdialog" className="exploration-confirm-sheet" labelId="camp-upgrade-title" onClose={() => setConfirm(false)}><header><h3 id="camp-upgrade-title">{upgrade.name}</h3><button className="icon-button" aria-label="关闭营地建设方案" onClick={() => setConfirm(false)}><X /></button></header><div className="exploration-sheet-body"><p>{upgrade.benefit}</p><p>金币 {pet.coins}/{upgrade.coins} · 木料 {pet.inventory.community_wood ?? 0}/{upgrade.wood} · 石料 {pet.inventory.community_stone ?? 0}/{upgrade.stone}</p>{reason && <p>{reason}</p>}</div><footer><button data-dialog-autofocus onClick={() => setConfirm(false)}>暂不建设</button><button className="primary-button" disabled={Boolean(reason)} onClick={() => { update(p => upgradeExpeditionBase(p, region, progress.base)); setConfirm(false); }}>确认建设</button></footer></DialogShell>}
     </>}
-    <div className="outpost-inline-actions">{!ready ? <button className="exp-secondary" onClick={onMap}>去地图继续故事</button> : <button className="exp-secondary" onClick={onShop}>去商店购买建材</button>}{progress.base > 0 && <button className="exp-secondary" onClick={onIdle}>安排挂机探索</button>}</div>
+    <div className="outpost-inline-actions">{!ready ? <button className="exp-secondary" onClick={onMap}>去地图继续故事</button> : <button className="exp-secondary" onClick={onShop}>去商店购买建材</button>}<button className="exp-secondary" onClick={onCommissions}>去大厅委托伙伴</button></div>
   </section>;
 };

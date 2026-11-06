@@ -1,8 +1,5 @@
 import type { HelpContent } from './HelpButton';
 import type { PetState } from '../../core/petTypes';
-import type { ExpeditionTrip } from '../../core/expeditionTypes';
-import { formatExpeditionInterval, getExpeditionCheckIntervalMs } from '../../core/expeditionTiming';
-import type { RationQuote } from '../../core/explorationRations';
 import { explorationSkillNames, getExplorationMoodEffects } from '../../core/explorationChecks';
 import { getPetStatRatio } from '../../core/petStats';
 import { explorationCapacity, explorationRefillMs, getExplorationBudget, getExplorationTier, getExplorationHarvestPay, manualTreasureChance, getExplorationRefillMs, commonLootPityLimit } from '../../core/explorationBudget';
@@ -12,7 +9,7 @@ import { commonTreasureDistributionText } from '../../core/adventureItems';
 export const gatheringCompanionHelp: HelpContent = {
   title: '同行与加倍采集',
   overview: <><p>有采集点的手动探索可在出发时选择 1／3／6／9 倍。1 倍免费；3／6／9 倍每趟分别支付 20／50／80 小心心，随机一位伙伴同行，商店与送货全程可用。出发成功后扣费，本趟倍率固定，提前返程不退费。</p><p>每次采集最多消耗所选倍率的机会；余量不足时使用全部剩余次数，零次时可以离开采集点。体力、饱食、耐久和技能经验按一次行动计算，物产、采集金币、心心与研究进度按实际次数结算。</p></>,
-  details: <><p>普通采集的目标与行动结果仍只判定一次；镰刀增产也计入倍率。研究进度先累计，再按跨过的完整调查周期发奖。随机宝物、保底与装饰额外掉落分别按实际消耗次数计算。</p><p>剧情只推进一步，首通及任务奖励不加倍；新手踩点、纯剧情回访和挂机不提供付费同行。商店报价、库存与送货额度照常，待拾取物资未整理完也能访问同行服务。</p></>,
+  details: <><p>普通采集的目标与行动结果仍只判定一次；镰刀增产也计入倍率。研究进度先累计，再按跨过的完整调查周期发奖。随机宝物、保底与装饰额外掉落分别按实际消耗次数计算。</p><p>剧情只推进一步，首通及任务奖励不加倍；新手踩点与纯剧情回访不提供付费同行。商店报价、库存与送货额度照常，待拾取物资未整理完也能访问同行服务。</p></>,
 };
 
 export const explorationHelp: HelpContent = {
@@ -26,7 +23,7 @@ export const getExplorationPreparationHelp = (pet: PetState): HelpContent => ({
 });
 export const backpackHelp: HelpContent = {
   title: '旅行背包',
-  overview: <><p>从仓库的食物、护理分类选择物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可在「营地与成长」永久扩容至 24／36／48／72／100 份。挂机食物按全程配餐上限计算，途中收获全部保留待领。</p><p>工具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现保留待处理，可部分收取、使用、兑换珍宝或确认丢弃。返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
+  overview: <><p>从仓库的食物、护理分类选择物品装入背包，出发时才扣除库存。整备时也可以直接使用家中物品。</p><p>手动背包按物品份数计容量，可在「营地与成长」永久扩容至 24／36／48／72／100 份。伙伴委托的收获不占旅行背包，全部保留待领。</p><p>工具直接读取仓库，无需装入背包；使用时消耗耐久，用尽扣除一件。多出的发现保留待处理，可部分收取、使用、兑换珍宝或确认丢弃。返程收获支持部分领取，仓库放不下的物品继续待领。</p></>,
   details: <><p>扩容依次需要：600 金币、木料 8、石料 4、溪光海蓝宝 ×1；1800 金币、木料 16、石料 10、风丘日光石 ×1；4200 金币、木料 24、石料 16、雾松祖母绿或月潮珍珠 ×1。</p><p>最终100份扩容需要完成五区故事，交付8000金币、木料32、石料24、五区珍宝各1、溪谷野菇／蜂蜜／林莓／海藻／观测零件各8，以及松香树脂8、潮汐海玻璃8。升级前需结束行程并收好回执。</p></>,
 };
 export const campHelp: HelpContent = {
@@ -40,35 +37,27 @@ export const rescueHelp: HelpContent = {
 };
 export const neighborHelp: HelpContent = {
   title: '前哨伙伴与途中商店',
-  overview: <><p>前哨空闲时最多有 3 位邻居歇脚，每个游戏日轮换，点击可以聊天。普通 1 倍探索通常每趟约 67% 偶遇伙伴；溪谷首次教学偶遇保留，新手踩点无商店。</p><p>普通偶遇需完成越障、整理待拾取物资后使用商店，行程结束时关闭。付费 3／6／9 倍同行从出发至返程全程开放，待拾取物资不阻挡服务。</p><p>伙伴商店本趟售完不补；仓库送货每份 2 心心，受行囊空位和原送货额度限制。</p></>,
+  overview: <><p>前哨邻居每天轮换，最多 3 位；点击可打开聊天与素材委托窗口。外出的邻居保留委托状态，不会立即换来新的访客。普通 1 倍探索通常每趟约 67% 偶遇伙伴；溪谷首次教学偶遇保留，新手踩点无商店。</p><p>普通偶遇需完成越障、整理待拾取物资后使用商店，行程结束时关闭。付费 3／6／9 倍同行从出发至返程全程开放，待拾取物资不阻挡服务。</p><p>伙伴商店本趟售完不补；仓库送货每份 2 心心，受行囊空位和原送货额度限制。</p></>,
   details: <p>伙伴与库存由出发行程固定，重新打开或读档不会重抽、补货。其他地区的偶遇从新出发行程生效，已有行程保留原来的伙伴和库存。</p>,
 };
-export const commonTreasureRules = <p>每次实际采集分别结算固定货币、目标物品和随机宝物。通用宝物的总掉落率按加权均价计算，手动最低 15%、挂机最低 12%，最高 75%；命中后按{commonTreasureDistributionText()}分配。连续 {commonLootPityLimit - 1} 次未掉落，第 {commonLootPityLimit} 次保底，手动、挂机和各地图共用计数，跨日保留。它们的兑换价值与固定金币分开展示，不影响当地珍宝的独立保底。</p>;
-export const manualTreasureRules = <p>手动每次实际消耗采集机会，独立以 {manualTreasureChance}% 概率发现当地珍宝。与手镐研究、挂机保底分别计算；免费观察不产生采集奖励。</p>;
+export const commonTreasureRules = <p>每次实际采集分别结算固定货币、目标物品和随机宝物。通用宝物的总掉落率按加权均价计算，最低 15%、最高 75%；命中后按{commonTreasureDistributionText()}分配。连续 {commonLootPityLimit - 1} 次未掉落，第 {commonLootPityLimit} 次保底，各地图共用计数，跨日保留。它们的兑换价值与固定金币分开展示，与当地珍宝独立计算。</p>;
+export const manualTreasureRules = <p>手动每次实际消耗采集机会，独立以 {manualTreasureChance}% 概率发现当地珍宝。与手镐研究、伙伴委托的额外珍宝分别计算；免费观察不产生采集奖励。</p>;
 export const getBudgetHelp = (pet: PetState): HelpContent => {
-  const loop = getExplorationBudget(pet), tier = getExplorationTier(pet), reserved = pet.community.expedition.active?.reservedHarvests ?? 0;
+  const loop = getExplorationBudget(pet), tier = getExplorationTier(pet);
   const minutes = loop ? Math.max(0, Math.ceil((loop.refillAt + getExplorationRefillMs(loop) - Date.now()) / 60000)) : 60;
   return {
     title: '采集机会与酬谢',
-    overview: <><p>每 {explorationRefillMs / 3600000} 小时恢复 1 次，最多 {explorationCapacity} 次，预留次数计入上限。当前可用 {loop?.available ?? 0} 次，挂机预留 {reserved} 次；{(loop?.available ?? 0) + reserved >= explorationCapacity ? '已存满。' : `${minutes} 分钟后恢复。`}</p><p>当前第 {tier} 档：溪谷手动每次采集 {getExplorationHarvestPay(pet, 'manual', 'valley').coins} 金币，挂机每次判定 {getExplorationHarvestPay(pet, 'hour', 'valley').coins} 金币。两种方式每次基础给 5 心心，随角色成长增加，当前为 {getExplorationHarvestPay(pet, 'manual', 'valley').hearts} 心心；消耗机会即有酬谢。</p><p>{tier === 1 ? '完成溪谷全部地标并修好营地后提升至第二档。' : tier === 2 ? `营地升至 2 级、累计采集 ${loop?.used ?? 0}/80 次并制作溪光水景后提升至第三档。` : '已达到第三档。'}</p></>,
-    details: <><p>三档手动基础金币为 20／40／80，挂机为 16／32／64；地区倍率依次为 100%／125%／150%／175%／220%。首次完成奖励另算。</p>{commonTreasureRules}{manualTreasureRules}<p>出发预留挂机次数，未使用部分在召回时退还。冻结时间暂停恢复。旧行程在更新时按成功结算，领取后转换剩余奖励券并启用新规则。</p></>,
+    overview: <><p>每 {explorationRefillMs / 3600000} 小时恢复 1 次，最多储存 {explorationCapacity} 次，相当于 {explorationCapacity * explorationRefillMs / 86400000} 天。当前可用 {loop?.available ?? 0} 次；{(loop?.available ?? 0) >= explorationCapacity ? '已存满。' : `${minutes} 分钟后恢复。`}</p><p>当前第 {tier} 档：溪谷每次采集 {getExplorationHarvestPay(pet, 'manual', 'valley').coins} 金币。每次基础给 5 心心，随角色成长增加，当前为 {getExplorationHarvestPay(pet, 'manual', 'valley').hearts} 心心；消耗机会即有酬谢。</p><p>{tier === 1 ? '完成溪谷全部地标并修好营地后提升至第二档。' : tier === 2 ? `营地升至 2 级、累计采集 ${loop?.used ?? 0}/80 次并制作溪光水景后提升至第三档。` : '已达到第三档。'}</p></>,
+    details: <><p>三档基础金币为 20／40／80；地区倍率依次为 100%／125%／150%／175%／220%。首次完成奖励另算。</p>{commonTreasureRules}{manualTreasureRules}<p>次数跨日保留，离线按同一速度恢复，冻结时间暂停恢复。多倍收集按实际消耗次数结算；伙伴委托不消耗采集次数。</p></>,
   };
 };
-export const rationRules = <><p>食物用于覆盖挂机期间的消耗。自动补给在出发时购买，费用会在出发前列出。</p><p>提前返回时会先吃剩余食物，吃饱后分给邻居。食物和补给费不退，未使用的采集机会退回，仓库放不下的收获保留待领。</p></>;
-export const idleTimingRules = <p>挂机基础每 30 分钟消耗 1 次采集机会，从当地物产池随机取得一组物资，并获得金币和心心，并寻找一次当地珍宝。运动从 Lv.2 起每级缩时 2%，最高 18%；星辉穹顶 Lv.1／5／10 缩时 5%／10%／20%，两项相乘。间隔与全程次数在出发时确定，食物和状态消耗仍按行程时长计算。随机采集各组等概率；选择偏好后，该组权重为其他组的 3 倍，仍会掉落其他当地物产。</p>;
-export const rationCalculationRules = <p>配餐评分按食物的正向基础属性合计；基础珍宝概率为 5 ＋ 15 ×（评分 ÷（54 × 最低份数）− 1），限制在 5%～20%，另加星辉穹顶效果。配餐页面列出当前概率，出发后固定。料理不会额外恢复途中状态。</p>;
+export const commissionHelp: HelpContent = {
+  title: '伙伴素材委托',
+  overview: <><p>每单 1 个金苹果，选择已解锁地区。基础耗时 2 小时，普通素材基础售价合计至少 1776 金币。不消耗体力、料理或采集次数，不占旅行背包。</p><p>每位伙伴一单，共最多 3 单（含待领取）。离线继续计时，冻结时暂停；满仓保留剩余收获，领完可再次委托。不支持提前取消、加速或自动续单。</p></>,
+  details: <><p>每单独立以 {formatProbabilityPercent(0.5)} 的基础概率额外带回当地珍宝 1 件，无保底，不抵扣普通素材保底价值。</p><p>营地 1／2 级缩时 10%／20%；星辉穹顶 Lv.1／5／10 缩时 5%／10%／20%，额外珍宝概率增加 1／3／6 个百分点。两种缩时相乘。</p><p>接单时固定收获、概率与耗时；读档不重抽，途中升级只影响下一单。</p></>,
+};
 export const treasureFindingHelp: HelpContent = {
   title: '寻找珍宝',
-  overview: <><p>手镐采集用于当地珍宝调查，调查进度跨天保留；行动前列出实际消耗。</p>{manualTreasureRules}{idleTimingRules}<p>挂机同地区连续 9 次未得后，第 10 次必得；随机获得清零，跨日保留。金币堆、琥珀与金条在各地采集中也有机会发现。</p></>,
-  details: <p>挂机配餐的基础珍宝概率为 5%～20%，另加星辉穹顶效果。出发时确定本趟概率，可在配餐说明中查看具体数值。</p>,
+  overview: <><p>手镐采集用于当地珍宝调查，调查进度跨天保留；行动前列出实际消耗。</p>{manualTreasureRules}<p>金币堆、琥珀与金条在各地采集中也有机会发现。委托大厅伙伴搜集素材时，有很低概率额外带回当地珍宝。</p></>,
+  details: commissionHelp.details,
 };
-export const getRationsHelp = (q: RationQuote): HelpContent => ({
-  title: '挂机配餐',
-  overview: <>{rationRules}<p>本趟至少需要 {q.minimum} 份食物、{q.nutrition} 基础饱食，最多 {q.maximum} 份；当前 {q.count} 份、{number(q.hunger)} 基础饱食。</p>{idleTimingRules}</>,
-  details: <><p>配餐评分 {number(q.score)} · 基础概率 {formatProbabilityPercent(q.baseChance)} · 星辉穹顶 +{number(q.decorationBonus)} 个百分点 · 最终概率 {formatProbabilityPercent(q.chance)}。</p>{rationCalculationRules}<p>采集时的金币堆、琥珀与金条独立计算，新行程不受每日奖励额度限制。</p></>,
-});
-export const getJourneyHelp = (trip: ExpeditionTrip): HelpContent => ({
-  title: '挂机行程',
-  overview: <><p>本趟每满 {formatExpeditionInterval(getExpeditionCheckIntervalMs(trip))} 结算一次采集，饱食和体力按实际时长消耗，全部材料运回。{trip.rulesVersion >= 7 ? '每次采集同时判定当地珍宝。' : '本趟沿用出发时的旧节奏，每两小时判定当地珍宝。'}{trip.rulesVersion >= 8 ? '物产随机抽取，偏好只提高目标比例。' : '本趟沿用出发时的固定物产规则。'}</p>{trip.rationPlan ? rationRules : <p>{trip.rulesVersion >= 2 ? '本趟提前返回会退回未使用的采集机会，以及尚未开始时段的配餐和补给费。' : '本趟按已完成的行程结算，带回已取得的物资。'}</p>}</>,
-  details: trip.rationPlan ? <p>本趟珍宝概率 {formatProbabilityPercent(trip.rationPlan.chance)}{trip.rationPlan.version >= 2 && '（配餐 ' + formatProbabilityPercent(trip.rationPlan.baseChance ?? 0) + ' ＋ 装饰 ' + number(trip.rationPlan.decorationBonus ?? 0) + ' 个百分点）'}。</p> : trip.rationSegments ? <>{trip.rationSegments.map((s, i) => <p key={i}>第 {i + 1} 段 · 珍宝概率 {formatProbabilityPercent(s.chance)} · 配餐 {s.count} 份 · 补给费 {s.price} 金币 · {s.settled ? '已结束' : s.started ? '正在使用' : '尚未开始，可退款'}</p>)}</> : undefined,
-});

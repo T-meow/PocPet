@@ -1,6 +1,8 @@
 import type { MarketCustomer } from './communityTypes';
 
-export const marketStackLimit = 10;
+export const marketStackLimit = 12;
+export const marketRestockIntervalMs = 5 * 60_000;
+export const getMarketVarietyMultiplier = (count: number) => (3 + 2 * Math.max(1, Math.min(6, count))) / 15;
 export const marketLegacyStackLimit = 20;
 export const marketMaxLevel = 2;
 export const marketSlotLimitVersion = 2;

@@ -7,7 +7,8 @@ import { shiftPetRuntimeTimestamps } from './gameClock';
 // local save has committed. The UI must never publish it before those succeed.
 export const prepareTimePause = (pet: PetState, now = Date.now(), context?: NeighborEventContext): PetState => {
   if (pet.timePause) return pet;
-  return { ...advancePet(pet, now, context), timePause: { schemaVersion: 1, pausedAt: now } };
+  const settled = advancePet(pet, now, context);
+  return { ...settled, community: { ...settled.community, market: { ...settled.community.market, nextRestockAt: undefined } }, timePause: { schemaVersion: 1, pausedAt: now } };
 };
 
 export const resumePetTime = (pet: PetState, now = Date.now()): PetState => {

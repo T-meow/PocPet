@@ -73,11 +73,36 @@
 .community-page .community-market-stock article > button { margin-top: auto; }
 .community-page .community-market-stock article > img { width: 58px; height: 58px; object-fit: contain; align-self: center; }
 .community-page .community-market-scene { display: flex; flex-direction: column; min-height: 660px; }
-.community-page .community-market-scene .community-production-heading { padding-bottom: 0; }
+.community-page .community-market-scene .community-production-heading { padding-right: 84px; padding-bottom: 0; }
 .community-page .community-market-scene .community-production-view { position: relative; inset: auto; flex: 1 0 auto; z-index: 0; min-height: 350px; }
-.community-page .community-market-scene .community-market-art { display: block; position: relative; top: auto; left: 50%; width: 100%; height: auto; max-height: 600px; transform: translateX(-50%); }
-.community-page .community-market-scene .community-harvest-sign { bottom: 12px; }
 .community-page .community-market-scene .community-production-footer { position: relative; padding-top: 14px; }
+.community-page .community-market-stage { position: relative; width: 100%; height: 0; padding-top: 70%; overflow: hidden; }
+.community-page .community-market-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.community-page .community-market-canvas .community-market-art { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; max-width: none; max-height: none; transform: none; }
+.community-page button.community-market-slot-target { position: absolute; display: block; min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; box-shadow: none; cursor: pointer; touch-action: manipulation; }
+.community-page button.community-market-slot-target:focus { outline: 3px solid #6f5140; outline-offset: -3px; background: #ffffff22; }
+.community-page .community-market-notebook { position: absolute; top: 18px; right: 18px; z-index: 2; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 8px; border: 1px solid #d6c4a7; border-radius: 12px; background: #fffaf0; color: #74593e; }
+.community-page .community-market-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; flex: 0 0 auto; min-width: 0; min-height: 44px; margin: 12px 24px 8px; padding: 6px 12px; border: 1px solid #decba8; border-radius: 12px; background: #fff8e9; color: #746044; font-size: 12px; line-height: 1.6; text-align: left; }
+.community-page .community-market-info > span { display: inline-flex; align-items: center; margin: 3px 0; }
+.community-page .community-market-info .community-market-info-stock { margin-right: 12px; }
+.community-page .community-market-info svg { flex-shrink: 0; margin-right: 6px; }
+.community-page .community-market-info[data-reduced=true] { border-color: #d6b778; }
+.community-page .community-market-info[data-reduced=true] .community-market-info-traffic { color: #93601f; }
+/* The companion's feet meet the stool seat at SVG (780, 542). */
+.community-page .community-market-canvas .community-market-duty { position: absolute; left: 72.5%; top: 56%; right: auto; bottom: auto; z-index: 1; width: 11%; height: 21.428571%; max-width: none; max-height: none; margin: 0; }
+.community-page .community-market-canvas .community-companion-name { top: 134%; width: 140%; max-width: none; padding: 3px 4px; font-size: 10px; }
+.community-page .community-market-canvas .community-companion-name strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.community-page .community-market-slot-tabs, .community-page .community-market-slot-actions { display: flex; flex-wrap: wrap; margin: 0 -6px 10px 0; }
+.community-page .community-market-slot-tabs > button, .community-page .community-market-slot-actions > button { margin: 0 6px 8px 0; min-height: 44px; }
+.community-page .community-market-slot-tabs > button { min-width: 44px; }
+.community-page .community-market-slot-tabs > button[aria-pressed=true] { background: #795d42; color: #fff; border-color: #795d42; }
+.community-page .community-market-slot-summary { display: flex; align-items: center; min-width: 0; }
+.community-page .community-market-slot-summary > img { width: 64px; height: 64px; flex-shrink: 0; margin-right: 14px; object-fit: contain; }
+.community-page .community-market-slot-summary > div { min-width: 0; word-wrap: break-word; }
+.community-page .community-market-slot-summary h3 { margin: 0; }
+.community-page .community-market-quantity, .community-page .community-market-auto { display: flex; align-items: center; min-height: 44px; margin: 12px 0; }
+.community-page .community-market-quantity input { width: 90px; min-height: 44px; margin-left: 10px; padding: 8px; font: inherit; font-size: 16px; border: 1px solid #c9b99e; border-radius: 8px; background: white; color: #51432f; }
+.community-page .community-market-auto input { flex-shrink: 0; width: 20px; height: 20px; margin: 0 8px 0 0; }
 .community-page .community-market-announcement { position: absolute; top: 10px; left: 50%; z-index: 1; width: max-content; max-width: 90%; transform: translateX(-50%); pointer-events: none; text-align: center; }
 .community-page .community-market-announcement > span { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px 12px; padding: 10px 18px; border: 1px solid #d8c4a9; border-radius: 16px; background: #fffaf1f5; color: #765d49; box-shadow: 0 5px 18px #5e403021; font-size: 13px; }
 .community-page .community-market-announcement > span[data-generous=true] { background: #fff1d8; border-color: #d9b469; color: #8c5d36; }
@@ -179,9 +204,22 @@
   .community-page .community-production-heading h3 { font-size: 22px; }
   .community-page .community-scene-status { margin: 0; font-size: 11px; padding: 5px 10px; }
   .community-page .community-production-art { width: 155%; max-width: none; height: auto; top: 48%; }
-  .community-page .community-market-scene { min-height: 620px; }
-  .community-page .community-market-scene .community-market-art { width: 155%; max-width: none; }
-  .community-page .community-market-scene .community-production-view { min-height: 300px; }
+  .community-page .community-market-scene { flex: 0 0 auto; min-height: 0; }
+  .community-page .community-market-scene .community-production-heading { padding: 18px 72px 8px 16px; }
+  .community-page .community-market-scene .community-production-heading h3 { font-size: 20px; }
+  .community-page .community-market-scene .community-production-view { flex: 0 0 auto; min-height: 0; }
+  /* Crop to SVG (160, 100, 720, 600), including the stool and nameplate.
+     Art, companion and slot hit targets share the same coordinate system. */
+  .community-page .community-market-stage { padding-top: 83.333333%; }
+  .community-page .community-market-canvas { left: -22.222222%; top: -16.666667%; width: 138.888889%; height: 116.666667%; }
+  .community-page .community-market-notebook { top: 16px; right: 16px; }
+  .community-page .community-market-info { margin: 4px 12px 8px; padding: 6px 10px; }
+  .community-page .community-market-scene .community-production-footer { padding: 12px; }
+  .community-page .community-market-scene .community-production-dock { flex-wrap: nowrap; gap: 0; }
+  .community-page .community-market-scene .community-production-dock > .primary-button,
+  .community-page .community-market-scene .community-production-dock > .secondary-button { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1 1 0; min-width: 0; max-width: none; min-height: 58px; margin: 0; padding: 8px 4px; gap: 0; font-size: 13px; line-height: 1.35; white-space: nowrap; }
+  .community-page .community-market-scene .community-production-dock > button + button { margin-left: 6px; }
+  .community-page .community-market-scene .community-production-dock > button > svg { flex-shrink: 0; width: 18px; height: 18px; margin: 0 0 4px; }
   .community-page .community-market-announcement > span { font-size: 11px; gap: 4px 8px; padding: 8px 12px; }
   .community-page .community-production-footer { padding: 30px 16px 20px; }
   .community-page .community-production-caption { flex-direction: column; font-size: 11px; gap: 2px; }

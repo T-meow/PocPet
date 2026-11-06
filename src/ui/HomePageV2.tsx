@@ -42,7 +42,7 @@ interface Props extends HomePageProps {
 }
 export const HomePageV2 = (props: Props) => {
   const { pet, actorId, neighbors, onInteract, canUpgrade, nextUpgradeCost, onUpgrade, pomodoroOverlay, petStatusImages, petActivityImages, getStatusLabel, onOpenInventory, onOpenPlay, onOpenKitchen, onOpenGarden, onOpenPartnerSchedule, onOpenPomodoro, onDailyWish, onReturnWelcome, onAction, onOpenMemories } = props;
-  const busy = Boolean(pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active);
+  const busy = Boolean(pet.partnerSchedule.active || pet.adventure.active || pet.community.fishing.active);
   const wish = getDailyWishView(pet);
   const welcome = getReturnWelcomeView(pet);
   const companionWish = getCompanionWish(pet, actorId);
@@ -71,12 +71,12 @@ export const HomePageV2 = (props: Props) => {
     return dreamsUnlocked && !stage.complete && stage.requirementsMet && stage.coinsMet && stage.applesMet && Boolean(stage.rewardFits);
   }) || dreamsUnlocked && isClassicEndgameComplete(pet) && pet.classicEndgame.legacyCoinsInvested >= getClassicLegacyLevelCoinCost(pet.classicEndgame.legacyLevel + 1) && (pet.inventory.golden_apple ?? 0) >= getClassicLegacyAppleCost(pet.classicEndgame.legacyLevel + 1);
   const festivalGiftReady = Object.values(pet.festivalStories.runs).some(run => run.stage === 'complete' && !hasFestivalReward(pet, run));
-  const adventureGiftReady = Boolean(pet.adventure.pending || pet.community.expedition.pending) || !pet.adventure.active && !pet.community.expedition.active && (!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed);
+  const adventureGiftReady = Boolean(pet.adventure.pending) || pet.adventure.commissions.some(task => task.status === 'ready') || !pet.adventure.active && (!pet.adventure.starterClaimed || !pet.adventure.starterMealsClaimed);
   const today = !wish.claimed || Boolean(welcome) || Boolean(pet.partnerSchedule.pendingResult) || Boolean(props.gardenReminder) || friendGiftReady;
   const activeGame = pet.miniGames.active?.actorId === actorId ? pet.miniGames.active : undefined;
   const playLocked = pet.level < miniGameUnlockLevel;
   const quickPlayBlocked = busy || props.isLowEnergy || props.isCriticallyHungry;
-  const quickPlayHint = isExpeditionAway(pet) ? '伙伴正在远行，请先在基地暂停或返回' : pet.community.fishing.active ? '伙伴正在水边钓鱼，请先收起鱼竿' : pet.adventure.active ? L('伙伴正在溪谷探查，请先返回基地', 'Your companion is scouting. Return to the outpost first.') : busy ? L('伙伴正在社区帮忙', 'Your companion is helping in the community')
+  const quickPlayHint = pet.community.fishing.active ? '伙伴正在水边钓鱼，请先收起鱼竿' : pet.adventure.active ? L('伙伴正在溪谷探查，请先返回基地', 'Your companion is scouting. Return to the outpost first.') : busy ? L('伙伴正在社区帮忙', 'Your companion is helping in the community')
     : props.isCriticallyHungry ? t('ui.actionDock.lowHunger')
       : props.isLowEnergy ? t('ui.actionDock.lowEnergy') : L('消耗体力，恢复心情', 'Spend energy to lift their mood');
   return <div className="home-v2"><div className="home-v2-title"><div><p>OUR LITTLE HOME</p><h2>{L(`${pet.name} 的小窝`, `${pet.name}’s little home`)}</h2></div><span>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} together`)}</span></div>
@@ -149,4 +149,3 @@ export const HomePageV2 = (props: Props) => {
     </div>
   </div>;
 };
-import { isExpeditionAway } from '../core/expeditionData';

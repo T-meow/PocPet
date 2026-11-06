@@ -51,7 +51,7 @@ export const CommunityBoard = (props: CommunityPanelProps & { actorId: string; a
         <div className="community-actions">
           {def.region && def.node && onOpenOutpost && <button className="secondary-button" onClick={() => onOpenOutpost({ view: 'manual', region: def.region!, node: def.node, target: Object.keys(def.take ?? {})[0] })}>前往目标地标</button>}
           {def.recipe && <button className="secondary-button" onClick={() => onKitchen(def.recipe)}>去厨房制作</button>}
-          <button className="primary-button" disabled={!canClaimCommunityTask(pet, task) || Boolean(pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active)} onClick={() => { update(p => claimCommunityTask(p, task.id)); close(); }}>交付并领取酬谢</button>
+          <button className="primary-button" disabled={!canClaimCommunityTask(pet, task) || Boolean(pet.adventure.active || pet.community.fishing.active)} onClick={() => { update(p => claimCommunityTask(p, task.id)); close(); }}>交付并领取酬谢</button>
           {!task.found && task.template.startsWith('fish_') && <button className="secondary-button" onClick={() => onFishing(def.water)}>去对应水域钓鱼</button>}
           {onFarm && ['vegetables', 'eggs', 'milk'].includes(task.template) && <button className="secondary-button" onClick={() => task.template === 'eggs' && !pet.community.facilities.coop.built || task.template === 'milk' && !pet.community.facilities.barn.built ? props.onShop() : onFarm(task.template === 'eggs' ? 'coop' : task.template === 'milk' ? 'barn' : 'field')}>去生产地点</button>}
         </div>

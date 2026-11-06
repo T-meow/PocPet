@@ -20,13 +20,7 @@ export const persistentPetKeys = [
 ] as const satisfies readonly (keyof PetState)[];
 
 type PersistentBase = Pick<PetState, typeof persistentPetKeys[number]>;
-type Expedition = PetState['community']['expedition'];
 type Memory = PetState['companionMemories']['entries'][number];
-type PersistedExpedition = Omit<Expedition, 'active' | 'pending' | 'lastReceipt'> & {
-  active?: Omit<NonNullable<Expedition['active']>, 'journal'>;
-  pending?: Omit<NonNullable<Expedition['pending']>, 'journal'>;
-  lastReceipt?: Omit<NonNullable<Expedition['lastReceipt']>, 'journal'>;
-};
 export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGacha' | 'kitchen' | 'miniGames' | 'achievements' | 'yearlyStats' | 'companionMemories' | 'community'> & {
   garden: Omit<PetState['garden'], 'activeSlotIndex' | 'slots'> & { slots: Array<PetState['garden']['slots'][number] | { unlocked: boolean }> };
   goldenAppleGacha: Omit<PetState['goldenAppleGacha'], 'recentResults' | 'recentHeartResults' | 'recentGoldenResults'>;
@@ -39,15 +33,10 @@ export type PersistedPetStateV2 = Omit<PersistentBase, 'garden' | 'goldenAppleGa
   };
   yearlyStats: Omit<PetState['yearlyStats'], 'activeDateKeys'> & { activeDateKeys: PersistedDateKeys };
   companionMemories: { schemaVersion: 1; entries: Array<Omit<Memory, 'id' | 'mentionedAt'> & { id?: string }> };
-  community: Omit<PetState['community'], 'expedition'> & { expedition: PersistedExpedition };
+  community: PetState['community'];
 };
 
 const memoryId = (entry: { actorId: string; kind: string; subject: string }) => `${entry.actorId}:${entry.kind}:${entry.subject}`.slice(0, 200);
-const withoutJournal = <T extends { journal: string[] }>(record: T | undefined): Omit<T, 'journal'> | undefined => {
-  if (!record) return undefined;
-  const { journal: _journal, ...rest } = record;
-  return rest;
-};
 
 export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 => {
   const current = normalizePet(pet, now);
@@ -57,7 +46,6 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
   const { plating: _plating, lastCraft: _craft, ...kitchen } = current.kitchen;
   const { style: _style, lastResult, ...miniGames } = current.miniGames;
   const { pendingReviewNotice: _notice, ...achievements } = current.achievements;
-  const expedition = current.community.expedition;
   return {
     ...base,
     garden: { ...garden, slots: garden.slots.map((slot) => slot.state === 'empty' && slot.dailyAdvancedFertilizerReductionMs === 0 ? { unlocked: slot.unlocked } : slot) },
@@ -68,15 +56,12 @@ export const toPersistedPet = (pet: PetState, now: number): PersistedPetStateV2 
     yearlyStats: { ...current.yearlyStats, activeDateKeys: packDateKeys(current.yearlyStats.activeDateKeys) },
     companionMemories: { ...current.companionMemories, entries: current.companionMemories.entries.map(({ id, mentionedAt: _mentioned, ...entry }) =>
       id === memoryId(entry) ? entry : { ...entry, id }) },
-    community: { ...current.community, expedition: { ...expedition,
-      active: withoutJournal(expedition.active), pending: withoutJournal(expedition.pending), lastReceipt: withoutJournal(expedition.lastReceipt),
-    } },
+    community: current.community,
     miniGames: { ...miniGames, lastSettledSessionId: miniGames.lastSettledSessionId || lastResult?.id || '', lastResult: lastResult?.pending ? lastResult : undefined },
   };
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-const withEmptyJournal = (record: unknown) => isObject(record) ? { ...record, journal: [] } : record;
 
 export const hydratePersistedPet = (raw: Record<string, unknown>, compact = false): Record<string, unknown> => {
   const pet = { ...raw, recentEvent: '', recentActivity: 'idle', recentActivityUntil: 0, lowCleanlinessSleepConfirmCount: 0,
@@ -97,12 +82,6 @@ export const hydratePersistedPet = (raw: Record<string, unknown>, compact = fals
         ? memoryId({ actorId: entry.actorId, kind: entry.kind, subject: entry.subject }) : entry.id;
       return { ...entry, id, mentionedAt: 0 };
     }) };
-  }
-  if (isObject(raw.community) && isObject(raw.community.expedition)) {
-    const expedition = raw.community.expedition;
-    pet.community = { ...raw.community, expedition: { ...expedition,
-      active: withEmptyJournal(expedition.active), pending: withEmptyJournal(expedition.pending), lastReceipt: withEmptyJournal(expedition.lastReceipt),
-    } };
   }
   return pet;
 };

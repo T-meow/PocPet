@@ -18,7 +18,7 @@ const stage = (level: number) => level >= 10 ? 'complete' : level >= 5 ? 'grown'
 const itemName = (item: string) => getInventoryItem(item as ItemId)?.name ?? item;
 export const DecorationSources = ({ treasure, onNavigate, onShop }: { treasure?: RegionalTreasureId; onNavigate: (request: OutpostRequest) => void; onShop: () => void }) => {
   const region = treasure ? regionalTreasures[treasure].region : 'valley';
-  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region, node: 'gather', target: treasure })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'idle', region })}>安排当地挂机</button><button className="secondary-button" onClick={onShop}>去商店购买建材</button></div></section>;
+  return <section className="decoration-sources"><h3>去收集材料</h3><div><button className="secondary-button" onClick={() => onNavigate({ view: 'manual', region, node: 'gather', target: treasure })}>去{treasure ? regionalTreasures[treasure].name : '通用物品'}产地探索</button><button className="secondary-button" onClick={() => onNavigate({ view: 'commissions' })}>委托大厅伙伴搜集</button><button className="secondary-button" onClick={onShop}>去商店购买建材</button></div></section>;
 };
 export const DecorationArt = ({ id, level }: { id: CommunityDecorationId; level: number }) => <span className="decoration-art" data-stage={stage(level)} data-owned={level > 0}><img src={decorationIcons[id]} alt="" />{level >= 5 && <span className="decoration-art-trim" aria-hidden="true">{level >= 10 ? '✦' : '◇'}</span>}</span>;
 

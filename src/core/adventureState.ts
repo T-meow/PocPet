@@ -17,6 +17,7 @@ import { campaignVisits, isCampaignVisitId } from './explorationCampaignData';
 import { normalizeMuseumTrip } from './museumState';
 import { isMuseumVisitId, museumVisits } from './museumData';
 import { normalizeAdventureGatherMultiplier } from './adventureGathering';
+import { normalizeAdventureCommissions } from './adventureCommissionState';
 
 const object = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw as Record<string, unknown> } : {};
 const count = (raw: unknown, max = Number.MAX_SAFE_INTEGER) => typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(max, Math.floor(raw))) : 0;
@@ -34,14 +35,11 @@ export const getAdventureItemPurchaseCapacity = (pet: PetState, id: string) => {
   if (!['trail_mix', 'berry_bait', 'nutrient_compost'].includes(id) && !durableToolIds.includes(id as DurableToolId)) return Infinity;
   const trip = pet.adventure.active;
   const pending = pet.adventure.pending;
-  const expedition = pet.community.expedition;
   const reserved = (trip?.bag[id] ?? 0) + (trip?.loot[id] ?? 0) + (id === 'trail_rope' && trip?.tool ? 1 : 0) + (pending?.items[id] ?? 0)
-    + (pending?.salvage?.[id] ?? 0) + (id === 'trail_rope' && pending?.salvageTool ? 1 : 0)
-    + (expedition.active?.bag[id] ?? 0) + (expedition.active?.ground[id] ?? 0) + (expedition.pending?.items[id] ?? 0) + (expedition.pending?.overflow[id] ?? 0)
-    + (id === 'trail_rope' ? Number(Boolean(expedition.active?.tool)) + Number(Boolean(expedition.pending?.tool)) : 0);
+    + (pending?.salvage?.[id] ?? 0) + (id === 'trail_rope' && pending?.salvageTool ? 1 : 0);
   return Math.max(0, inventoryItemLimit - (pet.inventory[id] ?? 0) - reserved);
 };
-export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 10, campaign: defaultExplorationCampaign(), reunion: defaultSpringReunion(), landmarks: [], backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
+export const defaultAdventureState = (): AdventureState => ({ schemaVersion: 10, commissions: [], nextCommissionId: 1, commissionsCompleted: 0, campaign: defaultExplorationCampaign(), reunion: defaultSpringReunion(), landmarks: [], backpackLevel: 0, valleyCompleted: [], starterClaimed: false, starterMealsClaimed: false, tripsStarted: 0, completed: {}, lastCompletedDay: {}, discoveries: [], active: undefined, pending: undefined, journal: [] });
 export const isAdventureMapUnlocked = (state: AdventureState) => (state.completed.tutorial ?? 0) > 0;
 const dayKey = (raw: unknown) => typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
 const route = (raw: unknown) => isLandmarkId(raw) ? raw : typeof raw === 'string' && ['irrigation', 'seeds', 'commission', ...facilityIds, ...valleyQuestIds].includes(raw) ? raw as CommunityRoute : undefined;
@@ -136,6 +134,7 @@ const normalizeResult = (raw: unknown): AdventureResult | undefined => {
 export const normalizeAdventureState = (raw: unknown): AdventureState => {
   const value = object(raw);
   const campaign = normalizeExplorationCampaign(value.campaign), reunion = normalizeSpringReunion(value.reunion);
+  const commissions = normalizeAdventureCommissions(value.commissions);
   const completed = object(value.completed);
   const pending = normalizeResult(value.pending);
   const journal = (Array.isArray(value.journal) ? value.journal : []).slice(0, 8).map(normalizeResult).filter((entry): entry is AdventureResult => Boolean(entry));
@@ -145,6 +144,8 @@ export const normalizeAdventureState = (raw: unknown): AdventureState => {
     return latest ? [[region, latest]] : [];
   }));
   return {
+    commissions, commissionsCompleted: count(value.commissionsCompleted),
+    nextCommissionId: Math.max(1, count(value.nextCommissionId), ...commissions.map(task => count(Number(task.id.replace(/^commission:/, ''))) + 1)),
     schemaVersion: 10, campaign, reunion, landmarks: Array.isArray(value.landmarks) ? [...new Set(value.landmarks.filter(isLandmarkId))] : [], backpackLevel: normalizeBackpackLevel(value.backpackLevel), valleyCompleted: Array.isArray(value.valleyCompleted) ? [...new Set(value.valleyCompleted.filter(isValleyQuest))] : [], starterClaimed: value.starterClaimed === true, starterMealsClaimed: value.starterMealsClaimed === true, tripsStarted: count(value.tripsStarted),
     completed: Object.fromEntries(adventureDestinationIds.filter(id => count(completed[id]) > 0).map(id => [id, count(completed[id])])),
     discoveries: Array.isArray(value.discoveries) ? [...new Set(value.discoveries.filter((id): id is string => typeof id === 'string' && /^(valley:[0-5]|tutorial:[0-3])$/.test(id)))].slice(0, adventureStepCount + adventureTutorialStepCount) : [],

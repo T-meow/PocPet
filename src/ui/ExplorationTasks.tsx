@@ -46,8 +46,8 @@ export const ExplorationTasks = ({ pet, actorId, actorName, mods, update, onVisi
   const archiveTasks = getCampaignTasks(kind, archive.theme).filter(task => archive.tasks[task.id]);
   const completed = definitions.filter(task => state.tasks[task.id]);
   const unclaimed = completed.filter(task => !state.tasks[task.id]?.claimedAt);
-  const traveling = Boolean(pet.adventure.active || pet.community.expedition.active);
-  const pending = Boolean(pet.adventure.pending || pet.community.expedition.pending);
+  const traveling = Boolean(pet.adventure.active);
+  const pending = Boolean(pet.adventure.pending);
   const claim = (id: number) => {
     const reason = getCampaignClaimReason(pet, id, state.runId, kind);
     return <div className="campaign-claim"><button className="primary-button" disabled={Boolean(reason)} onClick={() => update(p => claimCampaignTask(p, id, Date.now(), state.runId, kind))}><Gift size={18} />收下这份心意</button>{reason && <small role="status">{reason}</small>}</div>;

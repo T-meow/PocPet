@@ -43,7 +43,7 @@ export interface FishingPreferences {
   mode: 'manual' | 'idle'; hours: 2 | 4 | 8; rations: import('./explorationRations').RationSelection;
   inviteCompanion?: boolean;
 }
-export interface MarketListing { id: number; slotIndex: number; itemId: string; quantity: number; unitPrice: number; basePrice: number; bonus: number; collector: boolean }
+export interface MarketListing { id: number; slotIndex: number; itemId: string; quantity: number; unitPrice: number; basePrice: number; bonus: number; collector: boolean; autoRestock?: boolean }
 export type MarketCustomer = 'ordinary' | 'foodie' | 'collector' | 'generous';
 export interface MarketReceipt {
   visit: number; customer: MarketCustomer | 'legacy'; buyout: boolean; at: number; coins: number;
@@ -53,7 +53,7 @@ export interface CommunityMarket {
   pricingVersion: number;
   slotLimitVersion: number; slotRefundCoins: number; slotRefundTotal: number;
   level: number; open: boolean; lastVisitAt: number; visitors: number; nextListingId: number;
-  seed: number; nextVisitAt?: number; remainingVisitMs?: number;
+  seed: number; nextVisitAt?: number; remainingVisitMs?: number; visitDurationMs?: number; nextRestockAt?: number;
   lastBuyoutDay: string;
   listings: MarketListing[]; reserve: Record<string, number>; revenue: number; sessionRevenue: number; premium: number; sold: number;
   log: MarketReceipt[];

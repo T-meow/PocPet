@@ -147,7 +147,6 @@ import { HomePageV2 as HomePage } from './HomePageV2';
 import { AdventurePage } from './AdventurePage';
 import { CommunityPage, type CommunityPlace, type CommunityTab } from './CommunityPage';
 import { currentExpeditionRequest, type OutpostRequest } from './outpostNavigation';
-import { isExpeditionAway } from '../core/expeditionData';
 import type { CommunityRoute } from '../core/communityTypes';
 import { KitchenModal, type KitchenViewState } from './KitchenModal';
 import { PlayModal } from './PlayModal';
@@ -1670,7 +1669,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     if (pet.community.fishing.active) setCommunityTab('fishing');
     setOutpostRequest(pet.adventure.active || pet.adventure.pending ? undefined : currentExpeditionRequest(pet));
     setCommunityRoute(undefined);
-    setActivePage(pet.adventure.active || pet.adventure.pending || pet.community.expedition.active || pet.community.expedition.pending ? 'adventure' : pet.community.fishing.active ? 'community' : 'home');
+    setActivePage(pet.adventure.active || pet.adventure.pending ? 'adventure' : pet.community.fishing.active ? 'community' : 'home');
     resumeTime();
   }} persistenceError={persistenceError} onRetry={retryPersistence} />;
   return (
@@ -1773,7 +1772,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'adventure' ? (
         <AdventurePage onToggleItemFavorite={handleToggleItemFavorite} pet={pet} actorId={actorId} actorName={getSharePetName()} portrait={petStatusImageMap.content} happyPortrait={activityHappyPortrait} installedMods={installedMods} icons={itemIconMap} registry={itemRegistry}
           communityRoute={communityRoute} onCommunity={handleOpenCommunity} initialOutpost={outpostRequest} onShop={() => handleOpenShop()}
-          update={activities.update} onBack={() => setActivePage(outpostRequest && outpostRequest.view !== 'journal' && outpostRequest.view !== 'tasks' && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
+          update={activities.update} onBack={() => setActivePage(outpostRequest && 'museumVisit' in outpostRequest && outpostRequest.museumVisit ? 'museum' : 'home')} onMuseum={() => setActivePage('museum')} onUseHomeItem={handleUseItem}
           onKitchen={() => openKitchenFromLink()}
           onBuy={(id, quantity) => { if (!persistenceError && !pendingImportedSave && !isImportingSave) handleBuyItem(id, quantity); }} />
       ) : activePage === 'community' ? (
@@ -1828,7 +1827,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
-          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active || pet.community.expedition.active), pending: Boolean(pet.adventure.pending || pet.community.expedition.pending), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
+          adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending) || pet.adventure.commissions.some(task => task.status === 'ready'), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
           onOpenMarket={handleOpenMarket}
           onOpenMuseum={() => handleOpenMuseum('home')}
@@ -1942,7 +1941,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
           favoriteFoodIds={getModFavoriteFoodIds(activeMod)}
           itemIconMap={itemIconMap}
           browse={inventoryController.browse}
-          isPetBusy={Boolean(pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active)}
+          isPetBusy={Boolean(pet.partnerSchedule.active || pet.adventure.active || pet.community.fishing.active)}
           onBrowseChange={inventoryController.setBrowse}
           onClose={handleCloseInventory}
           onOpenShop={() => handleOpenShop()}

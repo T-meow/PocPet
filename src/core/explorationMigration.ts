@@ -6,11 +6,10 @@ import { completeLandmarkStory } from './landmarkAdventure';
 import { isLandmarkId } from './landmarkProgress';
 import { getLandmarkSteps } from './landmarkData';
 import { completeValleyQuest, isValleyQuest, valleyQuests } from './valleyQuests';
-import { settleExpeditionTime } from './expeditionReturn';
 import { getEffectiveDailyDateKey } from './gameClock';
 
 // Removing active and creating its receipt is the migration watermark. Loading the
-// receipt again never reruns story rewards, reserved harvests, or treasure rolls.
+// receipt again never reruns story rewards or treasure rolls.
 export const completeLegacyExploration = (pet: PetState, now: number): PetState => {
   if (pet.timePause) return pet;
   const old = pet.adventure.active;
@@ -35,11 +34,6 @@ export const completeLegacyExploration = (pet: PetState, now: number): PetState 
       ...(isLandmarkId(old.purpose) ? { stageIds: getLandmarkSteps(old.purpose).map(step => step.id) } : {}),
       completedDay: getEffectiveDailyDateKey(pet, now) } } }, now);
     pet = { ...pet, recentEvent: '玩法更新：原手动探险已按成功完成结算，物资和完成奖励保留在返程结算中。' };
-  }
-  const idle = pet.community.expedition.active;
-  if (idle && idle.rulesVersion < 6 && !pet.community.expedition.pending) {
-    pet = settleExpeditionTime(pet, now, true);
-    pet = { ...pet, recentEvent: '玩法更新：原挂机行程已按完整时长成功结算，已预留次数用于采集，全部收获等待领取。' };
   }
   return pet;
 };

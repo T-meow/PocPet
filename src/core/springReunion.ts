@@ -13,7 +13,7 @@ export const getSpringReunionStartReason = (pet: PetState, now = Date.now()) => 
   const state = pet.adventure.reunion;
   if (state.startedAt && !campaignRunFinished(state)) return '先办完上一期团圆，并领完章节心意。';
   if (state.lastOpenedYear >= new Date(now).getFullYear()) return '今年的团圆邀请已经接过了。';
-  if (pet.adventure.active || pet.adventure.pending || pet.community.expedition.active || pet.community.expedition.pending) return '先结束当前行程并收好返程行囊。';
+  if (pet.adventure.active || pet.adventure.pending) return '先结束当前行程并收好返程行囊。';
   if (!canSpendCompanionTime(pet) || pet.pomodoro.isRunning) return '等伙伴休息或忙完，再一起商量。';
   return '';
 };

@@ -210,7 +210,10 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
     ...(preserveSessions ? {
       lastDailyEncounterAt: shiftTimestamp(pet.lastDailyEncounterAt, offsetMs),
     } : {}),
-    adventure: { ...pet.adventure, active: pet.adventure.active ? {
+    adventure: { ...pet.adventure,
+      commissions: pet.adventure.commissions.map(task => task.status === 'active' ? { ...task,
+        startedAt: shiftTimestamp(task.startedAt, offsetMs), endsAt: shiftTimestamp(task.endsAt, offsetMs) } : task),
+      active: pet.adventure.active ? {
       ...pet.adventure.active,
       ...(preserveSessions ? { startedAt: shiftTimestamp(pet.adventure.active.startedAt, offsetMs) } : {}),
       ...(pet.adventure.active.museum ? { museum: { ...pet.adventure.active.museum, acceptedAt: shiftTimestamp(pet.adventure.active.museum.acceptedAt, offsetMs) } } : {}),
@@ -218,8 +221,7 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
     museum: pet.museum ? { ...pet.museum, quests: Object.fromEntries(Object.entries(pet.museum.quests).map(([id, quest]) => [id, quest ? { ...quest, acceptedAt: shiftTimestamp(quest.acceptedAt, offsetMs) } : quest])) } : pet.museum,
     community: pet.community ? { ...pet.community,
       expedition: pet.community.expedition ? { ...pet.community.expedition,
-        loop: pet.community.expedition.loop ? { ...pet.community.expedition.loop, refillAt: shiftTimestamp(pet.community.expedition.loop.refillAt, offsetMs) } : undefined,
-        active: pet.community.expedition.active ? { ...pet.community.expedition.active, startedAt: shiftTimestamp(pet.community.expedition.active.startedAt, offsetMs), endsAt: shiftTimestamp(pet.community.expedition.active.endsAt, offsetMs) } : undefined } : pet.community.expedition,
+        loop: pet.community.expedition.loop ? { ...pet.community.expedition.loop, refillAt: shiftTimestamp(pet.community.expedition.loop.refillAt, offsetMs) } : undefined } : pet.community.expedition,
       plots: pet.community.plots.map(plot => ({ ...plot, crop: plot.crop ? { ...plot.crop, plantedAt: shiftTimestamp(plot.crop.plantedAt, offsetMs), readyAt: shiftTimestamp(plot.crop.readyAt, offsetMs) } : undefined })),
       commission: preserveSessions ? pet.community.commission : pet.community.commission ? { ...pet.community.commission, acceptedAt: shiftTimestamp(pet.community.commission.acceptedAt, offsetMs) } : undefined,
       tasks: preserveSessions ? pet.community.tasks : pet.community.tasks?.map(task => ({ ...task, acceptedAt: shiftTimestamp(task.acceptedAt, offsetMs) })),
@@ -237,6 +239,7 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
       market: pet.community.market ? { ...pet.community.market,
         lastVisitAt: shiftTimestamp(pet.community.market.lastVisitAt, offsetMs),
         nextVisitAt: pet.community.market.nextVisitAt === undefined ? undefined : shiftTimestamp(pet.community.market.nextVisitAt, offsetMs),
+        nextRestockAt: pet.community.market.nextRestockAt === undefined ? undefined : shiftTimestamp(pet.community.market.nextRestockAt, offsetMs),
       } : pet.community.market,
     } : pet.community,
     miniGames: pet.miniGames?.active ? { ...pet.miniGames, active: isHostedMiniGameSession(pet.miniGames.active) ? {

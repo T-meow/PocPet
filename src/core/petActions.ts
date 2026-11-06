@@ -124,7 +124,7 @@ const getWorkQuote = (pet: PetState, now: number, energyCost: number) => {
 export const getQuickWorkPreview = (pet: PetState, now = Date.now()) => {
   const quote = getWorkQuote(pet, now, getWorkEnergyCost(pet));
   const minimumCoins = quote.baseCoins + quote.achievementBonusCoins + quote.boostBonus.bonusCoins;
-  const reason = pet.partnerSchedule.active || pet.adventure.active || isExpeditionAway(pet) || pet.community.fishing.active ? 'busy' : pet.isSleeping ? 'sleeping'
+  const reason = pet.partnerSchedule.active || pet.adventure.active || pet.community.fishing.active ? 'busy' : pet.isSleeping ? 'sleeping'
     : isPetCriticallyHungry(pet) ? 'hunger' : pet.energy < quote.energyCost ? 'energy' : undefined;
   return { energyCost: quote.energyCost, minimumCoins, maximumCoins: minimumCoins + Math.max(1, Math.floor(quote.baseCoins * 0.15)),
     hearts: getQuickWorkHeartReward(pet), boostBonusCoins: quote.boostBonus.bonusCoins, canWork: !reason, reason };
@@ -153,7 +153,7 @@ export const getWorkReward = (pet: PetState, now = Date.now(), energyCost = getW
 export const upgradePet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
   if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
-  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -215,7 +215,7 @@ export const applyPetAction = (pet: PetState, action: PetAction, now = Date.now(
   const current = action === 'sleep' ? advanced : clearLowCleanlinessSleepConfirm(advanced);
 
   if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
-  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return {
       ...current,
@@ -438,7 +438,7 @@ const useInventoryItemInternal = (
 ): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
   if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
-  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -607,7 +607,7 @@ export const useInventoryItem = (...args: Parameters<typeof useInventoryItemInte
 export const interactWithPet = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(markInteraction(advancePet(pet, now), now));
   if (current.community.fishing.active) return { ...current, recentEvent: '先收起鱼竿，再进行其他活动。' };
-  if (current.adventure.active || isExpeditionAway(current)) return { ...current, recentEvent: isExpeditionAway(current) ? '伙伴正在远行，请先在基地暂停或返回。' : adventureBusyMessage() };
+  if (current.adventure.active) return { ...current, recentEvent: adventureBusyMessage() };
   if (isPartnerSchedulePetBusy(current)) {
     return { ...current, recentEvent: t('pet.partnerSchedule.busyAction', { name: current.name }) };
   }
@@ -675,7 +675,6 @@ export const startPomodoro = (pet: PetState, now = Date.now()): PetState => {
   const current = clearLowCleanlinessSleepConfirm(advancePet(pet, now));
   if (current.pomodoro.isRunning) return current;
   if (current.community.fishing.active) return { ...current, recentEvent: '伙伴正在钓鱼，收竿或返回后再开始专注。' };
-  if (isExpeditionAway(current)) return { ...current, recentEvent: '伙伴正在远行，请先在基地暂停或返回，再开始专注。' };
 
 
   if (isPetLowEnergy(current)) {
@@ -802,4 +801,3 @@ export const updatePetProfile = (pet: PetState, name: string, birthday?: PetBirt
 
 
 
-import { isExpeditionAway } from './expeditionData';

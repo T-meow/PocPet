@@ -1,6 +1,7 @@
 import type { CommunityState, CommissionTemplate, MarketReceipt } from './communityTypes';
 import { commissionTemplates, facilityIds, normalizeAnimalName } from './communityData';
 import { getCommunitySale, marketPricingVersion } from './communityEconomy';
+import { getMarketSale, isMarketItemAllowed } from './marketValuation';
 import { defaultExpeditionState, normalizeExpeditionState } from './expeditionState';
 import { marketLegacyStackLimit, marketMaxLevel, marketRemovedExpansionCoins, marketSlotCount, marketSlotLimitVersion, marketStackLimit } from './communityMarketRules';
 import { cropIds, wildIngredientIds } from './foodCatalog';
@@ -119,24 +120,25 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
   market.sessionRevenue = n(m.sessionRevenue, market.revenue);
   market.seed = n(m.seed, 0xffffffff);
   if (market.seed && stamp(m.nextVisitAt) && market.open) market.nextVisitAt = n(m.nextVisitAt);
-  // Preserve an already scheduled wait, including the previous 20-minute maximum.
-  if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, 20 * 60_000);
+  if (market.seed && market.nextVisitAt === undefined && stamp(m.remainingVisitMs)) market.remainingVisitMs = n(m.remainingVisitMs, 24 * 60_000);
+  if (stamp(m.visitDurationMs) && m.visitDurationMs > 0) market.visitDurationMs = n(m.visitDurationMs, 24 * 60_000);
   market.reserve = Object.fromEntries(Object.entries(object(m.reserve)).filter(([id]) => getCommunitySale(id)).map(([id, value]) => [id, n(value, 9999)]));
   const listingIds = new Set<number>(), slots = new Set<number>(), capacity = oldSlots && previousLevel > 0 ? 3 + previousLevel * 3 : marketSlotCount(market.level);
   market.listings = (Array.isArray(m.listings) ? m.listings : []).slice(0, 12).flatMap((rawListing: unknown) => {
-    const listing = object(rawListing), sale = getCommunitySale(listing.itemId), id = n(listing.id), quantity = n(listing.quantity, oldSlots ? marketLegacyStackLimit : marketStackLimit);
-    if (!sale || sale.exchangeOnly || !quantity || !id || listingIds.has(id) || slots.size >= capacity) return [];
+    const listing = object(rawListing), sale = getMarketSale(listing.itemId), id = n(listing.id), quantity = n(listing.quantity, oldSlots ? marketLegacyStackLimit : marketStackLimit);
+    if (!sale || !id || listingIds.has(id) || slots.size >= capacity) return [];
     const savedSlot = listing.slotIndex;
     const slotIndex = Number.isInteger(savedSlot) && savedSlot >= 0 && savedSlot < capacity && !slots.has(savedSlot) ? savedSlot
       : Array.from({ length: capacity }, (_, index) => index).find(index => !slots.has(index))!;
     listingIds.add(id); slots.add(slotIndex);
-    const bonus = Math.max(20, n(listing.bonus, 61));
-    const basePrice = Math.max(1, n(listing.basePrice, 10000) || sale.base);
+    const bonus = n(listing.bonus, 61);
+    const basePrice = Math.max(1, n(listing.basePrice) || sale.base);
     // Preserve old quotes for catch-up; the pricing migration runs afterwards.
-    const unitPrice = n(listing.unitPrice, 16100) || Math.floor(basePrice * (100 + bonus) / 100);
-    return [{ id, slotIndex, itemId: listing.itemId, quantity, basePrice, bonus, unitPrice, collector: sale.collector }];
+    const unitPrice = Math.max(1, n(listing.unitPrice) || Math.floor(basePrice * (100 + bonus) / 100));
+    return [{ id, slotIndex, itemId: listing.itemId, quantity, basePrice, bonus, unitPrice, collector: sale.collector, ...(listing.autoRestock !== undefined ? { autoRestock: listing.autoRestock === true } : {}) }];
   }).sort((a, b) => a.slotIndex - b.slotIndex);
   market.nextListingId = Math.max(1, n(m.nextListingId), ...market.listings.map(listing => listing.id + 1));
+  if (market.open && market.listings.some(slot => slot.autoRestock) && stamp(m.nextRestockAt)) market.nextRestockAt = n(m.nextRestockAt);
   if (oldSlots) {
     const limit = marketSlotCount(market.level);
     const removedValue = market.listings.reduce((sum, listing) => sum + listing.unitPrice * (listing.slotIndex >= limit ? listing.quantity : Math.max(0, listing.quantity - marketStackLimit)), 0);
@@ -148,13 +150,14 @@ export const normalizeCommunityState = (raw: unknown, backpackCapacity = 24, adv
       market.nextListingId++;
     }
   }
+  market.listings = market.listings.map(slot => ({ ...slot, unitPrice: Math.max(1, Math.floor(Math.min(slot.unitPrice, getMarketSale(slot.itemId)?.priceCap ?? slot.unitPrice))) }));
   market.log = (Array.isArray(m.log) ? m.log : []).slice(0, 8).flatMap((rawEntry: unknown): MarketReceipt[] => {
     const entry = object(rawEntry);
     if (!stamp(entry.at)) return [];
     const legacy = !Array.isArray(entry.items);
     const items = (legacy ? [entry] : entry.items).slice(0, 12).flatMap((rawItem: unknown): MarketReceipt['items'] => {
       const item = object(rawItem), quantity = n(item.quantity, 12 * marketLegacyStackLimit);
-      return typeof item.itemId === 'string' && getCommunitySale(item.itemId) && quantity ? [{ itemId: item.itemId, quantity, coins: n(item.coins) }] : [];
+      return isMarketItemAllowed(item.itemId) && quantity ? [{ itemId: item.itemId, quantity, coins: n(item.coins) }] : [];
     });
     if (!items.length) return [];
     const customer = !legacy && ['ordinary', 'foodie', 'collector', 'generous'].includes(entry.customer) ? entry.customer : 'legacy';

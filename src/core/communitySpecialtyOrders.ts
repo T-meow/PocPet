@@ -52,7 +52,7 @@ export const cancelSpecialtyOrder = (pet: PetState, id: string): PetState => {
 };
 export const claimSpecialtyOrder = (pet: PetState, id: string): PetState => {
   const state = pet.community.specialtyOrders, order = state.active;
-  if (pet.timePause || !order || order.id !== id || !canClaimSpecialtyOrder(pet) || pet.adventure.active || pet.community.expedition.active || pet.community.fishing.active) return pet;
+  if (pet.timePause || !order || order.id !== id || !canClaimSpecialtyOrder(pet) || pet.adventure.active || pet.community.fishing.active) return pet;
   if (clampCoins(pet.coins + (order.rewardCoins ?? order.quantity * order.unitPrice)) !== pet.coins + (order.rewardCoins ?? order.quantity * order.unitPrice)) return { ...pet, recentEvent: '金币已满，收购单与物品继续保留。' };
   const coins = clampCoins(pet.coins + (order.rewardCoins ?? order.quantity * order.unitPrice)) - pet.coins;
   return grantActivityHearts(recordEarnedCoins({ ...pet, coins: pet.coins + coins, inventory: removeInventoryItem(pet.inventory, order.item, order.quantity),

@@ -31,7 +31,6 @@ export const regions: Record<RegionId, { name: string; subtitle: string; color: 
 export const getRegionUnlocked = (pet: PetState, id: RegionId) => {
   return !getRegionUnlockReason(pet.adventure, mapRegionForExpedition[id]);
 };
-export const isExpeditionAway = (pet: Pick<PetState, 'community'>) => Boolean(pet.community?.expedition?.active && !pet.community.expedition.active.paused);
 export const expeditionBagCount = (bag: Record<string, number>) => Object.values(bag).reduce((sum, n) => sum + n, 0);
 export const getExpeditionMilestones = (pet: Partial<Pick<PetState, 'community'>>) => [
   ...regionIds.map(id => ({ id: `region_${id}`, name: `${regions[id].name}地区故事`, energy: 2, achieved: pet.community?.expedition?.regions[id]?.surveyed === true })),

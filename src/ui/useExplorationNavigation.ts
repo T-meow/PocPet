@@ -5,7 +5,7 @@ import type { CampaignVisitId } from '../core/explorationCampaignData';
 export interface ExplorationNavigation {
   screen: 'home' | 'map' | 'prepare' | 'journey' | 'receipt' | 'growth' | 'journal' | 'tasks';
   selection?: AdventureMapSelection | 'tutorial';
-  mode: 'manual' | 'idle';
+  mode: 'manual';
   target?: string;
   campaignVisit?: CampaignVisitId;
   museumVisit?: import('../core/museumData').MuseumVisitId;

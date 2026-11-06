@@ -59,9 +59,12 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
     }
   }
   if (page === 'adventure') {
-    const oldState = a.expedition, state = b.expedition, oldTrip = oldState.active, trip = state.active;
-    if (state.pending && state.pending.id !== oldState.pending?.id) return state.pending.reason === 'health' ? 'error' : 'notification';
-    if (oldState.pending && !state.pending) return 'purchase';
+    const oldState = a.expedition, state = b.expedition;
+    const oldTasks = before.adventure.commissions, tasks = after.adventure.commissions;
+    if (tasks.some(task => !oldTasks.some(previous => previous.id === task.id))) return 'world_step';
+    if (tasks.some(task => task.status === 'ready' && oldTasks.find(previous => previous.id === task.id)?.status === 'active')) return 'notification';
+    if (after.adventure.commissionsCompleted > before.adventure.commissionsCompleted) return 'purchase';
+    if (tasks.some(task => { const previous = oldTasks.find(value => value.id === task.id); return previous && (Object.values(task.items).reduce((sum, count) => sum + count, 0) < Object.values(previous.items).reduce((sum, count) => sum + count, 0) || previous.bonusRemaining && !task.bonusRemaining); })) return 'world_harvest';
     for (const id of Object.keys(state.regions) as RegionId[]) {
       if (!oldState.regions[id].surveyed && state.regions[id].surveyed) return 'pet_heart';
       if (state.regions[id].base > oldState.regions[id].base) return 'notification';
@@ -69,13 +72,6 @@ export const getWorldActionSfx = (before: PetState, after: PetState, page: Activ
     for (const id of Object.keys(state.projects) as ProjectId[]) {
       if (state.projects[id].completed > oldState.projects[id].completed) return 'notification';
       if (state.projects[id].stage > oldState.projects[id].stage) return 'action_work_play_medicine';
-    }
-    if (trip && trip.id !== oldTrip?.id) return 'world_step';
-    if (oldTrip && trip && trip.revision > oldTrip.revision) {
-      if (trip.rested.length > oldTrip.rested.length) return 'action_blanket';
-      if (trip.paused && !oldTrip.paused) return 'close';
-      if (trip.leg > oldTrip.leg || trip.step > oldTrip.step) return 'world_step';
-      return 'tap';
     }
   }
 };

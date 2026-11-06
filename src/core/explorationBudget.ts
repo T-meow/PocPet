@@ -11,13 +11,13 @@ import { getDailyResetDateKey } from './dailyReset';
 import { regionalTreasureIds, regionalTreasures } from './regionalTreasures';
 
 export const explorationRefillMs = 3600000;
-export const explorationCapacity = 72;
+export const explorationCapacity = 120;
 export const legacyExplorationRefillMs = 3 * 3600000;
 export interface ExplorationVoucher { day: string; slot: number; face: number; paid: number; region?: RegionId; quote?: number; rewardsVersion?: 1; lootUsed?: number; lootRegion?: RegionId; lootQuote?: number }
 export interface ExplorationBudget {
   refillAt: number; available: number; used: number; day: string;
   vouchers: ExplorationVoucher[]; heartDays: { day: string; hours: number; claimed: boolean }[];
-  observations: string[]; milestones: number[]; idleCompleted: number; firstTreasure: boolean;
+  observations: string[]; milestones: number[]; firstTreasure: boolean;
   lootSettledThrough?: number;
   commonLootMisses?: number;
   version?: 2;
@@ -33,8 +33,7 @@ export const getExplorationTier = (pet: PetState) => {
 export const getExplorationFace = (pet: PetState) => [150, 300, 600][getExplorationTier(pet) - 1];
 export const shiftExplorationDay = (day: string, offset: number) => new Date(Date.parse(day + 'T12:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
 export const hasLegacyExploration = (pet: PetState) => Boolean(
-  pet.adventure.active && pet.adventure.active.rulesVersion < 11 || pet.adventure.pending && (pet.adventure.pending.rulesVersion ?? 1) < 11 ||
-  pet.community.expedition.active && pet.community.expedition.active.rulesVersion < 6 || pet.community.expedition.pending && (pet.community.expedition.pending.rulesVersion ?? 1) < 6);
+  pet.adventure.active && pet.adventure.active.rulesVersion < 11 || pet.adventure.pending && (pet.adventure.pending.rulesVersion ?? 1) < 11);
 export const getExplorationRefillMs = (loop?: ExplorationBudget) => loop?.version === 2 ? explorationRefillMs : legacyExplorationRefillMs;
 export const getExplorationCapacity = (loop?: ExplorationBudget) => loop?.version === 2 ? explorationCapacity : 24;
 const settleCompensation = (pet: PetState, loop: ExplorationBudget) => {
@@ -53,12 +52,11 @@ export const advanceExplorationBudget = (pet: PetState, now: number): PetState =
   const day = old && old.day > currentDay ? old.day : currentDay;
   const legacyUsed = old ? 0 : Object.values(state.regions).reduce((sum, r) => sum + (r.harvestDay === day ? r.harvestUsed : 0), 0);
   const legacy = hasLegacyExploration(pet);
-  let loop: ExplorationBudget = old ? { ...old } : { ...(!legacy ? { version: 2 as const, paySettledThrough: legacyUsed } : {}), refillAt: now, available: Math.max(0, 8 - legacyUsed), used: legacyUsed, day: '', vouchers: [], heartDays: [], observations: [], milestones: [], idleCompleted: 0, firstTreasure: Boolean(pet.adventure.completed.valley || pet.adventure.pending?.region === 'valley' && pet.adventure.pending.complete && !pet.adventure.pending.purpose) };
-  const reserved = state.active?.reservedHarvests ?? 0;
+  let loop: ExplorationBudget = old ? { ...old } : { ...(!legacy ? { version: 2 as const, paySettledThrough: legacyUsed } : {}), refillAt: now, available: Math.max(0, 8 - legacyUsed), used: legacyUsed, day: '', vouchers: [], heartDays: [], observations: [], milestones: [], firstTreasure: Boolean(pet.adventure.completed.valley || pet.adventure.pending?.region === 'valley' && pet.adventure.pending.complete && !pet.adventure.pending.purpose) };
   const refillMs = getExplorationRefillMs(loop), capacity = getExplorationCapacity(loop);
   const ticks = Math.floor(Math.max(0, now - loop.refillAt) / refillMs);
-  loop.available = Math.max(0, Math.min(capacity - reserved, loop.available + ticks));
-  loop.refillAt = loop.available + reserved >= capacity ? Math.max(now, loop.refillAt) : loop.refillAt + ticks * refillMs;
+  loop.available = Math.max(0, Math.min(capacity, loop.available + ticks));
+  loop.refillAt = loop.available >= capacity ? Math.max(now, loop.refillAt) : loop.refillAt + ticks * refillMs;
   if (loop.version !== 2 && !legacy) {
     const oldest = shiftExplorationDay(day, -2);
     const coins = loop.vouchers.filter(v => v.day >= oldest).reduce((sum, v) => {
@@ -89,45 +87,37 @@ export const advanceExplorationBudget = (pet: PetState, now: number): PetState =
   return setBudget(pet, loop);
 };
 export const getExplorationBudget = (pet: PetState, now = Date.now()) => advanceExplorationBudget(pet, now).community.expedition.loop;
-export const getExplorationHarvestPay = (pet: PetState, kind: 'manual' | 'hour', region: RegionId) => ({
-  coins: Math.floor((kind === 'manual' ? [20, 40, 80] : [16, 32, 64])[getExplorationTier(pet) - 1] * explorationTravel[region].payPercent / 100),
+export const getExplorationHarvestPay = (pet: PetState, _kind: 'manual', region: RegionId) => ({
+  coins: Math.floor([20, 40, 80][getExplorationTier(pet) - 1] * explorationTravel[region].payPercent / 100),
   hearts: Math.round(5 * getPetStatScale(pet)),
 });
-export const earnExplorationHarvestPay = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId, quote = getExplorationHarvestPay(pet, kind, region)) => {
+export const earnExplorationHarvestPay = (pet: PetState, count: number, kind: 'manual', region: RegionId, quote = getExplorationHarvestPay(pet, kind, region)) => {
   const loop = pet.community.expedition.loop;
   if (pet.timePause || !loop || loop.version !== 2 || !Number.isSafeInteger(count) || count <= 0) return { pet, coins: 0, hearts: 0 };
   const paid = Math.min(count, Math.max(0, loop.used - (loop.paySettledThrough ?? 0)));
   return { pet: setBudget(pet, { ...loop, paySettledThrough: loop.used }), coins: quote.coins * paid, hearts: quote.hearts * paid };
 };
-export const spendExplorationHarvest = (pet: PetState, count: number, now: number, reserve = false): PetState => {
+export const spendExplorationHarvest = (pet: PetState, count: number, now: number): PetState => {
   if (pet.timePause) return pet;
   pet = advanceExplorationBudget(pet, now);
   const loop = pet.community.expedition.loop;
   if (!loop || !Number.isInteger(count) || count <= 0 || loop.available < count) return pet;
-  return setBudget(pet, { ...loop, available: loop.available - count, used: loop.used + (reserve ? 0 : count) });
-};
-export const settleReservedHarvest = (pet: PetState, count: number, refund: boolean): PetState => {
-  const state = pet.community.expedition, t = state.active, loop = state.loop;
-  if (!t || !loop) return pet;
-  const quantity = Math.max(0, Math.min(t.reservedHarvests ?? 0, count));
-  return { ...pet, community: { ...pet.community, expedition: { ...state,
-    loop: { ...loop, available: loop.available + (refund ? quantity : 0), used: loop.used + (refund ? 0 : quantity) },
-    active: { ...t, reservedHarvests: (t.reservedHarvests ?? 0) - quantity } } } };
+  return setBudget(pet, { ...loop, available: loop.available - count, used: loop.used + count });
 };
 // Currency is reserved into the trip receipt here, and paid to the wallet only on claim.
-export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: number, region: RegionId = 'valley', modern = true) => {
+export const earnExplorationPay = (pet: PetState, _kind: 'manual', now: number, region: RegionId = 'valley', modern = true) => {
   if (pet.timePause) return { pet, coins: 0, hearts: 0 };
   pet = advanceExplorationBudget(pet, now);
   const old = pet.community.expedition.loop;
   if (!old) return { pet, coins: 0, hearts: 0 };
   if (old.version === 2) return { pet, coins: 0, hearts: 0 };
   const loop = { ...old, vouchers: old.vouchers.map(v => ({ ...v })), heartDays: old.heartDays.map(v => ({ ...v })) };
-  const voucher = loop.vouchers.find(v => v.paid < (kind === 'manual' ? 100 : 80) && (!v.region && !v.paid || (v.region ?? 'valley') === region));
+  const voucher = loop.vouchers.find(v => v.paid < 100 && (!v.region && !v.paid || (v.region ?? 'valley') === region));
   let coins = 0, hearts = 0;
   if (voucher) {
     // Old trips keep the whole untouched voucher; spent random rewards cannot be paid twice.
     if (!modern && !voucher.paid && !voucher.lootUsed) voucher.rewardsVersion = undefined;
-    const paid = kind === 'manual' ? 100 : Math.min(80, voucher.paid + 40);
+    const paid = 100;
     voucher.region ??= voucher.paid ? 'valley' : region;
     voucher.quote ??= Math.floor(voucher.face * explorationTravel[voucher.region].payPercent / 100);
     const ratio = voucher.rewardsVersion === 1 ? .75 : 1;
@@ -137,7 +127,7 @@ export const earnExplorationPay = (pet: PetState, kind: 'manual' | 'hour', now: 
   }
   const heart = loop.heartDays.find(v => !v.claimed);
   if (heart) {
-    heart.hours += kind === 'manual' ? 4 : 1;
+    heart.hours += 4;
     if (heart.hours >= 4) { heart.claimed = true; hearts = Math.round(22 * getPetStatScale(pet)); }
   }
   return { pet: setBudget(pet, loop), coins, hearts };
@@ -147,23 +137,23 @@ const legacyCommonLootMeanValue = adventureTreasureIds.reduce((sum, id) => sum +
 export const commonLootMeanValue = commonTreasureMeanValue;
 export const manualTreasureChance = 5;
 export const commonLootPityLimit = 8;
-export const getCommonLootChance = (pet: PetState, kind: 'manual' | 'hour', region: RegionId) => {
-  const share = kind === 'hour' ? .4 : region === 'valley' ? .5 : 1;
+export const getCommonLootChance = (pet: PetState, _kind: 'manual', region: RegionId) => {
+  const share = region === 'valley' ? .5 : 1;
   const legacyExpected = Math.floor(getExplorationFace(pet) * explorationTravel[region].payPercent / 100) * .25 * share;
-  return Math.min(75, Math.max(kind === 'manual' ? 15 : 12, legacyExpected / commonLootMeanValue * 200));
+  return Math.min(75, Math.max(15, legacyExpected / commonLootMeanValue * 200));
 };
-// Called once after actual consumption, never from a quote or reservation.
-export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manual' | 'hour', region: RegionId, now: number, ordinary: Inventory = {}, gatherBonus = 0): { pet: PetState; finds: Inventory } => {
+// Called once after actual consumption, never from a quote.
+export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manual', region: RegionId, now: number, ordinary: Inventory = {}, gatherBonus = 0): { pet: PetState; finds: Inventory } => {
   if (pet.timePause || !Number.isInteger(count) || count <= 0) return { pet, finds: {} };
   pet = advanceExplorationBudget(pet, now);
   const old = pet.community.expedition.loop, finds: Inventory = {};
   if (!old || count > old.used) return { pet, finds };
   const loop = { ...old, vouchers: old.vouchers.map(v => ({ ...v })) };
   const candidates = Object.keys(ordinary).filter(id => ordinary[id] > 0 && ordinaryGatherIds.has(id)).sort();
-  const treasure = kind === 'manual' ? regionalTreasureIds.find(id => regionalTreasures[id].region === region) : undefined;
+  const treasure = regionalTreasureIds.find(id => regionalTreasures[id].region === region);
   for (let index = Math.max(0, (loop.lootSettledThrough ?? 0) - (loop.used - count)); index < count; index++) {
     const seed = `${pet.saveMetadata.id}:${pet.createdAt}:harvest:${loop.used - count + index + 1}`;
-    const limit = kind === 'hour' ? 80 : 100, share = kind === 'hour' ? 40 : region === 'valley' ? 50 : 100;
+    const limit = 100, share = region === 'valley' ? 50 : 100;
     const voucher = loop.vouchers.find(v => v.rewardsVersion === 1 && (v.lootUsed ?? 0) < limit && (!v.lootRegion || v.lootRegion === region));
     if (voucher || loop.version === 2) {
       const unlimitedExpected = Math.floor(getExplorationFace(pet) * explorationTravel[region].payPercent / 100) * .25 * share / 100;
@@ -188,7 +178,7 @@ export const settleExplorationLoot = (pet: PetState, count: number, kind: 'manua
         finds[treasure] = (finds[treasure] ?? 0) + 1;
       }
     }
-    if (kind === 'manual' && candidates.length && getExplorationRoll(hashString(seed), 'pendant', 'hit') < gatherBonus / 100) {
+    if (candidates.length && getExplorationRoll(hashString(seed), 'pendant', 'hit') < gatherBonus / 100) {
       const item = candidates[Math.floor(getExplorationRoll(hashString(seed), 'pendant', 'kind') * candidates.length)];
       finds[item] = (finds[item] ?? 0) + 1;
     }

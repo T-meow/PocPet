@@ -43,8 +43,6 @@ const fail = (pet: PetState, message: string): PetState => ({ ...pet, recentEven
 export const getAdventureStartReason = (pet: PetState, region?: AdventureDestinationId, now = Date.now(), purpose?: CommunityRoute, campaignVisit?: CampaignVisitId, museumVisit?: MuseumVisitId) => {
   if (region && region !== 'tutorial') purpose = purpose ? legacyPurposeLandmark(purpose) : landmarkId(region, 'entrance');
   if (pet.timePause) return '时间已冻结，恢复时间后再出发。';
-  if (pet.community.expedition.pending) return '先收好上一次远行的物资与工具。';
-  if (pet.community.expedition.active) return '先完成或结束当前远征，行囊还留在基地。';
   if (pet.adventure.active) return adventureBusyMessage();
   if (pet.adventure.pending) return L('先收好上次行程的物资。', 'Collect the supplies from your last trip first.');
   if (pet.community.fishing.active) return '先收起鱼竿，再出发探索。';

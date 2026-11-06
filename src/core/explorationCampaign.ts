@@ -28,7 +28,7 @@ export const getCampaignStartReason = (pet: PetState, now = Date.now()) => {
   const state = pet.adventure.campaign;
   if (state.startedAt && !campaignRunFinished(state)) return '先办完当前一期，并收下全部心意。';
   if (state.lastOpenedQuarter >= getQuarterKey(getEffectiveDailyDateKey(pet, now))) return '本季度已经准备过聚餐，下季度再约。';
-  if (pet.adventure.active || pet.adventure.pending || pet.community.expedition.active || pet.community.expedition.pending) return '先结束当前行程并收好返程行囊。';
+  if (pet.adventure.active || pet.adventure.pending) return '先结束当前行程并收好返程行囊。';
   return '';
 };
 export const startExplorationCampaign = (pet: PetState, neighbors: readonly NeighborIdentity[], actorId: string, now = Date.now(), expectedRunId = pet.adventure.campaign.runId): PetState => {

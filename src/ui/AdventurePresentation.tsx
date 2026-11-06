@@ -23,7 +23,7 @@ export const AdventureLandscape = ({ region, node = 'story', portrait, label, ch
 export const AdventureCompanionStatus = ({ pet, actor, compact = false, inlineStats = false, children }: {
   pet: PetState; actor: AdventureCompanion; compact?: boolean; inlineStats?: boolean; children?: ReactNode;
 }) => <section className={`exploration-companion-card${compact ? ' exploration-companion-card--compact' : ''}`} aria-label="同行伙伴状态">
-  <div className="exploration-companion-identity"><img src={actor.portrait} alt="" /><div><small>同行伙伴</small><h3>{actor.name}</h3><p>{pet.adventure.active || pet.community.expedition.active ? '和你一起，慢慢探索。' : '带好行囊，一起出发。'}</p></div></div>
+  <div className="exploration-companion-identity"><img src={actor.portrait} alt="" /><div><small>同行伙伴</small><h3>{actor.name}</h3><p>{pet.adventure.active ? '和你一起，慢慢探索。' : '带好行囊，一起出发。'}</p></div></div>
   {inlineStats ? <div className="exploration-companion-stat-line">{[
     { kind: 'hunger', label: '饱食', value: pet.hunger, max: getPetStatCap(pet), Icon: Utensils },
     { kind: 'energy', label: '体力', value: pet.energy, max: getPetEnergyCap(pet), Icon: Zap },

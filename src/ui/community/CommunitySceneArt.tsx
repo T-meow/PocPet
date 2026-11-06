@@ -20,5 +20,4 @@ export const CommunitySceneArt = ({ community: c, fishing = false }: { community
   <Tree x={45} y={446} size={1.04} /><Tree x={927} y={470} size={1.28} /><Tree x={605} y={143} size={.7} />
   <Facility id="board" x={414} y={351} size={190} /><Facility id="stall" x={72} y={355} size={220} built={c.facilities.stall.built} />
   {c.facilities.coop.built && <g fill="#fff3d2"><ellipse cx="531" cy="252" rx="19" ry="14" /><circle cx="546" cy="238" r="10" /><path d="M552 233L563 239L551 245" fill="#c69b54" /></g>}
-  {c.facilities.barn.built && <g fill="#f7eed7" stroke="#8e906e" strokeWidth="3"><rect x="828" y="277" width="63" height="34" rx="13" /><path d="M838 305V324M879 305V324" strokeWidth="7" /><ellipse cx="896" cy="285" rx="14" ry="19" /><path d="M842 278Q869 270 861 301L842 299Z" fill="#939b83" /></g>}
 </svg>;

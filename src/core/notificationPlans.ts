@@ -3,7 +3,7 @@ import { getPomodoroPhaseDurationMs, getPomodoroPhaseId } from './pomodoro';
 
 export type NotificationCategory = 'tasks' | 'harvest' | 'pomodoro';
 export type NotificationTarget = 'partnerSchedule' | 'adventure' | 'fishing' | 'field' | 'garden' | 'ranch' | 'pomodoro' | 'music';
-export type NotificationSource = 'schedule' | 'expedition' | 'fishing' | 'crop' | 'tree' | 'animal' | 'pomodoro';
+export type NotificationSource = 'schedule' | 'commission' | 'fishing' | 'crop' | 'tree' | 'animal' | 'pomodoro';
 export interface NotificationPlan {
   key: string;
   source: NotificationSource;
@@ -25,8 +25,8 @@ export const deriveNotificationPlans = (pet: PetState): NotificationPlan[] => {
   };
   const schedule = pet.partnerSchedule.active;
   if (schedule) add('schedule', key('schedule', schedule.offerId, schedule.startedAt), 'tasks', schedule.endsAt, '伙伴安排的计划时间已到', 'partnerSchedule');
-  const expedition = pet.community.expedition.active;
-  if (expedition?.mode === 'idle' && !expedition.paused) add('expedition', key('expedition', expedition.id), 'tasks', expedition.endsAt, '探险挂机的计划时间已到', 'adventure');
+  for (const task of pet.adventure.commissions) if (task.status === 'active')
+    add('commission', key('commission', task.id), 'tasks', task.endsAt, `${task.actorName}的素材委托计划时间已到`, 'adventure');
   const fishing = pet.community.fishing.active;
   if (fishing?.mode === 'idle') add('fishing', key('fishing', fishing.id), 'tasks', fishing.endsAt, '挂机钓鱼的计划时间已到', 'fishing');
   for (const plot of pet.community.plots) if (plot.crop) add('crop', key('crop', plot.id, plot.crop.plantedAt), 'harvest', plot.crop.readyAt, '农场作物可以收获了', 'field');
@@ -56,7 +56,7 @@ export const isReminderCompleted = (pet: PetState, plan: NotificationPlan, now: 
   if (deriveNotificationPlans(pet).some(item => item.key === plan.key && item.at <= now)) return true;
   switch (plan.source) {
     case 'schedule': { const result = pet.partnerSchedule.pendingResult; return Boolean(result && result.outcome !== 'early' && result.completedAt >= plan.at && key('schedule', result.offerId, result.startedAt ?? 0) === plan.key); }
-    case 'expedition': { const result = pet.community.expedition.pending; return Boolean(result && result.reason === 'complete' && key('expedition', result.id) === plan.key); }
+    case 'commission': return pet.adventure.commissions.some(task => task.status === 'ready' && key('commission', task.id) === plan.key);
     case 'fishing': { const result = pet.community.fishing.pending; return Boolean(result && result.reason === 'complete' && key('fishing', result.id) === plan.key); }
     case 'animal': { const parts = JSON.parse(plan.key) as [string, 'coop' | 'barn', number]; return pet.community.animals[parts[1]].stock > 0; }
     case 'pomodoro': return pet.pomodoro.phaseStartedAt >= plan.at || Boolean(pet.pomodoro.lastSettledPhaseId && key('pomodoro', pet.pomodoro.lastSettledPhaseId) === plan.key);

@@ -105,7 +105,7 @@ export const getPlayTotal = (pet: PetState) => Object.values(pet.miniGames.recor
 export const startMiniGame = (pet: PetState, game: MiniGameId, mode: PlayMode, actorId: string, id: string, now: number): PetState => {
   const previous = pet.miniGames.active;
   const maySwitch = previous && isHostedMiniGameSession(previous) && previous.paused && previous.actorId === actorId;
-  if (pet.level < miniGameUnlockLevel || !gameIds.includes(game) || (game !== 'catch' && !isHubGameId(game) && !pet.miniGames.unlocked.includes(game)) || (game === 'catch' && (pet.inventory.toy_ball ?? 0) < 1) || !id || (previous && !maySwitch) || (pet.miniGames.lastResult?.id === id || pet.miniGames.lastSettledSessionId === id) || (pet.miniGames.lastResult?.pending && pet.miniGames.lastResult.actorId === actorId) || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active || isExpeditionAway(pet)) || pet.community.fishing.active || pet.timePause) return pet;
+  if (pet.level < miniGameUnlockLevel || !gameIds.includes(game) || (game !== 'catch' && !isHubGameId(game) && !pet.miniGames.unlocked.includes(game)) || (game === 'catch' && (pet.inventory.toy_ball ?? 0) < 1) || !id || (previous && !maySwitch) || (pet.miniGames.lastResult?.id === id || pet.miniGames.lastSettledSessionId === id) || (pet.miniGames.lastResult?.pending && pet.miniGames.lastResult.actorId === actorId) || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active) || pet.community.fishing.active || pet.timePause) return pet;
   if (isHubGameId(game)) {
     const hub = normalizeMiniGamesSave(pet.miniGames.hub);
     hub.activeGame = game;
@@ -131,7 +131,7 @@ export const pauseMiniGame = (pet: PetState): PetState => {
 };
 export const resumeMiniGame = (pet: PetState, actorId: string, now: number): PetState => {
   const active = pet.miniGames.active;
-  if (!active || pet.level < miniGameUnlockLevel || active.actorId !== actorId || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active || isExpeditionAway(pet)) || pet.community.fishing.active || pet.timePause) return pet;
+  if (!active || pet.level < miniGameUnlockLevel || active.actorId !== actorId || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active) || pet.community.fishing.active || pet.timePause) return pet;
   return { ...pet, miniGames: { ...pet.miniGames, active: { ...active, paused: false, lastTickAt: now } } };
 };
 export const abandonMiniGame = (pet: PetState): PetState => ({ ...pet, miniGames: { ...pet.miniGames, active: undefined } });
@@ -165,7 +165,7 @@ export type MiniGameAction = { type: 'tick' | 'clear' | 'blow' | 'release' | 'fi
 export const actMiniGame = (pet: PetState, id: string, action: MiniGameAction, now: number): PetState => {
   const previous = pet.miniGames.active;
   if (!previous || previous.id !== id || previous.paused) return pet;
-  if (pet.level < miniGameUnlockLevel || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active || isExpeditionAway(pet)) || pet.community.fishing.active || pet.timePause) return pauseMiniGame(pet);
+  if (pet.level < miniGameUnlockLevel || pet.isSleeping || pet.partnerSchedule.active || (pet.adventure.active) || pet.community.fishing.active || pet.timePause) return pauseMiniGame(pet);
   const active = { ...previous };
   if (action.type === 'tick') {
     active.elapsedMs += Math.max(0, Math.min(1000, now - active.lastTickAt));
@@ -209,4 +209,3 @@ export const actMiniGame = (pet: PetState, id: string, action: MiniGameAction, n
   }
   return next;
 };
-import { isExpeditionAway } from './expeditionData';

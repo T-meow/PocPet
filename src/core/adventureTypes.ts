@@ -76,6 +76,9 @@ export interface AdventureResult {
 
 export interface AdventureState {
   schemaVersion: 10;
+  commissions: AdventureCommission[];
+  nextCommissionId: number;
+  commissionsCompleted: number;
   campaign: import('./explorationCampaignState').ExplorationCampaignState;
   reunion: import('./explorationCampaignState').SpringReunionState;
   landmarks: import('./landmarkProgress').LandmarkId[];
@@ -90,4 +93,22 @@ export interface AdventureState {
   active?: AdventureTrip;
   pending?: AdventureResult;
   journal: AdventureResult[];
+}
+
+export interface AdventureCommission {
+  id: string;
+  actorId: string;
+  actorName: string;
+  region: import('./expeditionTypes').RegionId;
+  startedAt: number;
+  endsAt: number;
+  status: 'active' | 'ready';
+  items: Inventory;
+  bonusItem?: import('./regionalTreasures').RegionalTreasureId;
+  bonusRemaining: boolean;
+  baseValue: number;
+  bonusChance: number;
+  durationMs: number;
+  campReduction: number;
+  decorationReduction: number;
 }

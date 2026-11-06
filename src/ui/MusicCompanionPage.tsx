@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Headphones, Heart, Pause, Play, Repeat, Repeat1, SkipForward, Volume2 } from 'lucide-react';
 import { bgmTracks, getBgmPlaybackState, nextMusicTrack, setBgmRepeatMode, setBgmVolume, setMusicBackground, supportsMusicBackground, type BgmPlaybackState } from '../core/bgm';
 import { musicHeartIntervalMs, musicHeartsPerInterval, getPartnerScheduleActivity, getPrimaryStatus, getSeasonInfo, type PetState, type PetStatus, type RecentActivity } from '../core/pet';
-import { isExpeditionAway } from '../core/expeditionData';
 import { RoomBackdrop } from './RoomBackdrop';
 import { formatCompactNumber } from './numberFormat';
 
@@ -52,7 +51,7 @@ export const MusicCompanionPage = ({ pet, playback, blocked, pendingListeningMs,
   }, [playback.active]);
 
   const status = getPrimaryStatus(pet);
-  const away = Boolean(pet.adventure.active || isExpeditionAway(pet));
+  const away = Boolean(pet.adventure.active);
   const fishing = Boolean(pet.community.fishing.active);
   const recent = pet.recentActivity !== 'idle' && pet.recentActivityUntil > Date.now() ? pet.recentActivity : undefined;
   const displayedActivity = pet.isSleeping || away || fishing ? undefined : pet.partnerSchedule.active

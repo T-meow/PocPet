@@ -1,6 +1,5 @@
 import { isHostedMiniGameSession } from './companionActivityTypes';
 import { getMiniGameBaseHearts, isScoreMiniGame, miniGameUnlockLevel, settleMiniGame } from './miniGames';
-import { isExpeditionAway } from './expeditionData';
 import { clampLevel } from './petStats';
 import { normalizeMiniGamesSave } from '../minigames/storage';
 import { normalizeGameReceipts } from '../minigames/shared/receipts';
@@ -15,7 +14,7 @@ function maySettle(pet: PetState, activityId: string, actorId: string) {
   const active = pet.miniGames.active;
   return active && isHostedMiniGameSession(active) && active.id === activityId && active.actorId === actorId && !active.paused
     && pet.level >= miniGameUnlockLevel && !pet.isSleeping && !pet.partnerSchedule.active && !pet.adventure.active
-    && !isExpeditionAway(pet) && !pet.community.fishing.active && !pet.timePause;
+    && !pet.community.fishing.active && !pet.timePause;
 }
 
 // The activity ID owns this mounted view; game IDs identify individual rounds.
