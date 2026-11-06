@@ -15,6 +15,11 @@
 .museum-feedback { min-height: 23px; font-size: 13px; color: #8a735d; }
 .museum-scene { margin: 0 0 16px; }
 .museum-scene-canvas { position: relative; height: 0; padding-top: 56.25%; overflow: hidden; border-radius: 16px; background: #eadbc0; }
+.museum-scene-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow: hidden; border-radius: inherit; background: #eadbc0; }
+/* Each 1920×1080 frame has a different inner opening and transparent outer margins. */
+.museum-scene-canvas[data-frame="common"], .museum-scene-canvas[data-frame="prestige"] { background: transparent; border-radius: 0; }
+.museum-scene-canvas[data-frame="common"] .museum-scene-content { top: 16.5%; right: 7.3%; bottom: 18%; left: 7.3%; border-radius: 3%; }
+.museum-scene-canvas[data-frame="prestige"] .museum-scene-content { top: 15%; right: 8.3%; bottom: 21%; left: 8.3%; border-radius: 3%; }
 .museum-scene-background, .museum-scene-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 .museum-scene-frame { object-fit: fill; z-index: 3; pointer-events: none; }
 .museum-scene-actor, .museum-scene-guest { position: absolute; bottom: 6%; left: 11%; width: 23%; height: 42%; object-fit: contain; z-index: 2; }
@@ -62,27 +67,16 @@
 .museum-menu, .museum-appearance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 16px; margin-top: 16px; }
 .museum-host { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .museum-host button { margin-top: 12px; }
-.museum-badges { display: flex; flex-wrap: wrap; }
-.museum-badges figure { margin: 8px 14px 8px 0; text-align: center; }
-.museum-badges img { width: 65px; height: 65px; object-fit: contain; }
-.museum-badges figcaption { font-size: 12px; }
 .museum-guest img { width: 42px; height: 42px; object-fit: contain; margin-right: 10px; }
 .museum-guest svg { margin-right: 10px; }
 .museum-card blockquote { margin: 14px 0; padding: 12px; background: #f2e7d1; border-radius: 12px; line-height: 1.7; }
 .museum-trophy-summary { text-align: center; }
-.museum-trophy { display: block; position: relative; width: 250px; height: 275px; max-width: 100%; margin: 0 auto; }
-.museum-trophy img { object-fit: contain; }
-.museum-trophy-base { position: absolute; bottom: 3%; left: 10%; width: 80%; height: 32%; }
-.museum-trophy-diamond { position: absolute; top: 12%; left: 15%; width: 70%; height: 67%; }
-.museum-trophy-filigree { position: absolute; top: 26%; left: 4%; width: 92%; height: 46%; }
-.museum-trophy-ribbon { position: absolute; bottom: 14%; left: 6%; width: 88%; height: 30%; }
-.museum-trophy-crown { position: absolute; top: 0; left: 32%; width: 36%; height: 25%; }
-.museum-trophy-plate { position: absolute; bottom: 0; left: 24%; width: 52%; height: 23%; }
-.museum-trophy-plate img { width: 100%; height: 100%; }
-.museum-trophy-plate span { position: absolute; top: 25%; left: 6%; right: 6%; color: #62412a; font-size: 10px; }
-.museum-trophy-plate b { display: block; font-size: 12px; }
-.museum-trophy--plate-50 .museum-trophy-plate span { color: #87540a; }
-.museum-trophy--plate-100 .museum-trophy-plate span { color: #336a85; }
+.museum-trophy { display: block; position: relative; width: 250px; height: 300px; max-width: 100%; margin: 0 auto; }
+.museum-trophy-art { display: block; width: 100%; height: 100%; }
+.museum-trophy-plate-label { fill: #62412a; font-size: 10px; font-weight: 600; text-anchor: middle; }
+.museum-trophy-level { font-size: 11px; font-weight: 700; }
+.museum-trophy--plate-50 .museum-trophy-plate-label { fill: #87540a; }
+.museum-trophy--plate-100 .museum-trophy-plate-label { fill: #336a85; }
 .museum-appearance .museum-check { display: flex; flex-direction: row; align-items: center; }
 .museum-check input { width: 20px; height: 20px; margin: 0 8px 0 0; }
 .dialog-shell.exploration-sheet.museum-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 860px; height: calc(100vh - 40px); height: calc(var(--viewport-height, 100vh) - 40px); max-height: calc(100vh - 40px); min-height: 0; padding: 0; color: #634a36; background: #fff9ed; border: 1px solid #d8c5a7; border-radius: 18px; overflow: hidden; }

@@ -94,6 +94,17 @@
 .home-v2 .home-primary-grid--four .home-adventure-icon { position: absolute; top: 12px; left: 12px; width: 30px; height: 30px; }.home-v2 .home-primary-grid--four .home-adventure-icon > svg { width: 21px; height: 21px; }
 .home-v2 .home-primary-grid--four .home-adventure-copy { display: block; }.home-v2 .home-primary-grid--four .home-adventure-status { position: absolute; top: 12px; right: 10px; }.home-v2 .home-primary-grid--four .home-adventure-status > svg { width: 13px; height: 13px; }
 .home-primary-grid--four .home-adventure-background,.home-primary-grid--four .home-adventure::before { top: 0; right: 0; bottom: 0; left: 0; }
+.home-v2 .home-primary-grid--four > .home-primary-scene { isolation: isolate; overflow: hidden; border-color: #708469; background: #354b38; color: #fff9e7; box-shadow: 0 4px 12px rgba(62,76,52,.12); }
+.home-primary-scene > .home-primary-background { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; z-index: 0; pointer-events: none; }
+.home-primary-background > .community-scene-art { display: block; width: 100%; height: 100%; }
+.home-primary-scene::before { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; background: linear-gradient(90deg,rgba(25,57,42,.91),rgba(35,60,48,.78) 48%,rgba(36,60,48,.28)); pointer-events: none; }
+.home-primary-scene.kitchen::before { background: linear-gradient(90deg,rgba(74,48,27,.91),rgba(79,55,33,.78) 48%,rgba(74,48,27,.25)); }
+.home-primary-scene.courtyard::before { background: linear-gradient(90deg,rgba(53,62,34,.91),rgba(63,71,39,.78) 48%,rgba(63,71,39,.25)); }
+.home-primary-scene > strong,.home-primary-scene > small { position: relative; z-index: 2; text-shadow: 0 1px 3px rgba(22,43,40,.4); }
+.home-v2 .home-primary-grid--four .home-primary-scene > small { color: #f4eed6; }
+.home-v2 .home-primary-grid--four .home-primary-scene .home-primary-icon { z-index: 2; border: 1px solid rgba(255,255,255,.33); border-radius: 50%; background: rgba(255,255,255,.13); color: #fff9e7; }
+.home-v2 .home-primary-grid--four .home-primary-scene .home-primary-icon > img { width: 26px; height: 26px; }
+.home-primary-scene > .home-entry-arrow { z-index: 2; color: #fff9e7; opacity: .85; }
 .home-tools,.home-record-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .home-tools { padding: 10px 6px; border: 1px solid #e5e6dd; border-radius: 15px; background: #fffdf7; }
 .home-tools button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; padding: 8px 4px; border: 0; border-radius: 10px; background: transparent; color: #82734f; font-size: 12px; font-weight: 700; }

@@ -1,5 +1,5 @@
 import { getDish } from './kitchenRecipes';
-import { getMuseumStageCost, isMuseumVisitId, museumExhibits, museumQuestIds, museumQuests, museumRegions, museumScales, museumThemeIds, museumVisits, museumVisitIds, type MuseumRegion, type MuseumTheme } from './museumData';
+import { getMuseumStageCost, isMuseumVisitId, museumExhibits, museumQuestIds, museumQuests, museumRegions, museumScales, museumStarRequirements, museumThemeIds, museumVisits, museumVisitIds, type MuseumRegion, type MuseumTheme } from './museumData';
 import type { MuseumAppearance, MuseumDraft, MuseumRecord, MuseumState, MuseumTripContext } from './museumTypes';
 import type { PetState } from './petTypes';
 
@@ -9,7 +9,7 @@ const text = (value: unknown, max = 128) => typeof value === 'string' ? value.sl
 const dateKey = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(text(value)) ? text(value) : '';
 const theme = (value: unknown): value is MuseumTheme => museumThemeIds.includes(value as MuseumTheme);
 const selected = (raw: unknown, kind: 'exhibits' | 'dishes', limit: number) => Array.isArray(raw) ? [...new Set(raw.filter((id): id is string => typeof id === 'string' && (kind === 'exhibits' ? museumExhibits.some(e => e.id === id) : Boolean(getDish(id)))))].slice(0, limit) : [];
-export const defaultMuseumAppearance = (level = 0): MuseumAppearance => ({ base: level >= 20 ? 'prestige' : level >= 1 ? 'common' : 'none', plate: level >= 100 ? 100 : level >= 50 ? 50 : level >= 30 ? 30 : level >= 3 ? 3 : 0, filigree: level >= 6, ribbon: level >= 9, crown: level >= 12, frame: 'none', badge: 'common', title: level >= 100 ? 'century' : level >= 50 ? 'keeper' : level >= 30 ? 'companion' : 'default' });
+export const defaultMuseumAppearance = (level = 0): MuseumAppearance => ({ base: level >= 20 ? 'prestige' : level >= 1 ? 'common' : 'none', plate: level >= 100 ? 100 : level >= 50 ? 50 : level >= 30 ? 30 : level >= 3 ? 3 : 0, filigree: level >= 6, ribbon: level >= 9, crown: level >= 12, frame: 'none', title: level >= 100 ? 'century' : level >= 50 ? 'keeper' : level >= 30 ? 'companion' : 'default' });
 export const defaultMuseumState = (): MuseumState => ({ schemaVersion: 1, halls: Object.fromEntries(museumRegions.map(id => [id, { stage: 0, invested: 0 }])) as MuseumState['halls'], quests: {}, board: { week: '', themes: [] }, nextDraftId: 1, stars: 0, hosted: 0, coinsSpent: 0, applesSpent: 0, lastHostedWeek: '', weeklyPages: 0, best: {}, records: [], appearance: defaultMuseumAppearance() });
 export const normalizeMuseumDraft = (raw: unknown): MuseumDraft | undefined => {
   const value = object(raw), id = count(value.id);
@@ -57,9 +57,8 @@ export const normalizeMuseumState = (raw: unknown, legacyLevel = 0): MuseumState
     filigree: typeof a.filigree === 'boolean' ? a.filigree : fallback.filigree,
     ribbon: typeof a.ribbon === 'boolean' ? a.ribbon : fallback.ribbon,
     crown: typeof a.crown === 'boolean' ? a.crown : fallback.crown,
-    frame: ['none', 'common', 'prestige'].includes(String(a.frame)) ? a.frame as MuseumAppearance['frame'] : state.stars >= 90 ? 'prestige' : state.hosted ? 'common' : 'none',
-    badge: a.badge === 'prestige' && state.stars >= 300 ? 'prestige' : 'common',
-    title: ['default', 'companion', 'keeper', 'century', 'curator'].includes(String(a.title)) ? a.title as MuseumAppearance['title'] : state.stars >= 900 ? 'curator' : fallback.title,
+    frame: ['none', 'common', 'prestige'].includes(String(a.frame)) ? a.frame as MuseumAppearance['frame'] : state.stars >= museumStarRequirements.prestigeFrame ? 'prestige' : state.hosted ? 'common' : 'none',
+    title: ['default', 'companion', 'keeper', 'century', 'curator'].includes(String(a.title)) ? a.title as MuseumAppearance['title'] : state.stars >= museumStarRequirements.curatorTitle ? 'curator' : fallback.title,
   };
   state.appearance = getMuseumAppearance({ classicEndgame: { legacyLevel }, museum: state });
   return state;
@@ -70,9 +69,8 @@ export const getMuseumAppearance = (pet: { classicEndgame: { legacyLevel: number
   const a = pet.museum.appearance, level = pet.classicEndgame.legacyLevel;
   return { ...a, base: a.base === 'prestige' && level < 20 ? level ? 'common' : 'none' : a.base === 'common' && level < 1 ? 'none' : a.base,
     plate: a.plate <= level ? a.plate : 0, filigree: a.filigree && level >= 6, ribbon: a.ribbon && level >= 9, crown: a.crown && level >= 12,
-    frame: a.frame === 'prestige' && pet.museum.stars < 90 ? pet.museum.hosted ? 'common' : 'none' : !pet.museum.hosted ? 'none' : a.frame,
-    badge: a.badge === 'prestige' && pet.museum.stars >= 300 ? 'prestige' : 'common',
-    title: a.title === 'curator' ? pet.museum.stars >= 900 ? 'curator' : 'default' : level >= ({ default: 0, companion: 30, keeper: 50, century: 100 }[a.title] ?? Infinity) ? a.title : 'default' };
+    frame: a.frame === 'prestige' && pet.museum.stars < museumStarRequirements.prestigeFrame ? pet.museum.hosted ? 'common' : 'none' : !pet.museum.hosted ? 'none' : a.frame,
+    title: a.title === 'curator' ? pet.museum.stars >= museumStarRequirements.curatorTitle ? 'curator' : 'default' : level >= ({ default: 0, companion: 30, keeper: 50, century: 100 }[a.title] ?? Infinity) ? a.title : 'default' };
 };
 export const normalizeMuseumTrip = (raw: unknown, purpose: unknown): MuseumTripContext | undefined => {
   const value = object(raw);

@@ -13,13 +13,12 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenAcknowledge
 }) => {
   useEffect(() => { recordEditionNoticeShown(); }, []);
   const sections = [
-    { key: 'handcraft', emoji: '🧸', tone: 'amber', paragraphs: ['handcraftAdvice', 'byproductsAdvice'] },
-    { key: 'farm', emoji: '🌱', tone: 'green', paragraphs: ['farmAdvice'] },
-    { key: 'market', emoji: '🪙', tone: 'green', paragraphs: ['marketAdvice', 'valuationAdvice'] },
-    { key: 'kitchen', emoji: '🍳', tone: 'amber', paragraphs: ['kitchenAdvice', 'moodAdvice'] },
-    { key: 'exploration', emoji: '🧭', tone: 'blue', paragraphs: ['explorationAdvice', 'treasureAdvice'] },
-    { key: 'games', emoji: '🎮', tone: 'purple', paragraphs: ['gamesAdvice'] },
-    { key: 'backup', emoji: '💾', tone: 'blue', paragraphs: ['backupAdvice', 'releaseNotes.formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
+    { key: 'courtyard', emoji: '🌿', tone: 'green', paragraphs: ['courtyardAdvice'] },
+    { key: 'homeVisit', emoji: '🏡', tone: 'amber', paragraphs: ['homeVisitAdvice'] },
+    { key: 'mastery', emoji: '✨', tone: 'purple', paragraphs: ['masteryAdvice'] },
+    { key: 'work', emoji: '🎁', tone: 'amber', paragraphs: ['workAdvice'] },
+    { key: 'interface', emoji: '🖼️', tone: 'green', paragraphs: ['interfaceAdvice'] },
+    { key: 'backup', emoji: '💾', tone: 'blue', paragraphs: ['releaseNotes.saveAdvice', 'releaseNotes.formatTimeline', features.cloudSave ? 'downloadFallback' : 'localBackupAdvice'] },
   ];
   return <DialogShell className="edition-notice" labelId="edition-notice-title" onClose={onAcknowledge}>
     <header className="edition-notice__header">
@@ -30,7 +29,7 @@ export const EditionNoticeDialog = ({ onAcknowledge, onBackup, onOpenAcknowledge
       {sections.map(({ key, emoji, tone, paragraphs }) => <section className={`edition-notice__section edition-notice__section--${key}`} data-tone={tone} key={key}>
         <span className="edition-notice__emoji" aria-hidden="true">{emoji}</span>
         <div><h3>{t(`ui.editionNotice.${key === 'backup' ? '' : 'releaseNotes.'}${key}Title`)}</h3>
-          {paragraphs.map((paragraph) => <p className={['farmAdvice', 'backupAdvice'].includes(paragraph) ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${key === 'backup' ? '' : 'releaseNotes.'}${paragraph}`)}</p>)}
+          {paragraphs.map((paragraph) => <p className={paragraph === 'releaseNotes.formatTimeline' ? 'edition-notice__highlight' : undefined} key={paragraph}>{t(`ui.editionNotice.${key === 'backup' ? '' : 'releaseNotes.'}${paragraph}`)}</p>)}
           {key === 'backup' && onOpenUpdates && <button type="button" className="text-button edition-notice__update-link" onClick={onOpenUpdates}><RefreshCw size={16} />{t('ui.editionNotice.openUpdates')}</button>}
         </div>
       </section>)}

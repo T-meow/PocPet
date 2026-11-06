@@ -44,6 +44,21 @@ if (-not (Test-Path -LiteralPath $source)) {
 New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 Copy-Item -LiteralPath $source -Destination $targetPath -Force
 
+# A workspace can carry an inherited Low mandatory integrity label. Executables
+# built/copied there then start at Low integrity and cannot create their WebView2
+# profile in AppData. Label only our executables; leave directory permissions alone.
+$currentUserSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+foreach ($executable in @($source, $targetPath)) {
+  # These are our build outputs. Changing their labels requires WRITE_OWNER,
+  # which inherited Modify lacks. Use icacls without loading PowerShell modules.
+  & icacls.exe $executable /grant "*$($currentUserSid.Value):(WO)"
+  if ($LASTEXITCODE -ne 0) { throw "Could not prepare executable '$executable' for integrity labeling." }
+  & icacls.exe $executable /setintegritylevel M
+  if ($LASTEXITCODE -ne 0) {
+    throw "Could not set Medium integrity on '$executable'; the app may be unable to open its user data directory."
+  }
+}
+
 $indexContent = Get-Content -LiteralPath $distIndex -Raw
 $expectedAssets = [regex]::Matches($indexContent, 'assets/[^"]+\.(js|css)') | ForEach-Object { $_.Value }
 if ($expectedAssets.Count -eq 0) {

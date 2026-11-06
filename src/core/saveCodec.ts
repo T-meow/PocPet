@@ -155,6 +155,8 @@ const assertSupportedModuleVersions = (rawPet: Record<string, unknown>) => {
   const supportedModules: Record<string, number> = { garden: 6, goldenAppleGacha: 5, partnerSchedule: 7, boostCards: 2, classicEndgame: 2, museum: 1, timeGuard: 1, timePause: 1, kitchen: 1, miniGames: 1, companionMemories: 1, musicCompanion: 2, festivalStories: 3, adventure: 10, community: 17 };
   const courtyard = isObject(rawPet.community) ? rawPet.community.courtyard : undefined;
   if (isObject(courtyard) && typeof courtyard.schemaVersion === 'number' && courtyard.schemaVersion > 1) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
+  const homeVisit = isObject(rawPet.community) ? rawPet.community.homeVisit : undefined;
+  if (isObject(homeVisit) && typeof homeVisit.schemaVersion === 'number' && homeVisit.schemaVersion > 1) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));
   for (const [key, maximum] of Object.entries(supportedModules)) {
     const module = rawPet[key];
     if (isObject(module) && typeof module.schemaVersion === 'number' && module.schemaVersion > maximum) throw new UnsupportedSaveVersionError(t('ui.settings.save.newerVersion'));

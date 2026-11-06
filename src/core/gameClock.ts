@@ -85,6 +85,7 @@ const findLatestStoredDailyDateKey = (value: unknown, fallback: string, now: num
     object(community.farmNeighbor).hiredDay,
     object(community.market).lastBuyoutDay,
     object(community.courtyard).day,
+    object(community.homeVisit).day,
   ].forEach(record);
   recordArray(yearlyStats.activeDateKeys);
   Object.values(companionYears).slice(0, 100).forEach(recordArray);
@@ -221,6 +222,13 @@ export const shiftPetRuntimeTimestamps = (pet: PetState, offsetMs: number, prese
     } : undefined },
     museum: pet.museum ? { ...pet.museum, quests: Object.fromEntries(Object.entries(pet.museum.quests).map(([id, quest]) => [id, quest ? { ...quest, acceptedAt: shiftTimestamp(quest.acceptedAt, offsetMs) } : quest])) } : pet.museum,
     community: pet.community ? { ...pet.community,
+      homeVisit: pet.community.homeVisit ? { ...pet.community.homeVisit,
+        nextCheckAt: shiftTimestamp(pet.community.homeVisit.nextCheckAt, offsetMs),
+        active: pet.community.homeVisit.active ? { ...pet.community.homeVisit.active,
+          arrivedAt: shiftTimestamp(pet.community.homeVisit.active.arrivedAt, offsetMs),
+          leavesAt: shiftTimestamp(pet.community.homeVisit.active.leavesAt, offsetMs),
+        } : undefined,
+      } : pet.community.homeVisit,
       courtyard: pet.community.courtyard ? { ...pet.community.courtyard,
         rotationStartedAt: shiftTimestamp(pet.community.courtyard.rotationStartedAt, offsetMs),
         nextRefreshAt: shiftTimestamp(pet.community.courtyard.nextRefreshAt, offsetMs),
@@ -397,6 +405,7 @@ export const rebasePetFutureCalendarState = (pet: PetState, now = Date.now()): P
     } : pet.museum,
     community: pet.community ? { ...pet.community, boardDay: rebaseFutureDateKey(pet.community.boardDay, currentDateKey), seedForageDay: rebaseFutureDateKey(pet.community.seedForageDay, currentDateKey),
       courtyard: pet.community.courtyard ? { ...pet.community.courtyard, day: rebaseFutureDateKey(pet.community.courtyard.day, currentDateKey) } : pet.community.courtyard,
+      homeVisit: pet.community.homeVisit ? { ...pet.community.homeVisit, day: rebaseFutureDateKey(pet.community.homeVisit.day, currentDateKey) } : pet.community.homeVisit,
       market: pet.community.market ? { ...pet.community.market, lastBuyoutDay: rebaseFutureDateKey(pet.community.market.lastBuyoutDay, currentDateKey) } : pet.community.market,
       activityBoard: pet.community.activityBoard?.week > currentDateKey ? { ...pet.community.activityBoard, week: getWeekStartDateKey(currentDateKey) } : pet.community.activityBoard,
       specialtyOrders: pet.community.specialtyOrders ? { ...pet.community.specialtyOrders, acceptedDay: rebaseFutureDateKey(pet.community.specialtyOrders.acceptedDay, currentDateKey) } : pet.community.specialtyOrders,

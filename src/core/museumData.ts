@@ -3,6 +3,7 @@ import type { Inventory } from './petTypes';
 import { landmarkId, mapRegionForExpedition, type LandmarkId, type LandmarkNode } from './landmarkProgress';
 
 export const museumRegions = ['valley', 'hills', 'forest', 'coast', 'station'] as const;
+export const museumStarRequirements = { prestigeFrame: 9, curatorTitle: 90 } as const;
 export type MuseumRegion = typeof museumRegions[number];
 export type MuseumTag = 'record' | 'life' | 'nature' | 'craft';
 export const museumTagNames: Record<MuseumTag, string> = { record: '记录', life: '生活', nature: '自然', craft: '工艺' };

@@ -133,11 +133,7 @@ const legacySizeSkillXp: Record<PartnerScheduleSize, number> = { short: 10, stan
 const serviceRewardMultiplier = 0.9;
 
 const randomGiftChoices = ['category', 'category_2', 'category_3'] as const;
-const randomGiftAmountRanges: Record<PartnerScheduleSize, { minimum: number; maximum: number }> = {
-  short: { minimum: 1, maximum: 3 },
-  standard: { minimum: 2, maximum: 5 },
-  long: { minimum: 4, maximum: 8 },
-};
+const randomGiftAmountRange = { minimum: 5, maximum: 7 } as const;
 const randomGiftPools: Partial<Record<PartnerScheduleCategory, readonly BuiltinItemId[]>> = {
   garden: Array.from(new Set<BuiltinItemId>([
     ...Object.values(communityCrops).map(crop => crop.product),
@@ -166,7 +162,7 @@ const getRandomGift = (result: PartnerScheduleResult, choice: PartnerScheduleRew
   const pool = randomGiftPools[result.category];
   if (!pool) return undefined;
   const available = [...pool];
-  const range = randomGiftAmountRanges[result.size];
+  const range = randomGiftAmountRange;
   for (const candidate of randomGiftChoices) {
     const index = Math.floor(getRandomGiftRoll(result, `${candidate}:item`) * available.length);
     const [itemId] = available.splice(index, 1);
@@ -701,14 +697,12 @@ export const getPartnerScheduleOfferPreview = (
     categoryReward = getPartnerScheduleClaimPreview(rewardResult, 'category', 0, pet);
     const pool = randomGiftPools[definition.category];
     if (pool) {
-      const range = randomGiftAmountRanges[definition.size];
       categoryReward = {
         ...categoryReward, itemId: undefined, itemAmount: undefined,
         randomGift: {
           category: definition.category === 'garden' ? 'garden' : 'cooking',
-          minimum: Math.max(1, Math.round(range.minimum * trophyRewardMultiplier)),
-          maximum: Math.max(1, Math.round(range.maximum * trophyRewardMultiplier)),
-          choices: randomGiftChoices.length, poolSize: pool.length,
+          ...randomGiftAmountRange,
+          choices: randomGiftChoices.length,
         },
       };
     }
@@ -896,7 +890,7 @@ export interface PartnerScheduleClaimPreview {
   skillXp: number;
   itemId?: BuiltinItemId;
   itemAmount?: number;
-  randomGift?: { category: 'garden' | 'cooking'; minimum: number; maximum: number; choices: number; poolSize: number };
+  randomGift?: { category: 'garden' | 'cooking'; minimum: number; maximum: number; choices: number };
   energy?: number;
   health?: number;
   mood?: number;
@@ -931,7 +925,8 @@ export const getPartnerScheduleClaimPreview = (
   const amount = result.size === 'long' ? 2 : 1;
   if (result.category === 'study') return { ...base, skillXp: scaleReward(result.skillXp * 2), mood: scaleStat(scaleReward(8 * amount)) };
   const gift = getRandomGift(result, choice);
-  if (gift) return { ...base, itemId: gift.itemId, itemAmount: scaleReward(gift.itemAmount) };
+  // Product gifts stay within 5–7 items even when coins and XP receive bonuses.
+  if (gift) return { ...base, ...gift };
   const energy = result.legacyRewards ? scaleReward(10 * amount)
     : Math.min(10 * amount, Math.floor((result.energyCost ?? sizeRules[result.size].energyCost) / 2));
   return { ...base, energy, health: scaleStat(scaleReward(6 * amount)) };

@@ -1,0 +1,91 @@
+.home-v2 .home-room .pet-scene.room-v2--visiting > .pet {
+  left: 26%; bottom: 43px; width: 43%; max-width: 235px; height: 235px;
+}
+.home-v2 .home-room .pet-scene.room-v2--visiting > .pet img { width: 100%; height: 100%; }
+.room-visitor {
+  position: absolute; left: 74%; bottom: 43px; width: 43%; max-width: 235px; height: 235px;
+  transform: translateX(-50%); padding: 0; border: 0; background: transparent; color: #596749; cursor: pointer; z-index: 2;
+}
+.room-visitor > img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 7px 4px rgba(65,83,47,.12)); }
+.room-visitor-name { position: absolute; left: 0; right: 0; bottom: -13px; margin: 0 auto; max-width: 100%; padding: 4px 7px; border: 1px solid #d7d6b8; border-radius: 12px; background: #fffced; color: #6b744a; font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.room-visitor-bubble { position: absolute; top: -14px; left: 4%; right: 4%; padding: 8px 9px; border: 1px solid #dcd8bf; border-radius: 16px 16px 16px 3px; background: #fffef6; box-shadow: 0 3px 10px rgba(69,78,42,.08); color: #74694b; font-size: 12px; line-height: 1.5; }
+.room-visitor:focus { outline: 3px solid #8ba272; outline-offset: 2px; border-radius: 18px; }
+.home-visit-strip { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid #e4e6d7; border-bottom: 1px solid #e4e6d7; background: #f6f7ec; color: #75815e; }
+.home-visit-presence { display: flex; align-items: center; flex: 1; min-width: 0; padding: 2px 0; border: 0; background: transparent; color: #62704c; text-align: left; cursor: pointer; }
+.home-visit-presence > svg { flex-shrink: 0; margin-right: 7px; }
+.home-visit-presence > span { min-width: 0; }
+.home-visit-presence strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
+.home-visit-presence small { display: block; margin-top: 3px; font-size: 10px; color: #8c927c; }
+.home-visit-quiet { display: flex; align-items: center; font-size: 11px; margin: 4px 8px 4px 0; }
+.home-visit-quiet > svg { margin-right: 7px; flex-shrink: 0; }
+.home-visit-tools { display: flex; align-items: center; flex-wrap: wrap; margin: 2px -3px; }
+.home-visit-tools > button { display: flex; align-items: center; min-height: 34px; margin: 3px; padding: 6px 8px; border: 1px solid #dce0cc; border-radius: 10px; background: #fffef8; color: #6a7754; font-size: 11px; cursor: pointer; }
+.home-visit-tools > button > svg { margin-right: 5px; }
+.home-visit-tools > .home-visit-gift-notice { border-color: #e5c896; background: #fff2d8; color: #947238; }
+.dialog-shell.home-visit-dialog { box-sizing: border-box; display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 540px; max-height: calc(var(--viewport-height,100vh) - 24px); min-height: 0; margin: 0; padding: 0; overflow: hidden; border: 1px solid #e3ddcc; border-radius: 20px; background: #fffdf7; color: #5b624e; box-shadow: 0 20px 60px rgba(47,60,37,.2); }
+.home-visit-dialog > header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 17px 20px; border-bottom: 1px solid #e9e4d4; background: #f8f4e8; }
+.home-visit-dialog > header > div { min-width: 0; margin-right: 10px; }
+.home-visit-dialog > header h2 { margin: 5px 0 0; font-size: 19px; line-height: 1.5; overflow-wrap: break-word; }
+.home-visit-dialog > header small { font-size: 11px; color: #9a8d72; }
+.home-visit-dialog > header > button { flex-shrink: 0; }
+.home-visit-dialog > .community-detail-body { padding: 18px; min-width: 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.home-visit-intro,.home-visit-hint { margin: 0 0 14px; font-size: 12px; line-height: 1.8; color: #8a8d77; }
+.home-visit-hint { margin: 12px 0 0; padding: 10px; border-radius: 10px; background: #f8efdf; color: #9a774c; }
+.home-visit-existing { display: flex; align-items: center; margin-bottom: 12px; padding: 10px; border-radius: 12px; background: #f3f1e7; }
+.home-visit-existing p { flex: 1; margin: 0 10px 0 0; font-size: 12px; line-height: 1.7; }
+.home-visit-existing button { display: flex; align-items: center; flex-shrink: 0; font-size: 12px; }
+.home-visit-existing button svg { margin-right: 4px; }
+.home-invite-list > article,.home-visit-foods > article,.home-visit-gifts > article { display: flex; align-items: center; flex-wrap: wrap; padding: 11px; margin-bottom: 9px; border: 1px solid #e2e4d5; border-radius: 14px; background: #fcfcf4; }
+.home-invite-list article > img { width: 59px; height: 59px; margin-right: 10px; object-fit: contain; flex-shrink: 0; }
+.home-invite-list article > div,.home-visit-foods article > div,.home-visit-gifts article > div { flex: 1; min-width: 100px; margin-right: 8px; }
+.home-invite-list strong,.home-visit-foods strong,.home-visit-gifts strong { display: block; font-size: 13px; line-height: 1.6; overflow-wrap: break-word; }
+.home-invite-list article span { display: flex; align-items: center; margin: 4px 0; color: #a47b7d; font-size: 11px; }
+.home-invite-list article span svg { margin-right: 4px; }
+.home-invite-list small,.home-visit-foods small,.home-visit-gifts small { display: block; font-size: 11px; line-height: 1.7; color: #92947e; }
+.home-visit-dialog .primary-button { min-height: 38px; padding: 8px 12px; border-radius: 11px; font-size: 12px; }
+.home-visit-dialog button:disabled { opacity: .65; cursor: default; }
+.home-visit-profile { display: flex; align-items: center; margin-bottom: 15px; padding: 12px; border: 1px solid #e0e4d1; border-radius: 16px; background: #f0f4e7; }
+.home-visit-profile > img { width: 76px; height: 76px; margin-right: 12px; object-fit: contain; flex-shrink: 0; }
+.home-visit-profile > div { flex: 1; min-width: 0; }
+.home-visit-profile strong { display: block; font-size: 16px; overflow-wrap: break-word; }
+.home-visit-profile div > span,.home-visit-profile small { display: flex; align-items: center; margin-top: 7px; font-size: 12px; color: #a17d7d; }
+.home-visit-profile small { color: #8a9378; font-size: 11px; }
+.home-visit-profile svg { margin-right: 4px; flex-shrink: 0; }
+.home-visit-tag { align-self: flex-start; padding: 5px 7px; border-radius: 8px; background: #e4ebd6; color: #74815a; font-size: 10px; white-space: nowrap; }
+.home-visit-greeting { padding: 0 5px; margin: 14px 0 18px; color: #8a8067; font-size: 13px; line-height: 1.8; }
+.home-host-actions { display: flex; flex-wrap: wrap; margin: -5px; }
+.home-host-actions > button { width: calc(50% - 10px); min-height: 111px; margin: 5px; padding: 13px; border: 1px solid #e1dbbf; border-radius: 15px; background: #faf3e5; color: #927751; text-align: left; cursor: pointer; }
+.home-host-actions > button + button { border-color: #d8e2ce; background: #eef4e8; color: #72895c; }
+.home-host-actions > button > span { display: flex; align-items: center; margin-bottom: 10px; }
+.home-host-actions strong { flex: 1; margin-left: 7px; font-size: 15px; }
+.home-host-actions small { display: block; font-size: 11px; line-height: 1.8; }
+.home-host-reward { padding: 15px; margin-top: 16px; border: 1px dashed #ddcfae; border-radius: 14px; background: #fff9ec; }
+.home-host-reward > div { display: flex; align-items: center; color: #9a7d44; }
+.home-host-reward strong { font-size: 13px; margin-left: 8px; }
+.home-host-reward p { margin: 9px 0 0; font-size: 12px; line-height: 1.8; color: #9c9076; }
+.home-host-reward button { width: 100%; margin-top: 12px; }
+.home-visit-back,.home-visit-farewell { display: flex; align-items: center; min-height: 40px; padding: 8px 0; border: 0; background: transparent; color: #879477; font-size: 12px; cursor: pointer; }
+.home-visit-back { margin: -6px 0 8px; }
+.home-visit-farewell { margin: 10px 0 -5px auto; }
+.home-visit-back svg,.home-visit-farewell svg { margin-right: 6px; }
+.home-visit-search { display: block; margin-bottom: 15px; font-size: 12px; color: #7a8566; }
+.home-visit-search input { box-sizing: border-box; display: block; width: 100%; min-height: 42px; margin-top: 7px; padding: 8px 10px; border: 1px solid #dce0cc; border-radius: 10px; background: #fff; color: #586548; font: inherit; }
+.home-visit-foods article > img { width: 45px; height: 45px; margin-right: 9px; object-fit: contain; }
+.home-visit-foods article span { display: block; font-size: 11px; line-height: 1.8; color: #aa8555; }
+.home-visit-foods article > button,.home-visit-gifts article > button { margin: 5px 0 5px auto; }
+.home-visit-gifts article > svg { margin-right: 14px; color: #b49b63; flex-shrink: 0; }
+.home-visit-received { display: flex; align-items: center; margin: 15px 0; padding: 13px; border: 1px solid #e5ca8f; border-radius: 14px; background: #fff4da; }
+.home-visit-received > img { width: 60px; height: 60px; margin-right: 12px; object-fit: contain; }
+.home-visit-received small,.home-visit-received strong,.home-visit-received span { display: block; line-height: 1.8; font-size: 11px; color: #aa8e5f; }
+.home-visit-received strong { font-size: 14px; color: #8c703d; }
+.home-visit-empty { padding: 24px 14px; border: 1px dashed #dce0cc; border-radius: 12px; text-align: center; font-size: 12px; line-height: 1.8; color: #969b86; }
+@media(max-width:420px) {
+  .home-v2 .home-room .pet-scene.room-v2--visiting > .pet,.room-visitor { height: 200px; }
+  .room-visitor-bubble { top: -10px; padding: 6px; font-size: 11px; }
+  .home-visit-strip { padding: 8px 10px; }
+  .home-visit-dialog > header { padding: 14px; }
+  .home-visit-dialog > .community-detail-body { padding: 13px; }
+  .home-visit-profile > img { width: 60px; height: 60px; margin-right: 9px; }
+  .home-invite-list article > img { width: 44px; height: 44px; margin-right: 8px; }
+  .home-host-actions > button { padding: 10px; }
+}

@@ -57,7 +57,7 @@ const RewardList = ({ reward, icons, showCoins = true, showHearts = true }: {
   {showHearts && <span><Heart size={16} />心心 +{reward.hearts}</span>}
   {reward.skillXp > 0 && <span><Sparkles size={16} />{L('技能经验', 'Skill XP')} +{reward.skillXp}</span>}
   {reward.itemId && <span>{icons[reward.itemId] && <img src={icons[reward.itemId]} alt="" />}{getItemName(reward.itemId)} ×{reward.itemAmount}</span>}
-  {reward.randomGift && <span><Gift size={16} />{reward.randomGift.category === 'garden' ? '随机种植产物' : '随机料理'} ×{reward.randomGift.minimum}–{reward.randomGift.maximum}</span>}
+  {reward.randomGift && <span><Gift size={16} />随机产物 ×{reward.randomGift.minimum}–{reward.randomGift.maximum}</span>}
   {reward.energy ? <span><Zap size={16} />{L('体力', 'Energy')} +{reward.energy}</span> : null}
   {reward.health ? <span>{L('健康', 'Health')} +{amount(reward.health)}</span> : null}
   {reward.mood ? <span>{L('心情', 'Mood')} +{amount(reward.mood)}</span> : null}
@@ -85,7 +85,7 @@ const WorkOfferDialog = ({ pet, offerId, portrait, activityImages, itemIconMap, 
       <div className="community-work-pay"><RewardList reward={{ coins: preview.baseCoins, hearts: preview.hearts, skillXp: 0 }} icons={itemIconMap} />{preview.grantsMasterCompletion && <span className="community-work-mastery"><Sparkles size={15} />大师次数 +1</span>}</div>
       <h3 className="community-work-detail-title">全程回礼{preview.categoryReward ? ' · 任选一份，基础工资照常领取' : ''}</h3>
       <div className="community-category-alternative"><small>额外金币</small><RewardList reward={{ coins: preview.completionCoins, hearts: 0, skillXp: preview.skillXp }} icons={itemIconMap} showHearts={false} /></div>
-      {preview.categoryReward && <div className="community-category-alternative"><small>{preview.categoryReward.randomGift ? `${preview.categoryReward.randomGift.category === 'garden' ? '种植产物' : '料理'}回礼 · 完成后 ${preview.categoryReward.randomGift.choices} 选 1` : '分类回礼'}</small><RewardList reward={preview.categoryReward} icons={itemIconMap} showCoins={false} showHearts={false} />{preview.categoryReward.randomGift && <p>从 {preview.categoryReward.randomGift.poolSize} 种{preview.categoryReward.randomGift.category === 'garden' ? '种植产物中等概率抽取，最高可得金苹果' : '成品料理中等概率抽取，包含全部稀有度与口味'}。每份随机数量，三个候选品种不同，不受解锁进度限制。</p>}</div>}
+      {preview.categoryReward && <div className="community-category-alternative"><small>{preview.categoryReward.randomGift ? `${preview.categoryReward.randomGift.category === 'garden' ? '种植产物' : '料理'}回礼 · 完成后 ${preview.categoryReward.randomGift.choices} 选 1` : '分类回礼'}</small><RewardList reward={preview.categoryReward} icons={itemIconMap} showCoins={false} showHearts={false} /></div>}
       <h3 className="community-work-detail-title">出发前，留一点力气</h3>
       <div className="community-work-costs"><span><Zap size={16} />{L('体力', 'Energy')} <strong>−{preview.energyCost}</strong></span><span>{L('饱腹', 'Fullness')} <strong>−{amount(preview.hungerCost)}</strong></span><span>{L('心情', 'Mood')} <strong>−{amount(preview.moodCost)}</strong></span></div>
       <HelpButton {...getWorkOfferHelp(getPartnerScheduleDisplayTitle(definition.id, neighbor, neighbors), preview)} />

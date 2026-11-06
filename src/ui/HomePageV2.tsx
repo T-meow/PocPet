@@ -19,10 +19,17 @@ import { DecorationArt } from './community/TreasureDisplay';
 import { MuseumTrophyArt } from './museum/MuseumShared';
 import { isCourtyardOpen } from '../core/courtyard';
 import { courtyardArtwork } from '../courtyardAssets';
+import { HomeVisits } from './HomeVisits';
+import { CommunitySceneArt } from './community/CommunitySceneArt';
+import kitchenBackground from '../assets/kitchen/background.webp';
+import type { InstalledPetModSummary } from '../core/mod';
+import type { PetState } from '../core/petTypes';
 import '../styles/decorations.css';
 
 interface Props extends HomePageProps {
   actorId: string;
+  installedMods: readonly InstalledPetModSummary[];
+  update: (action: (pet: PetState) => PetState) => void;
   adventure: AdventureEntryState;
   hasAchievementNotice: boolean;
   onOpenKitchen: () => void;
@@ -85,7 +92,7 @@ export const HomePageV2 = (props: Props) => {
     : props.isCriticallyHungry ? t('ui.actionDock.lowHunger')
       : props.isLowEnergy ? t('ui.actionDock.lowEnergy') : L('消耗体力，恢复心情', 'Spend energy to lift their mood');
   return <div className="home-v2"><div className="home-v2-title"><div><p>OUR LITTLE HOME</p><h2>{L(`${pet.name} 的小窝`, `${pet.name}’s little home`)}</h2></div><span>{L(`相伴第 ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} 天`, `Day ${Math.max(1, Math.floor(pet.ageSeconds / 86400) + 1)} together`)}</span></div>
-    <div className="home-v2-grid"><section className="home-companion-card"><div className="home-room"><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} roomDecorations={roomDecorations} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} onOpenAppearance={props.onOpenAppearance} /></div><button className="home-event" onClick={props.onOpenNotices} aria-label={L('查看完整消息', 'Read full message')}><span>✦</span><p>{pet.recentEvent}</p><span>›</span></button>
+    <div className="home-v2-grid"><section className="home-companion-card"><HomeVisits pet={pet} actorId={actorId} installedMods={props.installedMods} update={props.update}>{visitor => <div className="home-room"><PetDisplay pet={pet} onInteract={onInteract} canUpgrade={canUpgrade} isPetBusy={busy} nextUpgradeCost={nextUpgradeCost} onUpgrade={onUpgrade} overlay={pomodoroOverlay} roomDecorations={roomDecorations} petStatusImages={petStatusImages} petActivityImages={petActivityImages} getStatusLabel={getStatusLabel} onOpenAppearance={props.onOpenAppearance} visitor={visitor} /></div>}</HomeVisits><button className="home-event" onClick={props.onOpenNotices} aria-label={L('查看完整消息', 'Read full message')}><span>✦</span><p>{pet.recentEvent}</p><span>›</span></button>
       <CompanionStatus pet={pet} />
       <nav className="home-care-bar" aria-label={L('日常照顾', 'Daily care')}>
         <button onClick={onOpenInventory}><PackageOpen size={20} />{L('背包 / 喂食', 'Bag / Feed')}</button>
@@ -98,18 +105,21 @@ export const HomePageV2 = (props: Props) => {
       <section>
         <div className="home-section-title"><h3>{L('一起做点什么', 'A little time together')}</h3><small>{L('随时开始，慢慢来', 'At our own pace')}</small></div>
         <div className="home-primary-grid home-primary-grid--four">
-          <button className="home-quick kitchen" disabled={Boolean(pet.adventure.active)} onClick={onOpenKitchen}>
+          <button className="home-quick kitchen home-primary-scene" disabled={Boolean(pet.adventure.active)} onClick={onOpenKitchen}>
+            <img className="home-primary-background" src={kitchenBackground} alt="" aria-hidden="true" draggable={false} />
             <span className="home-primary-icon"><ChefHat size={28} /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
             <strong>{L('一起做饭', 'Cook together')}</strong><small>{L('选一道菜，做点好吃的', 'Pick a recipe. Make something tasty.')}</small>
             <ClaimNotice show={!pet.kitchen.starterClaimed && !pet.adventure.active} />
           </button>
-          <button className="home-quick garden" onClick={props.onOpenCommunity ?? onOpenGarden}>
+          <button className="home-quick garden home-primary-scene" onClick={props.onOpenCommunity ?? onOpenGarden}>
+            <span className="home-primary-background" aria-hidden="true"><CommunitySceneArt community={pet.community} cover /></span>
             <span className="home-primary-icon"><Sprout size={28} /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
             <strong>溪畔农场</strong><small>{farmHint}</small>
             <ClaimNotice show={farmGiftReady} />
           </button>
           <AdventureEntry entry={props.adventure} hasReward={adventureGiftReady} compact />
-          <button className="home-quick courtyard" disabled={!courtyardUnlocked} onClick={props.onOpenCourtyard}>
+          <button className="home-quick courtyard home-primary-scene" disabled={!courtyardUnlocked} onClick={props.onOpenCourtyard}>
+            <img className="home-primary-background" src={courtyardArtwork.background} alt="" aria-hidden="true" draggable={false} />
             <span className="home-primary-icon"><img src={courtyardArtwork.entry} alt="" /></span><ArrowUpRight className="home-entry-arrow" size={17} aria-hidden="true" />
             <strong>社区小院</strong><small>{!courtyardUnlocked ? '完成第一次踩点后开放' : courtyardGiftReady ? '邻居的回礼等你收下' : '聊聊天，和邻居相处一会儿'}</small>
             <ClaimNotice show={courtyardGiftReady} />

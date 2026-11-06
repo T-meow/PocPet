@@ -74,6 +74,7 @@ export interface CommunityState {
   schemaVersion: 17;
   relationships: Record<string, import('./courtyardTypes').NeighborRelationship>;
   courtyard: import('./courtyardTypes').CourtyardState;
+  homeVisit: import('./homeVisitState').HomeVisitState;
   farmNeighbor?: FarmNeighborHelp;
   activityBoard: CommunityActivityBoard;
   boardRegion?: import('./expeditionTypes').RegionId;

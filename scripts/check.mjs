@@ -657,6 +657,109 @@ async function verifySavesAndErrors() {
       reset();
     });
 
+    await check('小窝来访判定、邀请、角色切换与冻结恢复', async () => {
+      const visits = await import('../src/core/homeVisit.ts');
+      const { prepareTimePause, resumePetTime } = await import('../src/core/timePause.ts');
+      const context = { actorId: 'official.furo', neighbors: [{ modId: 'official.furo', name: '伙伴' }, { modId: 'fixture.home', name: '邻居' }] };
+      const initial = normalizePet({ ...pet, adventure: { ...pet.adventure, completed: { tutorial: 1 } },
+        community: { ...pet.community, relationships: { 'fixture.home': { points: 60 } } } }, now);
+      const locked = { ...initial, community: { ...initial.community, relationships: { 'fixture.home': { points: 59 } } } };
+      assert.equal(visits.inviteHomeNeighbor(locked, context, 'fixture.home', now), locked);
+      let arrived, missed;
+      for (let i = 0; i < 100 && (!arrived || !missed); i++) {
+        const sample = { ...initial, saveMetadata: { ...initial.saveMetadata, id: `save:home-visit-${i}` } };
+        const next = visits.advanceHomeVisit(sample, context, now);
+        if (next.community.homeVisit.active) arrived = next; else missed = next;
+      }
+      assert.ok(arrived && missed, 'both arrival and no-arrival results are persisted');
+      for (const state of [arrived, missed]) {
+        assert.equal(state.community.homeVisit.nextCheckAt, visits.getHomeVisitWindow(now).endsAt);
+        const restored = parseSaveFileText(createSaveFileText(state, null, now), now).pet;
+        assert.deepEqual(restored.community.homeVisit, JSON.parse(JSON.stringify(state.community.homeVisit)));
+        const switched = { actorId: 'fixture.home', neighbors: context.neighbors.concat({ modId: 'fixture.new', name: '新邻居' }) };
+        assert.equal(visits.advanceHomeVisit(restored, switched, now + 1000), restored, 'switching or installing does not roll again');
+        assert.equal(visits.advanceHomeVisit(restored, { ...context, neighbors: [] }, now + 1000), restored, 'uninstalling does not erase a visit');
+        assert.equal(visits.advanceHomeVisit(restored, context, now + 2000), restored);
+      }
+      const invited = visits.inviteHomeNeighbor(initial, context, 'fixture.home', now), active = invited.community.homeVisit.active;
+      assert.equal(active.neighborId, 'fixture.home');
+      assert.equal(active.leavesAt - active.arrivedAt, 3600000);
+      assert.equal(visits.inviteHomeNeighbor(invited, context, 'fixture.home', now), invited);
+      const sleeping = { ...initial, isSleeping: true };
+      assert.equal(visits.advanceHomeVisit(sleeping, context, now).community.homeVisit.active, undefined);
+      assert.equal(visits.advanceHomeVisit(sleeping, context, now).community.homeVisit.nextCheckAt, 0);
+      assert.equal(visits.inviteHomeNeighbor(sleeping, context, 'fixture.home', now), sleeping);
+      const frozen = prepareTimePause(invited, now), later = now + 8 * 3600000;
+      assert.equal(visits.advanceHomeVisit(frozen, context, later), frozen);
+      const resumed = resumePetTime(frozen, later);
+      assert.equal(resumed.community.homeVisit.active.id, active.id);
+      assert.equal(resumed.community.homeVisit.active.leavesAt - later, active.leavesAt - now);
+      const imported = parseSaveFileText(createSaveFileText(invited, null, now), later).pet;
+      assert.equal(imported.community.homeVisit.active.leavesAt - later, active.leavesAt - now);
+      const left = visits.dismissHomeNeighbor(invited, active.id, now);
+      assert.equal(visits.advanceHomeVisit(left, context, now + 1000), left, 'sending a visitor off does not roll another visit');
+    });
+
+    await check('小窝招待扣费、每日回礼、满仓跨日与保存失败恢复', async () => {
+      const visits = await import('../src/core/homeVisit.ts');
+      const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
+      const context = { actorId: 'official.furo', neighbors: [{ modId: 'fixture.home', name: '邻居', favoriteFoodIds: ['dish_plain_rice'] }] };
+      const initial = normalizePet({ ...pet, energy: 100, mood: 20, inventory: { ...pet.inventory, dish_plain_rice: 4 },
+        adventure: { ...pet.adventure, completed: { tutorial: 1 } }, community: { ...pet.community, relationships: { 'fixture.home': { points: 60 } } } }, now);
+      const invited = visits.inviteHomeNeighbor(initial, context, 'fixture.home', now);
+      const request = { visitId: invited.community.homeVisit.active.id, neighborId: 'fixture.home', day: invited.community.homeVisit.day };
+      const eaten = visits.hostHomeNeighbor(invited, context, request, 'eat', 'dish_plain_rice', now);
+      assert.equal(eaten.inventory.dish_plain_rice, 3);
+      assert.equal(eaten.community.homeVisit.daily['fixture.home'].premiumChance, 35);
+      assert.equal(Object.keys(eaten.community.homeVisit.pending).length, 0);
+      assert.equal(visits.hostHomeNeighbor(eaten, context, request, 'eat', 'dish_plain_rice', now), eaten);
+      const lowEnergy = { ...eaten, energy: 9 };
+      assert.equal(visits.hostHomeNeighbor(lowEnergy, context, request, 'play', undefined, now), lowEnergy);
+      assert.equal(visits.hostHomeNeighbor(eaten, context, { ...request, day: '2000-01-01' }, 'play', undefined, now), eaten);
+      assert.equal(visits.hostHomeNeighbor(eaten, context, request, 'play', undefined, invited.community.homeVisit.active.leavesAt), eaten);
+      const left = visits.dismissHomeNeighbor(eaten, request.visitId, now);
+      const returned = visits.inviteHomeNeighbor(parseSaveFileText(createSaveFileText(left, null, now), now).pet, context, request.neighborId, now);
+      const newRequest = { ...request, visitId: returned.community.homeVisit.active.id };
+      assert.equal(visits.hostHomeNeighbor(returned, context, request, 'play', undefined, now), returned, 'old visit windows cannot act on a later visit');
+      assert.equal(visits.hostHomeNeighbor(returned, context, newRequest, 'eat', 'dish_plain_rice', now), returned);
+      const complete = visits.hostHomeNeighbor(returned, context, newRequest, 'play', undefined, now);
+      assert.equal(complete.energy, returned.energy - 10);
+      assert.equal(complete.mood, returned.mood + 10);
+      assert.deepEqual(complete.community.courtyard, initial.community.courtyard, 'home hosting does not spend courtyard daily actions');
+      const rewardId = complete.community.homeVisit.daily[request.neighborId].reward, gift = complete.community.homeVisit.pending[rewardId];
+      assert.ok(gift);
+      assert.equal(visits.hostHomeNeighbor(complete, context, newRequest, 'play', undefined, now), complete);
+      reset(createSaveFileText(returned, null, now));
+      const beforeWrite = storage.getItem(primary);
+      storage.failWrite = primary;
+      assert.throws(() => disk.savePet(complete));
+      assert.equal(storage.getItem(primary), beforeWrite, 'failed saves do not commit consumed energy or reward generation');
+      disk.savePet(complete);
+      assert.deepEqual(disk.loadPet(now, quiet).pet.community.homeVisit.pending[rewardId], gift);
+      const full = { ...complete, inventory: { ...complete.inventory, [gift.itemId]: inventoryItemLimit } };
+      assert.equal(visits.claimHomeVisitGift(full, rewardId), full);
+      const tomorrow = now + 86400000;
+      const offline = visits.advanceHomeVisit(full, context, tomorrow);
+      assert.deepEqual(offline.community.homeVisit.daily, {});
+      assert.deepEqual(offline.community.homeVisit.pending[rewardId], gift, 'earned gifts survive a new day and visitor departure');
+      const imported = parseSaveFileText(createSaveFileText(offline, null, tomorrow), tomorrow).pet;
+      const space = { ...imported, inventory: { ...imported.inventory, [gift.itemId]: inventoryItemLimit - 1 } };
+      const claimed = visits.claimHomeVisitGift(space, rewardId);
+      assert.equal(claimed.inventory[gift.itemId], inventoryItemLimit);
+      assert.equal(claimed.community.homeVisit.pending[rewardId], undefined);
+      assert.equal(visits.claimHomeVisitGift(claimed, rewardId), claimed);
+      const sameDayClaim = visits.claimHomeVisitGift(complete, rewardId);
+      const sameDayReturn = visits.inviteHomeNeighbor(visits.dismissHomeNeighbor(sameDayClaim, newRequest.visitId, now), context, request.neighborId, now);
+      const again = { ...request, visitId: sameDayReturn.community.homeVisit.active.id };
+      assert.equal(visits.hostHomeNeighbor(sameDayReturn, context, again, 'eat', 'dish_plain_rice', now), sameDayReturn);
+      assert.equal(visits.hostHomeNeighbor(sameDayReturn, context, again, 'play', undefined, now), sameDayReturn);
+      const legacy = JSON.parse(createSaveFileText(initial, null, now)); delete legacy.pet.community.homeVisit;
+      assert.deepEqual(parseSaveFileText(JSON.stringify(legacy), now).pet.community.homeVisit.daily, {});
+      const future = JSON.parse(createSaveFileText(initial, null, now)); future.pet.community.homeVisit.schemaVersion = 2;
+      assert.throws(() => parseSaveFileText(JSON.stringify(future), now), UnsupportedSaveVersionError);
+      reset();
+    });
+
     await check('本机流水与关键进度分离、损坏缓存和保存失败', async () => {
       const { getLocalAdventureJournal, getLocalMarketLog } = await import('../src/core/localPetHistory.ts');
       const { getDailyResetDateKey } = await import('../src/core/dailyReset.ts');

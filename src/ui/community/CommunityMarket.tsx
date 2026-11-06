@@ -29,7 +29,7 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
   const name = (id: string) => registry?.get(id)?.name ?? getInventoryItem(id as ItemId)?.name ?? id;
   const icons: Partial<Record<string, string>> = itemIconMap ?? itemIcons;
   const icon = (id: string) => icons[id] ?? registry?.get(id)?.imageUrl ?? unknownItemIcon;
-  const [panel, setPanel] = useState<'slot' | 'choose' | 'ledger' | 'traffic' | 'construction' | null>(null);
+  const [panel, setPanel] = useState<'choose' | 'ledger' | 'traffic' | 'construction' | null>(null);
   const [selectedSlot, setSelectedSlot] = useState(0);
   const [quantity, setQuantity] = useState(marketStackLimit);
   const [browse, setBrowse] = useState(createItemBrowseState);
@@ -62,7 +62,9 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
   const offer = slot ? getMarketListingOffer(pet, slot.itemId, selectedSlot, registry) : undefined;
   const refillQuantity = Math.max(0, Math.min(quantity, offer?.quantityLimit ?? 0));
   const rowHeight = 252 / Math.max(2, capacity / 3);
-  const openSlot = (index: number) => { setSelectedSlot(index); setQuantity(marketStackLimit); setPanel('slot'); };
+  const openSlot = (index: number) => { setSelectedSlot(index); setQuantity(marketStackLimit); setBrowse(createItemBrowseState()); setPanel('choose'); };
+  const selectionLimit = (id: string) => slot?.itemId === id ? offer?.quantityLimit ?? 0 : Math.min(marketStackLimit, getCommunitySaleable(pet, id));
+  const selectionPrice = (id: string) => slot?.itemId === id ? slot.unitPrice : getMarketQuote(pet, id, registry)!.price;
   const visitorQuantity = visitor?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
   return <>
     <HelpButton {...marketHelp} />
@@ -89,31 +91,34 @@ export const CommunityMarket = ({ pet, update, onShop, registry, itemIconMap, on
         <button type="button" className="secondary-button" disabled={!m.level} aria-haspopup="dialog" onClick={() => setPanel('construction')}><Hammer size={20} />建设</button>
       </div></footer>
     </section>
-    {panel === 'slot' && <CommunityDetailDialog title={`第 ${selectedSlot + 1} 格`} eyebrow={`固定选品 · 每格最多 ${marketStackLimit} 件`} onClose={() => setPanel(null)}>
-      <div className="community-market-slot-tabs">{Array.from({ length: capacity }, (_, index) => <button type="button" key={index} className="secondary-button" aria-pressed={index === selectedSlot} onClick={() => openSlot(index)}>{index + 1}</button>)}</div>
-      {slot ? <>
-        <div className="community-market-slot-summary"><img src={icon(slot.itemId)} alt="" /><div><h3>{name(slot.itemId)}</h3><p>{slot.quantity ? `在售 ${slot.quantity}/${marketStackLimit} 件` : '缺货 · 选品已保留'} · {slot.unitPrice} 金币／件</p><DishValueBadge itemId={slot.itemId} /></div></div>
-        <p>仓库可用 {getCommunitySaleable(pet, slot.itemId)} 件；售罄后仍保留此商品，补货沿用当前挂牌价。</p>
-        <label className="community-market-quantity">补货数量<input type="number" min={1} max={offer?.quantityLimit || 1} value={refillQuantity || 1} disabled={!free || !offer?.quantityLimit} onChange={event => setQuantity(Math.max(1, Math.floor(Number(event.target.value) || 1)))} /></label>
-        <div className="community-market-slot-actions"><button type="button" className="primary-button" disabled={!free || !refillQuantity} onClick={() => update(p => listCommunityGoods(p, slot.itemId, refillQuantity, m.nextListingId, Date.now(), selectedSlot, registry))}>补货 {refillQuantity} 件</button><button type="button" className="secondary-button" disabled={!free} onClick={() => setPanel('choose')}>修改商品</button><button type="button" className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, slot.id))}>清空槽位并退货</button></div>
-        <label className="community-market-auto"><input type="checkbox" checked={Boolean(slot.autoRestock)} disabled={!free || !help.active && !slot.autoRestock} onChange={event => update(p => setMarketAutoRestock(p, selectedSlot, event.target.checked))} />每 5 分钟自动补至 {marketStackLimit} 件</label>
-        <p>{!help.active ? '雇佣邻居后可自动补货；已有设置会保留。' : !m.open ? '收摊期间暂停自动补货。' : slot.autoRestock ? '邻居会按槽位顺序从仓库补货，缺货时保留选品等待补充。' : '开启后由邻居定期补货，离线也有效。'}</p>
-      </> : <><p>选择商品后，这个槽位会持续保留选品。</p><button type="button" className="primary-button" disabled={!free} onClick={() => setPanel('choose')}>选择商品</button></>}
-      {!free && <p>伙伴空闲或雇佣邻居后可管理货架；时间冻结时暂停操作。</p>}
-      <button type="button" className="text-button" onClick={onShop}>去商店补充用品</button>
-    </CommunityDetailDialog>}
-    {panel === 'choose' && <ItemStorageModal onToggleItemFavorite={onToggleItemFavorite} mode="bag" pet={pet} actorId={currentCompanion.id} favoriteFoodIds={favoriteFoodIds} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel('slot')} quantityDisabled={!free}
-      context={{ title: `第 ${selectedSlot + 1} 格 · 选择商品`, inventory: pet.inventory, quantityLimit: item => Math.min(marketStackLimit, getCommunitySaleable(pet, item.id)), countLabel: '持有', showStats: false, showRecovery: false, help: item => getMarketItemHelp(pet, item.id, registry) }}
+    {panel === 'choose' && <ItemStorageModal onToggleItemFavorite={onToggleItemFavorite} mode="bag" pet={pet} actorId={currentCompanion.id} favoriteFoodIds={favoriteFoodIds} items={goods} itemIconMap={itemIconMap ?? itemIcons} browse={browse} onBrowseChange={setBrowse} onClose={() => setPanel(null)} onSwitch={() => { setPanel(null); onShop(); }} quantityDisabled={!free}
+      context={{ title: `第 ${selectedSlot + 1} 格 · 选择商品`, inventory: pet.inventory, quantityLimit: item => selectionLimit(item.id), countLabel: '持有', switchLabel: '去商店补充用品', showStats: false, showRecovery: false, help: item => getMarketItemHelp(pet, item.id, registry) }}
+      catalogueHeader={<div className="community-market-picker-tools">
+        <div className="community-market-slot-tabs" role="group" aria-label="选择货架槽位">{Array.from({ length: capacity }, (_, index) => <button type="button" key={index} className="secondary-button" aria-pressed={index === selectedSlot} onClick={() => openSlot(index)}>{index + 1}</button>)}</div>
+        {slot && <details key={selectedSlot} className="community-market-slot-management"><summary>当前：{name(slot.itemId)} · {slot.quantity}/{marketStackLimit} 件 · 补货与管理</summary>
+          <div className="community-market-slot-summary"><img src={icon(slot.itemId)} alt="" /><div><h3>{name(slot.itemId)}</h3><p>{slot.quantity ? `在售 ${slot.quantity}/${marketStackLimit} 件` : '缺货 · 选品已保留'} · {slot.unitPrice} 金币／件</p><DishValueBadge itemId={slot.itemId} /></div></div>
+          <p>仓库可用 {getCommunitySaleable(pet, slot.itemId)} 件；补货沿用当前挂牌价。更换商品直接在下方选择。</p>
+          <label className="community-market-quantity">补货数量<input type="number" min={1} max={offer?.quantityLimit || 1} value={refillQuantity || 1} disabled={!free || !offer?.quantityLimit} onChange={event => setQuantity(Math.max(1, Math.floor(Number(event.target.value) || 1)))} /></label>
+          <div className="community-market-slot-actions"><button type="button" className="primary-button" disabled={!free || !refillQuantity} onClick={() => update(p => listCommunityGoods(p, slot.itemId, refillQuantity, m.nextListingId, Date.now(), selectedSlot, registry))}>补货 {refillQuantity} 件</button><button type="button" className="secondary-button" disabled={!free} onClick={() => update(p => unlistCommunityGoods(p, slot.id))}>清空槽位并退货</button></div>
+          <label className="community-market-auto"><input type="checkbox" checked={Boolean(slot.autoRestock)} disabled={!free || !help.active && !slot.autoRestock} onChange={event => update(p => setMarketAutoRestock(p, selectedSlot, event.target.checked))} />每 5 分钟自动补至 {marketStackLimit} 件</label>
+          <p>{!help.active ? '雇佣邻居后可自动补货；已有设置会保留。' : !m.open ? '收摊期间暂停自动补货。' : slot.autoRestock ? '邻居会按槽位顺序从仓库补货，缺货时保留选品等待补充。' : '开启后由邻居定期补货，离线也有效。'}</p>
+        </details>}
+        {!free && <p>伙伴空闲或雇佣邻居后可管理货架；时间冻结时暂停操作。</p>}
+      </div>}
       footer={<span>每格最多 {marketStackLimit} 件 · 改品时剩余商品退回仓库</span>}
-      tileInfo={item => ({ price: <span>{getMarketQuote(pet, item.id, registry)!.price} 金币／件</span> })}
-      renderActions={(item, amount) => <><div className="storage-total"><span>售出后可得</span><strong>{getMarketQuote(pet, item.id, registry)!.price * amount} 金币</strong></div><button type="button" className="storage-primary" disabled={!free || amount < 1 || amount > Math.min(marketStackLimit, getCommunitySaleable(pet, item.id))} onClick={() => {
+      tileInfo={item => ({ price: <span>{selectionPrice(item.id)} 金币／件</span>, mark: slot?.itemId === item.id ? '当前选品' : undefined })}
+      renderActions={(item, amount) => <><div className="storage-total"><span>售出后可得</span><strong>{selectionPrice(item.id) * amount} 金币</strong></div><button type="button" className="storage-primary" disabled={!free || amount < 1 || amount > selectionLimit(item.id)} onClick={() => {
         update(p => {
-          const now = Date.now(), configured = configureMarketSlot(p, selectedSlot, item.id, registry, now);
+          const now = Date.now();
+          if (p.community.market.listings.find(entry => entry.slotIndex === selectedSlot)?.itemId === item.id) {
+            return listCommunityGoods(p, item.id, amount, m.nextListingId, now, selectedSlot, registry);
+          }
+          const configured = configureMarketSlot(p, selectedSlot, item.id, registry, now);
           if (configured.community.market.nextListingId === p.community.market.nextListingId || configured.community.market.listings.find(entry => entry.slotIndex === selectedSlot)?.itemId !== item.id) return configured;
           return listCommunityGoods(configured, item.id, amount, configured.community.market.nextListingId, now, selectedSlot, registry);
         });
-        setPanel('slot');
-      }}>选定并上架 {item.displayName} ×{amount}</button></>} />}
+        setPanel(null);
+      }}>{slot?.itemId === item.id ? '补货' : '选定并上架'} {item.displayName} ×{amount}</button></>} />}
     {panel === 'ledger' && <CommunityDetailDialog title="营业记事本" eyebrow="收益与访客" onClose={() => setPanel(null)}>
       <p>本次摆摊收入 {m.sessionRevenue} 金币，再次开店归零。</p><p>历史总收入 {m.revenue} 金币 · 累计售出 {m.sold} 件 · 接待 {m.visitors} 位客人。</p>
       <p>最近成交记录保存在这台设备，累计收益随存档保留。</p>

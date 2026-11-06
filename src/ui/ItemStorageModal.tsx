@@ -51,6 +51,7 @@ interface Props {
   onSwitch?: () => void;
   context?: ItemStorageContext;
   quantityDisabled?: boolean;
+  catalogueHeader?: ReactNode;
   footer?: ReactNode;
   tileInfo?: (item: InventoryItemDefinition) => { price: ReactNode; mark?: string };
   renderActions: (item: InventoryItemDefinition, quantity: number) => ReactNode;
@@ -59,7 +60,7 @@ interface Props {
   onToggleItemFavorite: (id: ItemId) => void;
 }
 
-export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, footer, tileInfo, renderActions, favoriteFoodIds, actorId, onToggleItemFavorite }: Props) => {
+export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrowseChange, onClose, onSwitch, context, quantityDisabled, catalogueHeader, footer, tileInfo, renderActions, favoriteFoodIds, actorId, onToggleItemFavorite }: Props) => {
   const [detailItemId, setDetailItemId] = useState<string>();
   const wide = useExplorationWideLayout();
   const inlineDetails = context?.layout === 'exploration' && wide;
@@ -119,7 +120,7 @@ export const ItemStorageModal = ({ mode, pet, items, itemIconMap, browse, onBrow
       <section className="storage-catalogue" aria-label={L('物品目录', 'Item catalogue')}>
         <div className="storage-tools"><div className="storage-tabs" role="group" aria-label={t('ui.shop.tabsAria')}>{categories.map((category) => <button key={category.id} data-tone={getCategoryBrowseTone(category.id)} aria-pressed={browse.category === category.id} onClick={() => perform(() => onBrowseChange({ ...browse, category: category.id, selectedId: undefined, quantity: 1 }))}>{category.label}<small>{filterBrowseItems(availableItems, category.id).length}</small></button>)}</div>
         </div>
-        <div className="storage-grid-scroll"><div className="storage-item-grid">{visible.map((entry) => {
+        <div className="storage-grid-scroll">{catalogueHeader}<div className="storage-item-grid">{visible.map((entry) => {
           const info = tileInfo?.(entry);
           const owned = ownedCount(entry);
           const tileEffects = effectBadgesFor(entry);

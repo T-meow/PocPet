@@ -84,8 +84,12 @@ export const getCourtyardOrdinaryGiftPools = (): { dishes: ItemId[]; items: Item
 export const getCourtyardGift = (pet: PetState, neighbor: CourtyardNeighbor, foodId: string, day: string) => {
   const info = getCourtyardShareInfo(foodId, neighbor);
   if (!info) return undefined;
-  const random = randomFor(`${pet.saveMetadata.id}:courtyard-gift:${day}:${neighbor.modId}`);
-  const premium = random() * 100 < info.premiumChance;
+  return drawNeighborGift(`${pet.saveMetadata.id}:courtyard-gift:${day}:${neighbor.modId}`, info.premiumChance);
+};
+
+export const drawNeighborGift = (seed: string, premiumChance: number) => {
+  const random = randomFor(seed);
+  const premium = random() * 100 < premiumChance;
   const ordinary = getCourtyardOrdinaryGiftPools();
   const pool = premium ? courtyardPremiumGifts : random() < .5 ? ordinary.dishes : ordinary.items;
   if (!pool.length) return undefined;

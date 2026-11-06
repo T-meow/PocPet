@@ -11,13 +11,15 @@ import { activityText as L } from '../core/kitchenRecipes';
 import { isPetOverfed } from '../core/petStats';
 
 const weatherIcons: Record<WeatherType, LucideIcon> = { sunny: Sun, cloudy: Cloud, rainy: CloudRain, breezy: Wind };
+export interface RoomVisitor { name: string; portrait: string; onOpen: () => void }
 interface PetDisplayProps {
   pet: PetState; onInteract: () => void; canUpgrade: boolean; isPetBusy: boolean;
   nextUpgradeCost: number; onUpgrade: () => void; overlay?: ReactNode; roomDecorations?: ReactNode;
   petStatusImages?: Record<PetStatus, string>; petActivityImages?: Partial<Record<RecentActivity, string>>;
   getStatusLabel?: (status: PetStatus) => string; onOpenAppearance?: () => void;
+  visitor?: RoomVisitor;
 }
-export const PetDisplay = ({ pet, onInteract, canUpgrade, isPetBusy, nextUpgradeCost, onUpgrade, overlay, roomDecorations, petStatusImages = defaultPetStatusImages, petActivityImages = defaultPetActivityImages, getStatusLabel = getStatusText, onOpenAppearance }: PetDisplayProps) => {
+export const PetDisplay = ({ pet, onInteract, canUpgrade, isPetBusy, nextUpgradeCost, onUpgrade, overlay, roomDecorations, petStatusImages = defaultPetStatusImages, petActivityImages = defaultPetActivityImages, getStatusLabel = getStatusText, onOpenAppearance, visitor }: PetDisplayProps) => {
   const [showEnvironment, setShowEnvironment] = useState(false);
   const status = getPrimaryStatus(pet);
   const activity = !pet.isSleeping ? (pet.partnerSchedule.active ? getPartnerScheduleActivity(pet.partnerSchedule.active.category) : pet.recentActivity !== 'idle' && pet.recentActivityUntil > Date.now() ? pet.recentActivity : undefined) : undefined;
@@ -27,12 +29,13 @@ export const PetDisplay = ({ pet, onInteract, canUpgrade, isPetBusy, nextUpgrade
   const season = getSeasonInfo(pet.lastUpdatedAt);
   const weather = weatherInfo[pet.weather];
   const WeatherIcon = weatherIcons[pet.weather];
-  return <><section className={`pet-scene pet-scene--${status} pet-scene--weather-${pet.weather} scene-${season.id} room-v2${overlay ? ' room-v2--focus' : roomDecorations ? ' room-v2--decorated' : ''}`} aria-label={t('ui.petDisplay.sceneAria')}>
+  return <><section className={`pet-scene pet-scene--${status} pet-scene--weather-${pet.weather} scene-${season.id} room-v2${overlay ? ' room-v2--focus' : roomDecorations ? ' room-v2--decorated' : ''}${visitor && !overlay ? ' room-v2--visiting' : ''}`} aria-label={t('ui.petDisplay.sceneAria')}>
     <RoomBackdrop season={season.id} />
     {!overlay && roomDecorations}
     <div className="room-top"><button type="button" className="room-environment" onClick={() => setShowEnvironment(true)} aria-haspopup="dialog" aria-expanded={showEnvironment} title={t('ui.petDisplay.expandWeather')}><WeatherIcon size={16} />{weather.label} · {season.label}</button><button type="button" className={canUpgrade && !isPetBusy ? 'pet-level-button pet-level-button--ready' : 'pet-level-button'} disabled={isPetBusy} title={isPetBusy ? busyLabel : nextUpgradeCost > 0 ? t('ui.features.upgradeTitle', { cost: nextUpgradeCost }) : t('ui.features.maxLevel')} onClick={onUpgrade}><Sparkles size={16} /><span>{t('ui.features.level', { level: pet.level })}</span><small>{nextUpgradeCost > 0 ? t('ui.features.cost', { cost: formatCompactNumber(nextUpgradeCost) }) : t('ui.features.maxLevel')}</small></button></div>
     {overlay}
     <button type="button" className={`pet pet--image pet--${status}`} disabled={isPetBusy} title={isPetBusy ? busyLabel : undefined} onClick={onInteract} aria-label={isPetBusy ? busyLabel : t('ui.petDisplay.interactAria')}><img src={petImage} alt={activity ? t('ui.petDisplay.activityAlt', { name: pet.name }) : t('ui.petDisplay.statusAlt', { name: pet.name, status: label })} draggable="false" /></button>
+    {visitor && !overlay && <button type="button" className="room-visitor" onClick={visitor.onOpen} aria-label={`招待来做客的${visitor.name}`}><span className="room-visitor-bubble">来坐一会儿～</span><img src={visitor.portrait} alt={visitor.name} draggable="false" /><span className="room-visitor-name">{visitor.name} · 来做客</span></button>}
     <span className="room-caption">{label}</span>
   </section>{showEnvironment && createPortal(<DialogShell className="environment-details-modal" labelId="environment-details-title" onClose={() => setShowEnvironment(false)}>
     <header className="dialog-header"><h2 id="environment-details-title">{L('天气与季节', 'Weather and season')}</h2><button className="icon-button" onClick={() => setShowEnvironment(false)} aria-label={L('关闭', 'Close')}><X /></button></header>

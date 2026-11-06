@@ -1832,6 +1832,8 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       ) : activePage === 'settings' || activePage === 'memories' ? null : (
         <HomePage
           actorId={actorId}
+          installedMods={installedMods}
+          update={activities.update}
           adventure={{ status: 'available', traveling: Boolean(pet.adventure.active), pending: Boolean(pet.adventure.pending) || pet.adventure.commissions.some(task => task.status === 'ready'), onOpen: () => { playAfterUnlock('open'); handleOpenOutpost(); } }}
           onOpenCommunity={handleOpenCommunity}
           onOpenCourtyard={() => setActivePage('courtyard')}

@@ -30,8 +30,6 @@ import art28 from './assets/museum/trophy-parts/trophy-nameplate.webp';
 import art29 from './assets/museum/trophy-parts/trophy-filigree.webp';
 import art30 from './assets/museum/trophy-parts/trophy-ribbon.webp';
 import art31 from './assets/museum/trophy-parts/trophy-crown.webp';
-import art32 from './assets/museum/badges/curator-badge-common.webp';
-import art33 from './assets/museum/badges/curator-badge-prestige.webp';
 import art34 from './assets/museum/frames/memory-frame-common.webp';
 import art35 from './assets/museum/frames/memory-frame-prestige.webp';
 
@@ -68,8 +66,6 @@ export const museumImages: Record<string, string> = {
   'trophy-filigree': art29,
   'trophy-ribbon': art30,
   'trophy-crown': art31,
-  'curator-badge-common': art32,
-  'curator-badge-prestige': art33,
   'memory-frame-common': art34,
   'memory-frame-prestige': art35,
 };

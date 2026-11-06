@@ -5,7 +5,7 @@ import { canSpendCompanionTime } from './kitchen';
 import { allDishes, getDish, getRecipeUnlockReason } from './kitchenRecipes';
 import { removeInventoryItem } from './items';
 import { getMuseumExhibits, getMuseumOpenHalls, normalizeMuseumDraft } from './museumState';
-import { museumDishRegion, museumExhibits, museumScales, museumThemeIds, museumThemes, type MuseumTheme, type MuseumTag } from './museumData';
+import { museumDishRegion, museumExhibits, museumScales, museumStarRequirements, museumThemeIds, museumThemes, type MuseumTheme, type MuseumTag } from './museumData';
 import type { MuseumDraft, MuseumRecord } from './museumTypes';
 import type { NeighborIdentity, PetState } from './petTypes';
 import { hashString } from './utils';
@@ -110,6 +110,8 @@ export const hostMuseumCuration = (pet: PetState, id: number, revision: number, 
     museum: { ...old, draft: undefined, stars, hosted: old.hosted + 1, coinsSpent: old.coinsSpent + quote.cost.coins, applesSpent: old.applesSpent + quote.cost.apples,
       lastHostedWeek: weekly ? week : old.lastHostedWeek, weeklyPages: old.weeklyPages + Number(weekly), records: [...old.records, record].slice(-200),
       best: (old.best[draft.theme]?.rating ?? 0) < quote.rating ? { ...old.best, [draft.theme]: { rating: quote.rating, exhibits: [...draft.exhibits], dishes: [...draft.dishes] } } : old.best,
-      appearance: { ...old.appearance, frame: !old.hosted ? 'common' : old.stars < 90 && stars >= 90 ? 'prestige' : old.appearance.frame, badge: old.stars < 300 && stars >= 300 ? 'prestige' : old.appearance.badge, title: old.stars < 900 && stars >= 900 ? 'curator' : old.appearance.title } },
+      appearance: { ...old.appearance,
+        frame: old.stars < museumStarRequirements.prestigeFrame && stars >= museumStarRequirements.prestigeFrame ? 'prestige' : !old.hosted ? 'common' : old.appearance.frame,
+        title: old.stars < museumStarRequirements.curatorTitle && stars >= museumStarRequirements.curatorTitle ? 'curator' : old.appearance.title } },
     recentEvent: `「${museumThemes[draft.theme].name}」举办完成，评分 ${quote.rating} 星，累计策展星 +${quote.stars}。${weekly ? '本周纪念页已收藏。' : ''}` };
 };

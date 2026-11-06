@@ -20,8 +20,9 @@
 }
 
 .ui-v2-app {
-  width: min(1280px, 100%);
-  max-width: 1280px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   margin: 0 auto;
   padding: var(--safe-top, 0px) 30px 40px;
   color: var(--text);
@@ -431,7 +432,7 @@
 .home-room-decoration--fishing { right: 0; }
 .home-room-decoration--museum { left: 0; bottom: 100px; }
 .home-room-decoration .museum-trophy { width: 56px; height: 62px; margin: 0 auto; }
-.home-room-decoration .museum-trophy-plate > span { display: none; }
+.home-room-decoration .museum-trophy-plate-label { display: none; }
 .home-room-decoration:focus { outline: 3px solid #779b83; outline-offset: 3px; }
 
 .home-room-decoration .decoration-art {
