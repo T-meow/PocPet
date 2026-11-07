@@ -8,7 +8,7 @@ import { getEffectiveDailyDateKey } from './gameClock';
 import { addInventoryItem, dailyBiscuitClaimLimit, favoriteFoodIdSet, getDailyHeartExchangeInfo, getDailyShopDiscountInfo, getInventoryCount, getInventoryItem, getShopItem, giftItemIdSet, heartExchangeCoins, removeInventoryItem } from './items';
 import { applyBoostCardWorkBonus } from './boostCards';
 import { applyActionStreak, basePlayMoodGain, getRandomHealthIncident, getRandomPetInteractionCost, lowSleepMoodWarningThreshold, markInteraction, petInteractionHeartHealthThreshold, petInteractionHeartMoodThreshold, petInteractionMoodPerEnergy, playEnergyCost, withActivity } from './petCommon';
-import { normalizePetBirthday } from './dateRewards';
+import { normalizePetBirthday, withPetIdentityBirthday } from './dateRewards';
 import { applyHeartGain, getAchievementEffects, incrementAchievementCareAction, incrementAchievementItemUse, incrementAchievementPurchase, incrementAchievementSleepStart, incrementManualWake, recordCoinBalance, recordEarnedCoins, recordEarnedHearts } from './achievements';
 import { recordWishProgress } from './dailyWishes';
 import { advancePet, getDailyBiscuitClaimInfo, isPetCriticallyHungry, isPetLowEnergy, pausePomodoroForReason } from './petLifecycle';
@@ -797,6 +797,15 @@ export const updatePetProfile = (pet: PetState, name: string, birthday?: PetBirt
     recentEvent: t('pet.profile.updated', { name: nextName }),
   };
 };
+
+export const applyPetModProfile = (
+  pet: PetState,
+  previousDefaultName: string,
+  identity: { defaultPetName: string; birthday?: PetBirthday },
+): PetState => ({
+  ...withPetIdentityBirthday(pet, identity.birthday),
+  name: pet.name === previousDefaultName ? identity.defaultPetName : pet.name,
+});
 
 
 

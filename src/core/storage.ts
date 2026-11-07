@@ -4,7 +4,7 @@ import { migrationCompensationItems, prepareMigrationCompensation, type Migratio
 import { applyLocalPetPreferences, persistPetPreferences } from './petPreferences';
 import { persistLocalPetHistory } from './localPetHistory';
 import { t } from '../i18n';
-import { getStoredPetModManifest } from './modStorage';
+import { commitActivePetMod, getStoredPetModManifest } from './modStorage';
 import { appBuild } from '../platform/edition';
 import { cancelPendingNativeSave, queueNativeSave } from '../platform/nativeSave';
 
@@ -260,6 +260,20 @@ export const savePet = (pet: PetState, immediateNative = true) => {
 const restoreStorageValue = (key: string, value: string | null) => {
   if (value === null) window.localStorage.removeItem(key);
   else window.localStorage.setItem(key, value);
+};
+
+export const savePetForMod = (pet: PetState, identity: PocPetSaveModSummary) => {
+  assertStorageUnchanged();
+  const previousIdentity = window.localStorage.getItem(identityStorageKey);
+  return commitActivePetMod(identity.id, () => {
+    try {
+      setStoredSaveIdentity(identity);
+      return savePet(pet);
+    } catch (error) {
+      try { restoreStorageValue(identityStorageKey, previousIdentity); } catch { /* Keep the original save error. */ }
+      throw error;
+    }
+  });
 };
 
 export const replacePetFromImport = (pet: PetState, importBackupText: string, identity?: PocPetSaveModSummary | null, sourceText?: string, now = Date.now()) => {

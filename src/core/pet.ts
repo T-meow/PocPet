@@ -415,6 +415,7 @@ export {
 } from './petLifecycle';
 export {
   applyPetAction,
+  applyPetModProfile,
   batchActionUnlockLevel,
   buyItem,
   exchangeHeartForCoins,

@@ -254,6 +254,21 @@ export const setActivePetMod = (modId?: string) => {
   writeLibraryState({ ...library, activeModId });
 };
 
+// Commit the companion selection together with a synchronous save operation.
+export const commitActivePetMod = <T>(modId: string, commit: () => T): T => {
+  const previous = getPetModLibraryState();
+  if (!getAvailablePetModManifests(previous).some((mod) => mod.id === modId)) {
+    throw new Error(t('ui.settings.mod.loadFailed'));
+  }
+  writeLibraryState({ ...previous, activeModId: modId });
+  try {
+    return commit();
+  } catch (error) {
+    try { writeLibraryState(previous); } catch { /* Keep the original save error. */ }
+    throw error;
+  }
+};
+
 let deletingPetMod = false;
 export const deletePetMod = async (modId: string) => {
   if (deletingPetMod) throw new Error('正在删除角色，请稍候。');

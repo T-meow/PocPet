@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { advancePet, evaluateAchievementUnlocks, type AchievementView, type NeighborEventContext, type PetState } from '../../core/pet';
 import { playSfx, setAudioTemporarilyMuted } from '../../core/audio';
-import { savePet, takeStorageFeedback } from '../../core/storage';
+import { savePet, savePetForMod, takeStorageFeedback } from '../../core/storage';
+import type { PocPetSaveModSummary } from '../../core/saveCodec';
 import { updatePetSession, type FeedbackMode, type PetSessionState } from './petSessionFeedback';
 import { cancelPendingNativeSave, flushNativeSave, subscribeNativeSave } from '../../platform/nativeSave';
 import { prepareTimePause, resumePetTime } from '../../core/timePause';
@@ -26,7 +27,7 @@ interface PetSession {
   persistenceError: string;
   retryPersistence: () => void;
   adoptCommittedPet: (pet: PetState) => void;
-  saveAction: (pet: PetState, mode?: FeedbackMode) => PetState | undefined;
+  saveAction: (pet: PetState, mode?: FeedbackMode, identity?: PocPetSaveModSummary) => PetState | undefined;
   saveListeningReceipt: (owner: string, receipt: NativeListeningReceipt) => PetState | undefined;
   timePauseBusy: boolean;
   freezeTime: (backup: TimePauseBackupWriter) => Promise<boolean>;
@@ -50,9 +51,9 @@ export const usePetSession = (
   const timePauseInProgress = useRef(false);
   const [timePauseBusy, setTimePauseBusy] = useState(false);
   const feedbackId = useRef(0);
-  const persist = (next: PetState, immediateNative = true) => {
+  const persist = (next: PetState, immediateNative = true, identity?: PocPetSaveModSummary) => {
     try {
-      const saved = savePet(next, immediateNative);
+      const saved = identity ? savePetForMod(next, identity) : savePet(next, immediateNative);
       for (const message of takeStorageFeedback()) onFeedbackRef.current?.(message);
       return saved;
     } catch (error) {
@@ -70,8 +71,8 @@ export const usePetSession = (
     petRef.current = next.pet;
     setSession(next);
   }, []);
-  const applyUpdate = useCallback((action: SetStateAction<PetState>, mode: FeedbackMode, immediateNative = true) => {
-    if (paused.current || timePauseInProgress.current) return;
+  const applyUpdate = useCallback((action: SetStateAction<PetState>, mode: FeedbackMode, immediateNative = true, identity?: PocPetSaveModSummary) => {
+    if (paused.current || timePauseInProgress.current || (identity && petRef.current.timePause)) return;
     const id = ++feedbackId.current;
     const current = sessionRef.current;
     const next = updatePetSession(current, action, mode, id);
@@ -80,7 +81,7 @@ export const usePetSession = (
     // which React may replay; subsequent actions see the already committed state.
     // Repeated game ticks without a new event use the periodic native checkpoint.
     const checkpoint = immediateNative && (mode !== 'event' || next.pet.recentEvent !== current.pet.recentEvent);
-    const saved = persistRef.current(next.pet, checkpoint);
+    const saved = persistRef.current(next.pet, checkpoint, identity);
     if (saved) publish({ ...next, pet: saved });
     return saved;
   }, [publish]);
@@ -215,5 +216,5 @@ export const usePetSession = (
     return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); window.removeEventListener('pagehide', flush); };
   }, []);
 
-  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet') => applyUpdate(next, mode), saveListeningReceipt, timePauseBusy, freezeTime, resumeTime };
+  return { pet, petRef, setPet, setPetWithFeedback, setPetWithEventFeedback, commitPet, achievementToast, setAchievementToast, persistenceError: persistenceError || (nativeSaveError ? 'nativeSave' : ''), retryPersistence, adoptCommittedPet, saveAction: (next, mode = 'quiet', identity) => applyUpdate(next, mode, true, identity), saveListeningReceipt, timePauseBusy, freezeTime, resumeTime };
 };

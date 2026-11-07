@@ -12,6 +12,7 @@ import {
   cancelPartnerSchedule,
   claimPartnerScheduleResult,
   applyPetAction,
+  applyPetModProfile,
   claimAllAchievementRewards,
   claimAchievementReward,
   claimReturnWelcomeReward,
@@ -379,6 +380,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [modDeleteConfirmId, setModDeleteConfirmId] = useState<string | null>(null);
   const modDeletePendingRef = useRef(false);
+  const modChangePendingRef = useRef(false);
   const [isDeletingMod, setIsDeletingMod] = useState(false);
   const [isGoldenAppleUseConfirmOpen, setGoldenAppleUseConfirmOpen] = useState(false);
   const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementTabId>('all');
@@ -465,16 +467,11 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   useEffect(() => {
     setActiveMod(initialActiveMod);
-    setPet((current) => {
-      if (!initialActiveMod) return withBackfilledBirthday(current, defaultPetBirthday);
-      const next = withPetIdentityBirthday(current, initialActiveMod.manifest.birthday);
-      return next;
-    });
+    const identityBirthday = initialActiveMod ? initialActiveMod.manifest.birthday : defaultPetBirthday;
+    setPet((current) => withBackfilledBirthday(current, identityBirthday));
+    setDraftBirthday(petRef.current.birthday);
     if (initialActiveMod) {
-      setDraftBirthday(initialActiveMod.manifest.birthday);
       setModMessage(t('ui.settings.mod.active', { name: initialActiveMod.manifest.name, version: initialActiveMod.manifest.version }));
-    } else {
-      setDraftBirthday(defaultPetBirthday);
     }
     hasLoadedModRef.current = true;
   }, [initialActiveMod]);
@@ -1144,8 +1141,9 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     if (!features.importMod) return;
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
+    if (!file || modChangePendingRef.current || modDeletePendingRef.current || importInProgressRef.current) return;
 
+    modChangePendingRef.current = true;
     try {
       const parsed = await parsePetModZip(file);
       await installPetMod(parsed);
@@ -1173,34 +1171,37 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.importFailed'));
       playSfx('error');
+    } finally {
+      modChangePendingRef.current = false;
     }
   };
 
   const handleActivateMod = async (modId: string) => {
+    if (modChangePendingRef.current || modDeletePendingRef.current || importInProgressRef.current) return;
+    modChangePendingRef.current = true;
     try {
-      const loaded = await loadPetMod(modId);
+      const loaded = await preparePetMod(modId);
       if (!loaded) throw new Error(t('ui.settings.mod.loadFailed'));
       const oldDefaultName = activeMod?.manifest.defaultPetName ?? defaultPetName;
       assertStorageUnchanged();
       await music.detach();
-      setActivePetMod(modId);
-      setStoredSaveIdentity(loaded.manifest);
+      const saved = saveAction({
+        ...applyPetModProfile(petRef.current, oldDefaultName, loaded.manifest),
+        recentEvent: loaded.manifest.texts?.recentEvent ?? t('ui.settings.mod.switched', { name: loaded.manifest.name }),
+      }, 'quiet', loaded.manifest);
+      if (!saved) throw new Error('角色切换未保存，请先处理存档提示后重试。');
+      adoptPreparedPetMod();
       setActiveMod(loaded);
-      setPet((current) => {
-        const shouldUseDefaultName = current.name === defaultPetName || current.name === oldDefaultName;
-        return {
-          ...withPetIdentityBirthday(current, loaded.manifest.birthday),
-          name: shouldUseDefaultName ? loaded.manifest.defaultPetName : current.name,
-          recentEvent: loaded.manifest.texts?.recentEvent ?? t('ui.settings.mod.switched', { name: loaded.manifest.name }),
-        };
-      });
-      setDraftName((current) => current === defaultPetName || current === oldDefaultName ? loaded.manifest.defaultPetName : current);
-      setDraftBirthday(loaded.manifest.birthday);
+      setDraftName(saved.name);
+      setDraftBirthday(saved.birthday);
       setSaveText('');
       setModMessage(t('ui.settings.mod.active', { name: loaded.manifest.name, version: loaded.manifest.version }));
     } catch (error) {
       setModMessage(error instanceof Error ? error.message : t('ui.settings.mod.loadFailed'));
       playSfx('error');
+    } finally {
+      discardPreparedPetMod();
+      modChangePendingRef.current = false;
     }
   };
 
@@ -1216,7 +1217,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
 
   const handleConfirmDeleteMod = async () => {
     const modId = modDeleteConfirmId;
-    if (!modId || modDeletePendingRef.current) return;
+    if (!modId || modDeletePendingRef.current || modChangePendingRef.current || importInProgressRef.current) return;
     modDeletePendingRef.current = true;
     setIsDeletingMod(true);
     const target = installedMods.find((mod) => mod.manifest.id === modId);
@@ -1482,7 +1483,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   const handleConfirmImportSave = async () => {
     const preview = pendingImportedSave;
     const sourceText = pendingImportSourceText;
-    if (!preview || !sourceText || importInProgressRef.current) return;
+    if (!preview || !sourceText || importInProgressRef.current || modChangePendingRef.current || modDeletePendingRef.current) return;
 
     importInProgressRef.current = true;
     setIsImportingSave(true);
@@ -1497,7 +1498,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       imported = parseSaveFileText(sourceText, Date.now(), (missingImportedMod ? importedMod?.defaultPetName : undefined) ?? resolvedMod?.manifest.defaultPetName);
       activeModResourcesMayHaveChanged = Boolean(resolvedMod);
       const nextPet = resolvedMod
-        ? withPetIdentityBirthday(imported.pet, resolvedMod.manifest.birthday)
+        ? withBackfilledBirthday(imported.pet, resolvedMod.manifest.birthday)
         : importedMod
           ? imported.pet
           : withBackfilledBirthday(imported.pet, defaultPetBirthday);

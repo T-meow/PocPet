@@ -197,6 +197,50 @@ async function verifySavesAndErrors() {
       }
     });
 
+    await check('宠物资料保存、生日回填与切换角色的失败回滚', async () => {
+      const { updatePetProfile, applyPetModProfile } = await import('../src/core/petActions.ts');
+      const { withBackfilledBirthday } = await import('../src/core/dateRewards.ts');
+      const { builtinPetModManifests, builtinFuroManifest, builtinMintManifest } = await import('../src/core/builtinPetModManifests.ts');
+      const { getPetModLibraryState, setActivePetMod } = await import('../src/core/modStorage.ts');
+      const identityKey = `${primary}.identity`;
+      const libraryKey = 'pocpet.mod.library.v1';
+      const target = builtinPetModManifests.find(mod => mod.id !== builtinFuroManifest.id && mod.id !== builtinMintManifest.id);
+      assert.ok(target);
+      const birthday = { month: 12, day: 31 };
+      const edited = updatePetProfile(pet, 'Furo', birthday);
+      const source = createSaveFileText(edited, builtinMintManifest, now);
+      const restored = parseSaveFileText(source, now).pet;
+      assert.equal(restored.name, 'Furo');
+      assert.deepEqual(withBackfilledBirthday(restored, builtinMintManifest.birthday).birthday, birthday, 'reload and import preserve a saved custom birthday');
+      assert.deepEqual(withBackfilledBirthday({ ...restored, birthday: undefined }, target.birthday).birthday, target.birthday, 'missing birthdays still use the current companion default');
+      assert.deepEqual(withBackfilledBirthday(restored, undefined).birthday, birthday, 'a Mod without a birthday cannot erase the saved date');
+      const next = applyPetModProfile(restored, builtinMintManifest.defaultPetName, target);
+      assert.equal(next.name, 'Furo', 'a custom name matching another companion default survives a switch');
+      assert.deepEqual(next.birthday, target.birthday, 'explicit character switches still apply the selected birthday');
+      assert.equal(applyPetModProfile({ ...restored, name: builtinMintManifest.defaultPetName }, builtinMintManifest.defaultPetName, target).name, target.defaultPetName);
+
+      for (const failedKey of [libraryKey, identityKey, primary]) {
+        reset(source);
+        setActivePetMod(builtinMintManifest.id);
+        const before = [primary, identityKey, libraryKey].map(key => [key, storage.getItem(key)]);
+        storage.failWrite = failedKey;
+        assert.throws(() => disk.savePetForMod(next, target), /Injected write failure/);
+        for (const [key, raw] of before) assert.equal(storage.getItem(key), raw, `${failedKey} failure restores ${key}`);
+        assert.equal(disk.getStoredSaveIdentity().id, builtinMintManifest.id);
+        assert.deepEqual(parseSaveFileText(storage.getItem(primary), now).pet.birthday, birthday);
+
+        const saved = disk.savePetForMod(next, target);
+        const reloaded = parseSaveFileText(storage.getItem(primary), now);
+        assert.equal(saved.name, 'Furo');
+        assert.equal(reloaded.pet.name, 'Furo');
+        assert.deepEqual(reloaded.pet.birthday, target.birthday);
+        assert.equal(reloaded.activeMod.id, target.id);
+        assert.equal(disk.getStoredSaveIdentity().id, target.id);
+        assert.equal(getPetModLibraryState().activeModId, target.id, 'retry commits the profile and selected character together');
+      }
+      reset(text);
+    });
+
     await check('普通物品满仓购买不扣费且可用容量随读档保留', async () => {
       const { getItemPurchaseQuote, buyItem } = await import('../src/core/petActions.ts');
       const { inventoryItemLimit } = await import('../src/core/saveMetadata.ts');
