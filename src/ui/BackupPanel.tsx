@@ -33,7 +33,7 @@ export const BackupPanel = ({ controller, onRestore, onExport }: {
     </div>
     {state.snapshots.length > 0 && <ul className="backup-history" aria-label={t('ui.backup.history')}>
       {state.snapshots.map((snapshot) => <li key={snapshot.dateKey}>
-        <span><strong>{snapshot.petName} · Lv.{snapshot.level}</strong><small>{formatTime(snapshot.savedAt)}</small></span>
+        <span>{features.saveImportPreview ? <><strong>{snapshot.petName} · Lv.{snapshot.level}</strong><small>{formatTime(snapshot.savedAt)}</small></> : <strong>{formatTime(snapshot.savedAt)}</strong>}</span>
         <button className="icon-button" type="button" title={t('ui.backup.restore')} aria-label={t('ui.backup.restore')} onClick={() => onRestore(snapshot.text)}><RotateCcw size={18} /></button>
         {features.saveFileDownload && <button className="icon-button" type="button" title={t('ui.backup.export')} aria-label={t('ui.backup.export')} onClick={() => onExport(snapshot)}><Download size={18} /></button>}
       </li>)}

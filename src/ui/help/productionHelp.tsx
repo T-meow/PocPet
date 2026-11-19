@@ -7,6 +7,7 @@ import { getCommunitySale, getCuisineSaleNote, getRecipePricingCost } from '../.
 import { getKitchenHeartReward } from '../../core/kitchen';
 import { animalNameMaxLength, ranchCompostCycleCount } from '../../core/communityData';
 import { farmNeighborCost, farmNeighborDays } from '../../core/farmNeighborState';
+import { features } from '../../platform/edition';
 
 const farmNeighborHelp = <p>农场可花 {farmNeighborCost} 心心请邻居帮忙 {farmNeighborDays} 个游戏日，购买当天计第 1 天，每天凌晨 5 点换日。服务期间，伙伴忙碌也能点击种植、照料和收获；每次成功操作随机一位伙伴代劳，批量操作算一次。材料和耐久照常消耗，照料动物不扣伙伴体力。建设升级、清树、回收树苗、厨房加工和钓鱼仍需伙伴空闲；离线和冻结照常计日，冻结时不能操作。</p>;
 
@@ -47,6 +48,6 @@ export const orchardHelp: HelpContent = {
 };
 export const animalHelp: HelpContent = {
   title: '动物照料',
-  overview: <>{farmNeighborHelp}<p>食槽有饲料时持续生产，离线也会结算；缺料或存满时暂停，动物不会离开。可以一次添满食槽，库存不足时添入现有的全部饲料。</p><p>在场景或照料窗口可以给鸡群、奶牛起名，最多 {animalNameMaxLength} 个字符；改名不消耗资源，留空保存恢复默认称呼。</p><p>每轮可以照料一次。牛棚开放后，当天在鸡舍或牛棚完成照料和收获各一次，可以领取一瓶奶，每日一次。</p></>,
+  overview: <>{farmNeighborHelp}<p>食槽有饲料时持续生产，离线也会结算；缺料或存满时暂停，动物不会离开。可以一次添满食槽，库存不足时添入现有的全部饲料。</p>{features.rename && <p>在场景或照料窗口可以给鸡群、奶牛起名，最多 {animalNameMaxLength} 个字符；改名不消耗资源，留空保存恢复默认称呼。</p>}<p>每轮可以照料一次。牛棚开放后，当天在鸡舍或牛棚完成照料和收获各一次，可以领取一瓶奶，每日一次。</p></>,
   details: <><p>每轮产出 2 份，消耗饲料 1 份；收获时鸡舍每轮另给 6 心心，牛棚每轮 8 心心，积存多轮一起领取也会累加。自行照料消耗体力 2 点，邻居代劳期间不扣体力，让本轮提前基础周期的 10% 完成；园艺满级后生产周期缩短 8%。装饰加成从下一生产周期开始生效，加速不减少每轮心心。</p><p>1 份小麦或甜玉米可免费加工成 4 份谷物饲料。鸡舍和牛棚合计每完成 {ranchCompostCycleCount} 轮生产，产出 1 份营养堆肥，离线也会累计。收获蛋奶时自动领取；仓库放不下的部分保留在牧场，可在照料窗口补领。</p></>,
 };

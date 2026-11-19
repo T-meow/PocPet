@@ -114,7 +114,6 @@ import {
   type ActivePetMod,
   type InstalledPetModSummary,
 } from '../core/mod';
-import { builtinMintMod } from '../core/builtinPetMods';
 import { isBuiltinPetModId } from '../core/builtinPetModManifests';
 import {
   deletePetMod,
@@ -133,7 +132,7 @@ import {
   restoreBuiltinPetMods,
   setActivePetMod,
 } from '../core/modStorage';
-import { createSaveFileText, decodeSaveSnapshot, mintSaveAppId, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
+import { createSaveFileText, decodeSaveSnapshot, parseSaveFileText, type PocPetImportedSave } from '../core/saveCodec';
 import { resolveImportedSaveMod } from '../core/saveImport';
 import { AchievementsPage, type AchievementTabId } from './AchievementsPage';
 import { BoostCardModal } from './BoostCardModal';
@@ -183,6 +182,7 @@ import { useGardenController } from './app/useGardenController';
 import { usePetSession } from './app/usePetSession';
 import { useRewardController, type RewardPopupData } from './app/useRewardController';
 import { useToyIntegration } from './app/useToyIntegration';
+import { saveImportConfirmation } from './app/saveImportConfirmation';
 import { TimePauseDialog, TimePauseMask } from './TimePause';
 import { features, isNativeApp, requiresAuthorFollowVerification } from '../platform/edition';
 import { readEditionNotice, shouldShowEditionNotice } from '../core/editionNotice';
@@ -1471,7 +1471,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       if (musicBlocked) music.pause(); else await music.detach();
       setPendingImportedSave(imported);
       setPendingImportSourceText(text);
-      setModMessage(t('ui.settings.save.previewReady'));
+      setModMessage(features.saveImportPreview ? t('ui.settings.save.previewReady') : '');
     } catch (error) {
       setPendingImportedSave(null);
       setPendingImportSourceText('');
@@ -1519,7 +1519,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       setPendingImportedSave(null);
       setPendingImportSourceText('');
       setModMessage(
-        importedMod && missingImportedMod
+        features.saveImportPreview && importedMod && missingImportedMod
           ? t(
               usedMintFallback
                 ? 'ui.settings.save.importedMissingModFallbackMint'
@@ -1575,28 +1575,6 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
   };
 
   const modDeleteTarget = installedMods.find((mod) => mod.manifest.id === modDeleteConfirmId);
-  const pendingImportExportTime = pendingImportedSave?.exportedAt
-    ? new Date(pendingImportedSave.exportedAt).toLocaleString(language)
-    : t('ui.settings.save.previewLegacyTime');
-  const pendingImportModSummary = pendingImportedSave?.activeMod
-    ?? (pendingImportedSave?.sourceApp === mintSaveAppId ? builtinMintMod.manifest : undefined);
-  const pendingImportMod = pendingImportModSummary
-    ? `${pendingImportModSummary.name} v${pendingImportModSummary.version}`
-    : t('ui.settings.save.previewBuiltinMod');
-  const pendingImportMessage = pendingImportedSave
-    ? t('ui.settings.save.previewMessage', {
-        name: pendingImportedSave.pet.name,
-        level: pendingImportedSave.pet.level,
-        exportedAt: pendingImportExportTime,
-        mod: pendingImportMod,
-        format: t(pendingImportedSave.requiresMigration ? 'ui.settings.save.formatLegacy' : 'ui.settings.save.formatV2'),
-        migration: pendingImportedSave.requiresMigration ? t('ui.settings.save.previewMigration') : [
-          t('ui.settings.save.previewCurrent'),
-          t(pendingImportedSave.pet.saveMetadata.compensation === 'pending' ? 'ui.settings.save.migrationPending' : pendingImportedSave.pet.saveMetadata.origin === 'legacy' ? 'ui.settings.save.migrationComplete' : 'ui.settings.save.newProgress'),
-          Object.keys(pendingImportedSave.pet.saveMetadata.pendingItems).length ? t('pet.reward.saveMigrationPending') : '',
-        ].filter(Boolean).join(' '),
-      })
-    : '';
   const activeYearReview = !activeRewardPopup && !achievementCgPopup && !utilityDialog && !isResetConfirmOpen && !modDeleteConfirmId && !gardenClearConfirm && !pendingImportedSave ? pet.pendingYearReview : undefined;
 
   const handleCloseYearReview = () => {
@@ -2163,7 +2141,7 @@ const PetApp = ({ initialPet, initialPersistenceError, initialActiveMod, initial
       {pendingImportedSave && (
         <ConfirmDialog
           title={t('ui.settings.save.previewTitle')}
-          message={pendingImportMessage}
+          message={saveImportConfirmation(pendingImportedSave, features.saveImportPreview)}
           cancelLabel={t('ui.settings.save.previewCancel')}
           confirmLabel={t('ui.settings.save.previewConfirm')}
           confirmTone="primary"

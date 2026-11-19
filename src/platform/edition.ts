@@ -11,6 +11,7 @@ export const appBuild: AppBuild = typeof __APP_BUILD__ === 'undefined'
 export const getEditionFeatures = (edition: AppEdition) => ({
   cloudSave: edition === 'bilibili',
   saveFileDownload: edition === 'standard',
+  saveImportPreview: edition === 'standard',
   rename: edition === 'standard',
   importMod: edition === 'standard',
   shareCards: true,

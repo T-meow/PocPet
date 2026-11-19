@@ -227,6 +227,8 @@
         "importPasted": "导入粘贴内容",
         "previewReady": "存档已读取，请确认预览后导入。",
         "previewTitle": "确认导入存档？",
+        "confirmReplace": "导入将替换当前进度。确认后会先备份当前存档；取消不会更改进度。",
+        "fileSelected": "已选择存档文件，尚未导入。",
         "previewMessage": "宠物：{name}（Lv.{level}）；导出时间：{exportedAt}；外观：{mod}。格式：{format}。{migration} 确认后会替换当前存档，当前进度会先备份。",
         "formatV2": "新版 JSON 存档（格式 v2）",
         "formatLegacy": "旧版存档（待转换）",

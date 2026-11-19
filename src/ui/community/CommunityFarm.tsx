@@ -6,6 +6,7 @@ import { careCommunityAnimal, collectCommunityAnimal, collectRanchCompost, feedC
 import { canSpendCompanionTime } from '../../core/kitchen';
 import { canDoFarmWork, getFarmAnimalCareEnergy } from '../../core/farmNeighbor';
 import { inventoryItemLimit } from '../../core/saveMetadata';
+import { features } from '../../platform/edition';
 import type { AnimalId } from '../../core/communityTypes';
 import { CommunityDetailDialog } from './CommunityDetailDialog';
 import { CommunityProductionScene } from './CommunityProductionScene';
@@ -23,7 +24,8 @@ const AnimalScene = ({ pet, update, onKitchen, id, registry, itemIconMap, neighb
   const state = pet.community.animals[id], built = pet.community.facilities[id].built;
   const def = animals[id], free = canDoFarmWork(pet), companionFree = !pet.timePause && canSpendCompanionTime(pet), name = facilities[id].name;
   const careEnergy = getFarmAnimalCareEnergy(pet);
-  const defaultName = id === 'coop' ? '小鸡' : '奶牛', animalName = state.name || defaultName;
+  const defaultName = id === 'coop' ? '小鸡' : '奶牛';
+  const customName = features.rename ? state.name : undefined, animalName = customName || defaultName;
   const daily = getRanchDay(pet), capacity = getAnimalCapacity(pet.community, id);
   const feedQuantity = Math.max(0, Math.min(capacity.feed - state.feed, pet.inventory.animal_feed ?? 0));
   const compost = getRanchCompost(pet), compostStock = pet.inventory.nutrient_compost ?? 0;
@@ -34,8 +36,8 @@ const AnimalScene = ({ pet, update, onKitchen, id, registry, itemIconMap, neighb
   const status = !built ? '等待建设' : state.stock + 2 > capacity.stock ? '产物已存满' : state.nextAt !== undefined ? '安心生产中' : '等待添饲料';
   const detail = !built ? '交付建材后，小动物就能住进来了。' : state.nextAt !== undefined ? `下一轮 · ${timeLeft(state.nextAt)}` : state.stock + 2 > capacity.stock ? '收获后，有余粮就会继续生产' : '从照料中添一点饲料，开始新的一轮';
   return <>
-    {built && <div className="community-animal-name-bar"><span className="community-animal-name-word">{id === 'coop' ? '鸡群' : '奶牛'} · {animalName}</span><button type="button" className="secondary-button" aria-haspopup="dialog" onClick={openNaming}>{state.name ? '改名' : '起名'}</button></div>}
-    <CommunityProductionScene kind={id} title={id === 'coop' ? `${animalName}在院子里散步` : state.name ? `${animalName}在牧场里等你` : '干草香里，慢慢长大'} subtitle={id === 'coop' ? '暖阳下的鸡舍' : '牧场里的牛棚'}
+    {built && features.rename && <div className="community-animal-name-bar"><span className="community-animal-name-word">{id === 'coop' ? '鸡群' : '奶牛'} · {animalName}</span><button type="button" className="secondary-button" aria-haspopup="dialog" onClick={openNaming}>{customName ? '改名' : '起名'}</button></div>}
+    <CommunityProductionScene kind={id} title={id === 'coop' ? `${animalName}在院子里散步` : customName ? `${animalName}在牧场里等你` : '干草香里，慢慢长大'} subtitle={id === 'coop' ? '暖阳下的鸡舍' : '牧场里的牛棚'}
       status={status} detail={detail} supplies={`Lv.${pet.community.upgrades[id]} · 饲料 ${state.feed}/${capacity.feed} · 待收 ${state.stock}/${capacity.stock}${compost.ready ? ` · 牧场堆肥待领 ${compost.ready}` : ''}${id === 'barn' && daily.cared && daily.collected && !daily.claimed ? ' · 照料窗口有今日牛奶可领' : ''}`}
       harvest={state.stock ? `${def.name} ×${state.stock} · ${getAnimalHarvestHearts(id, state.stock)} 心心` : `${def.name}还在准备中`} ready={state.stock > 0}
       stock={state.stock} feed={state.feed} harvestDisabled={!free || !built || !state.stock}
@@ -45,7 +47,7 @@ const AnimalScene = ({ pet, update, onKitchen, id, registry, itemIconMap, neighb
     {panel === 'care' && <CommunityDetailDialog title={`照料${name}`} eyebrow="添一点饲料，陪它待一会儿" onClose={() => setPanel(null)}>
       <HelpButton {...animalHelp} />
       {!built ? <p>完成{name}的修复后，就能在这里喂养和收获。</p> : <>
-        <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong className="community-animal-name-word">{animalName} · {status}</strong><p>每轮产出 2 份 · {getAnimalHarvestHearts(id, 2)} 心心{state.nextAt !== undefined ? ` · 剩余 ${timeLeft(state.nextAt)}` : ''}</p><button type="button" className="text-button" aria-haspopup="dialog" onClick={openNaming}>{state.name ? '改个名字' : `给${id === 'coop' ? '鸡群' : '奶牛'}起名`}</button></div></div>
+        <div className="community-care-summary"><span>{id === 'coop' ? '🐓' : '🐄'}</span><div><strong className="community-animal-name-word">{animalName} · {status}</strong><p>每轮产出 2 份 · {getAnimalHarvestHearts(id, 2)} 心心{state.nextAt !== undefined ? ` · 剩余 ${timeLeft(state.nextAt)}` : ''}</p>{features.rename && <button type="button" className="text-button" aria-haspopup="dialog" onClick={openNaming}>{customName ? '改个名字' : `给${id === 'coop' ? '鸡群' : '奶牛'}起名`}</button>}</div></div>
         <section className="community-care-section"><h3>把食槽添满一点</h3><p>食槽 {state.feed}/{capacity.feed} · 饲料库存 {pet.inventory.animal_feed ?? 0}</p><div className="community-actions">
           <button className="primary-button" disabled={!free || state.feed >= capacity.feed || !(pet.inventory.animal_feed ?? 0)} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision, 1, Date.now(), neighbors))}>添饲料 ×1</button>
           <button className="secondary-button" disabled={!free || !feedQuantity} onClick={() => update(p => feedCommunityAnimal(p, id, state.revision, feedQuantity, Date.now(), neighbors))}>{feedQuantity && feedQuantity < capacity.feed - state.feed ? '添入全部' : '添满食槽'}{feedQuantity ? ` ×${feedQuantity}` : ''}</button>
@@ -61,7 +63,7 @@ const AnimalScene = ({ pet, update, onKitchen, id, registry, itemIconMap, neighb
       </>}
     </CommunityDetailDialog>}
     {panel === 'care' && feedOpen && <AnimalFeedDialog pet={pet} update={update} registry={registry} onClose={() => setFeedOpen(false)} />}
-    {naming && <CommunityDetailDialog title={`给${id === 'coop' ? '鸡群' : '奶牛'}起名`} eyebrow="一个熟悉的称呼" onClose={() => setNaming(false)}>
+    {features.rename && naming && <CommunityDetailDialog title={`给${id === 'coop' ? '鸡群' : '奶牛'}起名`} eyebrow="一个熟悉的称呼" onClose={() => setNaming(false)}>
       <form className="community-animal-name-form" onSubmit={event => { event.preventDefault(); if (!built || nameTooLong) return; update(p => renameCommunityAnimal(p, id, draftName)); setNaming(false); }}>
         <label htmlFor={nameInputId}>{id === 'coop' ? '鸡群' : '奶牛'}的名字</label>
         <input id={nameInputId} value={draftName} maxLength={animalNameMaxLength * 2} placeholder={defaultName} data-dialog-autofocus aria-invalid={nameTooLong} aria-describedby={`${nameInputId}-hint`} onChange={event => setDraftName(event.target.value)} />

@@ -2542,6 +2542,20 @@ async function verifySavesAndErrors() {
       assert.equal(state.achievements.counters.heartEarnedTotal - pet.achievements.counters.heartEarnedTotal, state.hearts - pet.hearts);
     });
 
+    await check('Toy 存档覆盖确认不显示外部内容，标准版保留导入预览', async () => {
+      const { getEditionFeatures } = await import('../src/platform/edition.ts');
+      const { saveImportConfirmation } = await import('../src/ui/app/saveImportConfirmation.ts');
+      const { t } = await import('../src/i18n/index.ts');
+      const imported = parseSaveFileText(text, now);
+      const incoming = { ...imported, pet: { ...imported.pet, name: 'FixturePetName' }, activeMod: { ...imported.activeMod, name: 'FixtureModName', version: '1.0.0' } };
+      const toy = getEditionFeatures('bilibili'), standard = getEditionFeatures('standard');
+      assert.equal(toy.rename, false);
+      assert.equal(standard.rename, true);
+      assert.equal(saveImportConfirmation(incoming, toy.saveImportPreview), t('ui.settings.save.confirmReplace'));
+      const preview = saveImportConfirmation(incoming, standard.saveImportPreview);
+      assert.ok(preview.includes(incoming.pet.name) && preview.includes(incoming.activeMod.name));
+    });
+
     await check('1.9 起 JSON v2 与既有迁移补偿保持兼容', async () => {
       const { persistentPetKeys } = await import('../src/core/persistedPet.ts');
       const { encoding: _encoding, ...envelope } = JSON.parse(text);
